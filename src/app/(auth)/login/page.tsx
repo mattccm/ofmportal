@@ -95,7 +95,7 @@ function LoginForm() {
           Welcome back
         </h1>
         <p className="text-muted-foreground">
-          Sign in to access your dashboard
+          Sign in to access your portal
         </p>
       </div>
 
