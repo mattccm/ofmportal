@@ -100,7 +100,7 @@ export function TimezoneProvider({
   children,
   initialTimezone,
   initialPreferences,
-  saveEndpoint = "/api/user/timezone",
+  saveEndpoint = "/api/users/profile",
 }: TimezoneProviderProps) {
   const [timezone, setTimezoneState] = useState<string>(
     initialTimezone || DEFAULT_TIMEZONE_PREFERENCES.timezone
@@ -225,7 +225,7 @@ export function TimezoneProvider({
           const response = await fetch(saveEndpoint, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ timezonePreferences: newPreferences }),
+            body: JSON.stringify({ timezone: newPreferences.timezone }),
           });
 
           if (!response.ok) {

@@ -30,7 +30,6 @@ import {
   LayoutTemplate,
   BarChart3,
   MessageSquare,
-  HelpCircle,
   Search,
   Command,
   Download,
@@ -59,7 +58,6 @@ const toolsNavigation = [
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Exports", href: "/dashboard/exports", icon: Download },
   { name: "Reminders", href: "/dashboard/reminders", icon: Bell },
-  { name: "Help Center", href: "/dashboard/help", icon: HelpCircle },
 ];
 
 const adminNavigation = [

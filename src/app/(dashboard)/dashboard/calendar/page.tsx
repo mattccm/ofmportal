@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CalendarDays, Sparkles } from "lucide-react";
@@ -102,7 +103,12 @@ async function getCalendarStats(agencyId: string) {
 
 export default async function CalendarPage() {
   const session = await getServerSession(authOptions);
-  const agencyId = session!.user.agencyId;
+
+  if (!session?.user?.agencyId) {
+    redirect("/login");
+  }
+
+  const agencyId = session.user.agencyId;
 
   const [creators, stats] = await Promise.all([
     getCreators(agencyId),
