@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
-    const { token, password } = await req.json();
+    const { token, password, type } = await req.json();
 
     if (!token || !password) {
       return NextResponse.json(
@@ -20,7 +20,70 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find the creator with this reset token
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Check if this is a user (team member) reset
+    if (type === "user") {
+      // Find the verification token
+      const verificationToken = await db.verificationToken.findFirst({
+        where: {
+          token: token,
+          identifier: { startsWith: "password-reset:" },
+        },
+      });
+
+      if (!verificationToken) {
+        return NextResponse.json(
+          { error: "Invalid or expired reset link" },
+          { status: 400 }
+        );
+      }
+
+      // Check if token has expired
+      if (new Date() > verificationToken.expires) {
+        // Clean up expired token
+        await db.verificationToken.delete({
+          where: {
+            identifier_token: {
+              identifier: verificationToken.identifier,
+              token: verificationToken.token,
+            },
+          },
+        });
+        return NextResponse.json(
+          { error: "Reset link has expired. Please request a new one." },
+          { status: 400 }
+        );
+      }
+
+      // Extract user ID from identifier
+      const userId = verificationToken.identifier.replace("password-reset:", "");
+
+      // Update the user's password
+      await db.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+        },
+      });
+
+      // Delete the used token
+      await db.verificationToken.delete({
+        where: {
+          identifier_token: {
+            identifier: verificationToken.identifier,
+            token: verificationToken.token,
+          },
+        },
+      });
+
+      return NextResponse.json({
+        message: "Password has been reset successfully. You can now sign in.",
+      });
+    }
+
+    // Default: Creator reset
     const creator = await db.creator.findFirst({
       where: {
         inviteToken: token,
@@ -41,9 +104,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Update the creator's password and clear the reset token
     await db.creator.update({
@@ -72,6 +132,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("token");
+    const type = searchParams.get("type");
 
     if (!token) {
       return NextResponse.json(
@@ -80,6 +141,45 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Check if this is a user (team member) reset
+    if (type === "user") {
+      const verificationToken = await db.verificationToken.findFirst({
+        where: {
+          token: token,
+          identifier: { startsWith: "password-reset:" },
+        },
+      });
+
+      if (!verificationToken) {
+        return NextResponse.json(
+          { valid: false, error: "Invalid reset link" },
+          { status: 400 }
+        );
+      }
+
+      // Check expiry
+      if (new Date() > verificationToken.expires) {
+        return NextResponse.json(
+          { valid: false, error: "Reset link has expired" },
+          { status: 400 }
+        );
+      }
+
+      // Get user name
+      const userId = verificationToken.identifier.replace("password-reset:", "");
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      });
+
+      return NextResponse.json({
+        valid: true,
+        name: user?.name || "User",
+        type: "user",
+      });
+    }
+
+    // Default: Creator reset
     const creator = await db.creator.findFirst({
       where: {
         inviteToken: token,
@@ -109,6 +209,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       valid: true,
       name: creator.name,
+      type: "creator",
     });
   } catch (error) {
     console.error("Error validating reset token:", error);

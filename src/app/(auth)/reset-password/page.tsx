@@ -12,6 +12,7 @@ function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const type = searchParams.get("type") || "creator"; // "creator" or "user"
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,7 +22,7 @@ function ResetPasswordForm() {
   const [error, setError] = useState("");
   const [tokenError, setTokenError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [creatorName, setCreatorName] = useState("");
+  const [userName, setUserName] = useState("");
 
   useEffect(() => {
     if (!token) {
@@ -30,12 +31,12 @@ function ResetPasswordForm() {
       return;
     }
 
-    // Validate the token
-    fetch(`/api/portal/reset-password?token=${token}`)
+    // Validate the token (pass type for proper validation)
+    fetch(`/api/portal/reset-password?token=${token}&type=${type}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.valid) {
-          setCreatorName(data.name);
+          setUserName(data.name);
         } else {
           setTokenError(data.error || "Invalid reset link");
         }
@@ -46,7 +47,7 @@ function ResetPasswordForm() {
       .finally(() => {
         setValidating(false);
       });
-  }, [token]);
+  }, [token, type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +69,7 @@ function ResetPasswordForm() {
       const response = await fetch("/api/portal/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ token, password, type }),
       });
 
       const data = await response.json();
@@ -164,7 +165,7 @@ function ResetPasswordForm() {
           Reset your password
         </h1>
         <p className="text-muted-foreground">
-          {creatorName ? `Hi ${creatorName}, enter` : "Enter"} your new password below
+          {userName ? `Hi ${userName}, enter` : "Enter"} your new password below
         </p>
       </div>
 

@@ -16,11 +16,10 @@ function createPrismaClient(): PrismaClient {
   }
 
   // Create adapter with connection string config for Prisma 7
-  // Critical: Include timeout settings for Vercel serverless cold starts
+  // Note: Connection timeout is configured via DATABASE_URL query params
+  // e.g., ?connect_timeout=30&sslmode=require
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
-    // Timeout settings for serverless environments
-    connectionTimeoutSeconds: 30,
   });
 
   return new PrismaClient({

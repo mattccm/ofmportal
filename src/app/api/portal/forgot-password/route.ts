@@ -14,45 +14,92 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find the creator by email
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Try to find a creator first
     const creator = await db.creator.findFirst({
       where: {
-        email: email.toLowerCase().trim(),
-        inviteStatus: "ACCEPTED", // Only allow reset for active accounts
+        email: normalizedEmail,
+        inviteStatus: "ACCEPTED",
       },
     });
 
-    // Always return success to prevent email enumeration
-    if (!creator) {
+    if (creator) {
+      // Generate a reset token for creator
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      // Store the reset token
+      await db.creator.update({
+        where: { id: creator.id },
+        data: {
+          inviteToken: resetToken,
+          inviteSentAt: resetTokenExpiry,
+        },
+      });
+
+      // Build the reset URL
+      const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3001";
+      const resetLink = `${baseUrl}/reset-password?token=${resetToken}&type=creator`;
+
+      // Send the email
+      await sendPasswordResetEmail({
+        to: creator.email,
+        creatorName: creator.name,
+        resetLink,
+      });
+
       return NextResponse.json({
         message: "If an account exists with this email, you will receive a password reset link.",
       });
     }
 
-    // Generate a reset token
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-    // Store the reset token
-    await db.creator.update({
-      where: { id: creator.id },
-      data: {
-        inviteToken: resetToken,
-        inviteSentAt: resetTokenExpiry, // Using inviteSentAt to store expiry
+    // Try to find a team member (User)
+    const user = await db.user.findUnique({
+      where: {
+        email: normalizedEmail,
       },
     });
 
-    // Build the reset URL
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3001";
-    const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
+    if (user) {
+      // Generate a reset token for user
+      // We'll store it in the VerificationToken table
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Send the email
-    await sendPasswordResetEmail({
-      to: creator.email,
-      creatorName: creator.name,
-      resetLink,
-    });
+      // Delete any existing reset tokens for this user
+      await db.verificationToken.deleteMany({
+        where: {
+          identifier: `password-reset:${user.id}`,
+        },
+      });
 
+      // Create new reset token
+      await db.verificationToken.create({
+        data: {
+          identifier: `password-reset:${user.id}`,
+          token: resetToken,
+          expires: resetTokenExpiry,
+        },
+      });
+
+      // Build the reset URL
+      const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3001";
+      const resetLink = `${baseUrl}/reset-password?token=${resetToken}&type=user`;
+
+      // Send the email
+      await sendPasswordResetEmail({
+        to: user.email,
+        creatorName: user.name,
+        resetLink,
+      });
+
+      return NextResponse.json({
+        message: "If an account exists with this email, you will receive a password reset link.",
+      });
+    }
+
+    // No account found - still return success to prevent email enumeration
     return NextResponse.json({
       message: "If an account exists with this email, you will receive a password reset link.",
     });
