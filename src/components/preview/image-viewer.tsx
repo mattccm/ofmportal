@@ -1,0 +1,280 @@
+"use client";
+
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  RotateCcw,
+  Maximize,
+  Move,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface ImageViewerProps {
+  src: string;
+  alt: string;
+  className?: string;
+}
+
+export function ImageViewer({ src, alt, className }: ImageViewerProps) {
+  const [scale, setScale] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  const MIN_SCALE = 0.5;
+  const MAX_SCALE = 5;
+  const ZOOM_STEP = 0.25;
+
+  const handleZoomIn = useCallback(() => {
+    setScale((prev) => Math.min(prev + ZOOM_STEP, MAX_SCALE));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setScale((prev) => Math.max(prev - ZOOM_STEP, MIN_SCALE));
+  }, []);
+
+  const handleRotateRight = useCallback(() => {
+    setRotation((prev) => (prev + 90) % 360);
+  }, []);
+
+  const handleRotateLeft = useCallback(() => {
+    setRotation((prev) => (prev - 90 + 360) % 360);
+  }, []);
+
+  const handleFitToScreen = useCallback(() => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    setRotation(0);
+  }, []);
+
+  // Mouse wheel zoom
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      setScale((prev) => Math.min(Math.max(prev + delta, MIN_SCALE), MAX_SCALE));
+    },
+    []
+  );
+
+  // Pan/drag handling
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (scale > 1) {
+        setIsDragging(true);
+        setDragStart({
+          x: e.clientX - position.x,
+          y: e.clientY - position.y,
+        });
+      }
+    },
+    [scale, position]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (isDragging) {
+        setPosition({
+          x: e.clientX - dragStart.x,
+          y: e.clientY - dragStart.y,
+        });
+      }
+    },
+    [isDragging, dragStart]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Touch support for mobile
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (scale > 1 && e.touches.length === 1) {
+        const touch = e.touches[0];
+        setIsDragging(true);
+        setDragStart({
+          x: touch.clientX - position.x,
+          y: touch.clientY - position.y,
+        });
+      }
+    },
+    [scale, position]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (isDragging && e.touches.length === 1) {
+        const touch = e.touches[0];
+        setPosition({
+          x: touch.clientX - dragStart.x,
+          y: touch.clientY - dragStart.y,
+        });
+      }
+    },
+    [isDragging, dragStart]
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if typing in an input
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      switch (e.key) {
+        case "+":
+        case "=":
+          e.preventDefault();
+          handleZoomIn();
+          break;
+        case "-":
+          e.preventDefault();
+          handleZoomOut();
+          break;
+        case "r":
+          e.preventDefault();
+          handleRotateRight();
+          break;
+        case "R":
+          e.preventDefault();
+          handleRotateLeft();
+          break;
+        case "0":
+          e.preventDefault();
+          handleFitToScreen();
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleZoomIn, handleZoomOut, handleRotateRight, handleRotateLeft, handleFitToScreen]);
+
+  return (
+    <div className={cn("relative flex flex-col h-full", className)}>
+      {/* Image container */}
+      <div
+        ref={containerRef}
+        className={cn(
+          "flex-1 flex items-center justify-center overflow-hidden bg-black/50 rounded-lg",
+          scale > 1 ? "cursor-grab" : "cursor-default",
+          isDragging && "cursor-grabbing"
+        )}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          ref={imageRef}
+          src={src}
+          alt={alt}
+          className="max-w-full max-h-full object-contain transition-transform duration-150 select-none"
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)`,
+            transformOrigin: "center center",
+          }}
+          draggable={false}
+        />
+      </div>
+
+      {/* Controls toolbar */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1.5 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-white hover:bg-white/20"
+          onClick={handleZoomOut}
+          disabled={scale <= MIN_SCALE}
+          title="Zoom out (-)"
+        >
+          <ZoomOut className="h-4 w-4" />
+        </Button>
+
+        <span className="px-2 text-xs text-white font-medium min-w-[50px] text-center">
+          {Math.round(scale * 100)}%
+        </span>
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-white hover:bg-white/20"
+          onClick={handleZoomIn}
+          disabled={scale >= MAX_SCALE}
+          title="Zoom in (+)"
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+
+        <div className="w-px h-5 bg-white/20 mx-1" />
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-white hover:bg-white/20"
+          onClick={handleRotateLeft}
+          title="Rotate left (Shift+R)"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-white hover:bg-white/20"
+          onClick={handleRotateRight}
+          title="Rotate right (R)"
+        >
+          <RotateCw className="h-4 w-4" />
+        </Button>
+
+        <div className="w-px h-5 bg-white/20 mx-1" />
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-white hover:bg-white/20"
+          onClick={handleFitToScreen}
+          title="Fit to screen (0)"
+        >
+          <Maximize className="h-4 w-4" />
+        </Button>
+
+        {scale > 1 && (
+          <>
+            <div className="w-px h-5 bg-white/20 mx-1" />
+            <div className="flex items-center gap-1 text-xs text-white/70 px-2">
+              <Move className="h-3 w-3" />
+              <span>Drag to pan</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Keyboard shortcuts hint */}
+      <div className="absolute top-4 right-4 text-xs text-white/50 bg-black/30 px-2 py-1 rounded">
+        Scroll to zoom | +/- keys | R to rotate
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,2216 @@
+// Upload Portal Database Schema
+// Built for OnlyFans content management agencies
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// AUTHENTICATION & USER MANAGEMENT
+// ============================================
+
+model User {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  password String
+  name     String
+  phone    String?
+  role     UserRole @default(MEMBER)
+  agencyId String?
+  agency   Agency?  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  // Profile enhancements
+  avatar              String?
+  bio                 String?
+  timezone            String    @default("UTC")
+  lastActiveAt        DateTime?
+  onboardingCompleted Boolean   @default(false)
+  preferences         Json      @default("{}")
+
+  // 2FA
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+
+  // Session & Auth
+  emailVerified DateTime?
+  image         String?
+
+  // Custom Role & Permissions
+  customRoleId         String?
+  customRole           CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  permissionOverrides  Json        @default("[]") // Array of permission override objects
+  assignedCreatorIds   Json        @default("[]") // Specific creators assigned to this user
+  activityRestrictions Json        @default("{}") // Time/IP restrictions
+
+  // Relations
+  comments                 Comment[]
+  notifications            Notification[]
+  activityLogs             ActivityLog[]
+  teamMembers              TeamMember[]
+  conversationParticipants ConversationParticipant[]
+  messages                 Message[]
+  annotations              Annotation[]
+  reviewedUploads          Upload[]                  @relation("ReviewedUploads")
+  onboardingSteps          OnboardingStep[]
+  watchedRequests          RequestWatcher[]
+  bulkEmails               BulkEmail[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([email])
+  @@index([lastActiveAt])
+  @@index([customRoleId])
+}
+
+enum UserRole {
+  OWNER // Full access, can manage team
+  ADMIN // Full access except billing
+  MANAGER // Can manage creators and requests
+  MEMBER // Can view and comment only
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  // Session metadata for tracking
+  userAgent  String?
+  ipAddress  String?
+  device     String? // desktop, mobile, tablet
+  browser    String?
+  os         String?
+  location   String? // City, Country (from IP geolocation)
+  lastActive DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([lastActive])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// TEAM MANAGEMENT
+// ============================================
+
+model Team {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+
+  // Relations
+  members TeamMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+// ============================================
+// MESSAGING & CONVERSATIONS
+// ============================================
+
+model Conversation {
+  id   String           @id @default(cuid())
+  type ConversationType
+  name String? // For group conversations
+
+  // Optional link to a content request
+  requestId String?
+  request   ContentRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  // Relations
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([type])
+  @@index([requestId])
+  @@index([lastMessageAt])
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  REQUEST_THREAD
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt       DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content     String
+  attachments Json   @default("[]") // Array of attachment objects
+  readBy      Json   @default("[]") // Array of user IDs who have read
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ============================================
+// AGENCY MANAGEMENT
+// ============================================
+
+model Agency {
+  id       String  @id @default(cuid())
+  name     String
+  email    String  @unique
+  logo     String?
+  settings Json    @default("{}")
+
+  // Subscription/billing info (for future)
+  plan String @default("free")
+
+  // Relations
+  users         User[]
+  creators      Creator[]
+  creatorGroups CreatorGroup[]
+  requests      ContentRequest[]
+  templates     RequestTemplate[]
+  reminders     ReminderConfig[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+// ============================================
+// CREATOR MANAGEMENT
+// ============================================
+
+model CreatorGroup {
+  id       String @id @default(cuid())
+  agencyId String
+  agency   Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  color       String? // Hex color for visual distinction
+
+  // Relations
+  members CreatorGroupMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, name])
+  @@index([agencyId])
+}
+
+model CreatorGroupMember {
+  id        String       @id @default(cuid())
+  groupId   String
+  group     CreatorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   Creator      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  sortOrder Int          @default(0)
+  addedAt   DateTime     @default(now())
+
+  @@unique([groupId, creatorId])
+  @@index([groupId])
+  @@index([creatorId])
+}
+
+model Creator {
+  id       String @id @default(cuid())
+  agencyId String
+  agency   Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  // Profile
+  name   String
+  email  String
+  phone  String?
+  avatar String?
+
+  // Portal Access
+  inviteToken    String?      @unique
+  inviteStatus   InviteStatus @default(PENDING)
+  inviteSentAt   DateTime?
+  portalPassword String? // Hashed password for creator portal
+  lastLoginAt    DateTime?
+  sessionToken   String?   @unique // Secure session token
+  sessionExpiry  DateTime? // Session expiration time
+
+  // Preferences
+  preferredContact ContactMethod @default(EMAIL)
+  timezone         String        @default("America/New_York")
+  notes            String?
+
+  // Content preferences
+  contentPreferences Json @default("{}")
+
+  // Relations
+  requests           ContentRequest[]
+  uploads            Upload[]
+  groupMemberships   CreatorGroupMember[]
+  fingerprints       ContentFingerprint[]
+  duplicateAttempts  DuplicateAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, email])
+  @@index([agencyId])
+  @@index([inviteToken])
+  @@index([inviteStatus])
+  @@index([lastLoginAt])
+  @@index([name])
+  @@index([createdAt])
+  // Composite index for common queries (agency + status + sort)
+  @@index([agencyId, inviteStatus, createdAt])
+}
+
+enum InviteStatus {
+  PENDING // Invite sent, waiting for creator to set up
+  ACCEPTED // Creator has set up their portal access
+  EXPIRED // Invite link expired
+}
+
+enum ContactMethod {
+  EMAIL
+  SMS
+  BOTH
+}
+
+// ============================================
+// CONTENT REQUEST SYSTEM
+// ============================================
+
+model RequestTemplate {
+  id       String @id @default(cuid())
+  agencyId String
+  agency   Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  // Template fields configuration
+  fields Json @default("[]") // Array of field definitions
+
+  // Default settings
+  defaultDueDays Int     @default(7)
+  defaultUrgency Urgency @default(NORMAL)
+
+  isActive Boolean @default(true)
+
+  // Relations
+  requests ContentRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+}
+
+// ============================================
+// TEMPLATE GROUPS (Platform Organization)
+// ============================================
+
+model TemplateGroup {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Group details
+  name        String
+  description String?
+
+  // Platform categorization
+  platform String // instagram, twitter, tiktok, onlyfans, fansly, youtube, reddit, custom
+
+  // Customization
+  icon  String? // Icon name from Lucide icons
+  color String? // Hex color code for visual distinction
+
+  // Template associations (stored as JSON array of template IDs)
+  // Templates can belong to multiple groups
+  templateIds Json @default("[]")
+
+  // Settings
+  isDefault Boolean @default(false) // Default group for this platform
+  sortOrder Int     @default(0) // For custom ordering
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, name])
+  @@index([agencyId])
+  @@index([platform])
+  @@index([isDefault])
+  @@index([sortOrder])
+}
+
+model ContentRequest {
+  id         String           @id @default(cuid())
+  agencyId   String
+  agency     Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  creatorId  String
+  creator    Creator          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  templateId String?
+  template   RequestTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  // Request details
+  title       String
+  description String?
+
+  // Requirements
+  requirements Json @default("{}") // Quantity, format, resolution, etc.
+
+  // Custom fields (from template or ad-hoc)
+  fields Json @default("[]") // Array of {label, value, type, required}
+
+  // Scheduling
+  dueDate DateTime?
+  urgency Urgency   @default(NORMAL)
+
+  // Status tracking
+  status      RequestStatus @default(PENDING)
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  reviewedBy  String?
+
+  // View tracking (for read receipts)
+  viewedAt        DateTime? // When creator first viewed
+  viewedByCreator Boolean   @default(false)
+  viewCount       Int       @default(0)
+  lastViewedAt    DateTime? // Most recent view
+
+  // Relations
+  uploads       Upload[]
+  comments      Comment[]
+  reminders     Reminder[]
+  conversations Conversation[]
+  watchers      RequestWatcher[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([creatorId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([urgency])
+  @@index([createdAt])
+  @@index([templateId])
+  // Composite indexes for common query patterns
+  @@index([agencyId, status])
+  @@index([agencyId, status, dueDate])
+  @@index([agencyId, creatorId, status])
+  @@index([agencyId, urgency, dueDate])
+}
+
+// ============================================
+// REQUEST WATCHERS / SUBSCRIBERS
+// ============================================
+
+model RequestWatcher {
+  id        String         @id @default(cuid())
+  requestId String
+  request   ContentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Notification preferences for this watcher
+  notifyOnUpload  Boolean @default(true)
+  notifyOnComment Boolean @default(true)
+  notifyOnStatus  Boolean @default(true)
+  notifyOnDueDate Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@unique([requestId, userId])
+  @@index([requestId])
+  @@index([userId])
+}
+
+enum Urgency {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum RequestStatus {
+  DRAFT // Request saved as draft, not yet sent to creator
+  PENDING // Request created, waiting for creator
+  IN_PROGRESS // Creator has started uploading
+  SUBMITTED // Creator has submitted all content
+  UNDER_REVIEW // Agency is reviewing
+  NEEDS_REVISION // Agency requested changes
+  APPROVED // All content approved
+  CANCELLED // Request cancelled
+  ARCHIVED // Request archived
+}
+
+// ============================================
+// FILE UPLOADS
+// ============================================
+
+model Upload {
+  id        String         @id @default(cuid())
+  requestId String
+  request   ContentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   Creator        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  // File info
+  fileName     String
+  originalName String
+  fileType     String // MIME type
+  fileSize     BigInt // Bytes
+
+  // Storage
+  storageKey   String // S3/R2 key
+  storageUrl   String? // Presigned URL (cached)
+  thumbnailKey String?
+  thumbnailUrl String?
+
+  // Upload tracking (for resumable uploads)
+  uploadId       String?      @unique // tus upload ID
+  uploadStatus   UploadStatus @default(PENDING)
+  uploadProgress Int          @default(0) // 0-100
+
+  // Review
+  status       UploadApprovalStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy   User?                @relation("ReviewedUploads", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewNote   String?
+  rating       Int? // 1-5 rating scale
+
+  // Tags and metadata
+  tags     Json @default("[]") // Array of tag strings
+  metadata Json @default("{}") // Duration, dimensions, etc.
+
+  // Relations
+  comments    Comment[]
+  annotations Annotation[]
+  fingerprint ContentFingerprint?
+
+  uploadedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([requestId])
+  @@index([creatorId])
+  @@index([uploadId])
+  @@index([reviewedById])
+  @@index([status])
+  @@index([uploadStatus])
+  @@index([uploadedAt])
+  @@index([createdAt])
+  // Composite indexes for common query patterns
+  @@index([requestId, status])
+  @@index([creatorId, uploadedAt])
+  @@index([requestId, uploadStatus, status])
+}
+
+enum UploadStatus {
+  PENDING // Upload not started
+  UPLOADING // Upload in progress
+  PROCESSING // Generating thumbnails, etc.
+  COMPLETED // Upload finished
+  FAILED // Upload failed
+}
+
+enum UploadApprovalStatus {
+  PENDING // Not reviewed yet
+  APPROVED // Approved by agency
+  REJECTED // Rejected, needs replacement
+}
+
+// ============================================
+// ANNOTATIONS
+// ============================================
+
+model Annotation {
+  id       String @id @default(cuid())
+  uploadId String
+  upload   Upload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        AnnotationType
+  coordinates Json // Position/shape data depending on type
+  content     String? // Text content or note
+  color       String? // Hex color code
+
+  resolved Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([uploadId])
+  @@index([userId])
+  @@index([resolved])
+}
+
+enum AnnotationType {
+  POINT
+  RECTANGLE
+  FREEHAND
+  TEXT
+}
+
+// ============================================
+// VIDEO TIMESTAMPS & MARKERS
+// ============================================
+
+model VideoTimestamp {
+  id       String @id @default(cuid())
+  uploadId String
+  userId   String
+
+  // Timestamp position
+  timestamp Float // Time in seconds
+
+  // Comment content
+  content  String
+  resolved Boolean @default(false)
+
+  // Replies
+  replies VideoTimestampReply[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([uploadId])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([resolved])
+}
+
+model VideoTimestampReply {
+  id          String         @id @default(cuid())
+  timestampId String
+  timestamp   VideoTimestamp @relation(fields: [timestampId], references: [id], onDelete: Cascade)
+  userId      String
+
+  content String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([timestampId])
+  @@index([userId])
+}
+
+// ============================================
+// COMMENTS & COLLABORATION
+// ============================================
+
+model Comment {
+  id String @id @default(cuid())
+
+  // Can be on a request or specific upload
+  requestId String?
+  request   ContentRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  uploadId  String?
+  upload    Upload?         @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  message String
+
+  // Threaded comments (self-relation)
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  // For internal vs creator-visible comments
+  isInternal Boolean @default(false)
+
+  // Enhanced features
+  mentions    Json      @default("[]") // Array of user IDs mentioned
+  attachments Json      @default("[]") // Array of attachment objects
+  reactions   Json      @default("{}") // Object with reaction counts {emoji: [userIds]}
+  editedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([uploadId])
+  @@index([parentId])
+  @@index([userId])
+}
+
+// ============================================
+// TUTORIALS & ONBOARDING
+// ============================================
+
+model Tutorial {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  content     Json    @default("[]") // Array of tutorial step objects
+
+  // Target audience
+  targetRoles UserRole[] // Which roles this tutorial is for
+
+  // Ordering and visibility
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([order])
+}
+
+model OnboardingStep {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stepKey     String // Unique identifier for the step (e.g., "profile_setup", "first_request")
+  completedAt DateTime @default(now())
+  data        Json     @default("{}") // Any additional data about completion
+
+  @@unique([userId, stepKey])
+  @@index([userId])
+  @@index([stepKey])
+}
+
+// ============================================
+// NOTIFICATIONS & REMINDERS
+// ============================================
+
+model ReminderConfig {
+  id       String @id @default(cuid())
+  agencyId String
+  agency   Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  name String
+
+  // When to send (relative to due date)
+  daysBefore Int[] // e.g., [7, 3, 1, 0] = 7 days, 3 days, 1 day, day of
+
+  // Escalation
+  escalateDaysOverdue Int? // Days overdue before escalation
+
+  // Channels
+  sendEmail Boolean @default(true)
+  sendSms   Boolean @default(false)
+
+  // Template
+  emailSubject String?
+  emailBody    String?
+  smsBody      String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+}
+
+model Reminder {
+  id        String         @id @default(cuid())
+  requestId String
+  request   ContentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  type    ReminderType
+  channel NotificationChannel
+
+  scheduledAt DateTime
+  sentAt      DateTime?
+
+  // Delivery status
+  status DeliveryStatus @default(PENDING)
+  error  String?
+
+  // Auto-generated reminder tracking
+  isAutoGenerated Boolean @default(false)
+  ruleId          String? // Reference to ReminderRule if auto-generated
+  overrideId      String? // Reference to CreatorReminderOverride if used
+
+  // Escalation tracking
+  isEscalation       Boolean @default(false)
+  escalatedFromId    String? // Previous reminder that triggered escalation
+  escalationChannel  NotificationChannel? // Channel escalated to
+
+  // Response tracking for effectiveness
+  responseDetectedAt DateTime? // When creator responded (started uploading, etc.)
+  responseAction     String?   // What action was detected (e.g., "upload_started", "request_viewed")
+
+  // Batched reminder info
+  isBatched         Boolean @default(false)
+  batchedRequestIds Json    @default("[]") // Other request IDs included in this batch
+
+  // Test reminder flag
+  isTestReminder Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([isAutoGenerated])
+  @@index([ruleId])
+}
+
+// ============================================
+// REMINDER EFFECTIVENESS TRACKING
+// ============================================
+
+model ReminderEffectiveness {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Time period
+  periodStart DateTime
+  periodEnd   DateTime
+
+  // Reminder timing (days before/after due date)
+  dayFromDue Int // Negative = before due, Positive = overdue
+
+  // Metrics
+  totalSent      Int @default(0)
+  totalResponded Int @default(0)  // Responses within 24h of reminder
+  avgResponseTimeHours Float? // Average hours until response
+
+  // Response types
+  uploadsStarted   Int @default(0)
+  requestsViewed   Int @default(0)
+  requestsCompleted Int @default(0)
+
+  // Channel breakdown
+  emailSent         Int @default(0)
+  emailResponded    Int @default(0)
+  smsSent           Int @default(0)
+  smsResponded      Int @default(0)
+
+  // Urgency breakdown
+  urgency Urgency
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, periodStart, dayFromDue, urgency])
+  @@index([agencyId])
+  @@index([periodStart])
+  @@index([dayFromDue])
+  @@index([urgency])
+}
+
+enum ReminderType {
+  UPCOMING // Before due date
+  DUE_TODAY // Day of due date
+  OVERDUE // After due date
+  ESCALATION // Urgent follow-up
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ============================================
+// AUTO-REMINDER RULES (Agency-Level)
+// ============================================
+
+model ReminderRule {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Rule targeting
+  urgency Urgency // LOW, NORMAL, HIGH, URGENT
+
+  // Reminder schedule (days before due date)
+  // e.g., [7, 3, 1, 0] = 7 days before, 3 days before, 1 day before, day-of
+  reminderDays Int[] @default([3, 1, 0])
+
+  // Overdue reminder settings
+  overdueReminderFrequency OverdueFrequency @default(DAILY)
+  maxOverdueReminders      Int              @default(5) // Stop after N overdue reminders
+
+  // SMS Escalation settings
+  smsEscalationDays Int? // Days overdue before escalating to SMS (null = no escalation)
+  escalateToSms     Boolean @default(false)
+
+  // Custom message templates per urgency
+  customEmailSubject String? // Custom email subject for this urgency
+  customEmailBody    String? @db.Text // Custom email body template
+  customSmsBody      String? // Custom SMS message template
+  reminderTone       ReminderTone @default(NORMAL) // Tone of reminder message
+
+  // Status
+  isActive Boolean @default(true)
+
+  // Metadata
+  name        String?
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, urgency])
+  @@index([agencyId])
+  @@index([urgency])
+  @@index([isActive])
+}
+
+enum ReminderTone {
+  FRIENDLY    // Gentle, casual tone
+  NORMAL      // Professional, neutral tone
+  FIRM        // More assertive, emphasizes deadline
+  URGENT      // Strong urgency, calls for immediate action
+}
+
+// ============================================
+// TIERED REMINDER TEMPLATES
+// ============================================
+
+model ReminderTemplate {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Template identification
+  name        String
+  description String?
+
+  // Timing tier - when this template applies
+  tierType ReminderTierType
+
+  // Days range for this tier
+  // For UPCOMING: daysMin/daysMax are days BEFORE due date (e.g., 3-7 days before)
+  // For OVERDUE: daysMin/daysMax are days AFTER due date (e.g., 1-3 days overdue)
+  daysMin Int  // Minimum days (inclusive)
+  daysMax Int? // Maximum days (inclusive), null = no upper limit
+
+  // Optional urgency filter (applies to all urgencies if null)
+  urgency Urgency?
+
+  // Email template
+  emailSubject String
+  emailBody    String @db.Text
+
+  // SMS template (optional)
+  smsBody String?
+
+  // Tone of this template
+  tone ReminderTone @default(NORMAL)
+
+  // Priority (higher = checked first when matching)
+  priority Int @default(0)
+
+  // Status
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([tierType])
+  @@index([urgency])
+  @@index([isActive])
+  @@index([priority])
+}
+
+enum ReminderTierType {
+  UPCOMING    // Before due date (daysMin/Max are days before)
+  DUE_TODAY   // Day of due date
+  OVERDUE     // After due date (daysMin/Max are days overdue)
+}
+
+enum OverdueFrequency {
+  NONE       // No overdue reminders
+  DAILY      // Every day
+  EVERY_2_DAYS
+  EVERY_3_DAYS
+  WEEKLY     // Once a week
+}
+
+// ============================================
+// CREATOR-SPECIFIC REMINDER OVERRIDES
+// ============================================
+
+model CreatorReminderOverride {
+  id        String @id @default(cuid())
+  agencyId  String
+  creatorId String
+
+  // Toggle for custom settings
+  useCustomSettings Boolean @default(true)
+
+  // Custom reminder schedule (overrides agency defaults)
+  reminderDays Int[] @default([3, 1, 0])
+
+  // Custom overdue settings
+  overdueReminderFrequency OverdueFrequency @default(DAILY)
+  maxOverdueReminders      Int              @default(5)
+
+  // Custom SMS escalation
+  smsEscalationDays Int?
+  escalateToSms     Boolean @default(false)
+
+  // Disable reminders entirely for this creator
+  disableReminders Boolean @default(false)
+
+  // Pause reminders feature (vacation, etc.)
+  isPaused       Boolean   @default(false)
+  pausedAt       DateTime?
+  pauseResumeAt  DateTime? // Auto-resume date
+  pauseReason    String?   // Why reminders are paused
+
+  // Quiet hours settings (respects creator timezone)
+  quietHoursEnabled Boolean @default(true)
+  quietHoursStart   String  @default("22:00") // 10 PM in creator's timezone
+  quietHoursEnd     String  @default("08:00") // 8 AM in creator's timezone
+
+  // Documentation
+  notes String? // Why this creator has custom settings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, creatorId])
+  @@index([agencyId])
+  @@index([creatorId])
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String
+  title   String
+  message String
+  link    String?
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([readAt])
+}
+
+// ============================================
+// ACTIVITY & AUDIT LOG
+// ============================================
+
+model ActivityLog {
+  id     String  @id @default(cuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  action     String // e.g., "request.created", "upload.approved"
+  entityType String // e.g., "ContentRequest", "Upload"
+  entityId   String
+
+  metadata  Json    @default("{}")
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// ============================================
+// COLLECTIONS / FOLDERS
+// ============================================
+
+model Collection {
+  id          String @id @default(cuid())
+  agencyId    String
+  createdById String
+
+  // Collection details
+  name        String
+  description String?
+  coverImage  String? // URL or storage key for cover image
+
+  // Privacy settings
+  privacy    CollectionPrivacy @default(PRIVATE)
+  shareToken String?           @unique // For public sharing links
+
+  // Metadata
+  tags  Json    @default("[]") // Array of tag strings
+  color String? // Optional color for visual distinction
+
+  // Item count cache (for performance)
+  itemCount Int @default(0)
+
+  // Relations
+  items CollectionItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([createdById])
+  @@index([privacy])
+  @@index([shareToken])
+}
+
+enum CollectionPrivacy {
+  PRIVATE // Only creator can view
+  TEAM // All team members can view
+  PUBLIC // Anyone with link can view
+}
+
+model CollectionItem {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  uploadId     String
+
+  // Ordering
+  sortOrder Int @default(0)
+
+  // Notes specific to this item in this collection
+  notes String?
+
+  addedAt DateTime @default(now())
+
+  @@unique([collectionId, uploadId])
+  @@index([collectionId])
+  @@index([uploadId])
+  @@index([sortOrder])
+}
+
+// ============================================
+// USER FEEDBACK SYSTEM
+// ============================================
+
+model Feedback {
+  id        String @id @default(cuid())
+  userId    String
+  userName  String
+  userEmail String
+
+  // Feedback content
+  type          FeedbackType
+  rating        Int // 1-5 stars
+  message       String
+  screenshotUrl String?
+
+  // Context
+  pageUrl   String?
+  userAgent String?
+
+  // Status and admin response
+  status     FeedbackStatus @default(NEW)
+  adminReply String?
+  repliedAt  DateTime?
+  repliedBy  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum FeedbackType {
+  BUG
+  FEATURE_REQUEST
+  GENERAL
+}
+
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  IMPLEMENTED
+}
+
+// ============================================
+// FAVORITES / BOOKMARKS
+// ============================================
+
+model Favorite {
+  id       String @id @default(cuid())
+  userId   String
+  agencyId String
+
+  // Polymorphic relationship - only one should be set
+  itemType   FavoriteType
+  creatorId  String?
+  requestId  String?
+  templateId String?
+  uploadId   String?
+
+  // Optional note or label
+  note String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, itemType, creatorId])
+  @@unique([userId, itemType, requestId])
+  @@unique([userId, itemType, templateId])
+  @@unique([userId, itemType, uploadId])
+  @@index([userId])
+  @@index([agencyId])
+  @@index([itemType])
+  @@index([createdAt])
+}
+
+enum FavoriteType {
+  CREATOR
+  REQUEST
+  TEMPLATE
+  UPLOAD
+}
+
+// ============================================
+// ANNOUNCEMENTS SYSTEM
+// ============================================
+
+model Announcement {
+  id          String  @id @default(cuid())
+  agencyId    String? // Null = system-wide announcement
+  createdById String
+
+  // Announcement content
+  title   String
+  message String
+  type    AnnouncementType @default(INFO)
+
+  // Action button (optional)
+  actionText String?
+  actionUrl  String?
+
+  // Scheduling
+  startDate DateTime  @default(now())
+  endDate   DateTime? // Null = no end date
+
+  // Targeting
+  targetAudience AnnouncementAudience @default(ALL)
+
+  // Status
+  isActive Boolean @default(true)
+  isPinned Boolean @default(false) // Pinned announcements stay at top
+
+  // Relations
+  dismissals AnnouncementDismissal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([targetAudience])
+}
+
+model AnnouncementDismissal {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+
+  dismissedAt DateTime @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
+}
+
+enum AnnouncementType {
+  INFO // Blue - general information
+  WARNING // Yellow/Amber - important notices
+  SUCCESS // Green - positive updates
+  PROMO // Purple/Gradient - promotional content
+}
+
+enum AnnouncementAudience {
+  ALL // Everyone
+  ADMINS // Admin users only
+  CREATORS // Creators only (portal users)
+}
+
+// ============================================
+// EMAIL TEMPLATES
+// ============================================
+
+model EmailTemplate {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Template identification
+  type        EmailTemplateType
+  name        String
+  description String?
+
+  // Template content
+  subject     String
+  htmlContent String  @db.Text
+  textContent String? @db.Text
+
+  // Whether this is using the default or custom content
+  isCustom Boolean @default(false)
+
+  // Status
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, type])
+  @@index([agencyId])
+  @@index([type])
+}
+
+enum EmailTemplateType {
+  WELCOME
+  REQUEST_SENT
+  UPLOAD_RECEIVED
+  REQUEST_APPROVED
+  REQUEST_REJECTED
+  REMINDER_UPCOMING
+  REMINDER_DUE_TODAY
+  REMINDER_OVERDUE
+  PASSWORD_RESET
+  REVISION_REQUESTED
+}
+
+// ============================================
+// SHAREABLE LINKS
+// ============================================
+
+model ShareLink {
+  id          String @id @default(cuid())
+  agencyId    String
+  createdById String
+
+  // Unique share token
+  token String @unique @default(cuid())
+
+  // What is being shared
+  resourceType ShareResourceType
+  resourceId   String
+
+  // Access settings
+  permission SharePermission @default(VIEW)
+  password   String? // Hashed password if protected
+
+  // Expiration
+  expiresAt DateTime?
+
+  // Analytics
+  viewCount    Int       @default(0)
+  lastViewedAt DateTime?
+
+  // Status
+  isActive Boolean @default(true)
+
+  // Access log
+  accessLogs ShareAccessLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([token])
+  @@index([resourceType, resourceId])
+  @@index([createdById])
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+model ShareAccessLog {
+  id          String    @id @default(cuid())
+  shareLinkId String
+  shareLink   ShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+
+  // Access info
+  ipAddress String?
+  userAgent String?
+  referer   String?
+
+  // Action type
+  action ShareAccessAction @default(VIEW)
+
+  createdAt DateTime @default(now())
+
+  @@index([shareLinkId])
+  @@index([createdAt])
+}
+
+enum ShareResourceType {
+  UPLOAD
+  REQUEST
+  REPORT
+  COLLECTION
+}
+
+enum SharePermission {
+  VIEW // Can only view
+  DOWNLOAD // Can view and download
+}
+
+enum ShareAccessAction {
+  VIEW
+  DOWNLOAD
+  PASSWORD_ATTEMPT
+}
+
+// ============================================
+// BULK EMAIL SYSTEM
+// ============================================
+
+model BulkEmail {
+  id       String @id @default(cuid())
+  agencyId String
+  senderId String
+
+  // Email content
+  subject String
+  body    String @db.Text
+
+  // Recipient info
+  recipientCount Int
+
+  // Status
+  status      BulkEmailStatus @default(PENDING)
+  sentCount   Int             @default(0)
+  failedCount Int             @default(0)
+
+  // Scheduling
+  scheduledFor DateTime?
+  sentAt       DateTime?
+
+  // Relations
+  queueItems EmailQueueItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations to user
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([senderId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+model EmailQueueItem {
+  id          String    @id @default(cuid())
+  bulkEmailId String
+  bulkEmail   BulkEmail @relation(fields: [bulkEmailId], references: [id], onDelete: Cascade)
+  creatorId   String
+  email       String
+
+  // Status
+  status EmailQueueStatus @default(PENDING)
+  sentAt DateTime?
+  error  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([bulkEmailId])
+  @@index([creatorId])
+  @@index([status])
+}
+
+enum BulkEmailStatus {
+  PENDING
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+}
+
+enum EmailQueueStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ============================================
+// REQUEST BUNDLES / ONBOARDING BUNDLES
+// ============================================
+
+model RequestBundle {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Bundle details
+  name        String
+  description String?
+
+  // Template configuration
+  templateIds     Json @default("[]") // Array of template IDs
+  templateConfigs Json @default("[]") // Array of template config objects
+
+  // Bundle-level settings
+  staggerDays    Int     @default(0) // Days between each request in bundle
+  defaultDueDays Int     @default(7) // Default due days for requests
+  defaultUrgency Urgency @default(NORMAL)
+
+  // Onboarding settings
+  isOnboardingBundle Boolean @default(false)
+  autoTrigger        String? // "on_creator_create" or null for manual
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([isOnboardingBundle])
+  @@index([autoTrigger])
+}
+
+// ============================================
+// SCHEDULED TASKS
+// ============================================
+
+model ScheduledTask {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Task details
+  name        String
+  description String?
+
+  // What to create
+  taskType   ScheduledTaskType @default(CREATE_REQUEST)
+  templateId String? // Template to use for request creation
+  bundleId   String? // Bundle to apply
+
+  // Target creators
+  creatorIds      Json @default("[]") // Array of creator IDs to apply to
+  creatorGroupIds Json @default("[]") // Or creator group IDs
+
+  // Scheduling
+  scheduledFor   DateTime // When to execute
+  recurrence     RecurrenceType? // One-time or recurring
+  cronExpression String? // For complex schedules
+
+  // Status
+  status     ScheduledTaskStatus @default(PENDING)
+  executedAt DateTime?
+  error      String?
+  resultData Json                @default("{}") // Execution results
+
+  // Created by
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([scheduledFor])
+  @@index([status])
+  @@index([taskType])
+  @@index([createdById])
+}
+
+enum ScheduledTaskType {
+  CREATE_REQUEST
+  APPLY_BUNDLE
+  SEND_REMINDER
+  SEND_BULK_EMAIL
+}
+
+enum ScheduledTaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum RecurrenceType {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  CUSTOM
+}
+
+// ============================================
+// RECURRING REQUESTS
+// ============================================
+
+model RecurringRequest {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Configuration
+  name        String
+  description String?
+
+  // Template to use
+  templateId String
+
+  // Target creators (can be individual IDs or group IDs)
+  creatorIds      Json @default("[]") // Array of creator IDs
+  creatorGroupIds Json @default("[]") // Array of creator group IDs
+
+  // Schedule settings
+  frequency  RecurrenceType
+  dayOfWeek  Int? // 0-6 (Sunday-Saturday) for weekly
+  dayOfMonth Int? // 1-31 for monthly
+  timeOfDay  String         @default("09:00") // HH:mm format
+  timezone   String         @default("America/New_York")
+
+  // Recurrence limits
+  startDate      DateTime
+  endDate        DateTime?
+  maxOccurrences Int? // Stop after N occurrences
+
+  // Request settings applied to each created request
+  requestSettings Json @default("{}") // title template, description, dueInDays, urgency, etc.
+
+  // Tracking
+  isActive  Boolean   @default(true)
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+  runCount  Int       @default(0)
+  lastError String?
+
+  // Relations
+  executions RecurringRequestExecution[]
+
+  // Audit
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([isActive])
+  @@index([nextRunAt])
+  @@index([frequency])
+  @@index([createdById])
+}
+
+model RecurringRequestExecution {
+  id                 String           @id @default(cuid())
+  recurringRequestId String
+  recurringRequest   RecurringRequest @relation(fields: [recurringRequestId], references: [id], onDelete: Cascade)
+
+  // Execution details
+  scheduledFor DateTime
+  executedAt   DateTime?
+  status       RecurringExecutionStatus @default(PENDING)
+
+  // Results
+  createdRequestIds Json    @default("[]") // IDs of requests created
+  creatorCount      Int     @default(0)
+  successCount      Int     @default(0)
+  failedCount       Int     @default(0)
+  error             String?
+
+  createdAt DateTime @default(now())
+
+  @@index([recurringRequestId])
+  @@index([scheduledFor])
+  @@index([status])
+}
+
+enum RecurringExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  PARTIAL // Some succeeded, some failed
+  FAILED
+  SKIPPED
+}
+
+// ============================================
+// CUSTOM ROLES & PERMISSIONS
+// ============================================
+
+model CustomRole {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Role details
+  name        String
+  description String?
+  color       String? // Hex color for UI badges
+
+  // Permissions (JSON array of permission objects)
+  permissions Json @default("[]")
+
+  // Visibility settings (JSON objects)
+  creatorVisibility    Json @default("{\"type\": \"all\"}")
+  dataFieldVisibility  Json @default("{}")
+  teamMemberVisibility Json @default("{\"canSeeOtherMembers\": true}")
+
+  // System role flag
+  isSystem Boolean @default(false)
+
+  // Relations
+  users User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, name])
+  @@index([agencyId])
+  @@index([isSystem])
+}
+
+// ============================================
+// MENTIONS
+// ============================================
+
+model Mention {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Who mentioned who
+  mentionedById   String // User who created the mention
+  mentionedUserId String // User who was mentioned
+
+  // Context - what was mentioned in
+  contextType MentionContextType
+  contextId   String // ID of comment, message, etc.
+  contextUrl  String? // Link to the mention location
+
+  // Content snippet
+  content String // Text content for display
+
+  // Status
+  read   Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([agencyId])
+  @@index([mentionedUserId])
+  @@index([mentionedById])
+  @@index([contextType, contextId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+enum MentionContextType {
+  COMMENT
+  MESSAGE
+  REQUEST
+  ANNOTATION
+}
+
+// ============================================
+// MEDIA LIBRARY (Creator Portfolio)
+// ============================================
+
+model MediaItem {
+  id        String @id @default(cuid())
+  agencyId  String
+  creatorId String
+
+  // File info
+  name     String
+  fileName String
+  fileType String // MIME type
+  fileSize BigInt // Bytes
+  type     MediaType
+
+  // Storage
+  storageKey   String
+  storageUrl   String?
+  thumbnailKey String?
+  thumbnailUrl String?
+
+  // Metadata
+  width    Int?
+  height   Int?
+  duration Float? // For video/audio in seconds
+  metadata Json   @default("{}")
+
+  // Organization
+  folderId String?
+  folder   MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  tags     Json         @default("[]")
+
+  // Status
+  status         MediaItemStatus @default(ACTIVE)
+  usedInRequests Json            @default("[]") // Array of request IDs
+
+  // Content fingerprint for duplicate detection
+  fingerprint String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([creatorId])
+  @@index([folderId])
+  @@index([type])
+  @@index([status])
+  @@index([fingerprint])
+}
+
+model MediaFolder {
+  id        String @id @default(cuid())
+  agencyId  String
+  creatorId String
+
+  name        String
+  description String?
+  color       String? // Hex color for UI
+  icon        String? // Icon name
+
+  // Hierarchy
+  parentId String?
+  parent   MediaFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children MediaFolder[] @relation("FolderHierarchy")
+
+  // Contents
+  items     MediaItem[]
+  itemCount Int         @default(0) // Cached count
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, creatorId, name, parentId])
+  @@index([agencyId])
+  @@index([creatorId])
+  @@index([parentId])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+enum MediaItemStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+// ============================================
+// LIVE REVIEW SESSIONS
+// ============================================
+
+model ReviewSession {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Session details
+  name        String
+  description String?
+
+  // Session status
+  status ReviewSessionStatus @default(ACTIVE)
+
+  // Host information
+  hostUserId String
+
+  // Timing
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  // Content to review
+  uploadIds          Json @default("[]") // Array of upload IDs to review
+  currentUploadIndex Int  @default(0)
+
+  // Settings
+  settings Json @default("{}") // allowAnonymousVotes, requireAllVotes, autoAdvance, etc.
+
+  // Relations
+  participants ReviewSessionParticipant[]
+  votes        ReviewSessionVote[]
+  chatMessages ReviewSessionChat[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([hostUserId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model ReviewSessionParticipant {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   ReviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+
+  // Participation tracking
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+
+  // Stats
+  votesCount    Int     @default(0)
+  messagesCount Int     @default(0)
+  isActive      Boolean @default(true)
+
+  // Role in session
+  role SessionParticipantRole @default(REVIEWER)
+
+  createdAt DateTime @default(now())
+
+  @@unique([sessionId, userId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([isActive])
+}
+
+model ReviewSessionVote {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   ReviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  uploadId  String
+  userId    String
+
+  // Vote details
+  vote ReviewVoteType
+  note String?
+
+  // Metadata
+  votedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@unique([sessionId, uploadId, userId])
+  @@index([sessionId])
+  @@index([uploadId])
+  @@index([userId])
+  @@index([vote])
+}
+
+model ReviewSessionChat {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   ReviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+
+  // Message content
+  message String
+
+  // Context (which upload was being reviewed when message was sent)
+  uploadId String?
+
+  // Message type
+  type ChatMessageType @default(MESSAGE)
+
+  // Voice note fields (for type = VOICE_NOTE)
+  voiceNoteUrl      String?
+  voiceNoteDuration Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Session Templates for Review Sessions
+model SessionTemplate {
+  id       String @id @default(cuid())
+  agencyId String
+
+  name        String
+  description String?
+
+  // Default settings for sessions created from this template
+  settings Json @default("{}")
+
+  // Default participants
+  defaultParticipantIds   Json @default("[]")
+  defaultParticipantRoles Json @default("{}")
+
+  // Upload filters (e.g., only pending uploads, specific creators)
+  uploadFilters Json @default("{}")
+
+  // Audit
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([createdById])
+}
+
+enum ReviewSessionStatus {
+  ACTIVE // Session is in progress
+  PAUSED // Session is paused
+  COMPLETED // Session ended normally
+  CANCELLED // Session was cancelled
+}
+
+enum SessionParticipantRole {
+  HOST // Can control navigation, end session
+  REVIEWER // Can vote and chat
+  OBSERVER // Can only watch
+}
+
+enum ReviewVoteType {
+  APPROVE
+  REJECT
+  DISCUSS // Flag for discussion
+  SKIP // Abstain from voting
+}
+
+enum ChatMessageType {
+  MESSAGE // Regular message
+  SYSTEM // System notification
+  REACTION // Reaction to content
+  VOICE_NOTE // Voice note recording
+}
+
+// ============================================
+// DUPLICATE CONTENT DETECTION
+// ============================================
+
+model ContentFingerprint {
+  id       String @id @default(cuid())
+  uploadId String @unique
+  upload   Upload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  // Creator association
+  creatorId String
+  creator   Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  // Agency for scoping
+  agencyId String
+
+  // Primary hash (SHA-256 of file content)
+  fileHash String
+
+  // Perceptual hash for visual similarity (images/videos)
+  perceptualHash String?
+
+  // File metadata
+  fileName String
+  fileSize BigInt
+  mimeType String
+
+  // Image-specific
+  width  Int?
+  height Int?
+
+  // Video-specific
+  duration    Float?
+  frameHashes Json   @default("[]") // Array of frame hashes for video
+
+  createdAt DateTime @default(now())
+
+  @@index([agencyId])
+  @@index([creatorId])
+  @@index([fileHash])
+  @@index([perceptualHash])
+  @@index([createdAt])
+  // IMPROVEMENT #10: Performance optimization - composite indexes for duplicate checks
+  @@index([agencyId, creatorId, fileHash])
+  @@index([agencyId, creatorId, perceptualHash])
+  @@index([agencyId, fileHash])
+  @@index([agencyId, perceptualHash])
+  @@index([agencyId, mimeType, createdAt])
+}
+
+model DuplicateAttempt {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Who attempted the duplicate
+  creatorId String
+  creator   Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  // What request was this for
+  requestId String
+
+  // The file that was attempted
+  attemptedFileName String
+  attemptedFileSize BigInt
+  attemptedFileType String
+  attemptedFileHash String?
+  attemptedPerceptualHash String?
+  attemptedThumbnailUrl String? // IMPROVEMENT #3: For side-by-side comparison
+
+  // The original file that matched
+  originalUploadId   String
+  originalFileName   String
+  originalFileSize   BigInt
+  originalUploadedAt DateTime
+  originalRequestId  String?  // IMPROVEMENT #1: Store original request ID
+  originalRequestName String? // IMPROVEMENT #1: Store original request name for better error messages
+  originalThumbnailUrl String? // IMPROVEMENT #3: For side-by-side comparison
+
+  // Match details
+  matchType    DuplicateMatchType
+  similarity   Int // 0-100 percentage
+  hashMatch    Boolean @default(false)
+  perceptualMatch Boolean @default(false)
+  metadataMatch Boolean @default(false)
+
+  // What action was taken
+  action DuplicateAction @default(BLOCKED)
+
+  // Optional override info
+  overrideReason  String?
+  overrideBy      String?
+  overrideAt      DateTime?
+
+  attemptedAt DateTime @default(now())
+
+  @@index([agencyId])
+  @@index([creatorId])
+  @@index([requestId])
+  @@index([originalUploadId])
+  @@index([matchType])
+  @@index([action])
+  @@index([attemptedAt])
+  // IMPROVEMENT #10: Performance optimization - composite indexes for common queries
+  @@index([agencyId, attemptedAt])
+  @@index([agencyId, creatorId, attemptedAt])
+  @@index([agencyId, matchType, attemptedAt])
+  @@index([agencyId, action, attemptedAt])
+}
+
+model DuplicateDetectionSettings {
+  id       String @id @default(cuid())
+  agencyId String @unique
+
+  // Feature toggle
+  enabled Boolean @default(true)
+
+  // Thresholds (IMPROVEMENT #4: Configurable threshold 80-100%)
+  similarityThreshold    Int @default(90) // 80-100
+  perceptualThreshold    Int @default(90) // 80-100
+
+  // What to check
+  enableHashCheck       Boolean @default(true)
+  enablePerceptualHash  Boolean @default(true)
+  enableMetadataCheck   Boolean @default(true)
+  enableVideoFrameHash  Boolean @default(true)
+
+  // Behavior settings
+  blockExactDuplicates  Boolean @default(true)
+  blockNearDuplicates   Boolean @default(true)
+  warnSimilarContent    Boolean @default(true)
+
+  // Scope settings
+  checkScope DuplicateCheckScope @default(CREATOR)
+
+  // Video settings
+  videoSampleFrames Int @default(5)
+
+  // IMPROVEMENT #8: Email notification when duplicate attempt occurs
+  notifyAdminOnDuplicate Boolean @default(false)
+  adminNotificationEmail String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+}
+
+// IMPROVEMENT #5: Whitelist capability for re-usable content (branding assets)
+model WhitelistedContent {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // File identification
+  fileHash       String  // SHA-256 hash of the whitelisted content
+  perceptualHash String? // For image similarity matching
+
+  // Metadata
+  name        String  // Friendly name for the whitelisted content
+  description String? // Why this content is whitelisted
+  category    String  @default("branding") // branding, stock, template, other
+
+  // File info
+  fileName String
+  fileSize BigInt
+  mimeType String
+  thumbnailUrl String?
+
+  // Audit
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([agencyId, fileHash])
+  @@index([agencyId])
+  @@index([fileHash])
+  @@index([perceptualHash])
+  @@index([category])
+}
+
+enum DuplicateMatchType {
+  EXACT      // Exact hash match (100% identical)
+  NEAR       // Very similar (95%+ perceptual match)
+  SIMILAR    // Similar content (90%+ match)
+}
+
+enum DuplicateAction {
+  BLOCKED    // Upload was blocked
+  WARNED     // User was warned but allowed to proceed
+  ALLOWED    // Upload was allowed (override or below threshold)
+  OVERRIDDEN // Admin override
+}
+
+enum DuplicateCheckScope {
+  CREATOR  // Check only within creator's uploads
+  AGENCY   // Check across all agency uploads
+  REQUEST  // Check only within current request
+}
