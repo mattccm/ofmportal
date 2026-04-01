@@ -56,7 +56,7 @@ export default function AuthLayout({
               {[
                 "Lightning-fast secure uploads",
                 "Real-time progress tracking",
-                "Clear deadline visibility",
+                "Everything in one place",
               ].map((feature, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-violet-500" />
