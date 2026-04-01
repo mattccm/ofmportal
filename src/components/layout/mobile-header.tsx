@@ -21,13 +21,13 @@ import {
   Settings,
   Shield,
   LogOut,
-  Sparkles,
   User,
   Moon,
   Sun,
   Monitor,
   Search,
 } from "lucide-react";
+import { generateInitials } from "@/lib/avatar";
 import { signOut } from "next-auth/react";
 import { useSearch } from "@/components/search";
 import { useTheme } from "@/components/theme/theme-provider";
@@ -140,11 +140,11 @@ export function MobileHeader({
               href="/dashboard"
               className="flex items-center gap-2 touch-manipulation active:opacity-80 transition-opacity"
             >
-              <div className="relative h-8 w-8 rounded-lg overflow-hidden bg-white dark:bg-slate-800 p-0.5">
+              <div className="relative h-8 w-8">
                 <img
                   src="/ccm-logo.png"
                   alt="CCM"
-                  className="h-full w-full object-contain dark:invert"
+                  className="h-full w-full object-contain dark:brightness-0 dark:invert"
                 />
               </div>
             </Link>
@@ -205,8 +205,8 @@ export function MobileHeader({
                     className="h-10 w-10 rounded-xl p-0 touch-manipulation active:scale-95 transition-transform"
                   >
                     <Avatar className="h-8 w-8 ring-2 ring-border">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-sm">
-                        {user?.name?.charAt(0).toUpperCase() || "U"}
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-xs">
+                        {generateInitials(user?.name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -220,8 +220,8 @@ export function MobileHeader({
                   <div className="px-3 py-3 rounded-xl bg-muted/50 mb-2">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold">
-                          {user?.name?.charAt(0).toUpperCase() || "U"}
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-sm">
+                          {generateInitials(user?.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">

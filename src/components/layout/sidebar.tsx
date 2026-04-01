@@ -27,7 +27,6 @@ import {
   LogOut,
   Shield,
   UserCog,
-  Sparkles,
   LayoutTemplate,
   BarChart3,
   MessageSquare,
@@ -41,6 +40,7 @@ import {
   Monitor,
   Repeat,
 } from "lucide-react";
+import { generateInitials } from "@/lib/avatar";
 import { useTheme } from "@/components/theme/theme-provider";
 import { useUnreadMentions } from "@/hooks/use-mentions";
 
@@ -136,11 +136,11 @@ function SidebarComponent() {
     <div className="flex h-full w-[280px] flex-col bg-sidebar border-r border-sidebar-border">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
-        <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-white dark:bg-slate-800 p-1">
+        <div className="relative h-9 w-9">
           <img
             src="/ccm-logo.png"
             alt="CCM"
-            className="h-full w-full object-contain dark:invert"
+            className="h-full w-full object-contain dark:brightness-0 dark:invert"
           />
         </div>
         <div className="flex flex-col">
@@ -227,8 +227,8 @@ function SidebarComponent() {
               className="w-full h-auto justify-start gap-3 px-3 py-3 text-left rounded-xl hover:bg-sidebar-accent transition-all duration-200"
             >
               <Avatar className="h-10 w-10 ring-2 ring-sidebar-accent">
-                <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold">
-                  {user?.name?.charAt(0).toUpperCase() || "U"}
+                <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-sm">
+                  {generateInitials(user?.name)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 overflow-hidden">
