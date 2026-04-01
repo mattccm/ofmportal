@@ -136,15 +136,19 @@ function SidebarComponent() {
     <div className="flex h-full w-[280px] flex-col bg-sidebar border-r border-sidebar-border">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/25">
-          <Sparkles className="h-5 w-5 text-white" />
+        <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-white dark:bg-slate-800 p-1">
+          <img
+            src="/ccm-logo.png"
+            alt="CCM"
+            className="h-full w-full object-contain dark:invert"
+          />
         </div>
         <div className="flex flex-col">
           <span className="text-[15px] font-semibold text-sidebar-foreground tracking-tight">
-            Content Portal
+            CCM
           </span>
           <span className="text-[11px] text-sidebar-foreground/50 font-medium">
-            Agency Platform
+            Content Portal
           </span>
         </div>
       </div>

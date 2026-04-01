@@ -102,7 +102,7 @@ export default function NotFound() {
                 >
                   <Search className="h-4 w-4 text-muted-foreground mr-3 group-hover:text-primary transition-colors" />
                   <span className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    Search Content Portal...
+                    Search CCM...
                   </span>
                 </Link>
               </div>

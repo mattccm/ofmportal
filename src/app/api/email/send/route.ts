@@ -127,7 +127,7 @@ function generateEmailHtml(content: string, agencyName: string): string {
         </div>
         <div style="padding: 20px; text-align: center;">
           <p style="color: #999; font-size: 12px; margin: 0;">
-            Sent via Content Portal
+            Sent via CCM
           </p>
         </div>
       </body>

@@ -125,7 +125,7 @@ export function generateTwoFactorQRCodeUrl(
   secret: string
 ): string {
   const totp = new OTPAuth.TOTP({
-    issuer: "Content Portal",
+    issuer: "CCM",
     label: email,
     algorithm: "SHA1",
     digits: 6,
@@ -137,7 +137,7 @@ export function generateTwoFactorQRCodeUrl(
 
 export function verifyTwoFactorCode(secret: string, code: string): boolean {
   const totp = new OTPAuth.TOTP({
-    issuer: "Content Portal",
+    issuer: "CCM",
     label: "user",
     algorithm: "SHA1",
     digits: 6,

@@ -83,7 +83,7 @@ export function MobileHeader({
   const [notificationCount] = useState(3); // Example notification count
 
   // Determine title from pathname if not provided
-  const pageTitle = title || pageTitles[pathname] || "Content Portal";
+  const pageTitle = title || pageTitles[pathname] || "CCM";
 
   // Determine if we should show back button
   const shouldShowBack = showBackButton ?? (
@@ -140,8 +140,12 @@ export function MobileHeader({
               href="/dashboard"
               className="flex items-center gap-2 touch-manipulation active:opacity-80 transition-opacity"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/25">
-                <Sparkles className="h-4 w-4 text-white" />
+              <div className="relative h-8 w-8 rounded-lg overflow-hidden bg-white dark:bg-slate-800 p-0.5">
+                <img
+                  src="/ccm-logo.png"
+                  alt="CCM"
+                  className="h-full w-full object-contain dark:invert"
+                />
               </div>
             </Link>
           )}

@@ -187,7 +187,7 @@ export function InstallPrompt() {
                 Add to Home Screen
               </h3>
               <p className="text-white/80 text-sm mt-1 leading-relaxed">
-                Install Content Portal for faster access and offline features
+                Install CCM for faster access and offline features
               </p>
             </div>
           </div>
@@ -263,7 +263,7 @@ export function InstallPrompt() {
                 <Smartphone className="h-8 w-8 text-white" />
               </div>
 
-              <h3 className="font-bold text-white text-xl">Install Content Portal</h3>
+              <h3 className="font-bold text-white text-xl">Install CCM</h3>
               <p className="text-white/80 text-sm mt-2">
                 Add this app to your home screen for quick access
               </p>

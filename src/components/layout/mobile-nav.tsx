@@ -625,8 +625,8 @@ export function MobileNav() {
           {/* App Version & Gesture Hints */}
           <div className="text-center pt-4 space-y-3">
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <Sparkles className="h-3 w-3" />
-              <span>Content Portal v1.0</span>
+              <img src="/ccm-logo.png" alt="CCM" className="h-3 w-3 dark:invert" />
+              <span>CCM Portal v1.0</span>
             </div>
 
             {/* Gesture hints */}

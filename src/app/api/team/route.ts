@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
 
     await sendEmail({
       to: email,
-      subject: `You've been invited to join ${agency?.name || "Content Portal"}`,
+      subject: `You've been invited to join ${agency?.name || "CCM"}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
             <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
               <p>Hi ${name},</p>
 
-              <p>You've been invited to join <strong>${agency?.name || "Content Portal"}</strong> as a <strong>${roleName}</strong>.</p>
+              <p>You've been invited to join <strong>${agency?.name || "CCM"}</strong> as a <strong>${roleName}</strong>.</p>
 
               <p>Here are your login credentials:</p>
 
@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
       text: `
 Hi ${name},
 
-You've been invited to join ${agency?.name || "Content Portal"} as a ${roleName}.
+You've been invited to join ${agency?.name || "CCM"} as a ${roleName}.
 
 Your login credentials:
 Email: ${email}

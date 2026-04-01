@@ -13,8 +13,9 @@ function getResendClient(): Resend | null {
   return resend;
 }
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "noreply@example.com";
-const APP_NAME = process.env.APP_NAME || "Content Portal";
+const FROM_EMAIL = process.env.EMAIL_FROM || "noreply@portal.of-m.com";
+const APP_NAME = process.env.APP_NAME || "CCM Creator Portal";
+const COMPANY_NAME = "Content Creation Management Pty Ltd";
 
 interface SendEmailOptions {
   to: string;
