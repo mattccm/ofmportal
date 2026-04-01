@@ -95,20 +95,20 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "48x48" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/icons/icon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico?v=2", sizes: "48x48" },
+      { url: "/favicon.svg?v=2", type: "image/svg+xml" },
+      { url: "/icons/icon-32x32.png?v=2", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192x192.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png?v=2", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.ico",
+    shortcut: "/favicon.ico?v=2",
     apple: [
-      { url: "/icons/apple-icon-180x180.png", sizes: "180x180", type: "image/png" },
+      { url: "/icons/apple-icon-180x180.png?v=2", sizes: "180x180", type: "image/png" },
     ],
     other: [
       {
         rel: "mask-icon",
-        url: "/favicon.svg",
+        url: "/favicon.svg?v=2",
         color: "#7c3aed",
       },
     ],

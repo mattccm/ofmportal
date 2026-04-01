@@ -140,7 +140,7 @@ function SidebarComponent() {
           <img
             src="/ccm-logo.png"
             alt="CCM"
-            className="h-full w-full object-contain dark:brightness-0 dark:invert"
+            className="h-full w-full object-contain brightness-0 invert"
           />
         </div>
         <div className="flex flex-col">
