@@ -332,12 +332,12 @@ export function WidgetGrid({
     return new Map(widgets.map((w) => [w.type, w]));
   }, [widgets]);
 
-  // Get visible widgets sorted by order
+  // Get visible widgets sorted by order (filter out any widgets with missing definitions)
   const visibleWidgets = React.useMemo(() => {
     return layout
-      .filter((w) => w.visible)
+      .filter((w) => w.visible && widgetMap.has(w.type))
       .sort((a, b) => a.order - b.order);
-  }, [layout]);
+  }, [layout, widgetMap]);
 
   // Initialize layout if empty
   useEffect(() => {
