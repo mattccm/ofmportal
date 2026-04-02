@@ -177,15 +177,26 @@ function CropDialog({
     const ctx = outputCanvas.getContext("2d")
     if (!ctx) return
 
-    // Scale crop coordinates to output size
-    const outputScale = OUTPUT_SIZE / PREVIEW_SIZE
-    const scaledX = crop.x * outputScale
-    const scaledY = crop.y * outputScale
-    const scaledImageWidth = img.width * crop.scale * outputScale
-    const scaledImageHeight = img.height * crop.scale * outputScale
+    // Calculate the source coordinates from the crop position
+    // crop.x and crop.y represent where the image is drawn in the preview
+    // We need to figure out what part of the source image is visible in the preview circle
+    const sourceX = -crop.x / crop.scale
+    const sourceY = -crop.y / crop.scale
+    const sourceWidth = PREVIEW_SIZE / crop.scale
+    const sourceHeight = PREVIEW_SIZE / crop.scale
 
-    // Draw image
-    ctx.drawImage(img, scaledX, scaledY, scaledImageWidth, scaledImageHeight)
+    // Draw the cropped portion to fill the output canvas
+    ctx.drawImage(
+      img,
+      sourceX,           // Source x
+      sourceY,           // Source y
+      sourceWidth,       // Source width
+      sourceHeight,      // Source height
+      0,                 // Destination x
+      0,                 // Destination y
+      OUTPUT_SIZE,       // Destination width
+      OUTPUT_SIZE        // Destination height
+    )
 
     // Convert to base64
     const base64 = outputCanvas.toDataURL("image/jpeg", 0.9)

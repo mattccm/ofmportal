@@ -417,6 +417,36 @@ interface DataFieldVisibilitySettingsProps {
   disabled?: boolean;
 }
 
+// Field permission config: fields with view/edit granularity vs view-only
+type CreatorFieldConfig = {
+  key: keyof DataFieldVisibility["creatorFields"];
+  label: string;
+  hasEdit: boolean; // true = has view/edit toggles, false = view only (boolean)
+};
+
+const CREATOR_FIELD_CONFIGS: CreatorFieldConfig[] = [
+  { key: "name", label: "Name", hasEdit: true },
+  { key: "email", label: "Email Address", hasEdit: true },
+  { key: "phone", label: "Phone Number", hasEdit: true },
+  { key: "avatar", label: "Profile Photo", hasEdit: true },
+  { key: "socialLinks", label: "Social Links", hasEdit: true },
+  { key: "personalNotes", label: "Personal Notes", hasEdit: true },
+  { key: "earnings", label: "Earnings & Revenue", hasEdit: false },
+  { key: "contracts", label: "Contracts & Agreements", hasEdit: false },
+  { key: "paymentInfo", label: "Payment Information", hasEdit: false },
+];
+
+type RequestFieldConfig = {
+  key: keyof DataFieldVisibility["requestFields"];
+  label: string;
+  hasEdit: boolean;
+};
+
+const REQUEST_FIELD_CONFIGS: RequestFieldConfig[] = [
+  { key: "internalNotes", label: "Internal Notes", hasEdit: true },
+  { key: "creatorCompensation", label: "Creator Compensation", hasEdit: false },
+];
+
 export function DataFieldVisibilitySettings({
   visibility,
   onChange,
@@ -424,18 +454,26 @@ export function DataFieldVisibilitySettings({
 }: DataFieldVisibilitySettingsProps) {
   const [expanded, setExpanded] = useState(true);
 
-  const creatorFieldLabels: Record<keyof DataFieldVisibility["creatorFields"], string> = {
-    email: "Email Address",
-    phone: "Phone Number",
-    earnings: "Earnings & Revenue",
-    personalNotes: "Personal Notes",
-    contracts: "Contracts & Agreements",
-    paymentInfo: "Payment Information",
+  // Helper to get field value (handles both boolean and FieldPermission)
+  const getFieldValue = (field: any): { view: boolean; edit: boolean } => {
+    if (typeof field === "boolean") {
+      return { view: field, edit: field };
+    }
+    return field || { view: false, edit: false };
   };
 
-  const requestFieldLabels: Record<keyof DataFieldVisibility["requestFields"], string> = {
-    internalNotes: "Internal Notes",
-    creatorCompensation: "Creator Compensation",
+  // Count visible fields
+  const countVisible = () => {
+    let count = 0;
+    for (const cfg of CREATOR_FIELD_CONFIGS) {
+      const val = visibility.creatorFields[cfg.key];
+      if (typeof val === "boolean" ? val : val?.view) count++;
+    }
+    for (const cfg of REQUEST_FIELD_CONFIGS) {
+      const val = visibility.requestFields[cfg.key];
+      if (typeof val === "boolean" ? val : val?.view) count++;
+    }
+    return count;
   };
 
   return (
@@ -449,10 +487,10 @@ export function DataFieldVisibilitySettings({
                 <CardTitle className="text-base">Data Field Visibility</CardTitle>
               </div>
               <Badge variant="outline">
-                {Object.values(visibility.creatorFields).filter(Boolean).length + Object.values(visibility.requestFields).filter(Boolean).length} visible
+                {countVisible()} visible
               </Badge>
             </div>
-            <CardDescription>Control which sensitive fields are visible to this role</CardDescription>
+            <CardDescription>Control which fields are visible and editable for this role</CardDescription>
           </CardHeader>
         </CollapsibleTrigger>
 
@@ -463,28 +501,58 @@ export function DataFieldVisibilitySettings({
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">
                 Creator Fields
               </Label>
-              <div className="grid grid-cols-2 gap-3">
-                {Object.entries(creatorFieldLabels).map(([field, label]) => (
-                  <div key={field} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                    <Label htmlFor={`creator-${field}`} className="text-sm cursor-pointer">
-                      {label}
-                    </Label>
-                    <Switch
-                      id={`creator-${field}`}
-                      checked={visibility.creatorFields[field as keyof typeof visibility.creatorFields]}
-                      onCheckedChange={(checked) => {
-                        onChange({
-                          ...visibility,
-                          creatorFields: {
-                            ...visibility.creatorFields,
-                            [field]: checked,
-                          },
-                        });
-                      }}
-                      disabled={disabled}
-                    />
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {/* Header row */}
+                <div className="grid grid-cols-[1fr,60px,60px] gap-2 px-2 text-xs font-medium text-muted-foreground">
+                  <span>Field</span>
+                  <span className="text-center">View</span>
+                  <span className="text-center">Edit</span>
+                </div>
+                {CREATOR_FIELD_CONFIGS.map((cfg) => {
+                  const fieldVal = getFieldValue(visibility.creatorFields[cfg.key]);
+                  return (
+                    <div key={cfg.key} className="grid grid-cols-[1fr,60px,60px] gap-2 items-center p-2 rounded-lg bg-muted/30">
+                      <Label className="text-sm">{cfg.label}</Label>
+                      <div className="flex justify-center">
+                        <Checkbox
+                          checked={fieldVal.view}
+                          onCheckedChange={(checked) => {
+                            const newVal = cfg.hasEdit
+                              ? { view: !!checked, edit: checked ? fieldVal.edit : false }
+                              : !!checked;
+                            onChange({
+                              ...visibility,
+                              creatorFields: {
+                                ...visibility.creatorFields,
+                                [cfg.key]: newVal,
+                              },
+                            });
+                          }}
+                          disabled={disabled}
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        {cfg.hasEdit ? (
+                          <Checkbox
+                            checked={fieldVal.edit}
+                            onCheckedChange={(checked) => {
+                              onChange({
+                                ...visibility,
+                                creatorFields: {
+                                  ...visibility.creatorFields,
+                                  [cfg.key]: { view: fieldVal.view || !!checked, edit: !!checked },
+                                },
+                              });
+                            }}
+                            disabled={disabled || !fieldVal.view}
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -493,28 +561,58 @@ export function DataFieldVisibilitySettings({
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">
                 Request Fields
               </Label>
-              <div className="grid grid-cols-2 gap-3">
-                {Object.entries(requestFieldLabels).map(([field, label]) => (
-                  <div key={field} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                    <Label htmlFor={`request-${field}`} className="text-sm cursor-pointer">
-                      {label}
-                    </Label>
-                    <Switch
-                      id={`request-${field}`}
-                      checked={visibility.requestFields[field as keyof typeof visibility.requestFields]}
-                      onCheckedChange={(checked) => {
-                        onChange({
-                          ...visibility,
-                          requestFields: {
-                            ...visibility.requestFields,
-                            [field]: checked,
-                          },
-                        });
-                      }}
-                      disabled={disabled}
-                    />
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {/* Header row */}
+                <div className="grid grid-cols-[1fr,60px,60px] gap-2 px-2 text-xs font-medium text-muted-foreground">
+                  <span>Field</span>
+                  <span className="text-center">View</span>
+                  <span className="text-center">Edit</span>
+                </div>
+                {REQUEST_FIELD_CONFIGS.map((cfg) => {
+                  const fieldVal = getFieldValue(visibility.requestFields[cfg.key]);
+                  return (
+                    <div key={cfg.key} className="grid grid-cols-[1fr,60px,60px] gap-2 items-center p-2 rounded-lg bg-muted/30">
+                      <Label className="text-sm">{cfg.label}</Label>
+                      <div className="flex justify-center">
+                        <Checkbox
+                          checked={fieldVal.view}
+                          onCheckedChange={(checked) => {
+                            const newVal = cfg.hasEdit
+                              ? { view: !!checked, edit: checked ? fieldVal.edit : false }
+                              : !!checked;
+                            onChange({
+                              ...visibility,
+                              requestFields: {
+                                ...visibility.requestFields,
+                                [cfg.key]: newVal,
+                              },
+                            });
+                          }}
+                          disabled={disabled}
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        {cfg.hasEdit ? (
+                          <Checkbox
+                            checked={fieldVal.edit}
+                            onCheckedChange={(checked) => {
+                              onChange({
+                                ...visibility,
+                                requestFields: {
+                                  ...visibility.requestFields,
+                                  [cfg.key]: { view: fieldVal.view || !!checked, edit: !!checked },
+                                },
+                              });
+                            }}
+                            disabled={disabled || !fieldVal.view}
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </CardContent>
@@ -536,6 +634,14 @@ export function TeamMemberVisibilitySettings({
   onChange,
   disabled = false,
 }: TeamMemberVisibilitySettingsProps) {
+  // Ensure memberFieldVisibility exists with defaults
+  const memberFields = visibility.memberFieldVisibility || {
+    email: true,
+    phone: false,
+    role: true,
+    lastActive: true,
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -543,58 +649,160 @@ export function TeamMemberVisibilitySettings({
           <Users className="h-4 w-4" />
           Team Visibility
         </CardTitle>
-        <CardDescription>Control what this role can see about other team members</CardDescription>
+        <CardDescription>Control what this role can see about themselves and other team members</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-          <div>
-            <Label htmlFor="see-other-members" className="cursor-pointer">See Other Team Members</Label>
-            <p className="text-xs text-muted-foreground">
-              Can view the team member list
-            </p>
+      <CardContent className="space-y-4">
+        {/* Own Profile Section */}
+        <div className="space-y-3">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+            Own Profile
+          </Label>
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="see-own-profile" className="cursor-pointer">View Own Profile</Label>
+              <p className="text-xs text-muted-foreground">Can view their own profile details</p>
+            </div>
+            <Switch
+              id="see-own-profile"
+              checked={visibility.canSeeOwnProfile ?? true}
+              onCheckedChange={(checked) =>
+                onChange({ ...visibility, canSeeOwnProfile: checked })
+              }
+              disabled={disabled}
+            />
           </div>
-          <Switch
-            id="see-other-members"
-            checked={visibility.canSeeOtherMembers}
-            onCheckedChange={(checked) =>
-              onChange({ ...visibility, canSeeOtherMembers: checked })
-            }
-            disabled={disabled}
-          />
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="edit-own-profile" className="cursor-pointer">Edit Own Profile</Label>
+              <p className="text-xs text-muted-foreground">Can edit their own profile information</p>
+            </div>
+            <Switch
+              id="edit-own-profile"
+              checked={visibility.canEditOwnProfile ?? true}
+              onCheckedChange={(checked) =>
+                onChange({ ...visibility, canEditOwnProfile: checked })
+              }
+              disabled={disabled}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-          <div>
-            <Label htmlFor="see-member-activity" className="cursor-pointer">See Member Activity</Label>
-            <p className="text-xs text-muted-foreground">
-              Can view other members' activity logs
-            </p>
+        {/* Other Team Members Section */}
+        <div className="space-y-3">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+            Other Team Members
+          </Label>
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="see-other-members" className="cursor-pointer">See Team Members</Label>
+              <p className="text-xs text-muted-foreground">Can view the team member list</p>
+            </div>
+            <Switch
+              id="see-other-members"
+              checked={visibility.canSeeOtherMembers}
+              onCheckedChange={(checked) =>
+                onChange({ ...visibility, canSeeOtherMembers: checked })
+              }
+              disabled={disabled}
+            />
           </div>
-          <Switch
-            id="see-member-activity"
-            checked={visibility.canSeeOtherMemberActivity}
-            onCheckedChange={(checked) =>
-              onChange({ ...visibility, canSeeOtherMemberActivity: checked })
-            }
-            disabled={disabled || !visibility.canSeeOtherMembers}
-          />
-        </div>
 
-        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-          <div>
-            <Label htmlFor="see-member-earnings" className="cursor-pointer">See Member Earnings</Label>
-            <p className="text-xs text-muted-foreground">
-              Can view team member compensation
-            </p>
-          </div>
-          <Switch
-            id="see-member-earnings"
-            checked={visibility.canSeeMemberEarnings}
-            onCheckedChange={(checked) =>
-              onChange({ ...visibility, canSeeMemberEarnings: checked })
-            }
-            disabled={disabled || !visibility.canSeeOtherMembers}
-          />
+          {visibility.canSeeOtherMembers && (
+            <>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div>
+                  <Label htmlFor="see-member-activity" className="cursor-pointer">See Member Activity</Label>
+                  <p className="text-xs text-muted-foreground">Can view other members' activity logs</p>
+                </div>
+                <Switch
+                  id="see-member-activity"
+                  checked={visibility.canSeeOtherMemberActivity}
+                  onCheckedChange={(checked) =>
+                    onChange({ ...visibility, canSeeOtherMemberActivity: checked })
+                  }
+                  disabled={disabled}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div>
+                  <Label htmlFor="see-member-earnings" className="cursor-pointer">See Member Earnings</Label>
+                  <p className="text-xs text-muted-foreground">Can view team member compensation</p>
+                </div>
+                <Switch
+                  id="see-member-earnings"
+                  checked={visibility.canSeeMemberEarnings}
+                  onCheckedChange={(checked) =>
+                    onChange({ ...visibility, canSeeMemberEarnings: checked })
+                  }
+                  disabled={disabled}
+                />
+              </div>
+
+              {/* Member Field Visibility */}
+              <div className="space-y-2 pt-2">
+                <Label className="text-xs text-muted-foreground">Visible Member Fields</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
+                    <Checkbox
+                      id="member-email"
+                      checked={memberFields.email}
+                      onCheckedChange={(checked) =>
+                        onChange({
+                          ...visibility,
+                          memberFieldVisibility: { ...memberFields, email: !!checked },
+                        })
+                      }
+                      disabled={disabled}
+                    />
+                    <Label htmlFor="member-email" className="text-sm cursor-pointer">Email</Label>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
+                    <Checkbox
+                      id="member-phone"
+                      checked={memberFields.phone}
+                      onCheckedChange={(checked) =>
+                        onChange({
+                          ...visibility,
+                          memberFieldVisibility: { ...memberFields, phone: !!checked },
+                        })
+                      }
+                      disabled={disabled}
+                    />
+                    <Label htmlFor="member-phone" className="text-sm cursor-pointer">Phone</Label>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
+                    <Checkbox
+                      id="member-role"
+                      checked={memberFields.role}
+                      onCheckedChange={(checked) =>
+                        onChange({
+                          ...visibility,
+                          memberFieldVisibility: { ...memberFields, role: !!checked },
+                        })
+                      }
+                      disabled={disabled}
+                    />
+                    <Label htmlFor="member-role" className="text-sm cursor-pointer">Role</Label>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
+                    <Checkbox
+                      id="member-lastActive"
+                      checked={memberFields.lastActive}
+                      onCheckedChange={(checked) =>
+                        onChange({
+                          ...visibility,
+                          memberFieldVisibility: { ...memberFields, lastActive: !!checked },
+                        })
+                      }
+                      disabled={disabled}
+                    />
+                    <Label htmlFor="member-lastActive" className="text-sm cursor-pointer">Last Active</Label>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -707,22 +915,33 @@ export function RoleEditorDialog({
     creatorVisibility: { type: "assigned" },
     dataFieldVisibility: {
       creatorFields: {
-        email: true,
-        phone: false,
+        name: { view: true, edit: false },
+        email: { view: true, edit: false },
+        phone: { view: false, edit: false },
         earnings: false,
-        personalNotes: false,
+        personalNotes: { view: false, edit: false },
         contracts: false,
         paymentInfo: false,
+        avatar: { view: true, edit: false },
+        socialLinks: { view: true, edit: false },
       },
       requestFields: {
-        internalNotes: false,
+        internalNotes: { view: false, edit: false },
         creatorCompensation: false,
       },
     },
     teamMemberVisibility: {
+      canSeeOwnProfile: true,
+      canEditOwnProfile: false,
       canSeeOtherMembers: true,
       canSeeOtherMemberActivity: false,
       canSeeMemberEarnings: false,
+      memberFieldVisibility: {
+        email: true,
+        phone: false,
+        role: true,
+        lastActive: false,
+      },
     },
     isSystem: false,
     color: "#6366f1",
@@ -743,22 +962,33 @@ export function RoleEditorDialog({
         creatorVisibility: { type: "assigned" },
         dataFieldVisibility: {
           creatorFields: {
-            email: true,
-            phone: false,
+            name: { view: true, edit: false },
+            email: { view: true, edit: false },
+            phone: { view: false, edit: false },
             earnings: false,
-            personalNotes: false,
+            personalNotes: { view: false, edit: false },
             contracts: false,
             paymentInfo: false,
+            avatar: { view: true, edit: false },
+            socialLinks: { view: true, edit: false },
           },
           requestFields: {
-            internalNotes: false,
+            internalNotes: { view: false, edit: false },
             creatorCompensation: false,
           },
         },
         teamMemberVisibility: {
+          canSeeOwnProfile: true,
+          canEditOwnProfile: false,
           canSeeOtherMembers: true,
           canSeeOtherMemberActivity: false,
           canSeeMemberEarnings: false,
+          memberFieldVisibility: {
+            email: true,
+            phone: false,
+            role: true,
+            lastActive: false,
+          },
         },
         isSystem: false,
         color: "#6366f1",
@@ -787,8 +1017,9 @@ export function RoleEditorDialog({
       });
       onOpenChange(false);
       toast.success(isNew ? "Role created successfully" : "Role updated successfully");
-    } catch (error) {
-      toast.error("Failed to save role");
+    } catch (error: any) {
+      console.error("Role save error:", error);
+      toast.error(error?.message || "Failed to save role");
     } finally {
       setIsSaving(false);
     }
@@ -956,15 +1187,18 @@ export function RoleEditorDialog({
                 visibility={
                   editedRole.dataFieldVisibility || {
                     creatorFields: {
-                      email: true,
-                      phone: false,
+                      name: { view: true, edit: false },
+                      email: { view: true, edit: false },
+                      phone: { view: false, edit: false },
                       earnings: false,
-                      personalNotes: false,
+                      personalNotes: { view: false, edit: false },
                       contracts: false,
                       paymentInfo: false,
+                      avatar: { view: true, edit: false },
+                      socialLinks: { view: true, edit: false },
                     },
                     requestFields: {
-                      internalNotes: false,
+                      internalNotes: { view: false, edit: false },
                       creatorCompensation: false,
                     },
                   }
@@ -978,9 +1212,17 @@ export function RoleEditorDialog({
               <TeamMemberVisibilitySettings
                 visibility={
                   editedRole.teamMemberVisibility || {
+                    canSeeOwnProfile: true,
+                    canEditOwnProfile: false,
                     canSeeOtherMembers: true,
                     canSeeOtherMemberActivity: false,
                     canSeeMemberEarnings: false,
+                    memberFieldVisibility: {
+                      email: true,
+                      phone: false,
+                      role: true,
+                      lastActive: false,
+                    },
                   }
                 }
                 onChange={(visibility) =>

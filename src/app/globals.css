@@ -724,6 +724,17 @@ main {
     right: 16px;
   }
 
+  /* Activity floating button - positioned above other FABs on mobile */
+  .activity-float-btn {
+    bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 768px) {
+    .activity-float-btn {
+      bottom: 16px;
+    }
+  }
+
   /* Mobile skeleton loading */
   .mobile-skeleton {
     @apply animate-pulse bg-muted rounded-xl;

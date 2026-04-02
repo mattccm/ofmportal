@@ -49,6 +49,9 @@ function LoginForm() {
         return;
       }
 
+      // Log team login failure for debugging
+      console.log("Team member login result:", result);
+
       // Team login failed, try creator login
       try {
         const creatorResponse = await fetch("/api/portal/login", {

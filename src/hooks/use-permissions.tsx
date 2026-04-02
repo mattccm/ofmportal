@@ -228,12 +228,15 @@ export function usePermissions(): UsePermissionsReturn {
   const getCreatorFieldVisibility = useCallback((): DataFieldVisibility["creatorFields"] => {
     if (!user) {
       return {
-        email: false,
-        phone: false,
+        name: { view: false, edit: false },
+        email: { view: false, edit: false },
+        phone: { view: false, edit: false },
         earnings: false,
-        personalNotes: false,
+        personalNotes: { view: false, edit: false },
         contracts: false,
         paymentInfo: false,
+        avatar: { view: false, edit: false },
+        socialLinks: { view: false, edit: false },
       };
     }
     return getVisibleFields(user, "creator", customRoles);
@@ -243,7 +246,7 @@ export function usePermissions(): UsePermissionsReturn {
   const getRequestFieldVisibility = useCallback((): DataFieldVisibility["requestFields"] => {
     if (!user) {
       return {
-        internalNotes: false,
+        internalNotes: { view: false, edit: false },
         creatorCompensation: false,
       };
     }
@@ -255,10 +258,36 @@ export function usePermissions(): UsePermissionsReturn {
     (type: "creator" | "request", field: string): boolean => {
       if (type === "creator") {
         const visibility = getCreatorFieldVisibility();
-        return visibility[field as keyof typeof visibility] ?? true;
+        const fieldValue = visibility[field as keyof typeof visibility];
+        if (fieldValue === undefined) return true;
+        if (typeof fieldValue === "boolean") return fieldValue;
+        return fieldValue.view;
       } else {
         const visibility = getRequestFieldVisibility();
-        return visibility[field as keyof typeof visibility] ?? true;
+        const fieldValue = visibility[field as keyof typeof visibility];
+        if (fieldValue === undefined) return true;
+        if (typeof fieldValue === "boolean") return fieldValue;
+        return fieldValue.view;
+      }
+    },
+    [getCreatorFieldVisibility, getRequestFieldVisibility]
+  );
+
+  // Check if user can edit a specific field
+  const canEditField = useCallback(
+    (type: "creator" | "request", field: string): boolean => {
+      if (type === "creator") {
+        const visibility = getCreatorFieldVisibility();
+        const fieldValue = visibility[field as keyof typeof visibility];
+        if (fieldValue === undefined) return false;
+        if (typeof fieldValue === "boolean") return false; // Boolean fields are view-only
+        return fieldValue.edit;
+      } else {
+        const visibility = getRequestFieldVisibility();
+        const fieldValue = visibility[field as keyof typeof visibility];
+        if (fieldValue === undefined) return false;
+        if (typeof fieldValue === "boolean") return false; // Boolean fields are view-only
+        return fieldValue.edit;
       }
     },
     [getCreatorFieldVisibility, getRequestFieldVisibility]
@@ -268,9 +297,17 @@ export function usePermissions(): UsePermissionsReturn {
   const getTeamVisibility = useCallback((): TeamMemberVisibility => {
     if (!user) {
       return {
+        canSeeOwnProfile: false,
+        canEditOwnProfile: false,
         canSeeOtherMembers: false,
         canSeeOtherMemberActivity: false,
         canSeeMemberEarnings: false,
+        memberFieldVisibility: {
+          email: false,
+          phone: false,
+          role: false,
+          lastActive: false,
+        },
       };
     }
     return getTeamMemberVisibility(user, customRoles);

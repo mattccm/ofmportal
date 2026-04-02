@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import bcrypt from "bcryptjs";
 
 // Debug endpoint to check user/creator status - REMOVE IN PRODUCTION
 export async function GET(req: NextRequest) {
   const email = req.nextUrl.searchParams.get("email");
+  const testPassword = req.nextUrl.searchParams.get("testPassword");
 
   if (!email) {
     return NextResponse.json({ error: "Email parameter required" }, { status: 400 });
@@ -46,6 +48,25 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // Test password if provided
+    let passwordTestResult = null;
+    if (testPassword && user?.password) {
+      try {
+        const isValid = await bcrypt.compare(testPassword, user.password);
+        passwordTestResult = {
+          tested: true,
+          isValid,
+          passwordHashPrefix: user.password.substring(0, 7), // Show bcrypt prefix to verify format
+        };
+      } catch (err) {
+        passwordTestResult = {
+          tested: true,
+          isValid: false,
+          error: String(err),
+        };
+      }
+    }
+
     return NextResponse.json({
       user: user ? {
         found: true,
@@ -57,6 +78,8 @@ export async function GET(req: NextRequest) {
         agencyName: user.agency?.name,
         hasPassword: !!user.password,
         passwordLength: user.password?.length || 0,
+        passwordHashPrefix: user.password?.substring(0, 7) || null, // Should be $2a$12 or $2b$12 for bcrypt
+        passwordTest: passwordTestResult,
       } : { found: false },
       creator: creator ? {
         found: true,

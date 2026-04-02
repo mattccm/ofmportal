@@ -71,6 +71,7 @@ interface ProfileData {
 
 interface ProfileFormData {
   name: string;
+  email: string;
   phone: string;
   bio: string;
   timezone: string;
@@ -107,6 +108,7 @@ export default function ProfileSettingsPage() {
   const [showRecoveryDialog, setShowRecoveryDialog] = React.useState(false);
   const [formData, setFormData] = React.useState<ProfileFormData>({
     name: "",
+    email: "",
     phone: "",
     bio: "",
     timezone: "America/New_York",
@@ -130,6 +132,7 @@ export default function ProfileSettingsPage() {
     if (recovered) {
       setFormData({
         name: recovered.name || "",
+        email: recovered.email || profile?.email || "",
         phone: recovered.phone || "",
         bio: recovered.bio || "",
         timezone: recovered.timezone || "America/New_York",
@@ -156,6 +159,7 @@ export default function ProfileSettingsPage() {
         setProfile(data);
         setFormData({
           name: data.name || "",
+          email: data.email || "",
           phone: data.phone || "",
           bio: data.bio || "",
           timezone: data.timezone || "America/New_York",
@@ -210,16 +214,24 @@ export default function ProfileSettingsPage() {
     setIsSaving(true);
 
     try {
+      // Build update payload - only include email if it changed (for owners)
+      const updatePayload: Record<string, unknown> = {
+        name: formData.name,
+        phone: formData.phone || null,
+        bio: formData.bio || null,
+        timezone: formData.timezone,
+        preferredLanguage: formData.preferredLanguage,
+      };
+
+      // Include email if changed (API will validate owner role)
+      if (formData.email && formData.email !== profile?.email) {
+        updatePayload.email = formData.email;
+      }
+
       const response = await fetch("/api/users/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          phone: formData.phone || null,
-          bio: formData.bio || null,
-          timezone: formData.timezone,
-          preferredLanguage: formData.preferredLanguage,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (!response.ok) {
@@ -398,22 +410,40 @@ export default function ProfileSettingsPage() {
               </div>
             </div>
 
-            {/* Email (readonly) */}
+            {/* Email - editable for owners only */}
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  value={profile?.email || ""}
-                  className="pl-10 h-10 bg-muted/50"
-                  disabled
-                  readOnly
-                />
+                {profile?.role === "OWNER" ? (
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="you@example.com"
+                    className="pl-10 h-10"
+                  />
+                ) : (
+                  <Input
+                    id="email"
+                    value={profile?.email || ""}
+                    className="pl-10 h-10 bg-muted/50"
+                    disabled
+                    readOnly
+                  />
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Contact support to change your email address
-              </p>
+              {profile?.role === "OWNER" ? (
+                <p className="text-xs text-muted-foreground">
+                  As the account owner, you can update your email address
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Contact your account owner to change your email address
+                </p>
+              )}
             </div>
 
             {/* Phone */}

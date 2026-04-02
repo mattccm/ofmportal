@@ -154,18 +154,21 @@ export function getVisibleFields<T extends "creator" | "request">(
     // Return all fields hidden if no role
     if (resourceType === "creator") {
       return {
-        email: false,
-        phone: false,
+        name: { view: false, edit: false },
+        email: { view: false, edit: false },
+        phone: { view: false, edit: false },
         earnings: false,
-        personalNotes: false,
+        personalNotes: { view: false, edit: false },
         contracts: false,
         paymentInfo: false,
+        avatar: { view: false, edit: false },
+        socialLinks: { view: false, edit: false },
       } as T extends "creator"
         ? DataFieldVisibility["creatorFields"]
         : DataFieldVisibility["requestFields"];
     }
     return {
-      internalNotes: false,
+      internalNotes: { view: false, edit: false },
       creatorCompensation: false,
     } as T extends "creator"
       ? DataFieldVisibility["creatorFields"]
@@ -192,9 +195,17 @@ export function getTeamMemberVisibility(
 
   if (!role) {
     return {
+      canSeeOwnProfile: false,
+      canEditOwnProfile: false,
       canSeeOtherMembers: false,
       canSeeOtherMemberActivity: false,
       canSeeMemberEarnings: false,
+      memberFieldVisibility: {
+        email: false,
+        phone: false,
+        role: false,
+        lastActive: false,
+      },
     };
   }
 

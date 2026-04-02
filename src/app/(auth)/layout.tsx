@@ -13,8 +13,11 @@ export default function AuthLayout({
         <div className="absolute top-0 -left-10 w-40 h-40 bg-primary/30 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-0 w-32 h-32 bg-violet-500/20 rounded-full blur-3xl" />
 
-        {/* Content */}
-        <div className="relative z-10 px-6 py-8 text-center">
+        {/* Content - with safe area padding for PWA/notch */}
+        <div
+          className="relative z-10 px-6 pb-8 text-center"
+          style={{ paddingTop: "max(32px, calc(env(safe-area-inset-top, 0px) + 16px))" }}
+        >
           {/* Logo */}
           <div className="flex justify-center mb-4">
             <div className="relative h-14 w-14">

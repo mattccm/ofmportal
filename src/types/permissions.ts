@@ -143,30 +143,59 @@ export interface CreatorVisibility {
   groupIds?: string[]; // If type is "groups"
 }
 
-// Data Field Visibility - Controls which fields team members can see
+// Field permission with view/edit granularity
+export interface FieldPermission {
+  view: boolean;
+  edit: boolean;
+}
+
+// Data Field Visibility - Controls which fields team members can see and edit
 export interface DataFieldVisibility {
-  // Which fields team members can see for creators
+  // Which fields team members can see/edit for creators
   creatorFields: {
-    email: boolean;
-    phone: boolean;
-    earnings: boolean;
-    personalNotes: boolean;
-    contracts: boolean;
-    paymentInfo: boolean;
+    name: FieldPermission;
+    email: FieldPermission;
+    phone: FieldPermission;
+    earnings: boolean; // View only (no edit)
+    personalNotes: FieldPermission;
+    contracts: boolean; // View only (sensitive)
+    paymentInfo: boolean; // View only (sensitive)
+    avatar: FieldPermission;
+    socialLinks: FieldPermission;
   };
   // Which fields team members can see for requests
   requestFields: {
-    internalNotes: boolean;
-    creatorCompensation: boolean;
+    internalNotes: FieldPermission;
+    creatorCompensation: boolean; // View only
   };
+}
+
+// Legacy support - convert boolean to FieldPermission
+export function boolToFieldPermission(value: boolean | FieldPermission): FieldPermission {
+  if (typeof value === "boolean") {
+    return { view: value, edit: value };
+  }
+  return value;
 }
 
 // Team Member Visibility - Controls what team members can see about other members
 export interface TeamMemberVisibility {
+  // Can see own profile details
+  canSeeOwnProfile: boolean;
+  canEditOwnProfile: boolean;
+  // Can see other team members
   canSeeOtherMembers: boolean;
   canSeeOtherMemberActivity: boolean;
   canSeeMemberEarnings: boolean;
-  visibleMemberIds?: string[]; // Specific members they can see
+  // Specific members they can see (if not canSeeOtherMembers)
+  visibleMemberIds?: string[];
+  // What fields of other members they can see
+  memberFieldVisibility?: {
+    email: boolean;
+    phone: boolean;
+    role: boolean;
+    lastActive: boolean;
+  };
 }
 
 // Role Definition
@@ -265,27 +294,43 @@ export const PERMISSION_RESOURCES: Record<PermissionResource, { label: string; d
   analytics: { label: "Analytics", description: "Dashboard analytics and metrics", icon: "TrendingUp", category: "analytics" },
 };
 
+// Helper to create field permission
+const FULL_FIELD: FieldPermission = { view: true, edit: true };
+const VIEW_ONLY_FIELD: FieldPermission = { view: true, edit: false };
+const NO_FIELD: FieldPermission = { view: false, edit: false };
+
 // Default field visibility for creators
 export const DEFAULT_CREATOR_FIELD_VISIBILITY: DataFieldVisibility["creatorFields"] = {
-  email: true,
-  phone: false,
+  name: VIEW_ONLY_FIELD,
+  email: VIEW_ONLY_FIELD,
+  phone: NO_FIELD,
   earnings: false,
-  personalNotes: false,
+  personalNotes: NO_FIELD,
   contracts: false,
   paymentInfo: false,
+  avatar: VIEW_ONLY_FIELD,
+  socialLinks: VIEW_ONLY_FIELD,
 };
 
 // Default field visibility for requests
 export const DEFAULT_REQUEST_FIELD_VISIBILITY: DataFieldVisibility["requestFields"] = {
-  internalNotes: false,
+  internalNotes: NO_FIELD,
   creatorCompensation: false,
 };
 
 // Default team member visibility
 export const DEFAULT_TEAM_MEMBER_VISIBILITY: TeamMemberVisibility = {
+  canSeeOwnProfile: true,
+  canEditOwnProfile: false,
   canSeeOtherMembers: true,
   canSeeOtherMemberActivity: false,
   canSeeMemberEarnings: false,
+  memberFieldVisibility: {
+    email: true,
+    phone: false,
+    role: true,
+    lastActive: false,
+  },
 };
 
 // Full permissions for all resources
@@ -355,22 +400,33 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
     creatorVisibility: { type: "all" },
     dataFieldVisibility: {
       creatorFields: {
-        email: true,
-        phone: true,
+        name: FULL_FIELD,
+        email: FULL_FIELD,
+        phone: FULL_FIELD,
         earnings: true,
-        personalNotes: true,
+        personalNotes: FULL_FIELD,
         contracts: true,
         paymentInfo: true,
+        avatar: FULL_FIELD,
+        socialLinks: FULL_FIELD,
       },
       requestFields: {
-        internalNotes: true,
+        internalNotes: FULL_FIELD,
         creatorCompensation: true,
       },
     },
     teamMemberVisibility: {
+      canSeeOwnProfile: true,
+      canEditOwnProfile: true,
       canSeeOtherMembers: true,
       canSeeOtherMemberActivity: true,
       canSeeMemberEarnings: true,
+      memberFieldVisibility: {
+        email: true,
+        phone: true,
+        role: true,
+        lastActive: true,
+      },
     },
     isSystem: true,
     color: "#7c3aed",
@@ -383,22 +439,33 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
     creatorVisibility: { type: "all" },
     dataFieldVisibility: {
       creatorFields: {
-        email: true,
-        phone: true,
+        name: FULL_FIELD,
+        email: FULL_FIELD,
+        phone: FULL_FIELD,
         earnings: true,
-        personalNotes: true,
+        personalNotes: FULL_FIELD,
         contracts: true,
         paymentInfo: false,
+        avatar: FULL_FIELD,
+        socialLinks: FULL_FIELD,
       },
       requestFields: {
-        internalNotes: true,
+        internalNotes: FULL_FIELD,
         creatorCompensation: true,
       },
     },
     teamMemberVisibility: {
+      canSeeOwnProfile: true,
+      canEditOwnProfile: true,
       canSeeOtherMembers: true,
       canSeeOtherMemberActivity: true,
       canSeeMemberEarnings: false,
+      memberFieldVisibility: {
+        email: true,
+        phone: true,
+        role: true,
+        lastActive: true,
+      },
     },
     isSystem: true,
     color: "#2563eb",
@@ -411,22 +478,33 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
     creatorVisibility: { type: "all" },
     dataFieldVisibility: {
       creatorFields: {
-        email: true,
-        phone: true,
+        name: FULL_FIELD,
+        email: VIEW_ONLY_FIELD,
+        phone: VIEW_ONLY_FIELD,
         earnings: false,
-        personalNotes: true,
+        personalNotes: FULL_FIELD,
         contracts: false,
         paymentInfo: false,
+        avatar: VIEW_ONLY_FIELD,
+        socialLinks: VIEW_ONLY_FIELD,
       },
       requestFields: {
-        internalNotes: true,
+        internalNotes: FULL_FIELD,
         creatorCompensation: false,
       },
     },
     teamMemberVisibility: {
+      canSeeOwnProfile: true,
+      canEditOwnProfile: true,
       canSeeOtherMembers: true,
       canSeeOtherMemberActivity: false,
       canSeeMemberEarnings: false,
+      memberFieldVisibility: {
+        email: true,
+        phone: false,
+        role: true,
+        lastActive: true,
+      },
     },
     isSystem: true,
     color: "#059669",
@@ -439,22 +517,33 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
     creatorVisibility: { type: "assigned" },
     dataFieldVisibility: {
       creatorFields: {
-        email: true,
-        phone: false,
+        name: VIEW_ONLY_FIELD,
+        email: VIEW_ONLY_FIELD,
+        phone: NO_FIELD,
         earnings: false,
-        personalNotes: false,
+        personalNotes: NO_FIELD,
         contracts: false,
         paymentInfo: false,
+        avatar: VIEW_ONLY_FIELD,
+        socialLinks: NO_FIELD,
       },
       requestFields: {
-        internalNotes: false,
+        internalNotes: VIEW_ONLY_FIELD,
         creatorCompensation: false,
       },
     },
     teamMemberVisibility: {
+      canSeeOwnProfile: true,
+      canEditOwnProfile: true,
       canSeeOtherMembers: true,
       canSeeOtherMemberActivity: false,
       canSeeMemberEarnings: false,
+      memberFieldVisibility: {
+        email: false,
+        phone: false,
+        role: true,
+        lastActive: false,
+      },
     },
     isSystem: true,
     color: "#d97706",
@@ -469,22 +558,33 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
     creatorVisibility: { type: "assigned" },
     dataFieldVisibility: {
       creatorFields: {
-        email: false,
-        phone: false,
+        name: VIEW_ONLY_FIELD,
+        email: NO_FIELD,
+        phone: NO_FIELD,
         earnings: false,
-        personalNotes: false,
+        personalNotes: NO_FIELD,
         contracts: false,
         paymentInfo: false,
+        avatar: VIEW_ONLY_FIELD,
+        socialLinks: NO_FIELD,
       },
       requestFields: {
-        internalNotes: false,
+        internalNotes: NO_FIELD,
         creatorCompensation: false,
       },
     },
     teamMemberVisibility: {
+      canSeeOwnProfile: true,
+      canEditOwnProfile: false,
       canSeeOtherMembers: false,
       canSeeOtherMemberActivity: false,
       canSeeMemberEarnings: false,
+      memberFieldVisibility: {
+        email: false,
+        phone: false,
+        role: false,
+        lastActive: false,
+      },
     },
     isSystem: true,
     color: "#6b7280",

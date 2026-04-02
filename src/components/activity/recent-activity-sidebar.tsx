@@ -437,9 +437,11 @@ export function FloatingActivityButton({
       onClick={onClick}
       size="lg"
       className={cn(
-        "fixed right-4 bottom-4 z-40 h-12 w-12 rounded-full shadow-lg",
+        "fixed right-4 z-40 h-12 w-12 rounded-full shadow-lg",
         "bg-primary hover:bg-primary/90",
         "transition-all duration-200 hover:scale-105",
+        // Position above mobile nav bar and FABs on mobile, normal position on desktop
+        "activity-float-btn",
         className
       )}
     >
