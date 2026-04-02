@@ -28,12 +28,16 @@ function LoginForm() {
 
     try {
       // First try team member login via NextAuth
-      const result = await signIn("credentials", {
+      // Only include totpCode if 2FA is required and user has entered a code
+      const credentials: Record<string, string | boolean> = {
         email,
         password,
-        totpCode: requires2FA ? totpCode : undefined,
         redirect: false,
-      });
+      };
+      if (requires2FA && totpCode) {
+        credentials.totpCode = totpCode;
+      }
+      const result = await signIn("credentials", credentials);
 
       if (result?.ok && !result.error) {
         // Team member login successful
