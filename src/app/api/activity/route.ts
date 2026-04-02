@@ -22,8 +22,9 @@ export async function GET(req: NextRequest) {
     }
 
     const url = new URL(req.url);
+    const limit = url.searchParams.get("limit");
     const page = parseInt(url.searchParams.get("page") || "1", 10);
-    const pageSize = parseInt(url.searchParams.get("pageSize") || "20", 10);
+    const pageSize = limit ? parseInt(limit, 10) : parseInt(url.searchParams.get("pageSize") || "20", 10);
     const type = url.searchParams.get("type");
     const userId = url.searchParams.get("userId");
     const entityId = url.searchParams.get("entityId");
@@ -191,10 +192,10 @@ export async function GET(req: NextRequest) {
           if (upload) {
             entityDetails = {
               uploadName: upload.originalName,
-              requestId: upload.request.id,
-              requestTitle: upload.request.title,
-              creatorId: upload.creator.id,
-              creatorName: upload.creator.name,
+              requestId: upload.request?.id,
+              requestTitle: upload.request?.title,
+              creatorId: upload.creator?.id,
+              creatorName: upload.creator?.name,
               thumbnailUrl: upload.thumbnailUrl,
               fileType: upload.fileType,
             };
@@ -214,9 +215,9 @@ export async function GET(req: NextRequest) {
               requestId: request.id,
               requestTitle: request.title,
               requestStatus: request.status,
-              creatorId: request.creator.id,
-              creatorName: request.creator.name,
-              creatorAvatar: request.creator.avatar,
+              creatorId: request.creator?.id,
+              creatorName: request.creator?.name,
+              creatorAvatar: request.creator?.avatar,
             };
           }
         } else if (activity.entityType === "Creator") {

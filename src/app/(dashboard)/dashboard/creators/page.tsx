@@ -146,20 +146,6 @@ export default async function CreatorsPage() {
       ) : (
         <CreatorsList creators={serializedCreators} />
       )}
-
-      {/* Floating Action Button for Mobile */}
-      {creators.length > 0 && (
-        <Link
-          href="/dashboard/creators/invite"
-          className="fixed z-40 flex md:hidden items-center justify-center h-14 w-14 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 active:scale-95 transition-transform touch-manipulation"
-          style={{
-            bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
-            right: "16px",
-          }}
-        >
-          <Plus className="h-6 w-6" />
-        </Link>
-      )}
     </div>
   );
 }

@@ -212,20 +212,6 @@ export default function CreatorGroupsPage() {
         </div>
       )}
 
-      {/* Floating action button for mobile */}
-      {groups.length > 0 && (
-        <button
-          onClick={handleCreateNew}
-          className="fixed z-40 flex md:hidden items-center justify-center h-14 w-14 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 active:scale-95 transition-transform touch-manipulation"
-          style={{
-            bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
-            right: "16px",
-          }}
-        >
-          <Plus className="h-6 w-6" />
-        </button>
-      )}
-
       {/* Group editor dialog */}
       <GroupEditor
         open={editorOpen}
