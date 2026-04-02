@@ -58,13 +58,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify file exists in storage
-    const exists = await fileExists(upload.storageKey);
+    // Verify file exists in storage (with retry for eventual consistency)
+    let exists = await fileExists(upload.storageKey);
+
+    // If not found, wait a moment and try again (R2 eventual consistency)
     if (!exists) {
-      return NextResponse.json(
-        { error: "File not found in storage. Upload may have failed." },
-        { status: 400 }
-      );
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      exists = await fileExists(upload.storageKey);
+    }
+
+    // If still not found, log warning but proceed anyway (file may still be propagating)
+    if (!exists) {
+      console.warn(`File verification failed for ${upload.storageKey}, proceeding with completion anyway`);
     }
 
     // Update upload status

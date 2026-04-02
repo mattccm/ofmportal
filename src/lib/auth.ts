@@ -33,6 +33,7 @@ export const authOptions: NextAuthOptions = {
             id: true,
             email: true,
             name: true,
+            image: true,
             role: true,
             password: true,
             twoFactorEnabled: true,
@@ -93,6 +94,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
+          image: user.image,
           role: user.role,
           agencyId: user.agencyId,
           agencyName: user.agency?.name || "",
@@ -105,15 +107,24 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.image = user.image;
         token.role = user.role;
         token.agencyId = user.agencyId || "";
         token.agencyName = user.agencyName || "";
         token.twoFactorEnabled = user.twoFactorEnabled;
       }
 
-      // Handle session update (e.g., after enabling 2FA)
+      // Handle session update (e.g., after enabling 2FA or avatar update)
       if (trigger === "update" && session) {
-        token.twoFactorEnabled = session.twoFactorEnabled;
+        if (session.twoFactorEnabled !== undefined) {
+          token.twoFactorEnabled = session.twoFactorEnabled;
+        }
+        if (session.image !== undefined) {
+          token.image = session.image;
+        }
+        if (session.name !== undefined) {
+          token.name = session.name;
+        }
       }
 
       return token;
@@ -121,6 +132,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.image = token.image as string | null;
         session.user.role = token.role as string;
         session.user.agencyId = token.agencyId as string;
         session.user.agencyName = token.agencyName as string;

@@ -662,6 +662,7 @@ function NewRequestForm() {
 
     setFormData((prev) => ({
       ...prev,
+      title: template.name,
       templateId: template.id,
       dueDate: format(dueDate, "yyyy-MM-dd"),
       urgency: template.defaultUrgency,

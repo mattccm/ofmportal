@@ -7,7 +7,7 @@ import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -225,6 +225,9 @@ function SidebarComponent() {
               className="w-full h-auto justify-start gap-3 px-3 py-3 text-left rounded-xl hover:bg-sidebar-accent transition-all duration-200"
             >
               <Avatar className="h-10 w-10 ring-2 ring-sidebar-accent">
+                {user?.image && (
+                  <AvatarImage src={user.image} alt={user?.name || "User"} />
+                )}
                 <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-sm">
                   {generateInitials(user?.name)}
                 </AvatarFallback>

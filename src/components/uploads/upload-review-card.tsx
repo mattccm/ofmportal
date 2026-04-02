@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -174,12 +175,35 @@ export function UploadReviewCard({
   const [rejectReason, setRejectReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(upload.thumbnailUrl || null);
+  const [thumbnailLoading, setThumbnailLoading] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
 
   const isPending = upload.status === "PENDING";
   const fileSize = typeof upload.fileSize === "bigint" ? Number(upload.fileSize) : upload.fileSize;
   const isImage = upload.fileType.startsWith("image/");
   const isVideo = upload.fileType.startsWith("video/");
   const isAudio = upload.fileType.startsWith("audio/");
+
+  // Fetch thumbnail URL on mount for images if not provided
+  React.useEffect(() => {
+    if (!thumbnailUrl && isImage && !thumbnailLoading && !thumbnailError) {
+      setThumbnailLoading(true);
+      fetch(`/api/uploads/${upload.id}/thumbnail`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.url) {
+            setThumbnailUrl(data.url);
+          }
+        })
+        .catch(() => {
+          setThumbnailError(true);
+        })
+        .finally(() => {
+          setThumbnailLoading(false);
+        });
+    }
+  }, [upload.id, thumbnailUrl, isImage, thumbnailLoading, thumbnailError]);
 
   const handlePreview = async () => {
     setLoadingPreview(true);
@@ -309,13 +333,17 @@ export function UploadReviewCard({
             className="relative aspect-square bg-muted/30 cursor-pointer overflow-hidden"
             onClick={handlePreview}
           >
-            {upload.thumbnailUrl ? (
+            {thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={upload.thumbnailUrl}
+                src={thumbnailUrl}
                 alt={upload.originalName}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
+            ) : thumbnailLoading ? (
+              <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-muted-foreground">
                 <div className="rounded-xl bg-muted/50 p-4">
@@ -618,13 +646,17 @@ export function UploadReviewCard({
           className="shrink-0 relative h-16 w-16 rounded-lg bg-muted/50 overflow-hidden cursor-pointer group"
           onClick={handlePreview}
         >
-          {upload.thumbnailUrl ? (
+          {thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={upload.thumbnailUrl}
+              src={thumbnailUrl}
               alt={upload.originalName}
               className="h-full w-full object-cover"
             />
+          ) : thumbnailLoading ? (
+            <div className="flex h-full w-full items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
           ) : (
             <div className="flex h-full w-full items-center justify-center text-muted-foreground">
               {getFileIcon(upload.fileType)}

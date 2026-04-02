@@ -278,6 +278,10 @@ export default function ProfileSettingsPage() {
 
       const data = await response.json();
       setProfile((prev) => (prev ? { ...prev, image: data.url } : null));
+
+      // Update session to reflect new avatar everywhere
+      await updateSession({ image: data.url });
+
       toast.success("Avatar updated successfully");
     } catch (error) {
       console.error("Error uploading avatar:", error);
@@ -301,6 +305,10 @@ export default function ProfileSettingsPage() {
       }
 
       setProfile((prev) => (prev ? { ...prev, image: null } : null));
+
+      // Update session to reflect removed avatar everywhere
+      await updateSession({ image: null });
+
       toast.success("Avatar removed");
     } catch (error) {
       console.error("Error removing avatar:", error);

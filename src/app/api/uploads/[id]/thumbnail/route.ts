@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl } from "@/lib/storage";
+import { getViewPresignedUrl } from "@/lib/storage";
 
 export async function GET(
   req: NextRequest,
@@ -23,19 +23,33 @@ export async function GET(
           agencyId: session.user.agencyId,
         },
       },
+      select: {
+        storageKey: true,
+        fileType: true,
+        thumbnailKey: true,
+      },
     });
 
     if (!upload) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    const url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName || upload.fileName);
+    // For images, use the actual file as the thumbnail
+    // For other types, use the thumbnailKey if available
+    const isImage = upload.fileType.startsWith("image/");
+    const keyToUse = isImage ? upload.storageKey : upload.thumbnailKey;
+
+    if (!keyToUse) {
+      return NextResponse.json({ url: null });
+    }
+
+    const url = await getViewPresignedUrl(keyToUse);
 
     return NextResponse.json({ url });
   } catch (error) {
-    console.error("Error getting upload URL:", error);
+    console.error("Error getting thumbnail URL:", error);
     return NextResponse.json(
-      { error: "Failed to get upload URL" },
+      { error: "Failed to get thumbnail URL" },
       { status: 500 }
     );
   }

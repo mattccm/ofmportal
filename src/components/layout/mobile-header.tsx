@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -123,7 +123,7 @@ export function MobileHeader({
         paddingTop: "env(safe-area-inset-top, 0px)",
       }}
     >
-      <div className="flex items-center justify-between h-14 px-4">
+      <div className="flex items-center justify-between h-16 px-4 pt-2">
         {/* Left: Back Button or Logo */}
         <div className="flex items-center gap-3 min-w-[80px]">
           {shouldShowBack ? (
@@ -205,6 +205,9 @@ export function MobileHeader({
                     className="h-10 w-10 rounded-xl p-0 touch-manipulation active:scale-95 transition-transform"
                   >
                     <Avatar className="h-8 w-8 ring-2 ring-border">
+                      {user?.image && (
+                        <AvatarImage src={user.image} alt={user?.name || "User"} />
+                      )}
                       <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-xs">
                         {generateInitials(user?.name)}
                       </AvatarFallback>
@@ -220,6 +223,9 @@ export function MobileHeader({
                   <div className="px-3 py-3 rounded-xl bg-muted/50 mb-2">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+                        {user?.image && (
+                          <AvatarImage src={user.image} alt={user?.name || "User"} />
+                        )}
                         <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-sm">
                           {generateInitials(user?.name)}
                         </AvatarFallback>

@@ -8,12 +8,11 @@ import type { WidgetConfig } from "@/components/dashboard/widget-grid";
 // Default widget layout
 const DEFAULT_LAYOUT: WidgetConfig[] = [
   { id: "quick-stats-1", type: "quick-stats", title: "Quick Stats", size: "large", order: 0, visible: true },
-  { id: "activity-feed-1", type: "activity-feed", title: "Activity Feed", size: "medium", order: 1, visible: true },
-  { id: "upcoming-deadlines-1", type: "upcoming-deadlines", title: "Upcoming Deadlines", size: "small", order: 2, visible: true },
-  { id: "pending-requests-1", type: "pending-requests", title: "Pending Requests", size: "medium", order: 3, visible: true },
-  { id: "top-creators-1", type: "top-creators", title: "Top Performers", size: "small", order: 4, visible: true },
-  { id: "recent-uploads-1", type: "recent-uploads", title: "Recent Uploads", size: "medium", order: 5, visible: true },
-  { id: "reminder-summary-1", type: "reminder-summary", title: "Reminders", size: "medium", order: 6, visible: true },
+  { id: "upcoming-deadlines-1", type: "upcoming-deadlines", title: "Upcoming Deadlines", size: "small", order: 1, visible: true },
+  { id: "pending-requests-1", type: "pending-requests", title: "Pending Requests", size: "medium", order: 2, visible: true },
+  { id: "top-creators-1", type: "top-creators", title: "Top Performers", size: "small", order: 3, visible: true },
+  { id: "recent-uploads-1", type: "recent-uploads", title: "Recent Uploads", size: "medium", order: 4, visible: true },
+  { id: "reminder-summary-1", type: "reminder-summary", title: "Reminders", size: "medium", order: 5, visible: true },
 ];
 
 async function getUserLayout(userId: string): Promise<WidgetConfig[]> {

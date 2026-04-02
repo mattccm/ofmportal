@@ -21,7 +21,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  Save,
   Eye,
   EyeOff,
   Copy,
@@ -558,19 +557,6 @@ export function TemplateBuilder({
                   Preview
                 </>
               )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleSave(true)}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save Draft
             </Button>
             <Button
               size="sm"

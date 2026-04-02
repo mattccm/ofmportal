@@ -4,7 +4,6 @@ export { RecentUploadsWidget } from "./recent-uploads-widget";
 export { UpcomingDeadlinesWidget } from "./upcoming-deadlines-widget";
 export { TopCreatorsWidget } from "./top-creators-widget";
 export { QuickStatsWidget } from "./quick-stats-widget";
-export { ActivityFeedWidget } from "./activity-feed-widget";
 export { ReminderSummaryWidget } from "./reminder-summary-widget";
 
 // Widget definitions for the grid
@@ -14,7 +13,6 @@ import {
   Calendar,
   Trophy,
   BarChart3,
-  Activity,
   Bell,
 } from "lucide-react";
 import { PendingRequestsWidget } from "./pending-requests-widget";
@@ -22,7 +20,6 @@ import { RecentUploadsWidget } from "./recent-uploads-widget";
 import { UpcomingDeadlinesWidget } from "./upcoming-deadlines-widget";
 import { TopCreatorsWidget } from "./top-creators-widget";
 import { QuickStatsWidget } from "./quick-stats-widget";
-import { ActivityFeedWidget } from "./activity-feed-widget";
 import { ReminderSummaryWidget } from "./reminder-summary-widget";
 import type { WidgetDefinition } from "../widget-grid";
 import React from "react";
@@ -72,15 +69,6 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     defaultSize: "small",
     supportedSizes: ["small", "medium", "large"],
     component: TopCreatorsWidget,
-  },
-  {
-    type: "activity-feed",
-    title: "Activity Feed",
-    description: "Real-time stream of team activity",
-    icon: React.createElement(Activity, { className: "h-5 w-5" }),
-    defaultSize: "medium",
-    supportedSizes: ["small", "medium", "large"],
-    component: ActivityFeedWidget,
   },
   {
     type: "reminder-summary",

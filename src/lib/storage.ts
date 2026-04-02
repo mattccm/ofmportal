@@ -95,7 +95,23 @@ export async function getUploadPresignedUrl(
 }
 
 // Generate presigned URL for download (1 hour expiry)
-export async function getDownloadPresignedUrl(key: string): Promise<string> {
+export async function getDownloadPresignedUrl(key: string, filename?: string): Promise<string> {
+  // Extract filename from key if not provided
+  const downloadFilename = filename || key.split("/").pop() || "download";
+
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    ResponseContentDisposition: `attachment; filename="${downloadFilename}"`,
+  });
+
+  return getSignedUrl(s3Client, command, {
+    expiresIn: 3600, // 1 hour
+  });
+}
+
+// Generate presigned URL for viewing/preview (inline, 1 hour expiry)
+export async function getViewPresignedUrl(key: string): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
