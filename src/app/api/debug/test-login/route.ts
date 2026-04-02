@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 // Debug endpoint to test login directly - REMOVE IN PRODUCTION
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, setPassword } = await req.json();
+    const { email, password, setPassword, disable2FA } = await req.json();
 
     if (!email) {
       return NextResponse.json(
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
         role: true,
         password: true,
         twoFactorEnabled: true,
+        twoFactorSecret: true,
         agencyId: true,
       },
     });
@@ -41,6 +42,24 @@ export async function POST(req: NextRequest) {
         inviteStatus: true,
       },
     });
+
+    // If disable2FA is true, disable 2FA for this user
+    if (disable2FA && user) {
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          twoFactorEnabled: false,
+          twoFactorSecret: null,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "2FA has been disabled for this user",
+        userId: user.id,
+        email: user.email,
+      });
+    }
 
     // If setPassword is provided, update the password directly (debug only)
     if (setPassword && user) {
@@ -71,6 +90,7 @@ export async function POST(req: NextRequest) {
         passwordHashPrefix: user.password?.substring(0, 10) || null,
         passwordLength: user.password?.length || 0,
         twoFactorEnabled: user.twoFactorEnabled,
+        has2FASecret: !!user.twoFactorSecret,
         agencyId: user.agencyId,
       } : { found: false },
       creatorTable: creator ? {
