@@ -169,12 +169,21 @@ export default async function BundlesPage() {
   }
   const agencyId = session.user.agencyId;
 
-  const [bundles, templates, creators, stats] = await Promise.all([
-    getBundles(agencyId),
-    getTemplates(agencyId),
-    getCreators(agencyId),
-    getBundleStats(agencyId),
-  ]);
+  let bundles, templates, creators, stats;
+  try {
+    [bundles, templates, creators, stats] = await Promise.all([
+      getBundles(agencyId),
+      getTemplates(agencyId),
+      getCreators(agencyId),
+      getBundleStats(agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch bundles data:", error);
+    bundles = [];
+    templates = [];
+    creators = [];
+    stats = { totalBundles: 0, onboardingBundles: 0, autoTriggerBundles: 0 };
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">

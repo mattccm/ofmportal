@@ -67,10 +67,16 @@ export default async function RequestDetailPage({
     redirect("/login");
   }
 
-  const [request, creators] = await Promise.all([
-    getRequest(id, session.user.agencyId),
-    getCreators(session.user.agencyId),
-  ]);
+  let request, creators;
+  try {
+    [request, creators] = await Promise.all([
+      getRequest(id, session.user.agencyId),
+      getCreators(session.user.agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch request data:", error);
+    notFound();
+  }
 
   if (!request) {
     notFound();

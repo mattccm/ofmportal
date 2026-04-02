@@ -12,20 +12,30 @@ export const metadata = {
 
 async function getInitialData(agencyId: string) {
   // Get initial activities
-  const [uploads, requests, creators] = await Promise.all([
-    db.upload.findMany({
-      where: { request: { agencyId } },
-      select: { id: true },
-    }),
-    db.contentRequest.findMany({
-      where: { agencyId },
-      select: { id: true },
-    }),
-    db.creator.findMany({
-      where: { agencyId },
-      select: { id: true },
-    }),
-  ]);
+  let uploads, requests, creators;
+  try {
+    [uploads, requests, creators] = await Promise.all([
+      db.upload.findMany({
+        where: { request: { agencyId } },
+        select: { id: true },
+      }),
+      db.contentRequest.findMany({
+        where: { agencyId },
+        select: { id: true },
+      }),
+      db.creator.findMany({
+        where: { agencyId },
+        select: { id: true },
+      }),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch initial activity data:", error);
+    return {
+      activities: [],
+      users: [],
+      stats: { today: 0, thisWeek: 0, total: 0 },
+    };
+  }
 
   const uploadIds = uploads.map((u) => u.id);
   const requestIds = requests.map((r) => r.id);
@@ -66,37 +76,42 @@ async function getInitialData(agencyId: string) {
   const startOfWeek = new Date(now);
   startOfWeek.setDate(startOfWeek.getDate() - 7);
 
-  const [todayCount, weekCount, totalCount] = await Promise.all([
-    db.activityLog.count({
-      where: {
-        OR: [
-          { entityType: "Upload", entityId: { in: uploadIds } },
-          { entityType: "ContentRequest", entityId: { in: requestIds } },
-          { entityType: "Creator", entityId: { in: creatorIds } },
-        ],
-        createdAt: { gte: startOfDay },
-      },
-    }),
-    db.activityLog.count({
-      where: {
-        OR: [
-          { entityType: "Upload", entityId: { in: uploadIds } },
-          { entityType: "ContentRequest", entityId: { in: requestIds } },
-          { entityType: "Creator", entityId: { in: creatorIds } },
-        ],
-        createdAt: { gte: startOfWeek },
-      },
-    }),
-    db.activityLog.count({
-      where: {
-        OR: [
-          { entityType: "Upload", entityId: { in: uploadIds } },
-          { entityType: "ContentRequest", entityId: { in: requestIds } },
-          { entityType: "Creator", entityId: { in: creatorIds } },
-        ],
-      },
-    }),
-  ]);
+  let todayCount = 0, weekCount = 0, totalCount = 0;
+  try {
+    [todayCount, weekCount, totalCount] = await Promise.all([
+      db.activityLog.count({
+        where: {
+          OR: [
+            { entityType: "Upload", entityId: { in: uploadIds } },
+            { entityType: "ContentRequest", entityId: { in: requestIds } },
+            { entityType: "Creator", entityId: { in: creatorIds } },
+          ],
+          createdAt: { gte: startOfDay },
+        },
+      }),
+      db.activityLog.count({
+        where: {
+          OR: [
+            { entityType: "Upload", entityId: { in: uploadIds } },
+            { entityType: "ContentRequest", entityId: { in: requestIds } },
+            { entityType: "Creator", entityId: { in: creatorIds } },
+          ],
+          createdAt: { gte: startOfWeek },
+        },
+      }),
+      db.activityLog.count({
+        where: {
+          OR: [
+            { entityType: "Upload", entityId: { in: uploadIds } },
+            { entityType: "ContentRequest", entityId: { in: requestIds } },
+            { entityType: "Creator", entityId: { in: creatorIds } },
+          ],
+        },
+      }),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch activity stats:", error);
+  }
 
   return {
     activities: activities.map((activity) => ({

@@ -110,10 +110,17 @@ export default async function CalendarPage() {
 
   const agencyId = session.user.agencyId;
 
-  const [creators, stats] = await Promise.all([
-    getCreators(agencyId),
-    getCalendarStats(agencyId),
-  ]);
+  let creators, stats;
+  try {
+    [creators, stats] = await Promise.all([
+      getCreators(agencyId),
+      getCalendarStats(agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch calendar data:", error);
+    creators = [];
+    stats = { todayDeadlines: 0, weekDeadlines: 0, overdueRequests: 0, pendingReminders: 0 };
+  }
 
   return (
     <div className="h-full flex flex-col animate-fade-in">

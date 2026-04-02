@@ -237,7 +237,13 @@ export default async function CreatorProfilePage({
   }
 
   const { id } = await params;
-  const data = await getCreatorData(id, session.user.agencyId);
+  let data;
+  try {
+    data = await getCreatorData(id, session.user.agencyId);
+  } catch (error) {
+    console.error("Failed to fetch creator data:", error);
+    notFound();
+  }
 
   if (!data) {
     notFound();

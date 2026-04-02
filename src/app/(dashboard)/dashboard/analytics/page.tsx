@@ -26,15 +26,28 @@ async function AnalyticsContent({ dateRangeParams, creatorId }: { dateRangeParam
     redirect("/login");
   }
 
-  const [data, responseTimeData, creators] = await Promise.all([
-    getAnalyticsSummary(session.user.agencyId, dateRangeParams, creatorId),
-    getResponseTimeAnalytics(session.user.agencyId, dateRangeParams, creatorId),
-    db.creator.findMany({
-      where: { agencyId: session.user.agencyId, inviteStatus: "ACCEPTED" },
-      select: { id: true, name: true, avatar: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+  let data, responseTimeData, creators;
+  try {
+    [data, responseTimeData, creators] = await Promise.all([
+      getAnalyticsSummary(session.user.agencyId, dateRangeParams, creatorId),
+      getResponseTimeAnalytics(session.user.agencyId, dateRangeParams, creatorId),
+      db.creator.findMany({
+        where: { agencyId: session.user.agencyId, inviteStatus: "ACCEPTED" },
+        select: { id: true, name: true, avatar: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch analytics data:", error);
+    data = {
+      requests: { total: 0, pending: 0, submitted: 0, approved: 0, rejected: 0, overdue: 0, submissionRate: 0 },
+      uploads: { total: 0, pending: 0, approved: 0, rejected: 0, approvalRate: 0, averageReviewTime: 0 },
+      creators: { total: 0, active: 0, invited: 0, activeRate: 0 },
+      activity: { daily: [], weekly: [], monthly: [] },
+    };
+    responseTimeData = { averageResponseTime: 0, medianResponseTime: 0, distribution: [], trend: [] };
+    creators = [];
+  }
 
   return (
     <AnalyticsDashboard

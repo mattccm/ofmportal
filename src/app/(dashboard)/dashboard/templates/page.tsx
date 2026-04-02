@@ -92,10 +92,17 @@ export default async function TemplatesPage() {
   }
   const agencyId = session.user.agencyId;
 
-  const [templates, stats] = await Promise.all([
-    getTemplates(agencyId),
-    getTemplateStats(agencyId),
-  ]);
+  let templates, stats;
+  try {
+    [templates, stats] = await Promise.all([
+      getTemplates(agencyId),
+      getTemplateStats(agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch templates data:", error);
+    templates = [];
+    stats = { totalTemplates: 0, activeTemplates: 0, totalUsage: 0 };
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">

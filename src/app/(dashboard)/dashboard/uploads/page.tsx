@@ -217,12 +217,21 @@ export default async function UploadsPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
 
-  const [uploadsData, creators, templates, stats] = await Promise.all([
-    getUploads(session.user.agencyId, params),
-    getCreators(session.user.agencyId),
-    getTemplates(session.user.agencyId),
-    getStats(session.user.agencyId),
-  ]);
+  let uploadsData, creators, templates, stats;
+  try {
+    [uploadsData, creators, templates, stats] = await Promise.all([
+      getUploads(session.user.agencyId, params),
+      getCreators(session.user.agencyId),
+      getTemplates(session.user.agencyId),
+      getStats(session.user.agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch uploads data:", error);
+    uploadsData = { uploads: [], total: 0, pageSize: 24, currentPage: 1, totalPages: 0 };
+    creators = [];
+    templates = [];
+    stats = { total: 0, pending: 0, approved: 0, rejected: 0 };
+  }
 
   return (
     <Suspense fallback={<LoadingFallback />}>

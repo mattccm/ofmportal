@@ -43,11 +43,20 @@ export default async function RequestsPage() {
   if (!session?.user?.agencyId) {
     redirect("/login");
   }
-  const [requests, creators, teamMembers] = await Promise.all([
-    getRequests(session.user.agencyId),
-    getCreators(session.user.agencyId),
-    getTeamMembers(session.user.agencyId),
-  ]);
+
+  let requests, creators, teamMembers;
+  try {
+    [requests, creators, teamMembers] = await Promise.all([
+      getRequests(session.user.agencyId),
+      getCreators(session.user.agencyId),
+      getTeamMembers(session.user.agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch requests data:", error);
+    requests = [];
+    creators = [];
+    teamMembers = [];
+  }
 
   // Convert dates to strings for serialization
   const serializedRequests = requests.map((request) => ({

@@ -119,13 +119,23 @@ export default async function RemindersPage() {
 
   const agencyId = session.user.agencyId;
 
-  const [rawTemplates, rawReminders, stats, creators, agencySettings] = await Promise.all([
-    getReminderTemplates(agencyId),
-    getReminders(agencyId),
-    getReminderStats(agencyId),
-    getCreators(agencyId),
-    getAgencySettings(agencyId),
-  ]);
+  let rawTemplates, rawReminders, stats, creators, agencySettings;
+  try {
+    [rawTemplates, rawReminders, stats, creators, agencySettings] = await Promise.all([
+      getReminderTemplates(agencyId),
+      getReminders(agencyId),
+      getReminderStats(agencyId),
+      getCreators(agencyId),
+      getAgencySettings(agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch reminders data:", error);
+    rawTemplates = [];
+    rawReminders = [];
+    stats = { totalTemplates: 0, activeTemplates: 0, pendingReminders: 0, sentReminders: 0, failedReminders: 0 };
+    creators = [];
+    agencySettings = {};
+  }
 
   // Serialize dates for client component
   const templates = rawTemplates.map((t) => ({

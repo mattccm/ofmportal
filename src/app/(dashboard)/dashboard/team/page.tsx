@@ -91,14 +91,21 @@ async function getCustomRoles(agencyId: string) {
 export default async function TeamPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user) {
+  if (!session?.user?.agencyId) {
     redirect("/login");
   }
 
-  const [members, customRoles] = await Promise.all([
-    getTeamMembers(session.user.agencyId),
-    getCustomRoles(session.user.agencyId),
-  ]);
+  let members, customRoles;
+  try {
+    [members, customRoles] = await Promise.all([
+      getTeamMembers(session.user.agencyId),
+      getCustomRoles(session.user.agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch team data:", error);
+    members = [];
+    customRoles = [];
+  }
 
   return (
     <TeamClient

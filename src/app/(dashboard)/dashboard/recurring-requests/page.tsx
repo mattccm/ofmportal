@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { RecurringRequestsList } from "@/components/recurring-requests";
@@ -48,14 +49,22 @@ export default async function RecurringRequestsPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.agencyId) {
-    return <div>Unauthorized</div>;
+    redirect("/login");
   }
 
-  const [templates, creators, creatorGroups] = await Promise.all([
-    getTemplates(session.user.agencyId),
-    getCreators(session.user.agencyId),
-    getCreatorGroups(session.user.agencyId),
-  ]);
+  let templates, creators, creatorGroups;
+  try {
+    [templates, creators, creatorGroups] = await Promise.all([
+      getTemplates(session.user.agencyId),
+      getCreators(session.user.agencyId),
+      getCreatorGroups(session.user.agencyId),
+    ]);
+  } catch (error) {
+    console.error("Failed to fetch recurring requests data:", error);
+    templates = [];
+    creators = [];
+    creatorGroups = [];
+  }
 
   // Transform creator groups to include memberCount
   const formattedGroups = creatorGroups.map((g) => ({
