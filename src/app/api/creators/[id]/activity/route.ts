@@ -32,20 +32,28 @@ export async function GET(
     const url = new URL(req.url);
     const activityType = url.searchParams.get("type");
     const page = parseInt(url.searchParams.get("page") || "1", 10);
-    const pageSize = parseInt(url.searchParams.get("pageSize") || "50", 10);
+    // Cap pageSize at 100 to prevent memory issues with large datasets
+    const requestedPageSize = parseInt(url.searchParams.get("pageSize") || "50", 10);
+    const pageSize = Math.min(requestedPageSize, 100);
 
-    // Get all uploads by this creator
-    const uploads = await db.upload.findMany({
-      where: { creatorId: id },
-      select: { id: true },
-    });
+    // Get uploads and requests in parallel, with limit to prevent memory issues
+    // We only need IDs to query activity logs - limit to most recent 1000 each
+    const [uploads, requests] = await Promise.all([
+      db.upload.findMany({
+        where: { creatorId: id },
+        select: { id: true },
+        orderBy: { createdAt: "desc" },
+        take: 1000, // Limit to prevent memory issues
+      }),
+      db.contentRequest.findMany({
+        where: { creatorId: id },
+        select: { id: true },
+        orderBy: { createdAt: "desc" },
+        take: 1000, // Limit to prevent memory issues
+      }),
+    ]);
+
     const uploadIds = uploads.map((u) => u.id);
-
-    // Get all requests for this creator
-    const requests = await db.contentRequest.findMany({
-      where: { creatorId: id },
-      select: { id: true },
-    });
     const requestIds = requests.map((r) => r.id);
 
     // Build activity log query

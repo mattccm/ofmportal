@@ -183,7 +183,20 @@ export interface UseScrollPositionOptions {
   saveOnUnmount?: boolean;
 }
 
+// Cache for scroll positions with max size limit to prevent memory leaks
+const MAX_SCROLL_CACHE_SIZE = 50;
 const scrollPositions = new Map<string, number>();
+
+// Clean up oldest entries when cache exceeds max size
+function pruneScrollCache() {
+  if (scrollPositions.size > MAX_SCROLL_CACHE_SIZE) {
+    // Remove the oldest entries (first inserted)
+    const keysToRemove = Array.from(scrollPositions.keys()).slice(0, scrollPositions.size - MAX_SCROLL_CACHE_SIZE);
+    for (const key of keysToRemove) {
+      scrollPositions.delete(key);
+    }
+  }
+}
 
 export function useScrollPosition(options: UseScrollPositionOptions) {
   const { key, restoreOnMount = true, saveOnUnmount = true } = options;
@@ -196,6 +209,8 @@ export function useScrollPosition(options: UseScrollPositionOptions) {
     if (container) {
       scrollPositions.set(key, container.scrollTop);
       savedPositionRef.current = container.scrollTop;
+      // Prune cache if it gets too large
+      pruneScrollCache();
     }
   }, [key]);
 

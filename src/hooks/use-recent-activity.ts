@@ -354,8 +354,9 @@ export function useRecentActivity(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ activityIds: [activityId] }),
-    }).catch(() => {
-      // Silently fail - optimistic update remains
+    }).catch((err) => {
+      // Log error but don't revert - optimistic update remains
+      console.warn("[useRecentActivity] Failed to mark activity as read:", err);
     });
   }, []);
 
@@ -366,8 +367,9 @@ export function useRecentActivity(
     // Sync with server
     fetch("/api/activity/read-all", {
       method: "POST",
-    }).catch(() => {
-      // Silently fail
+    }).catch((err) => {
+      // Log error but don't revert - optimistic update remains
+      console.warn("[useRecentActivity] Failed to mark all activities as read:", err);
     });
   }, []);
 

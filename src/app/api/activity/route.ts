@@ -168,27 +168,59 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    // Format activities with additional details
-    const formattedActivities = await Promise.all(
-      activities.map(async (activity) => {
-        const metadata = activity.metadata as Record<string, unknown>;
+    // Batch fetch all entity details to avoid N+1 queries
+    // Group activities by entity type
+    const uploadIds = activities.filter(a => a.entityType === "Upload").map(a => a.entityId);
+    const requestEntityIds = activities.filter(a => a.entityType === "ContentRequest").map(a => a.entityId);
+    const creatorEntityIds = activities.filter(a => a.entityType === "Creator").map(a => a.entityId);
 
-        // Fetch related entity details
-        let entityDetails: Record<string, unknown> = {};
+    // Batch fetch all related entities in 3 queries instead of N queries
+    const [uploadsData, requestsData, creatorsData] = await Promise.all([
+      uploadIds.length > 0 ? db.upload.findMany({
+        where: { id: { in: uploadIds } },
+        select: {
+          id: true,
+          originalName: true,
+          fileName: true,
+          fileType: true,
+          thumbnailUrl: true,
+          request: { select: { id: true, title: true } },
+          creator: { select: { id: true, name: true } },
+        },
+      }) : [],
+      requestEntityIds.length > 0 ? db.contentRequest.findMany({
+        where: { id: { in: requestEntityIds } },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          creator: { select: { id: true, name: true, avatar: true } },
+        },
+      }) : [],
+      creatorEntityIds.length > 0 ? db.creator.findMany({
+        where: { id: { in: creatorEntityIds } },
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+          email: true,
+        },
+      }) : [],
+    ]);
 
+    // Create lookup maps for O(1) access
+    const uploadsMap = new Map(uploadsData.map(u => [u.id, u]));
+    const requestsMap = new Map(requestsData.map(r => [r.id, r]));
+    const creatorsMap = new Map(creatorsData.map(c => [c.id, c]));
+
+    // Format activities with details from lookup maps (no additional queries)
+    const formattedActivities = activities.map((activity) => {
+      const metadata = (activity.metadata as Record<string, unknown>) || {};
+      let entityDetails: Record<string, unknown> = {};
+
+      try {
         if (activity.entityType === "Upload") {
-          const upload = await db.upload.findUnique({
-            where: { id: activity.entityId },
-            select: {
-              id: true,
-              originalName: true,
-              fileName: true,
-              fileType: true,
-              thumbnailUrl: true,
-              request: { select: { id: true, title: true } },
-              creator: { select: { id: true, name: true } },
-            },
-          });
+          const upload = uploadsMap.get(activity.entityId);
           if (upload) {
             entityDetails = {
               uploadName: upload.originalName,
@@ -201,15 +233,7 @@ export async function GET(req: NextRequest) {
             };
           }
         } else if (activity.entityType === "ContentRequest") {
-          const request = await db.contentRequest.findUnique({
-            where: { id: activity.entityId },
-            select: {
-              id: true,
-              title: true,
-              status: true,
-              creator: { select: { id: true, name: true, avatar: true } },
-            },
-          });
+          const request = requestsMap.get(activity.entityId);
           if (request) {
             entityDetails = {
               requestId: request.id,
@@ -221,15 +245,7 @@ export async function GET(req: NextRequest) {
             };
           }
         } else if (activity.entityType === "Creator") {
-          const creator = await db.creator.findUnique({
-            where: { id: activity.entityId },
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              email: true,
-            },
-          });
+          const creator = creatorsMap.get(activity.entityId);
           if (creator) {
             entityDetails = {
               creatorId: creator.id,
@@ -239,39 +255,44 @@ export async function GET(req: NextRequest) {
             };
           }
         }
+      } catch (err) {
+        // If entity lookup fails, continue with empty details
+        console.warn(`Failed to get entity details for ${activity.entityType}:${activity.entityId}`, err);
+      }
 
-        // If search query provided, filter by description/metadata
-        const description = getActivityDescription(activity.action, { ...metadata, ...entityDetails });
-        if (search) {
-          const searchLower = search.toLowerCase();
-          const searchableText = [
-            description,
-            activity.user?.name,
-            entityDetails.creatorName,
-            entityDetails.requestTitle,
-            entityDetails.uploadName,
-          ].filter(Boolean).join(" ").toLowerCase();
+      // Build description
+      const description = getActivityDescription(activity.action, { ...metadata, ...entityDetails });
 
-          if (!searchableText.includes(searchLower)) {
-            return null;
-          }
-        }
-
-        return {
-          id: activity.id,
-          action: activity.action,
-          entityType: activity.entityType,
-          entityId: activity.entityId,
-          timestamp: activity.createdAt,
-          user: activity.user,
-          metadata: { ...metadata, ...entityDetails },
+      // If search query provided, filter by description/metadata
+      if (search) {
+        const searchLower = search.toLowerCase();
+        const searchableText = [
           description,
-          icon: getActivityIcon(activity.action),
-          color: getActivityColor(activity.action),
-          category: getActivityCategory(activity.action),
-        };
-      })
-    );
+          activity.user?.name,
+          entityDetails.creatorName as string | undefined,
+          entityDetails.requestTitle as string | undefined,
+          entityDetails.uploadName as string | undefined,
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        if (!searchableText.includes(searchLower)) {
+          return null;
+        }
+      }
+
+      return {
+        id: activity.id,
+        action: activity.action,
+        entityType: activity.entityType,
+        entityId: activity.entityId,
+        timestamp: activity.createdAt,
+        user: activity.user,
+        metadata: { ...metadata, ...entityDetails },
+        description,
+        icon: getActivityIcon(activity.action),
+        color: getActivityColor(activity.action),
+        category: getActivityCategory(activity.action),
+      };
+    });
 
     // Filter out null results from search
     const filteredActivities = formattedActivities.filter(Boolean);

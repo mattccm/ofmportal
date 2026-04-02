@@ -69,12 +69,20 @@ async function sendMentionNotifications(
     ? `/dashboard/requests/${requestId}${uploadId ? `?upload=${uploadId}` : ""}`
     : "#";
 
-  // Send notifications
-  await Promise.all(
+  // Send notifications (use allSettled so one failure doesn't block others)
+  const results = await Promise.allSettled(
     usersToNotify.map((userId) =>
       notifyMention(userId, mentionerName, preview, link)
     )
   );
+
+  // Log any failures but don't throw
+  const failures = results.filter(r => r.status === "rejected");
+  if (failures.length > 0) {
+    console.warn(`Failed to send ${failures.length}/${results.length} mention notifications:`,
+      failures.map(f => (f as PromiseRejectedResult).reason)
+    );
+  }
 }
 
 /**
@@ -97,7 +105,12 @@ async function parseFormData(req: NextRequest) {
         url: "#", // Would be the uploaded file URL
       });
     } else if (key === "mentions") {
-      data.mentions = JSON.parse(value as string);
+      try {
+        data.mentions = JSON.parse(value as string);
+      } catch (e) {
+        console.warn("Failed to parse mentions JSON, using empty array:", e);
+        data.mentions = [];
+      }
     } else if (key === "isInternal") {
       data.isInternal = value === "true";
     } else {

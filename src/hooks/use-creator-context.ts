@@ -187,6 +187,11 @@ export function useCreatorContext({
     }
     abortControllerRef.current = new AbortController();
 
+    // Add timeout to prevent indefinite hangs (10 second timeout)
+    const timeoutId = setTimeout(() => {
+      abortControllerRef.current?.abort();
+    }, 10000);
+
     setIsLoading(true);
     setError(null);
 
@@ -194,6 +199,8 @@ export function useCreatorContext({
       const response = await fetch(`/api/creators/${creatorId}/context`, {
         signal: abortControllerRef.current.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error("Failed to fetch creator context");
@@ -208,8 +215,11 @@ export function useCreatorContext({
         timestamp: Date.now(),
       });
     } catch (err) {
+      clearTimeout(timeoutId);
       if (err instanceof Error && err.name === "AbortError") {
-        return; // Ignore aborted requests
+        // Check if this was a timeout abort vs user-initiated abort
+        setError("Request timed out");
+        return;
       }
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -255,9 +265,15 @@ export function useCreatorContext({
   useEffect(() => {
     if (!creatorId || !enabled) return;
 
-    // Check if EventSource is supported and not already connected
+    // Check if EventSource is supported
     if (typeof EventSource === "undefined") return;
-    if (eventSourceMap.has(creatorId)) return;
+
+    // Close any existing connection for this creator before creating a new one
+    const existingEs = eventSourceMap.get(creatorId);
+    if (existingEs) {
+      existingEs.close();
+      eventSourceMap.delete(creatorId);
+    }
 
     try {
       const eventSource = new EventSource(`/api/creators/${creatorId}/realtime`);

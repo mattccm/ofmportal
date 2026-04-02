@@ -171,7 +171,11 @@ export function useKeyboardShortcuts({
                 event.preventDefault();
               }
               sequenceRef.current = null;
-              shortcut.callback();
+              try {
+                shortcut.callback();
+              } catch (err) {
+                console.error(`Keyboard shortcut callback error for "${shortcut.keys}":`, err);
+              }
               return;
             }
 
@@ -195,7 +199,11 @@ export function useKeyboardShortcuts({
                 event.preventDefault();
               }
               sequenceRef.current = null;
-              shortcut.callback();
+              try {
+                shortcut.callback();
+              } catch (err) {
+                console.error(`Keyboard shortcut callback error for "${shortcut.keys}":`, err);
+              }
               return;
             }
           }
