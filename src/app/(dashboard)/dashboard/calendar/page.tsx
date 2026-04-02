@@ -110,7 +110,8 @@ export default async function CalendarPage() {
 
   const agencyId = session.user.agencyId;
 
-  let creators, stats;
+  let creators: Awaited<ReturnType<typeof getCreators>>;
+  let stats: Awaited<ReturnType<typeof getCalendarStats>>;
   try {
     [creators, stats] = await Promise.all([
       getCreators(agencyId),

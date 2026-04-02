@@ -119,7 +119,11 @@ export default async function RemindersPage() {
 
   const agencyId = session.user.agencyId;
 
-  let rawTemplates, rawReminders, stats, creators, agencySettings;
+  let rawTemplates: Awaited<ReturnType<typeof getReminderTemplates>>;
+  let rawReminders: Awaited<ReturnType<typeof getReminders>>;
+  let stats: Awaited<ReturnType<typeof getReminderStats>>;
+  let creators: Awaited<ReturnType<typeof getCreators>>;
+  let agencySettings: Awaited<ReturnType<typeof getAgencySettings>>;
   try {
     [rawTemplates, rawReminders, stats, creators, agencySettings] = await Promise.all([
       getReminderTemplates(agencyId),

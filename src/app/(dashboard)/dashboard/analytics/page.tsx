@@ -26,7 +26,9 @@ async function AnalyticsContent({ dateRangeParams, creatorId }: { dateRangeParam
     redirect("/login");
   }
 
-  let data, responseTimeData, creators;
+  let data: Awaited<ReturnType<typeof getAnalyticsSummary>>;
+  let responseTimeData: Awaited<ReturnType<typeof getResponseTimeAnalytics>>;
+  let creators: { id: string; name: string; avatar: string | null }[];
   try {
     [data, responseTimeData, creators] = await Promise.all([
       getAnalyticsSummary(session.user.agencyId, dateRangeParams, creatorId),
@@ -40,12 +42,19 @@ async function AnalyticsContent({ dateRangeParams, creatorId }: { dateRangeParam
   } catch (error) {
     console.error("Failed to fetch analytics data:", error);
     data = {
-      requests: { total: 0, pending: 0, submitted: 0, approved: 0, rejected: 0, overdue: 0, submissionRate: 0 },
-      uploads: { total: 0, pending: 0, approved: 0, rejected: 0, approvalRate: 0, averageReviewTime: 0 },
-      creators: { total: 0, active: 0, invited: 0, activeRate: 0 },
-      activity: { daily: [], weekly: [], monthly: [] },
+      overview: { totalUploads: 0, previousUploads: 0, approvalRate: 0, previousApprovalRate: 0, avgTurnaroundHours: 0, previousAvgTurnaroundHours: 0, activeCreators: 0, previousActiveCreators: 0, totalRequests: 0, previousRequests: 0 },
+      statusBreakdown: [],
+      weeklyActivity: [],
+      leaderboard: [],
+      dailyActivity: [],
     };
-    responseTimeData = { averageResponseTime: 0, medianResponseTime: 0, distribution: [], trend: [] };
+    responseTimeData = {
+      metrics: { avgFirstResponseHours: 0, avgCompletionHours: 0, medianFirstResponseHours: 0, medianCompletionHours: 0, minFirstResponseHours: 0, maxFirstResponseHours: 0, minCompletionHours: 0, maxCompletionHours: 0, totalRequests: 0, respondedRequests: 0, completedRequests: 0, firstResponseSLACompliance: 0, completionSLACompliance: 0 },
+      slaCompliance: { period: "", firstResponseCompliance: 0, completionCompliance: 0, totalRequests: 0, metSLA: 0, atRiskSLA: 0, breachedSLA: 0, byPriority: [] },
+      byCreator: [],
+      byRequestType: [],
+      trends: [],
+    };
     creators = [];
   }
 

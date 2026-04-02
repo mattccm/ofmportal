@@ -217,7 +217,10 @@ export default async function UploadsPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
 
-  let uploadsData, creators, templates, stats;
+  let uploadsData: Awaited<ReturnType<typeof getUploads>>;
+  let creators: Awaited<ReturnType<typeof getCreators>>;
+  let templates: Awaited<ReturnType<typeof getTemplates>>;
+  let stats: Awaited<ReturnType<typeof getStats>>;
   try {
     [uploadsData, creators, templates, stats] = await Promise.all([
       getUploads(session.user.agencyId, params),

@@ -170,14 +170,14 @@ export async function GET(req: NextRequest) {
 
     // Batch fetch all entity details to avoid N+1 queries
     // Group activities by entity type
-    const uploadIds = activities.filter(a => a.entityType === "Upload").map(a => a.entityId);
-    const requestEntityIds = activities.filter(a => a.entityType === "ContentRequest").map(a => a.entityId);
-    const creatorEntityIds = activities.filter(a => a.entityType === "Creator").map(a => a.entityId);
+    const activityUploadIds = activities.filter(a => a.entityType === "Upload").map(a => a.entityId);
+    const activityRequestIds = activities.filter(a => a.entityType === "ContentRequest").map(a => a.entityId);
+    const activityCreatorIds = activities.filter(a => a.entityType === "Creator").map(a => a.entityId);
 
     // Batch fetch all related entities in 3 queries instead of N queries
     const [uploadsData, requestsData, creatorsData] = await Promise.all([
-      uploadIds.length > 0 ? db.upload.findMany({
-        where: { id: { in: uploadIds } },
+      activityUploadIds.length > 0 ? db.upload.findMany({
+        where: { id: { in: activityUploadIds } },
         select: {
           id: true,
           originalName: true,
@@ -188,8 +188,8 @@ export async function GET(req: NextRequest) {
           creator: { select: { id: true, name: true } },
         },
       }) : [],
-      requestEntityIds.length > 0 ? db.contentRequest.findMany({
-        where: { id: { in: requestEntityIds } },
+      activityRequestIds.length > 0 ? db.contentRequest.findMany({
+        where: { id: { in: activityRequestIds } },
         select: {
           id: true,
           title: true,
@@ -197,8 +197,8 @@ export async function GET(req: NextRequest) {
           creator: { select: { id: true, name: true, avatar: true } },
         },
       }) : [],
-      creatorEntityIds.length > 0 ? db.creator.findMany({
-        where: { id: { in: creatorEntityIds } },
+      activityCreatorIds.length > 0 ? db.creator.findMany({
+        where: { id: { in: activityCreatorIds } },
         select: {
           id: true,
           name: true,

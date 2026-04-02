@@ -92,7 +92,8 @@ export default async function TemplatesPage() {
   }
   const agencyId = session.user.agencyId;
 
-  let templates, stats;
+  let templates: Awaited<ReturnType<typeof getTemplates>>;
+  let stats: Awaited<ReturnType<typeof getTemplateStats>>;
   try {
     [templates, stats] = await Promise.all([
       getTemplates(agencyId),

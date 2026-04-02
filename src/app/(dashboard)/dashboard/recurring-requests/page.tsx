@@ -52,7 +52,9 @@ export default async function RecurringRequestsPage() {
     redirect("/login");
   }
 
-  let templates, creators, creatorGroups;
+  let templates: Awaited<ReturnType<typeof getTemplates>>;
+  let creators: Awaited<ReturnType<typeof getCreators>>;
+  let creatorGroups: Awaited<ReturnType<typeof getCreatorGroups>>;
   try {
     [templates, creators, creatorGroups] = await Promise.all([
       getTemplates(session.user.agencyId),

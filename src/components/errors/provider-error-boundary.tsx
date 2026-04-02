@@ -67,9 +67,11 @@ export class ProviderErrorBoundary extends Component<
 
     // Track which providers have failed (for potential recovery UI)
     if (typeof window !== "undefined") {
-      (window as Window & { __failedProviders?: string[] }).__failedProviders =
-        (window as Window & { __failedProviders?: string[] }).__failedProviders || [];
-      (window as Window & { __failedProviders?: string[] }).__failedProviders.push(providerName);
+      const win = window as Window & { __failedProviders?: string[] };
+      if (!win.__failedProviders) {
+        win.__failedProviders = [];
+      }
+      win.__failedProviders.push(providerName);
     }
   }
 

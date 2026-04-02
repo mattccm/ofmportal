@@ -95,7 +95,8 @@ export default async function TeamPage() {
     redirect("/login");
   }
 
-  let members, customRoles;
+  let members: Awaited<ReturnType<typeof getTeamMembers>>;
+  let customRoles: Awaited<ReturnType<typeof getCustomRoles>>;
   try {
     [members, customRoles] = await Promise.all([
       getTeamMembers(session.user.agencyId),

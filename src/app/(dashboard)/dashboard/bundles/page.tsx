@@ -169,7 +169,10 @@ export default async function BundlesPage() {
   }
   const agencyId = session.user.agencyId;
 
-  let bundles, templates, creators, stats;
+  let bundles: Awaited<ReturnType<typeof getBundles>>;
+  let templates: Awaited<ReturnType<typeof getTemplates>>;
+  let creators: Awaited<ReturnType<typeof getCreators>>;
+  let stats: Awaited<ReturnType<typeof getBundleStats>>;
   try {
     [bundles, templates, creators, stats] = await Promise.all([
       getBundles(agencyId),

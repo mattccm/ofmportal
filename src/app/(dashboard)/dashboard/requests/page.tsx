@@ -44,7 +44,9 @@ export default async function RequestsPage() {
     redirect("/login");
   }
 
-  let requests, creators, teamMembers;
+  let requests: Awaited<ReturnType<typeof getRequests>>;
+  let creators: Awaited<ReturnType<typeof getCreators>>;
+  let teamMembers: Awaited<ReturnType<typeof getTeamMembers>>;
   try {
     [requests, creators, teamMembers] = await Promise.all([
       getRequests(session.user.agencyId),
