@@ -68,7 +68,8 @@ export const authOptions: NextAuthOptions = {
 
         // Check 2FA if enabled
         if (user.twoFactorEnabled && user.twoFactorSecret) {
-          if (!credentials.totpCode) {
+          // Check if TOTP code is missing or empty (NextAuth may convert undefined to "")
+          if (!credentials.totpCode || credentials.totpCode.trim() === "") {
             throw new Error("2FA_REQUIRED");
           }
 

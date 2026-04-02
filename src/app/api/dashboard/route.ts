@@ -81,6 +81,8 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
   });
 
   for (const upload of recentUploads) {
+    // Skip if creator or request is missing (orphaned record)
+    if (!upload.creator || !upload.request) continue;
     activities.push({
       id: `upload-${upload.id}`,
       type: "upload",
@@ -169,11 +171,13 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
   });
 
   for (const comment of recentComments) {
+    // Skip if user is missing
+    if (!comment.user) continue;
     activities.push({
       id: `comment-${comment.id}`,
       type: "comment",
       title: "New comment",
-      description: `${comment.user.name} commented on "${comment.request?.title}"`,
+      description: `${comment.user.name} commented on "${comment.request?.title || "a request"}"`,
       timestamp: comment.createdAt,
       avatar: comment.user.avatar,
       userName: comment.user.name,
@@ -202,6 +206,8 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
   });
 
   for (const message of recentMessages) {
+    // Skip if sender or conversation is missing
+    if (!message.sender || !message.conversation) continue;
     activities.push({
       id: `message-${message.id}`,
       type: "message",
@@ -307,31 +313,33 @@ async function getUpcomingDeadlines(agencyId: string): Promise<UpcomingDeadline[
     },
   });
 
-  return requests.map((request) => {
-    const daysUntilDue = differenceInDays(request.dueDate!, now);
-    let urgency: "low" | "medium" | "high" | "critical";
+  return requests
+    .filter((request) => request.dueDate && request.creator) // Filter out invalid records
+    .map((request) => {
+      const daysUntilDue = differenceInDays(request.dueDate!, now);
+      let urgency: "low" | "medium" | "high" | "critical";
 
-    if (daysUntilDue <= 0) {
-      urgency = "critical";
-    } else if (daysUntilDue <= 1) {
-      urgency = "high";
-    } else if (daysUntilDue <= 3) {
-      urgency = "medium";
-    } else {
-      urgency = "low";
-    }
+      if (daysUntilDue <= 0) {
+        urgency = "critical";
+      } else if (daysUntilDue <= 1) {
+        urgency = "high";
+      } else if (daysUntilDue <= 3) {
+        urgency = "medium";
+      } else {
+        urgency = "low";
+      }
 
-    return {
-      id: request.id,
-      title: request.title,
-      creatorName: request.creator.name,
-      creatorAvatar: request.creator.avatar,
-      dueDate: request.dueDate!,
-      urgency,
-      status: request.status,
-      daysUntilDue,
-    };
-  });
+      return {
+        id: request.id,
+        title: request.title,
+        creatorName: request.creator.name,
+        creatorAvatar: request.creator.avatar,
+        dueDate: request.dueDate!,
+        urgency,
+        status: request.status,
+        daysUntilDue,
+      };
+    });
 }
 
 async function getCreatorPerformance(agencyId: string): Promise<CreatorPerformance[]> {

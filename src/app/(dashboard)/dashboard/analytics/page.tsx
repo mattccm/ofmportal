@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { Suspense } from "react";
 import {
@@ -22,7 +23,7 @@ async function AnalyticsContent({ dateRangeParams, creatorId }: { dateRangeParam
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.agencyId) {
-    return null;
+    redirect("/login");
   }
 
   const [data, responseTimeData, creators] = await Promise.all([
