@@ -70,9 +70,18 @@ export default async function CreatorsPage() {
     redirect("/login");
   }
 
-  let creators;
-  let inactiveCreators;
-  let serializedCreators;
+  let creators: Awaited<ReturnType<typeof getCreators>> = [];
+  let inactiveCreators: ReturnType<typeof getInactiveCreators> = [];
+  let serializedCreators: Array<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    inviteStatus: string;
+    lastLoginAt: Date | null;
+    _count: { requests: number; uploads: number };
+    requests: { id: string }[];
+  }> = [];
 
   try {
     creators = await getCreators(session.user.agencyId);
@@ -90,14 +99,8 @@ export default async function CreatorsPage() {
       requests: creator.requests,
     }));
   } catch (error) {
-    console.error("CreatorsPage data fetch error:", {
-      error,
-      agencyId: session.user.agencyId,
-      userId: session.user.id,
-    });
-    throw new Error(
-      `Failed to load creators: ${error instanceof Error ? error.message : "Database error"}`
-    );
+    console.error("CreatorsPage data fetch error:", error);
+    // Continue with empty arrays - graceful degradation
   }
 
   return (
