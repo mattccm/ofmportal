@@ -16,7 +16,10 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  Image as ImageIcon,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -150,6 +153,9 @@ export function FieldEditor({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-medium text-foreground truncate">
+                {field.quantity && field.quantity > 1 && (
+                  <span className="text-primary font-semibold">{field.quantity}x </span>
+                )}
                 {field.label || "Untitled Field"}
               </span>
               {field.required && (
@@ -286,6 +292,39 @@ export function FieldEditor({
               <Label htmlFor={`required-${field.id}`} className="cursor-pointer">
                 Required field
               </Label>
+            </div>
+
+            {/* Quantity / Multiplier */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Quantity / Multiplier</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={field.quantity || ""}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    updateField({ quantity: isNaN(value) || value < 1 ? undefined : value });
+                  }}
+                  placeholder="e.g., 5 for '5x Photos'"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Display as &quot;{field.quantity || 5}x {field.label || "Field Name"}&quot;
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Quantity Label (Optional)</Label>
+                <Input
+                  value={field.quantityLabel || ""}
+                  onChange={(e) => updateField({ quantityLabel: e.target.value || undefined })}
+                  placeholder="e.g., pieces, items, sets"
+                  disabled={!field.quantity || field.quantity < 2}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Custom unit label after the number
+                </p>
+              </div>
             </div>
 
             {/* Rich Content / Examples Section */}
@@ -501,6 +540,8 @@ interface RichContentEditorProps {
 
 function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
   const [expanded, setExpanded] = React.useState(false);
+  const [uploadingImage, setUploadingImage] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const updateRichContent = (updates: Partial<NonNullable<TemplateField["richContent"]>>) => {
     onChange({
@@ -527,8 +568,73 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
     updateRichContent({ referenceLinks: links });
   };
 
+  // Example images management
+  const addExampleImageUrl = () => {
+    const images = richContent?.exampleImages || [];
+    updateRichContent({
+      exampleImages: [...images, { url: "", caption: "" }],
+    });
+  };
+
+  const updateExampleImage = (index: number, updates: { url?: string; caption?: string }) => {
+    const images = [...(richContent?.exampleImages || [])];
+    images[index] = { ...images[index], ...updates };
+    updateRichContent({ exampleImages: images });
+  };
+
+  const removeExampleImage = (index: number) => {
+    const images = (richContent?.exampleImages || []).filter((_, i) => i !== index);
+    updateRichContent({ exampleImages: images });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImage(true);
+    try {
+      for (const file of Array.from(files)) {
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+          toast.error(`${file.name} is not an image`);
+          continue;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} is too large (max 5MB)`);
+          continue;
+        }
+
+        // Convert to base64 for now (could be uploaded to storage later)
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        // Add to images array
+        const images = richContent?.exampleImages || [];
+        updateRichContent({
+          exampleImages: [...images, { url: base64, caption: file.name.replace(/\.[^/.]+$/, "") }],
+        });
+      }
+      toast.success("Example image(s) added");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const hasContent = richContent?.description || richContent?.exampleText ||
     richContent?.exampleImageUrl || richContent?.exampleVideoUrl ||
+    (richContent?.exampleImages && richContent.exampleImages.length > 0) ||
     (richContent?.referenceLinks && richContent.referenceLinks.length > 0);
 
   return (
@@ -569,6 +675,9 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
               placeholder="Provide detailed instructions for this field. What exactly do you need? What format? Any specific requirements?"
               rows={3}
             />
+            <p className="text-xs text-muted-foreground">
+              Supports markdown: **bold**, *italic*, `code`, [links](url), - lists
+            </p>
           </div>
 
           {/* Example Text */}
@@ -582,33 +691,107 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
             />
           </div>
 
-          {/* Example Media */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Example Image URL</Label>
-              <Input
-                value={richContent?.exampleImageUrl || ""}
-                onChange={(e) => updateRichContent({ exampleImageUrl: e.target.value })}
-                placeholder="https://example.com/image.jpg"
-                type="url"
-              />
-              <p className="text-xs text-muted-foreground">
-                Link to an example image showing what you expect
-              </p>
+          {/* Example Images */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Example Images</Label>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={addExampleImageUrl}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add URL
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                >
+                  {uploadingImage ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Upload className="h-3 w-3 mr-1" />
+                  )}
+                  Upload
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Example Video URL</Label>
-              <Input
-                value={richContent?.exampleVideoUrl || ""}
-                onChange={(e) => updateRichContent({ exampleVideoUrl: e.target.value })}
-                placeholder="https://youtube.com/watch?v=..."
-                type="url"
-              />
+            {/* Example images grid */}
+            {richContent?.exampleImages && richContent.exampleImages.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {richContent.exampleImages.map((img, index) => (
+                  <div key={index} className="relative group">
+                    <div className="aspect-square rounded-lg border bg-muted overflow-hidden">
+                      {img.url ? (
+                        <img
+                          src={img.url}
+                          alt={img.caption || `Example ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeExampleImage(index)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <Input
+                      value={img.caption || ""}
+                      onChange={(e) => updateExampleImage(index, { caption: e.target.value })}
+                      placeholder="Caption"
+                      className="mt-1 h-7 text-xs"
+                    />
+                    {!img.url.startsWith("data:") && (
+                      <Input
+                        value={img.url}
+                        onChange={(e) => updateExampleImage(index, { url: e.target.value })}
+                        placeholder="Image URL"
+                        className="mt-1 h-7 text-xs"
+                        type="url"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {(!richContent?.exampleImages || richContent.exampleImages.length === 0) && (
               <p className="text-xs text-muted-foreground">
-                YouTube, Vimeo, or direct video link
+                Add example images to show creators exactly what you're looking for
               </p>
-            </div>
+            )}
+          </div>
+
+          {/* Example Video URL */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Example Video URL</Label>
+            <Input
+              value={richContent?.exampleVideoUrl || ""}
+              onChange={(e) => updateRichContent({ exampleVideoUrl: e.target.value })}
+              placeholder="https://youtube.com/watch?v=..."
+              type="url"
+            />
+            <p className="text-xs text-muted-foreground">
+              YouTube, Vimeo, or direct video link
+            </p>
           </div>
 
           {/* Reference Links */}

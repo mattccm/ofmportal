@@ -231,43 +231,27 @@ export function EditCreatorProfileModal({
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-6 pt-4">
             {/* Avatar */}
-            <div className="flex items-center gap-6">
-              <div className="relative">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={formData.avatar} alt={formData.name} />
-                  <AvatarFallback className="text-xl bg-primary/10 text-primary">
-                    {formData.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="flex-1 space-y-2">
-                <Label>Profile Picture</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter image URL or upload"
-                    value={formData.avatar}
-                    onChange={(e) => handleInputChange("avatar", e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      // In a real app, this would open a file picker
-                      toast.info("File upload would open here");
-                    }}
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                </div>
+            <div className="flex items-start gap-6">
+              <AvatarUpload
+                user={{ name: formData.name, image: formData.avatar }}
+                currentAvatarUrl={formData.avatar}
+                onUpload={async (dataUrl) => {
+                  handleInputChange("avatar", dataUrl);
+                }}
+                onRemove={async () => {
+                  handleInputChange("avatar", "");
+                }}
+                size="xl"
+              />
+              <div className="flex-1 space-y-2 pt-2">
+                <Label>Profile Picture URL</Label>
+                <Input
+                  placeholder="Or paste an image URL directly"
+                  value={formData.avatar}
+                  onChange={(e) => handleInputChange("avatar", e.target.value)}
+                />
                 <p className="text-xs text-muted-foreground">
-                  Enter an image URL or upload a profile picture
+                  Click the avatar to upload, or paste an image URL above
                 </p>
               </div>
             </div>

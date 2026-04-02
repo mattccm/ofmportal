@@ -6,8 +6,10 @@ import Link from "next/link";
 import { UploadedFilesGrid } from "@/components/portal/upload-zone";
 import { FileDropzone } from "@/components/uploads/file-dropzone";
 import { UploadQueue } from "@/components/uploads/upload-queue";
+import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { useBranding } from "@/components/providers/branding-provider";
+import type { TemplateField } from "@/lib/template-types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +38,16 @@ import { format, formatDistanceToNow, differenceInDays, isPast } from "date-fns"
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+interface RequestField {
+  id?: string;
+  label: string;
+  value: string;
+  type: string;
+  quantity?: number;
+  quantityLabel?: string;
+  richContent?: TemplateField["richContent"];
+}
+
 interface Request {
   id: string;
   title: string;
@@ -43,7 +55,7 @@ interface Request {
   dueDate: string | null;
   status: string;
   requirements: Record<string, string>;
-  fields: Array<{ label: string; value: string; type: string }>;
+  fields: RequestField[];
 }
 
 interface UploadFile {
@@ -538,13 +550,28 @@ export default function CreatorRequestDetailPage({
               </div>
             )}
             {request.fields && request.fields.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-3">
                 {request.fields.map((field, index) => (
-                  <div key={index} className="p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                      {field.label}
-                    </p>
-                    <p className="font-medium">{field.value}</p>
+                  <div key={field.id || index} className="p-4 rounded-lg bg-muted/50 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                          {field.quantity && field.quantity > 1 && (
+                            <span className="text-primary font-semibold normal-case">
+                              {field.quantity}x{field.quantityLabel ? ` ${field.quantityLabel}` : ""}{" "}
+                            </span>
+                          )}
+                          {field.label}
+                        </p>
+                        <p className="font-medium mt-1">{field.value}</p>
+                      </div>
+                    </div>
+                    {field.richContent && (
+                      <FieldExamplesDisplay
+                        richContent={field.richContent}
+                        fieldLabel={field.label}
+                      />
+                    )}
                   </div>
                 ))}
               </div>

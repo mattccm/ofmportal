@@ -44,13 +44,19 @@ export interface TemplateField {
   conditionalVisibility?: ConditionalVisibility;
   defaultValue?: string | number | boolean;
 
+  // Quantity/multiplier for fields (e.g., "5x Content Photos")
+  quantity?: number; // e.g., 5 for "5x Content Photos"
+  quantityLabel?: string; // Optional custom label: "pieces", "items", "sets"
+
   // Rich content for field instructions/examples
   richContent?: {
-    description?: string; // Detailed description/instructions
+    description?: string; // Detailed description/instructions (supports markdown)
     exampleText?: string; // Text example of what's expected
-    exampleImageUrl?: string; // URL to example image
+    exampleImages?: { url: string; caption?: string }[]; // Multiple example images with optional captions
     exampleVideoUrl?: string; // URL to example video (YouTube, Vimeo, or direct)
     referenceLinks?: { label: string; url: string }[]; // Reference links
+    // Legacy single image support (deprecated, use exampleImages array)
+    exampleImageUrl?: string;
   };
 
   // File-specific options (all optional - undefined means no restriction)
