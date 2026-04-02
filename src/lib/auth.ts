@@ -51,6 +51,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
+        // Ensure password exists before comparing
+        if (!user.password) {
+          console.error("User has no password set:", user.email);
+          throw new Error("Invalid email or password");
+        }
+
         const passwordValid = await bcrypt.compare(
           credentials.password,
           user.password
