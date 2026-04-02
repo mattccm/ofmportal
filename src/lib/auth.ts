@@ -26,9 +26,25 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email and password required");
         }
 
+        // Use explicit select to ensure password field is always returned
         const user = await db.user.findUnique({
           where: { email: credentials.email.toLowerCase() },
-          include: { agency: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            password: true,
+            twoFactorEnabled: true,
+            twoFactorSecret: true,
+            agencyId: true,
+            agency: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
         });
 
         if (!user) {

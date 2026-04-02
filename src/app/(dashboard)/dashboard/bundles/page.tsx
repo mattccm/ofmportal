@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Package, Sparkles } from "lucide-react";
@@ -163,7 +164,10 @@ async function getBundleStats(agencyId: string) {
 
 export default async function BundlesPage() {
   const session = await getServerSession(authOptions);
-  const agencyId = session!.user.agencyId;
+  if (!session?.user?.agencyId) {
+    redirect("/login");
+  }
+  const agencyId = session.user.agencyId;
 
   const [bundles, templates, creators, stats] = await Promise.all([
     getBundles(agencyId),

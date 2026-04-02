@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import Link from "next/link";
@@ -65,7 +66,10 @@ function getInactiveCreators(creators: Awaited<ReturnType<typeof getCreators>>) 
 
 export default async function CreatorsPage() {
   const session = await getServerSession(authOptions);
-  const creators = await getCreators(session!.user.agencyId);
+  if (!session?.user?.agencyId) {
+    redirect("/login");
+  }
+  const creators = await getCreators(session.user.agencyId);
   const inactiveCreators = getInactiveCreators(creators);
 
   // Serialize creators for client component

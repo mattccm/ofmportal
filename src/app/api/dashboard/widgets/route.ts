@@ -417,6 +417,7 @@ async function getActivityFeed(agencyId: string) {
   });
 
   for (const upload of recentUploads) {
+    if (!upload.creator || !upload.request) continue;
     activities.push({
       id: `upload-${upload.id}`,
       type: "upload",
@@ -490,7 +491,7 @@ async function getActivityFeed(agencyId: string) {
   });
 
   for (const upload of recentReviews) {
-    if (upload.reviewedBy) {
+    if (upload.reviewedBy && upload.request) {
       activities.push({
         id: `review-${upload.id}`,
         type: upload.status === "APPROVED" ? "approval" : "rejection",
@@ -557,17 +558,19 @@ async function getReminderSummary(agencyId: string) {
     pending: pendingCount,
     sentToday: sentTodayCount,
     failed: failedCount,
-    reminders: pendingReminders.map((r) => ({
-      id: r.id,
-      type: r.type,
-      channel: r.channel,
-      scheduledAt: r.scheduledAt.toISOString(),
-      status: r.status,
-      request: {
-        id: r.request.id,
-        title: r.request.title,
-        creator: r.request.creator,
-      },
-    })),
+    reminders: pendingReminders
+      .filter((r) => r.request)
+      .map((r) => ({
+        id: r.id,
+        type: r.type,
+        channel: r.channel,
+        scheduledAt: r.scheduledAt.toISOString(),
+        status: r.status,
+        request: {
+          id: r.request.id,
+          title: r.request.title,
+          creator: r.request.creator,
+        },
+      })),
   });
 }

@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Suspense } from "react";
@@ -86,7 +87,10 @@ async function getTemplateStats(agencyId: string) {
 
 export default async function TemplatesPage() {
   const session = await getServerSession(authOptions);
-  const agencyId = session!.user.agencyId;
+  if (!session?.user?.agencyId) {
+    redirect("/login");
+  }
+  const agencyId = session.user.agencyId;
 
   const [templates, stats] = await Promise.all([
     getTemplates(agencyId),

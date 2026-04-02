@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { RequestsList } from "@/components/requests/requests-list";
@@ -39,10 +40,13 @@ async function getTeamMembers(agencyId: string) {
 
 export default async function RequestsPage() {
   const session = await getServerSession(authOptions);
+  if (!session?.user?.agencyId) {
+    redirect("/login");
+  }
   const [requests, creators, teamMembers] = await Promise.all([
-    getRequests(session!.user.agencyId),
-    getCreators(session!.user.agencyId),
-    getTeamMembers(session!.user.agencyId),
+    getRequests(session.user.agencyId),
+    getCreators(session.user.agencyId),
+    getTeamMembers(session.user.agencyId),
   ]);
 
   // Convert dates to strings for serialization
@@ -59,7 +63,7 @@ export default async function RequestsPage() {
     <RequestsList
       initialRequests={serializedRequests}
       creators={creators}
-      currentUserId={session!.user.id}
+      currentUserId={session.user.id}
       teamMembers={teamMembers}
     />
   );

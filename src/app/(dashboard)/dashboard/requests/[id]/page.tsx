@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { RequestDetailClient } from "@/components/requests/request-detail-client";
 import { type Note } from "@/lib/notes-utils";
 
@@ -63,10 +63,13 @@ export default async function RequestDetailPage({
 }) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
+  if (!session?.user?.agencyId) {
+    redirect("/login");
+  }
 
   const [request, creators] = await Promise.all([
-    getRequest(id, session!.user.agencyId),
-    getCreators(session!.user.agencyId),
+    getRequest(id, session.user.agencyId),
+    getCreators(session.user.agencyId),
   ]);
 
   if (!request) {
@@ -101,11 +104,11 @@ export default async function RequestDetailPage({
       request={serializedRequest as unknown as Parameters<typeof RequestDetailClient>[0]['request']}
       creators={creators}
       initialNotes={internalNotes}
-      currentUserId={session!.user.id}
+      currentUserId={session.user.id}
       currentUser={{
-        id: session!.user.id,
-        name: session!.user.name || "Unknown",
-        role: session!.user.role,
+        id: session.user.id,
+        name: session.user.name || "Unknown",
+        role: session.user.role,
       }}
     />
   );
