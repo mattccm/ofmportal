@@ -56,6 +56,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { cn } from "@/lib/utils";
 import {
   TemplateField,
@@ -519,26 +520,28 @@ export function TemplateBuilder({
       />
 
       <div className="flex-1 space-y-6 overflow-auto pb-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* Header - Responsive layout for mobile */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
               {templateId ? "Edit Template" : "Create Template"}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Build a custom form template for content requests
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Autosave Status */}
-            <AutosaveStatusBadge
-              status={autosave.status}
-              lastSavedText={autosave.lastSavedText}
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Autosave Status - Hidden on mobile to save space */}
+            <div className="hidden sm:block">
+              <AutosaveStatusBadge
+                status={autosave.status}
+                lastSavedText={autosave.lastSavedText}
+              />
+            </div>
             {historyIndex >= 0 && (
               <Button variant="ghost" size="sm" onClick={handleUndo}>
-                <Undo2 className="h-4 w-4 mr-2" />
-                Undo
+                <Undo2 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Undo</span>
               </Button>
             )}
             <Button
@@ -548,13 +551,13 @@ export function TemplateBuilder({
             >
               {isPreviewMode ? (
                 <>
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Edit
+                  <EyeOff className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Edit</span>
                 </>
               ) : (
                 <>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview
+                  <Eye className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Preview</span>
                 </>
               )}
             </Button>
@@ -565,11 +568,11 @@ export function TemplateBuilder({
               className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
             >
               {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
               ) : (
-                <CheckCircle className="h-4 w-4 mr-2" />
+                <CheckCircle className="h-4 w-4 sm:mr-2" />
               )}
-              Publish
+              <span className="hidden sm:inline">Publish</span>
             </Button>
           </div>
         </div>
@@ -614,27 +617,29 @@ export function TemplateBuilder({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  Template Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Standard Photo Request"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Brief description of this template"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">
+                Template Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Standard Photo Request"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description / Instructions</Label>
+              <WysiwygEditor
+                value={description}
+                onChange={setDescription}
+                placeholder="Add a description or instructions for creators. This appears at the top of the request form."
+                minHeight="80px"
+                maxHeight="200px"
+              />
+              <p className="text-xs text-muted-foreground">
+                These instructions will be shown to creators at the top of the request form
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">

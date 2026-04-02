@@ -160,7 +160,23 @@ function Avatar({
   )
 }
 
-function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
+interface AvatarImageProps extends AvatarPrimitive.Image.Props {
+  onError?: () => void;
+}
+
+function AvatarImage({ className, onError, ...props }: AvatarImageProps) {
+  const [hasError, setHasError] = React.useState(false);
+
+  // Reset error state when src changes
+  React.useEffect(() => {
+    setHasError(false);
+  }, [props.src]);
+
+  // Don't render if there was an error loading the image
+  if (hasError) {
+    return null;
+  }
+
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
@@ -168,6 +184,10 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
         "aspect-square size-full rounded-full object-cover",
         className
       )}
+      onError={() => {
+        setHasError(true);
+        onError?.();
+      }}
       {...props}
     />
   )
