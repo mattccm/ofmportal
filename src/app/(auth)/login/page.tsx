@@ -156,26 +156,28 @@ function LoginForm() {
           </div>
 
           {requires2FA && (
-            <div className="space-y-2 animate-fade-in">
+            <div className="space-y-3 animate-fade-in">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-primary" />
                 <Label htmlFor="totpCode" className="text-sm font-medium">
-                  Two-Factor Code
+                  Two-Factor Authentication
                 </Label>
               </div>
               <Input
                 id="totpCode"
                 type="text"
-                placeholder="Enter 6-digit code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
                 value={totpCode}
                 onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 required
                 disabled={loading}
                 autoFocus
-                className="h-12 rounded-xl border-border bg-background px-4 text-center text-lg tracking-[0.5em] font-mono transition-all focus:ring-2 focus:ring-primary/20"
+                className="h-14 rounded-xl border-border bg-background px-4 text-center text-2xl font-semibold tracking-widest transition-all focus:ring-2 focus:ring-primary/20"
               />
-              <p className="text-xs text-muted-foreground">
-                Enter the code from your authenticator app
+              <p className="text-xs text-muted-foreground text-center">
+                Enter the 6-digit code from your authenticator app
               </p>
             </div>
           )}

@@ -69,20 +69,36 @@ export default async function CreatorsPage() {
   if (!session?.user?.agencyId) {
     redirect("/login");
   }
-  const creators = await getCreators(session.user.agencyId);
-  const inactiveCreators = getInactiveCreators(creators);
 
-  // Serialize creators for client component
-  const serializedCreators = creators.map((creator) => ({
-    id: creator.id,
-    name: creator.name,
-    email: creator.email,
-    phone: creator.phone,
-    inviteStatus: creator.inviteStatus,
-    lastLoginAt: creator.lastLoginAt,
-    _count: creator._count,
-    requests: creator.requests,
-  }));
+  let creators;
+  let inactiveCreators;
+  let serializedCreators;
+
+  try {
+    creators = await getCreators(session.user.agencyId);
+    inactiveCreators = getInactiveCreators(creators);
+
+    // Serialize creators for client component
+    serializedCreators = creators.map((creator) => ({
+      id: creator.id,
+      name: creator.name,
+      email: creator.email,
+      phone: creator.phone,
+      inviteStatus: creator.inviteStatus,
+      lastLoginAt: creator.lastLoginAt,
+      _count: creator._count,
+      requests: creator.requests,
+    }));
+  } catch (error) {
+    console.error("CreatorsPage data fetch error:", {
+      error,
+      agencyId: session.user.agencyId,
+      userId: session.user.id,
+    });
+    throw new Error(
+      `Failed to load creators: ${error instanceof Error ? error.message : "Database error"}`
+    );
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">

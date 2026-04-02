@@ -6,21 +6,25 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div
+      className="min-h-screen flex flex-col lg:flex-row"
+      style={{
+        minHeight: "100dvh",
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
+    >
       {/* Mobile Header - Shows on mobile only */}
-      <div className="lg:hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+      <div className="lg:hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden flex-shrink-0">
         {/* Gradient orbs - smaller for mobile */}
         <div className="absolute top-0 -left-10 w-40 h-40 bg-primary/30 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-0 w-32 h-32 bg-violet-500/20 rounded-full blur-3xl" />
 
-        {/* Content - with safe area padding for PWA/notch */}
-        <div
-          className="relative z-10 px-6 pb-8 text-center"
-          style={{ paddingTop: "max(32px, calc(env(safe-area-inset-top, 0px) + 16px))" }}
-        >
+        {/* Content */}
+        <div className="relative z-10 px-6 py-6 text-center">
           {/* Logo */}
-          <div className="flex justify-center mb-4">
-            <div className="relative h-14 w-14">
+          <div className="flex justify-center mb-3">
+            <div className="relative h-12 w-12">
               <Image
                 src="/ccm-logo.png"
                 alt="CCM"
@@ -31,10 +35,10 @@ export default function AuthLayout({
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl font-bold text-white mb-2">
+          <h1 className="text-xl font-bold text-white mb-1">
             CCM <span className="bg-gradient-to-r from-primary via-violet-400 to-purple-400 bg-clip-text text-transparent">Portal</span>
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-xs text-slate-400">
             Your content, your requests, one place.
           </p>
         </div>
@@ -109,16 +113,16 @@ export default function AuthLayout({
       </div>
 
       {/* Right side / Main content - Form */}
-      <div className="flex-1 flex items-center justify-center bg-background p-6 lg:p-12">
+      <div className="flex-1 flex items-start lg:items-center justify-center bg-background px-6 py-8 lg:p-12 overflow-y-auto">
         <div className="w-full max-w-md space-y-6 animate-fade-in">
           {children}
         </div>
       </div>
 
       {/* Mobile Footer */}
-      <div className="lg:hidden py-4 px-6 text-center bg-background border-t border-border">
+      <div className="lg:hidden py-3 px-6 text-center bg-background border-t border-border flex-shrink-0">
         <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} Content Creation Management Pty Ltd
+          &copy; {new Date().getFullYear()} CCM Pty Ltd
         </p>
       </div>
     </div>
