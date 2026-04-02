@@ -17,6 +17,7 @@ import {
   Eye,
   EyeOff,
   Image as ImageIcon,
+  Video,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -42,6 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { cn } from "@/lib/utils";
 import {
   TemplateField,
@@ -153,11 +155,13 @@ export function FieldEditor({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-medium text-foreground truncate">
-                {field.quantity && field.quantity > 1 && (
-                  <span className="text-primary font-semibold">{field.quantity}x </span>
-                )}
                 {field.label || "Untitled Field"}
               </span>
+              {field.quantity && field.quantity > 1 && (
+                <Badge variant="secondary" className="text-xs shrink-0">
+                  x{field.quantity}
+                </Badge>
+              )}
               {field.required && (
                 <Badge variant="outline" className="text-xs shrink-0">
                   Required
@@ -172,6 +176,7 @@ export function FieldEditor({
             </div>
             <span className="text-sm text-muted-foreground">
               {config.label}
+              {field.quantity && field.quantity > 1 && ` (${field.quantity} duplicates)`}
             </span>
           </div>
 
@@ -295,36 +300,29 @@ export function FieldEditor({
             </div>
 
             {/* Quantity / Multiplier */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Quantity / Multiplier</Label>
+            <div className="space-y-2">
+              <Label>Duplicate This Field</Label>
+              <div className="flex items-center gap-3">
                 <Input
                   type="number"
                   min={1}
-                  max={99}
-                  value={field.quantity || ""}
+                  max={20}
+                  value={field.quantity || 1}
                   onChange={(e) => {
                     const value = parseInt(e.target.value);
-                    updateField({ quantity: isNaN(value) || value < 1 ? undefined : value });
+                    updateField({ quantity: isNaN(value) || value < 1 ? 1 : Math.min(value, 20) });
                   }}
-                  placeholder="e.g., 5 for '5x Photos'"
+                  className="w-20"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Display as &quot;{field.quantity || 5}x {field.label || "Field Name"}&quot;
-                </p>
+                <span className="text-sm text-muted-foreground">
+                  {field.quantity && field.quantity > 1
+                    ? `Creates ${field.quantity} fields: "${field.label || "Field"} 1", "${field.label || "Field"} 2", etc.`
+                    : "No duplication (single field)"}
+                </span>
               </div>
-              <div className="space-y-2">
-                <Label>Quantity Label (Optional)</Label>
-                <Input
-                  value={field.quantityLabel || ""}
-                  onChange={(e) => updateField({ quantityLabel: e.target.value || undefined })}
-                  placeholder="e.g., pieces, items, sets"
-                  disabled={!field.quantity || field.quantity < 2}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Custom unit label after the number
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                When set to more than 1, this field will be duplicated with numbered labels for creators to fill out separately.
+              </p>
             </div>
 
             {/* Rich Content / Examples Section */}
@@ -541,7 +539,9 @@ interface RichContentEditorProps {
 function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
   const [expanded, setExpanded] = React.useState(false);
   const [uploadingImage, setUploadingImage] = React.useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [uploadingVideo, setUploadingVideo] = React.useState(false);
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
+  const videoInputRef = React.useRef<HTMLInputElement>(null);
 
   const updateRichContent = (updates: Partial<NonNullable<TemplateField["richContent"]>>) => {
     onChange({
@@ -568,14 +568,6 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
     updateRichContent({ referenceLinks: links });
   };
 
-  // Example images management
-  const addExampleImageUrl = () => {
-    const images = richContent?.exampleImages || [];
-    updateRichContent({
-      exampleImages: [...images, { url: "", caption: "" }],
-    });
-  };
-
   const updateExampleImage = (index: number, updates: { url?: string; caption?: string }) => {
     const images = [...(richContent?.exampleImages || [])];
     images[index] = { ...images[index], ...updates };
@@ -592,6 +584,8 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
     if (!files || files.length === 0) return;
 
     setUploadingImage(true);
+    const newImages: { url: string; caption: string }[] = [];
+
     try {
       for (const file of Array.from(files)) {
         // Validate file type
@@ -600,13 +594,13 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
           continue;
         }
 
-        // Validate file size (max 5MB)
+        // Validate file size (max 5MB per image)
         if (file.size > 5 * 1024 * 1024) {
           toast.error(`${file.name} is too large (max 5MB)`);
           continue;
         }
 
-        // Convert to base64 for now (could be uploaded to storage later)
+        // Convert to base64
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -614,20 +608,65 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
           reader.readAsDataURL(file);
         });
 
-        // Add to images array
-        const images = richContent?.exampleImages || [];
-        updateRichContent({
-          exampleImages: [...images, { url: base64, caption: file.name.replace(/\.[^/.]+$/, "") }],
-        });
+        newImages.push({ url: base64, caption: file.name.replace(/\.[^/.]+$/, "") });
       }
-      toast.success("Example image(s) added");
+
+      if (newImages.length > 0) {
+        // Add all images at once for bulk upload
+        const existingImages = richContent?.exampleImages || [];
+        updateRichContent({
+          exampleImages: [...existingImages, ...newImages],
+        });
+        toast.success(`${newImages.length} example image(s) added`);
+      }
     } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Failed to upload image");
+      console.error("Error uploading images:", error);
+      toast.error("Failed to upload images");
     } finally {
       setUploadingImage(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0]; // Only single video for now
+
+    // Validate file type
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please select a video file");
+      return;
+    }
+
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Video is too large (max 50MB)");
+      return;
+    }
+
+    setUploadingVideo(true);
+    try {
+      // Convert to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      updateRichContent({ exampleVideoUrl: base64 });
+      toast.success("Example video added");
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      toast.error("Failed to upload video");
+    } finally {
+      setUploadingVideo(false);
+      if (videoInputRef.current) {
+        videoInputRef.current.value = "";
       }
     }
   };
@@ -666,18 +705,16 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
 
       {expanded && (
         <div className="space-y-4 pt-2">
-          {/* Detailed Description */}
+          {/* Detailed Description - WYSIWYG Editor */}
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Detailed Instructions</Label>
-            <Textarea
+            <WysiwygEditor
               value={richContent?.description || ""}
-              onChange={(e) => updateRichContent({ description: e.target.value })}
+              onChange={(html) => updateRichContent({ description: html })}
               placeholder="Provide detailed instructions for this field. What exactly do you need? What format? Any specific requirements?"
-              rows={3}
+              minHeight="100px"
+              maxHeight="250px"
             />
-            <p className="text-xs text-muted-foreground">
-              Supports markdown: **bold**, *italic*, `code`, [links](url), - lists
-            </p>
           </div>
 
           {/* Example Text */}
@@ -691,37 +728,31 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
             />
           </div>
 
-          {/* Example Images */}
+          {/* Example Images - Upload Only (Bulk) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">Example Images</Label>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={addExampleImageUrl}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add URL
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
-                >
-                  {uploadingImage ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Upload className="h-3 w-3 mr-1" />
-                  )}
-                  Upload
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <Upload className="h-3 w-3 mr-1" />
+                )}
+                Upload Images
+              </Button>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleImageUpload}
+              />
             </div>
 
             {/* Example images grid */}
@@ -759,39 +790,79 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
                       placeholder="Caption"
                       className="mt-1 h-7 text-xs"
                     />
-                    {!img.url.startsWith("data:") && (
-                      <Input
-                        value={img.url}
-                        onChange={(e) => updateExampleImage(index, { url: e.target.value })}
-                        placeholder="Image URL"
-                        className="mt-1 h-7 text-xs"
-                        type="url"
-                      />
-                    )}
                   </div>
                 ))}
               </div>
             )}
 
             {(!richContent?.exampleImages || richContent.exampleImages.length === 0) && (
-              <p className="text-xs text-muted-foreground">
-                Add example images to show creators exactly what you're looking for
-              </p>
+              <div
+                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => imageInputRef.current?.click()}
+              >
+                <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">Click to upload example images</p>
+                <p className="text-xs text-muted-foreground mt-1">You can select multiple images at once</p>
+              </div>
             )}
           </div>
 
-          {/* Example Video URL */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Example Video URL</Label>
-            <Input
-              value={richContent?.exampleVideoUrl || ""}
-              onChange={(e) => updateRichContent({ exampleVideoUrl: e.target.value })}
-              placeholder="https://youtube.com/watch?v=..."
-              type="url"
+          {/* Example Video - Upload Only */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Example Video</Label>
+              {richContent?.exampleVideoUrl && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive h-7"
+                  onClick={() => updateRichContent({ exampleVideoUrl: "" })}
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Remove
+                </Button>
+              )}
+            </div>
+
+            {richContent?.exampleVideoUrl ? (
+              <div className="relative rounded-lg border bg-muted overflow-hidden">
+                {richContent.exampleVideoUrl.startsWith("data:") ? (
+                  <video
+                    src={richContent.exampleVideoUrl}
+                    controls
+                    className="w-full max-h-[200px]"
+                  />
+                ) : (
+                  <div className="p-4 flex items-center gap-3">
+                    <Video className="h-8 w-8 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">Video attached</p>
+                      <p className="text-xs text-muted-foreground truncate">{richContent.exampleVideoUrl}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => videoInputRef.current?.click()}
+              >
+                {uploadingVideo ? (
+                  <Loader2 className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2 animate-spin" />
+                ) : (
+                  <Video className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                )}
+                <p className="text-sm text-muted-foreground">Click to upload example video</p>
+                <p className="text-xs text-muted-foreground mt-1">Max 50MB - MP4, WebM, MOV</p>
+              </div>
+            )}
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={handleVideoUpload}
             />
-            <p className="text-xs text-muted-foreground">
-              YouTube, Vimeo, or direct video link
-            </p>
           </div>
 
           {/* Reference Links */}

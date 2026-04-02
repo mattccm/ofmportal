@@ -128,13 +128,14 @@ async function tryS3Upload(
     const key = generateAvatarKey(userId);
 
     // Upload to S3/R2
+    // Using no-cache for avatars so updates show immediately
     await s3Client.send(
       new PutObjectCommand({
         Bucket: BUCKET_NAME,
         Key: key,
         Body: buffer,
         ContentType: mimeType,
-        CacheControl: "public, max-age=31536000", // 1 year cache
+        CacheControl: "no-cache, no-store, must-revalidate", // No cache for avatars - they change
         Metadata: {
           userId: userId,
           uploadedAt: new Date().toISOString(),

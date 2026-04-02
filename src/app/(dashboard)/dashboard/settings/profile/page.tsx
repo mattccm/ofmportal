@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   User,
@@ -101,6 +102,7 @@ function TimezoneCurrentTime({ timezone }: { timezone: string }) {
 
 export default function ProfileSettingsPage() {
   const { data: session, update: updateSession } = useSession();
+  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
   const [hasChanges, setHasChanges] = React.useState(false);
@@ -277,10 +279,20 @@ export default function ProfileSettingsPage() {
       }
 
       const data = await response.json();
-      setProfile((prev) => (prev ? { ...prev, image: data.url } : null));
+
+      // Add cache-busting parameter to force browser to load new image
+      const cacheBustedUrl = data.url.startsWith("data:")
+        ? data.url
+        : `${data.url}${data.url.includes("?") ? "&" : "?"}t=${Date.now()}`;
+
+      setProfile((prev) => (prev ? { ...prev, image: cacheBustedUrl } : null));
 
       // Update session to reflect new avatar everywhere
-      await updateSession({ image: data.url });
+      // Use cache-busted URL to ensure immediate update
+      await updateSession({ image: cacheBustedUrl });
+
+      // Force router refresh to ensure all components re-render with new session
+      router.refresh();
 
       toast.success("Avatar updated successfully");
     } catch (error) {
@@ -308,6 +320,9 @@ export default function ProfileSettingsPage() {
 
       // Update session to reflect removed avatar everywhere
       await updateSession({ image: null });
+
+      // Force router refresh to ensure all components re-render with new session
+      router.refresh();
 
       toast.success("Avatar removed");
     } catch (error) {

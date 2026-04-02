@@ -43,8 +43,6 @@ interface RequestField {
   label: string;
   value: string;
   type: string;
-  quantity?: number;
-  quantityLabel?: string;
   richContent?: TemplateField["richContent"];
 }
 
@@ -556,11 +554,6 @@ export default function CreatorRequestDetailPage({
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                          {field.quantity && field.quantity > 1 && (
-                            <span className="text-primary font-semibold normal-case">
-                              {field.quantity}x{field.quantityLabel ? ` ${field.quantityLabel}` : ""}{" "}
-                            </span>
-                          )}
                           {field.label}
                         </p>
                         <p className="font-medium mt-1">{field.value}</p>

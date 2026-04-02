@@ -226,7 +226,11 @@ function SidebarComponent() {
             >
               <Avatar className="h-10 w-10 ring-2 ring-sidebar-accent">
                 {user?.image && (
-                  <AvatarImage src={user.image} alt={user?.name || "User"} />
+                  <AvatarImage
+                    src={user.image}
+                    alt={user?.name || "User"}
+                    key={user.image}
+                  />
                 )}
                 <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-sm">
                   {generateInitials(user?.name)}

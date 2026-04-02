@@ -20,8 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Markdown } from "@/components/ui/markdown";
 import type { TemplateField } from "@/lib/template-types";
+
+// Sanitize HTML to prevent XSS while keeping formatting
+function sanitizeHtml(html: string): string {
+  // Remove script tags and event handlers
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/on\w+="[^"]*"/gi, "")
+    .replace(/on\w+='[^']*'/gi, "");
+}
 
 // ============================================
 // TYPES
@@ -238,11 +246,12 @@ export function FieldExamplesDisplay({
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          {/* Description */}
+          {/* Description - Render HTML from WYSIWYG editor */}
           {richContent?.description && (
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:text-amber-800 dark:prose-p:text-amber-200 prose-strong:text-amber-900 dark:prose-strong:text-amber-100">
-              <Markdown>{richContent.description}</Markdown>
-            </div>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none prose-p:text-amber-800 dark:prose-p:text-amber-200 prose-strong:text-amber-900 dark:prose-strong:text-amber-100"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(richContent.description) }}
+            />
           )}
 
           {/* Example Text */}
@@ -367,11 +376,12 @@ export function FieldExamplesDisplay({
       {/* Content */}
       {expanded && (
         <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border/50 ml-5 animate-in slide-in-from-top-1 duration-150">
-          {/* Description (with markdown) */}
+          {/* Description - Render HTML from WYSIWYG editor */}
           {richContent?.description && (
-            <div>
-              <Markdown compact>{richContent.description}</Markdown>
-            </div>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(richContent.description) }}
+            />
           )}
 
           {/* Example Text */}

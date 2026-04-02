@@ -36,7 +36,7 @@ import { HelpLabel } from "@/components/help/contextual-help";
 import { cn } from "@/lib/utils";
 import { TemplateSelector } from "@/components/requests/template-selector";
 import { TemplatePreviewCard } from "@/components/templates/template-preview-card";
-import type { Template as FullTemplate } from "@/lib/template-types";
+import { expandQuantityFields, type Template as FullTemplate, type TemplateField } from "@/lib/template-types";
 
 // ============================================
 // TYPES
@@ -668,8 +668,11 @@ function NewRequestForm() {
       urgency: template.defaultUrgency,
     }));
 
+    // Expand fields with quantity > 1 into individual fields
+    const expandedFields = expandQuantityFields(template.fields as TemplateField[]);
+
     setCustomFields(
-      template.fields.map((field) => ({
+      expandedFields.map((field) => ({
         id: field.id,
         label: field.label,
         value: field.defaultValue !== undefined ? String(field.defaultValue) : "",

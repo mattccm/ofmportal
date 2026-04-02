@@ -426,6 +426,84 @@ export function duplicateField(field: TemplateField): TemplateField {
   };
 }
 
+/**
+ * Expand fields with quantity into individual fields
+ * Example: A field with quantity=3 and label="Content Photo"
+ * becomes 3 fields: "Content Photo 1", "Content Photo 2", "Content Photo 3"
+ */
+export function expandQuantityFields(fields: TemplateField[]): TemplateField[] {
+  const expanded: TemplateField[] = [];
+
+  for (const field of fields) {
+    const quantity = field.quantity && field.quantity > 1 ? field.quantity : 1;
+
+    if (quantity === 1) {
+      // No expansion needed, just use the original field
+      expanded.push(field);
+    } else {
+      // Expand into multiple fields
+      for (let i = 1; i <= quantity; i++) {
+        const expandedId = `${field.id}_${i}`;
+        const expandedField: TemplateField = {
+          ...field,
+          id: expandedId,
+          label: `${field.label} ${i}`,
+          // Remove quantity so expanded fields don't show as multiplied
+          quantity: undefined,
+          quantityLabel: undefined,
+          // Preserve options with unique IDs per expanded field
+          options: field.options?.map((opt) => ({
+            ...opt,
+            id: `${opt.id}_${i}`,
+          })),
+        };
+        expanded.push(expandedField);
+      }
+    }
+  }
+
+  return expanded;
+}
+
+/**
+ * Collapse expanded fields back to their original form
+ * (Useful for editing templates where fields were expanded)
+ */
+export function collapseQuantityFields(fields: TemplateField[]): TemplateField[] {
+  const collapsed: TemplateField[] = [];
+  const seenBaseIds = new Set<string>();
+
+  for (const field of fields) {
+    // Check if this is an expanded field (ends with _N where N is a number)
+    const match = field.id.match(/^(.+)_(\d+)$/);
+
+    if (match) {
+      const baseId = match[1];
+      if (!seenBaseIds.has(baseId)) {
+        seenBaseIds.add(baseId);
+        // Find all fields with this base ID and count them
+        const relatedFields = fields.filter(f => f.id.startsWith(baseId + "_"));
+        const originalLabel = field.label.replace(/\s+\d+$/, ""); // Remove trailing number
+
+        collapsed.push({
+          ...field,
+          id: baseId,
+          label: originalLabel,
+          quantity: relatedFields.length,
+          options: field.options?.map((opt) => ({
+            ...opt,
+            id: opt.id.replace(/_\d+$/, ""),
+          })),
+        });
+      }
+    } else {
+      collapsed.push(field);
+    }
+  }
+
+  return collapsed;
+}
+
 export const FIELD_TYPE_CONFIG: Record<
   FieldType,
   {
