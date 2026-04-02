@@ -12,10 +12,23 @@ interface AnnouncementsContextType {
 
 const AnnouncementsContext = React.createContext<AnnouncementsContextType | null>(null);
 
+// Default no-op context for when provider is unavailable
+const defaultAnnouncementsContext: AnnouncementsContextType = {
+  announcements: [],
+  isLoading: false,
+  dismissAnnouncement: () => {
+    console.warn("useAnnouncements: AnnouncementsProvider not available");
+  },
+  refreshAnnouncements: () => {
+    console.warn("useAnnouncements: AnnouncementsProvider not available");
+  },
+};
+
 export function useAnnouncements() {
   const context = React.useContext(AnnouncementsContext);
+  // Return safe defaults if provider failed/missing - prevents cascade failures
   if (!context) {
-    throw new Error("useAnnouncements must be used within an AnnouncementsProvider");
+    return defaultAnnouncementsContext;
   }
   return context;
 }

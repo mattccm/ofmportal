@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Trophy, ChevronRight, Upload, CheckCircle, Clock, Medal, Users } from "lucide-react";
+import { widgetFetch } from "@/lib/fetch-with-timeout";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
@@ -45,12 +46,15 @@ export function TopCreatorsWidget({ config, size }: WidgetProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/dashboard/widgets?widget=top-creators");
+      const response = await widgetFetch("/api/dashboard/widgets?widget=top-creators");
       if (!response.ok) throw new Error("Failed to fetch data");
       const data = await response.json();
       setCreators(data.creators || []);
     } catch (err) {
-      setError("Failed to load creator stats");
+      const message = err instanceof Error && err.name === "FetchTimeoutError"
+        ? "Request timed out"
+        : "Failed to load creator stats";
+      setError(message);
     } finally {
       setIsLoading(false);
     }

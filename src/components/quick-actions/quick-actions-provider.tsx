@@ -23,12 +23,27 @@ const QuickActionsContext = React.createContext<QuickActionsContextValue | null>
   null
 );
 
+// Default no-op context for when provider is unavailable
+const defaultQuickActionsContext: QuickActionsContextValue = {
+  openCreateRequest: () => {
+    console.warn("useQuickActions: QuickActionsProvider not available");
+  },
+  openInviteCreator: () => {
+    console.warn("useQuickActions: QuickActionsProvider not available");
+  },
+  openUploadFile: () => {
+    console.warn("useQuickActions: QuickActionsProvider not available");
+  },
+  openSendReminder: () => {
+    console.warn("useQuickActions: QuickActionsProvider not available");
+  },
+};
+
 export function useQuickActions() {
   const context = React.useContext(QuickActionsContext);
+  // Return safe defaults if provider failed/missing - prevents cascade failures
   if (!context) {
-    throw new Error(
-      "useQuickActions must be used within a QuickActionsProvider"
-    );
+    return defaultQuickActionsContext;
   }
   return context;
 }

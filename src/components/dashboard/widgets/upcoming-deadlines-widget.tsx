@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { format, differenceInDays, isToday, isTomorrow } from "date-fns";
+import { widgetFetch } from "@/lib/fetch-with-timeout";
 import { Calendar, ChevronRight, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -97,12 +98,15 @@ export function UpcomingDeadlinesWidget({ config, size }: WidgetProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/dashboard/widgets?widget=upcoming-deadlines");
+      const response = await widgetFetch("/api/dashboard/widgets?widget=upcoming-deadlines");
       if (!response.ok) throw new Error("Failed to fetch data");
       const data = await response.json();
       setDeadlines(data.deadlines || []);
     } catch (err) {
-      setError("Failed to load deadlines");
+      const message = err instanceof Error && err.name === "FetchTimeoutError"
+        ? "Request timed out"
+        : "Failed to load deadlines";
+      setError(message);
     } finally {
       setIsLoading(false);
     }

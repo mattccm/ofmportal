@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ContextualHelp } from "@/components/help/contextual-help";
+import { WidgetErrorBoundary } from "@/components/errors";
 
 // ============================================
 // TYPES
@@ -219,8 +220,10 @@ function DraggableWidget({
         </DropdownMenu>
       </div>
 
-      {/* Widget Component */}
-      <WidgetComponent config={config} size={config.size} />
+      {/* Widget Component - wrapped in error boundary for isolation */}
+      <WidgetErrorBoundary>
+        <WidgetComponent config={config} size={config.size} />
+      </WidgetErrorBoundary>
     </div>
   );
 }

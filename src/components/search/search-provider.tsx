@@ -12,10 +12,23 @@ interface SearchContextValue {
 
 const SearchContext = React.createContext<SearchContextValue | undefined>(undefined);
 
+// Default no-op context for when provider is unavailable
+const defaultSearchContext: SearchContextValue = {
+  isOpen: false,
+  openSearch: () => {
+    console.warn("useSearch: SearchProvider not available");
+  },
+  closeSearch: () => {},
+  toggleSearch: () => {
+    console.warn("useSearch: SearchProvider not available");
+  },
+};
+
 export function useSearch() {
   const context = React.useContext(SearchContext);
+  // Return safe defaults if provider failed/missing - prevents cascade failures
   if (!context) {
-    throw new Error("useSearch must be used within a SearchProvider");
+    return defaultSearchContext;
   }
   return context;
 }

@@ -31,6 +31,8 @@ interface UseRecentActivityReturn {
   isRefreshing: boolean;
   /** Error message if any */
   error: string | null;
+  /** Whether mock/demo data is being displayed (API unavailable) */
+  isUsingMockData: boolean;
   /** Manually refresh activities */
   refresh: () => Promise<void>;
   /** Mark an activity as read */
@@ -243,6 +245,7 @@ export function useRecentActivity(
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUsingMockData, setIsUsingMockData] = useState(false);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
@@ -272,13 +275,16 @@ export function useRecentActivity(
         const response = await fetch(`/api/activity?${params}`);
 
         if (!response.ok) {
-          // If API not available, use mock data in development
+          // If API not available, use mock data in development with warning
           if (process.env.NODE_ENV === "development") {
+            console.warn("[useRecentActivity] API unavailable, using mock data");
             const mockData = generateMockActivities(limit);
             if (isMountedRef.current) {
               setActivities(mockData);
               setUnreadCount(mockData.filter((a) => !a.isRead).length);
-              setError(null);
+              setIsUsingMockData(true);
+              // Set a warning instead of hiding the error completely
+              setError("Using demo data (API unavailable)");
             }
             return;
           }
@@ -297,15 +303,19 @@ export function useRecentActivity(
           setActivities(parsedActivities);
           setUnreadCount(data.unreadCount ?? parsedActivities.filter((a: ActivityItemData) => !a.isRead).length);
           setError(null);
+          setIsUsingMockData(false);
         }
       } catch (err) {
-        // In development, fall back to mock data
+        // In development, fall back to mock data with warning
         if (process.env.NODE_ENV === "development") {
+          console.warn("[useRecentActivity] Error fetching activities, using mock data:", err);
           const mockData = generateMockActivities(limit);
           if (isMountedRef.current) {
             setActivities(mockData);
             setUnreadCount(mockData.filter((a) => !a.isRead).length);
-            setError(null);
+            setIsUsingMockData(true);
+            // Show warning that we're using mock data
+            setError("Using demo data (connection error)");
           }
           return;
         }
@@ -429,6 +439,7 @@ export function useRecentActivity(
     isLoading,
     isRefreshing,
     error,
+    isUsingMockData,
     refresh,
     markAsRead,
     markAllAsRead,
@@ -454,11 +465,16 @@ export function useUnreadActivityCount(pollInterval: number = 30000): number {
           if (isMounted) {
             setCount(data.count);
           }
+        } else if (process.env.NODE_ENV === "development" && isMounted) {
+          // In development, use a consistent mock count (not random)
+          console.warn("[useUnreadActivityCount] API unavailable, using mock count");
+          setCount(3); // Consistent mock value
         }
       } catch {
-        // In development, generate mock count
+        // In development, generate mock count with warning
         if (process.env.NODE_ENV === "development" && isMounted) {
-          setCount(Math.floor(Math.random() * 10));
+          console.warn("[useUnreadActivityCount] Error fetching count, using mock");
+          setCount(3); // Consistent mock value
         }
       }
     };

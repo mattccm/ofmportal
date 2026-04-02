@@ -126,6 +126,32 @@ const CACHE_TTL = 60000; // 1 minute cache
 // NEW: EventSource for real-time updates
 const eventSourceMap = new Map<string, EventSource>();
 
+/**
+ * Clean up all global caches and connections
+ * Call this on navigation or when cleaning up stale state
+ */
+export function cleanupCreatorContextGlobals(): void {
+  // Clear the in-memory cache
+  contextCache.clear();
+
+  // Close all EventSource connections
+  for (const [id, es] of eventSourceMap.entries()) {
+    try {
+      es.close();
+    } catch (e) {
+      console.warn(`Failed to close EventSource for ${id}:`, e);
+    }
+  }
+  eventSourceMap.clear();
+}
+
+/**
+ * Clear only the cache (keep connections alive)
+ */
+export function clearCreatorContextCache(): void {
+  contextCache.clear();
+}
+
 export function useCreatorContext({
   creatorId,
   enabled = true,

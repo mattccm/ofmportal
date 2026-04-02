@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { widgetFetch } from "@/lib/fetch-with-timeout";
 import { FileText, ChevronRight, Clock, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,12 +57,15 @@ export function PendingRequestsWidget({ config, size }: WidgetProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/dashboard/widgets?widget=pending-requests");
+      const response = await widgetFetch("/api/dashboard/widgets?widget=pending-requests");
       if (!response.ok) throw new Error("Failed to fetch data");
       const data = await response.json();
       setRequests(data.requests || []);
     } catch (err) {
-      setError("Failed to load pending requests");
+      const message = err instanceof Error && err.name === "FetchTimeoutError"
+        ? "Request timed out"
+        : "Failed to load pending requests";
+      setError(message);
     } finally {
       setIsLoading(false);
     }

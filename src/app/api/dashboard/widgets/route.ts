@@ -241,53 +241,54 @@ async function getTopCreators(agencyId: string) {
   const monthStart = startOfMonth(new Date());
   const monthEnd = endOfMonth(new Date());
 
+  // Fetch all creators with their upload stats in a single query using groupBy
+  // This eliminates the N+1 query problem
   const creators = await db.creator.findMany({
     where: { agencyId, inviteStatus: "ACCEPTED" },
-    select: { id: true, name: true, avatar: true },
+    select: {
+      id: true,
+      name: true,
+      avatar: true,
+      uploads: {
+        where: {
+          uploadedAt: { gte: monthStart, lte: monthEnd },
+        },
+        select: {
+          status: true,
+        },
+      },
+      // Get requests with their first upload for response time calculation
+      requests: {
+        where: {
+          createdAt: { gte: monthStart, lte: monthEnd },
+        },
+        select: {
+          createdAt: true,
+          uploads: {
+            orderBy: { uploadedAt: "asc" },
+            take: 1,
+            select: { uploadedAt: true },
+          },
+        },
+      },
+    },
   });
 
-  const performances = [];
-
-  for (const creator of creators) {
-    const [uploadsThisMonth, approvedUploads, totalReviewedUploads] = await Promise.all([
-      db.upload.count({
-        where: { creatorId: creator.id, uploadedAt: { gte: monthStart, lte: monthEnd } },
-      }),
-      db.upload.count({
-        where: {
-          creatorId: creator.id,
-          status: "APPROVED",
-          uploadedAt: { gte: monthStart, lte: monthEnd },
-        },
-      }),
-      db.upload.count({
-        where: {
-          creatorId: creator.id,
-          status: { in: ["APPROVED", "REJECTED"] },
-          uploadedAt: { gte: monthStart, lte: monthEnd },
-        },
-      }),
-    ]);
+  const performances = creators.map((creator) => {
+    // Calculate upload stats from the included uploads
+    const uploadsThisMonth = creator.uploads.length;
+    const approvedUploads = creator.uploads.filter((u) => u.status === "APPROVED").length;
+    const reviewedUploads = creator.uploads.filter(
+      (u) => u.status === "APPROVED" || u.status === "REJECTED"
+    ).length;
 
     const approvalRate =
-      totalReviewedUploads > 0 ? Math.round((approvedUploads / totalReviewedUploads) * 100) : 0;
+      reviewedUploads > 0 ? Math.round((approvedUploads / reviewedUploads) * 100) : 0;
 
-    // Calculate avg response time
-    const requestsWithUploads = await db.contentRequest.findMany({
-      where: {
-        creatorId: creator.id,
-        createdAt: { gte: monthStart, lte: monthEnd },
-        uploads: { some: {} },
-      },
-      select: {
-        createdAt: true,
-        uploads: { orderBy: { uploadedAt: "asc" }, take: 1, select: { uploadedAt: true } },
-      },
-    });
-
+    // Calculate avg response time from included requests
     let totalResponseHours = 0;
     let responseCount = 0;
-    for (const request of requestsWithUploads) {
+    for (const request of creator.requests) {
       if (request.uploads[0]?.uploadedAt) {
         totalResponseHours += differenceInHours(request.uploads[0].uploadedAt, request.createdAt);
         responseCount++;
@@ -295,7 +296,7 @@ async function getTopCreators(agencyId: string) {
     }
     const avgResponseTimeHours = responseCount > 0 ? Math.round(totalResponseHours / responseCount) : 0;
 
-    performances.push({
+    return {
       id: creator.id,
       name: creator.name,
       avatar: creator.avatar,
@@ -303,8 +304,8 @@ async function getTopCreators(agencyId: string) {
       approvalRate,
       avgResponseTimeHours,
       rank: 0,
-    });
-  }
+    };
+  });
 
   // Sort by uploads and assign ranks
   performances.sort((a, b) => b.uploadsThisMonth - a.uploadsThisMonth);

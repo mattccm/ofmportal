@@ -31,12 +31,27 @@ interface CreatorContextProviderValue {
 
 const CreatorContextContext = createContext<CreatorContextProviderValue | null>(null);
 
+// Default no-op context for when provider is unavailable
+const defaultCreatorContextValue: CreatorContextProviderValue = {
+  selectedCreatorId: null,
+  isPanelOpen: false,
+  openCreatorContext: () => {
+    console.warn("useCreatorContextPanel: CreatorContextProvider not available");
+  },
+  closeCreatorContext: () => {},
+  toggleCreatorContext: () => {
+    console.warn("useCreatorContextPanel: CreatorContextProvider not available");
+  },
+  setCreatorId: () => {
+    console.warn("useCreatorContextPanel: CreatorContextProvider not available");
+  },
+};
+
 export function useCreatorContextPanel() {
   const context = useContext(CreatorContextContext);
+  // Return safe defaults if provider failed/missing - prevents cascade failures
   if (!context) {
-    throw new Error(
-      "useCreatorContextPanel must be used within CreatorContextProvider"
-    );
+    return defaultCreatorContextValue;
   }
   return context;
 }
