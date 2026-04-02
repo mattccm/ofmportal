@@ -46,6 +46,7 @@ function createPrismaClient(): PrismaClient {
   const config = parseConnectionUrl(process.env.DATABASE_URL);
 
   // Create adapter with explicit connection parameters
+  // Use small pool size for serverless environments to avoid exhausting Supabase pooler
   const adapter = new PrismaPg({
     host: config.host,
     port: config.port,
@@ -54,7 +55,10 @@ function createPrismaClient(): PrismaClient {
     password: config.password,
     ssl: config.ssl,
     connectionTimeoutMillis: 10000, // 10 second timeout
-    idleTimeoutMillis: 30000, // 30 second idle timeout
+    idleTimeoutMillis: 10000, // 10 second idle timeout (reduced to free connections faster)
+    max: 2, // Maximum 2 connections per serverless function instance
+    min: 0, // Don't keep idle connections
+    allowExitOnIdle: true, // Allow the pool to exit when idle
   });
 
   return new PrismaClient({

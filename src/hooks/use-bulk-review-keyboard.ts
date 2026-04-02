@@ -121,6 +121,9 @@ export function useBulkReviewKeyboard({
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (!enabled) return;
 
+    // Safety check for undefined event.key (can happen with some input methods)
+    if (!event.key) return;
+
     // Don't trigger shortcuts when typing in inputs
     const target = event.target as HTMLElement;
     if (

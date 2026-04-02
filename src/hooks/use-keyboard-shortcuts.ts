@@ -131,6 +131,9 @@ export function useKeyboardShortcuts({
     (event: KeyboardEvent) => {
       if (!enabled) return;
 
+      // Safety check for undefined event.key (can happen with some input methods)
+      if (!event.key) return;
+
       // Skip if user is typing in an input field (unless it's an allowed key)
       const key = event.key.toLowerCase();
       if (isInputElement(event.target) && !isAllowedInInput(key, event)) {
