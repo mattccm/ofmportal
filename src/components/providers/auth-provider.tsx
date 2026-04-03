@@ -8,6 +8,8 @@ import {
   isIndexedDBAvailable,
   getRememberToken,
   hasIndicatorCookie,
+  hasSignedOutFlag,
+  clearSignedOutFlag,
 } from "@/lib/remember-token";
 
 interface AuthProviderProps {
@@ -60,6 +62,12 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
 
   // Attempt auto-login with remember token
   const tryAutoLogin = useCallback(async (force = false) => {
+    // Check if user intentionally signed out - don't auto-login in that case
+    if (hasSignedOutFlag()) {
+      console.log("[AuthProvider] User signed out intentionally, skipping auto-login");
+      return false;
+    }
+
     // Prevent multiple simultaneous attempts
     if (isAttemptingAutoLogin) {
       console.log("[AuthProvider] Auto-login already in progress");

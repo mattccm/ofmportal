@@ -29,7 +29,7 @@ import {
   Sun,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { clearRememberToken } from "@/lib/remember-token";
+import { clearRememberToken, setSignedOutFlag } from "@/lib/remember-token";
 import { MobileSheet } from "@/components/ui/mobile-sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -608,7 +608,8 @@ export function MobileNav() {
               onClick={async () => {
                 triggerHaptic("medium");
                 setMoreOpen(false);
-                // Clear remember token before signing out to prevent auto-login
+                // Set flag to prevent auto-login, then clear token and sign out
+                setSignedOutFlag();
                 await clearRememberToken();
                 signOut({ callbackUrl: "/login" });
               }}

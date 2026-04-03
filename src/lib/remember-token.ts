@@ -112,6 +112,56 @@ function clearIndicatorCookie(): void {
   }
 }
 
+// ============================================
+// Sign-out flag (prevents auto-login after intentional sign-out)
+// Uses sessionStorage so it persists until tab is closed
+// ============================================
+
+const SIGNOUT_FLAG_KEY = "ccm-signed-out";
+
+/**
+ * Set a flag indicating the user intentionally signed out
+ * This prevents auto-login from kicking in immediately after sign-out
+ */
+export function setSignedOutFlag(): void {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(SIGNOUT_FLAG_KEY, "true");
+      console.log("[RememberToken] Set signed-out flag");
+    }
+  } catch (error) {
+    console.warn("[RememberToken] Failed to set signed-out flag:", error);
+  }
+}
+
+/**
+ * Check if the user recently signed out intentionally
+ */
+export function hasSignedOutFlag(): boolean {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      return sessionStorage.getItem(SIGNOUT_FLAG_KEY) === "true";
+    }
+  } catch (error) {
+    console.warn("[RememberToken] Failed to check signed-out flag:", error);
+  }
+  return false;
+}
+
+/**
+ * Clear the signed-out flag (e.g., when user logs in again)
+ */
+export function clearSignedOutFlag(): void {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(SIGNOUT_FLAG_KEY);
+      console.log("[RememberToken] Cleared signed-out flag");
+    }
+  } catch (error) {
+    console.warn("[RememberToken] Failed to clear signed-out flag:", error);
+  }
+}
+
 /**
  * Open the IndexedDB database
  */

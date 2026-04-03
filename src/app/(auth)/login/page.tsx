@@ -16,6 +16,8 @@ import {
   isIndexedDBAvailable,
   getRememberToken,
   hasIndicatorCookie,
+  hasSignedOutFlag,
+  clearSignedOutFlag,
   storeCreatorSession,
 } from "@/lib/remember-token";
 
@@ -51,6 +53,12 @@ function LoginForm() {
     const tryAutoLogin = async () => {
       // Don't retry if already attempted
       if (autoLoginAttempted.current) return;
+
+      // Check if user intentionally signed out - don't auto-login
+      if (hasSignedOutFlag()) {
+        console.log("[Login] User signed out intentionally, skipping auto-login");
+        return;
+      }
 
       // Quick check: if no indicator cookie, likely no token
       // This is a fast synchronous check before doing async storage checks
@@ -129,6 +137,9 @@ function LoginForm() {
 
       if (result?.ok && !result.error) {
         // Team member login successful
+        // Clear the signed-out flag since user is logging in
+        clearSignedOutFlag();
+
         // Create remember token if user opted in (especially for PWA)
         if (staySignedIn) {
           try {
@@ -165,6 +176,9 @@ function LoginForm() {
         const creatorData = await creatorResponse.json();
 
         if (creatorResponse.ok) {
+          // Clear the signed-out flag since user is logging in
+          clearSignedOutFlag();
+
           // Store creator token and info in localStorage
           localStorage.setItem("creatorToken", creatorData.token);
           localStorage.setItem("creatorId", creatorData.creatorId);

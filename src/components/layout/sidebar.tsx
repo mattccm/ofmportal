@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { clearRememberToken } from "@/lib/remember-token";
+import { clearRememberToken, setSignedOutFlag } from "@/lib/remember-token";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
@@ -313,7 +313,8 @@ function SidebarComponent() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={async () => {
-                // Clear remember token before signing out to prevent auto-login
+                // Set flag to prevent auto-login, then clear token and sign out
+                setSignedOutFlag();
                 await clearRememberToken();
                 signOut({ callbackUrl: "/login" });
               }}
