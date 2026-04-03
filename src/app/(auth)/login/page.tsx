@@ -19,6 +19,8 @@ import {
   hasSignedOutFlag,
   clearSignedOutFlag,
   storeCreatorSession,
+  getCreatorSession,
+  hasCreatorSessionIndicator,
 } from "@/lib/remember-token";
 
 function LoginForm() {
@@ -48,6 +50,34 @@ function LoginForm() {
       setStaySignedIn(true);
     }
 
+    // Send debug log that login page mounted
+    const sendLoginDebug = async (event: string, data: Record<string, unknown>) => {
+      try {
+        let deviceId = localStorage.getItem("debug-device-id");
+        if (!deviceId) {
+          deviceId = "device-" + Math.random().toString(36).substring(2, 10);
+          localStorage.setItem("debug-device-id", deviceId);
+        }
+        await fetch("/api/debug/session-log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceId, event, data }),
+        });
+      } catch (e) { /* ignore */ }
+    };
+
+    // Log that login page mounted - this helps us see if PWA is going to login page
+    sendLoginDebug("login-page-mount", {
+      isPWA: isPWAMode,
+      hasSignedOutFlag: hasSignedOutFlag(),
+      hasIndicatorCookie: hasIndicatorCookie(),
+      localStorageKeys: Object.keys(localStorage),
+      creatorToken: localStorage.getItem("creatorToken") ? "EXISTS" : "NULL",
+      creatorIndicator: localStorage.getItem("ccm-creator-session") ? "EXISTS" : "NULL",
+      url: window.location.href,
+      timestamp: new Date().toISOString(),
+    });
+
     // Attempt auto-login if we have a remember token
     // This is the PRIMARY auto-login trigger for returning PWA users
     const tryAutoLogin = async () => {
@@ -57,6 +87,7 @@ function LoginForm() {
       // Check if user intentionally signed out - don't auto-login
       if (hasSignedOutFlag()) {
         console.log("[Login] User signed out intentionally, skipping auto-login");
+        sendLoginDebug("login-skip-signed-out", { reason: "signed-out-flag" });
         return;
       }
 
@@ -64,13 +95,50 @@ function LoginForm() {
       // This is a fast synchronous check before doing async storage checks
       if (!hasIndicatorCookie() && !isPWAMode) {
         console.log("[Login] No indicator cookie and not in PWA mode, skipping auto-login");
+        sendLoginDebug("login-skip-no-indicator", { reason: "no-indicator-not-pwa" });
         return;
       }
 
-      // Check if we have a stored token (checks IndexedDB and localStorage)
+      // FIRST: Check for creator session (stored in IndexedDB)
+      // This handles creators returning to the PWA
+      const creatorSession = await getCreatorSession();
+      if (creatorSession) {
+        console.log("[Login] Found creator session in IndexedDB, restoring...");
+        sendLoginDebug("login-creator-restore", {
+          email: creatorSession.email,
+          creatorId: creatorSession.creatorId,
+          storedAt: creatorSession.storedAt,
+        });
+
+        autoLoginAttempted.current = true;
+        setAutoLoginInProgress(true);
+
+        // Restore to localStorage
+        localStorage.setItem("creatorToken", creatorSession.token);
+        localStorage.setItem("creatorId", creatorSession.creatorId);
+        localStorage.setItem("creatorName", creatorSession.name);
+        localStorage.setItem("creatorEmail", creatorSession.email);
+        if (creatorSession.avatar) localStorage.setItem("creatorAvatar", creatorSession.avatar);
+
+        // Restore cookies
+        const maxAge = 30 * 24 * 60 * 60;
+        document.cookie = `creatorToken=${creatorSession.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `creatorId=${creatorSession.creatorId}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `creatorName=${encodeURIComponent(creatorSession.name)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `creatorEmail=${encodeURIComponent(creatorSession.email)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+
+        sendLoginDebug("login-creator-redirect", { to: "/creator/dashboard" });
+
+        // Redirect to creator dashboard
+        router.push("/creator/dashboard");
+        return;
+      }
+
+      // SECOND: Check for team member remember token
       const storedToken = await getRememberToken();
       if (!storedToken) {
         console.log("[Login] No remember token found in any storage");
+        sendLoginDebug("login-no-remember-token", { reason: "no-remember-token" });
         return;
       }
 
