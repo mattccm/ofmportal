@@ -490,6 +490,8 @@ export async function storeCreatorSession(session: {
   email: string;
   avatar?: string;
 }): Promise<void> {
+  console.log("[CreatorSession] storeCreatorSession called for:", session.email);
+
   const data: CreatorSession = {
     ...session,
     storedAt: new Date().toISOString(),
@@ -556,9 +558,13 @@ export function hasCreatorSessionIndicator(): boolean {
  * Retrieve creator session from IndexedDB or localStorage
  */
 export async function getCreatorSession(): Promise<CreatorSession | null> {
+  console.log("[CreatorSession] getCreatorSession called, checking all storage...");
+
   // 1. Try IndexedDB first
   try {
+    console.log("[CreatorSession] Opening IndexedDB...");
     const db = await openDatabase();
+    console.log("[CreatorSession] IndexedDB opened successfully");
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
 
@@ -567,13 +573,20 @@ export async function getCreatorSession(): Promise<CreatorSession | null> {
       request.onsuccess = () => {
         const data = request.result as CreatorSession | undefined;
         if (data) {
-          console.log("[CreatorSession] Found in IndexedDB");
+          console.log("[CreatorSession] Found in IndexedDB:", {
+            creatorId: data.creatorId,
+            email: data.email,
+            storedAt: data.storedAt,
+            tokenPreview: data.token?.substring(0, 20) + "...",
+          });
           resolve(data);
         } else {
+          console.log("[CreatorSession] NOT found in IndexedDB (key:", CREATOR_TOKEN_KEY, ")");
           resolve(null);
         }
       };
       request.onerror = () => {
+        console.error("[CreatorSession] IndexedDB get error:", request.error);
         reject(request.error);
       };
     });
@@ -585,13 +598,14 @@ export async function getCreatorSession(): Promise<CreatorSession | null> {
     console.warn("[CreatorSession] IndexedDB error:", error);
   }
 
-  // 2. Try localStorage
+  // 2. Try localStorage backup key
   try {
     if (typeof localStorage !== "undefined") {
       const stored = localStorage.getItem(CREATOR_LS_KEY);
+      console.log("[CreatorSession] localStorage backup key (" + CREATOR_LS_KEY + "):", stored ? "EXISTS" : "NULL");
       if (stored) {
         const data = JSON.parse(stored) as CreatorSession;
-        console.log("[CreatorSession] Found in localStorage");
+        console.log("[CreatorSession] Found in localStorage backup");
         return data;
       }
     }
@@ -599,6 +613,7 @@ export async function getCreatorSession(): Promise<CreatorSession | null> {
     console.warn("[CreatorSession] localStorage error:", error);
   }
 
+  console.log("[CreatorSession] No session found in any storage");
   return null;
 }
 

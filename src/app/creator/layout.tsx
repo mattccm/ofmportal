@@ -106,6 +106,19 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
     console.log(`[CreatorLayout] Starting session check (${source})`);
 
     try {
+      // DIAGNOSTIC: Log ALL localStorage keys to understand what persists
+      const allKeys = Object.keys(localStorage);
+      console.log(`[CreatorLayout] ALL localStorage keys (${allKeys.length}):`, allKeys);
+
+      // Log specific values
+      const diagnosticData = {
+        creatorToken: localStorage.getItem("creatorToken") ? "EXISTS (" + localStorage.getItem("creatorToken")?.substring(0, 20) + "...)" : "NULL",
+        creatorId: localStorage.getItem("creatorId"),
+        creatorName: localStorage.getItem("creatorName"),
+        themePreference: localStorage.getItem("theme-preference"),
+      };
+      console.log(`[CreatorLayout] Diagnostic localStorage values:`, JSON.stringify(diagnosticData));
+
       const hasIndicator = hasCreatorSessionIndicator();
       const hasLocalToken = !!localStorage.getItem("creatorToken");
       const hasCookieToken = !!getCookie("creatorToken");
@@ -137,10 +150,14 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
       // If still no token, try IndexedDB (most reliable on iOS PWA)
       // ALWAYS check IndexedDB if: we have indicator cookie, OR we're in PWA mode, OR it's a resume event
-      if (!token && (hasIndicator || isPWA || source === "pageshow" || source === "visibilitychange")) {
-        console.log("[CreatorLayout] Checking IndexedDB for creator session");
+      const shouldCheckIndexedDB = !token && (hasIndicator || isPWA || source === "pageshow" || source === "visibilitychange" || source === "mount");
+      console.log(`[CreatorLayout] Should check IndexedDB: ${shouldCheckIndexedDB} (token: ${!!token}, indicator: ${hasIndicator}, PWA: ${isPWA}, source: ${source})`);
+
+      if (shouldCheckIndexedDB) {
+        console.log("[CreatorLayout] Checking IndexedDB for creator session...");
         try {
           const storedSession = await getCreatorSession();
+          console.log("[CreatorLayout] IndexedDB result:", storedSession ? "FOUND" : "NOT FOUND");
           if (storedSession) {
             console.log("[CreatorLayout] Found session in IndexedDB, restoring to all storage...");
             token = storedSession.token;
