@@ -285,7 +285,7 @@ export default function ProfileSettingsPage() {
         ? data.url
         : `${data.url}${data.url.includes("?") ? "&" : "?"}t=${Date.now()}`;
 
-      setProfile((prev) => (prev ? { ...prev, image: cacheBustedUrl } : null));
+      setProfile((prev) => (prev ? { ...prev, avatar: cacheBustedUrl } : null));
 
       // Update session to reflect new avatar everywhere
       // Use cache-busted URL to ensure immediate update
@@ -316,7 +316,7 @@ export default function ProfileSettingsPage() {
         throw new Error(error.error || "Failed to remove avatar");
       }
 
-      setProfile((prev) => (prev ? { ...prev, image: null } : null));
+      setProfile((prev) => (prev ? { ...prev, avatar: null } : null));
 
       // Update session to reflect removed avatar everywhere
       await updateSession({ image: null });
