@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
                   .join("")
                   .toUpperCase()
                   .slice(0, 2),
-                avatarUrl: mentionedBy.image,
+                avatarUrl: mentionedBy.avatar,
               }
             : null,
         };
