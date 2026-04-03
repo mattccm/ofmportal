@@ -31,7 +31,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCreatorSession, clearCreatorSession } from "@/lib/remember-token";
+import { getCreatorSession, clearCreatorSession, hasCreatorSessionIndicator, setSignedOutFlag } from "@/lib/remember-token";
 
 interface NavItem {
   href: string;
@@ -67,6 +67,13 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
     // Async function to check all storage mechanisms
     const checkAuth = async () => {
+      // Quick check: if no indicator cookie and no localStorage, likely no session at all
+      const hasIndicator = hasCreatorSessionIndicator();
+      const hasLocalToken = !!localStorage.getItem("creatorToken");
+      const hasCookieToken = !!getCookie("creatorToken");
+
+      console.log("[CreatorLayout] Session check - indicator:", hasIndicator, "localStorage:", hasLocalToken, "cookie:", hasCookieToken);
+
       // Try localStorage first, fall back to cookies, then IndexedDB (for iOS PWA persistence)
       let token = localStorage.getItem("creatorToken");
       let creatorId = localStorage.getItem("creatorId");
@@ -90,12 +97,13 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       }
 
       // If still no token, try IndexedDB (most reliable on iOS PWA)
-      if (!token) {
+      // Check if we have the indicator cookie OR if we're in PWA mode
+      if (!token && (hasIndicator || window.matchMedia("(display-mode: standalone)").matches)) {
         console.log("[CreatorLayout] Checking IndexedDB for creator session");
         try {
           const storedSession = await getCreatorSession();
           if (storedSession) {
-            console.log("[CreatorLayout] Found session in IndexedDB");
+            console.log("[CreatorLayout] Found session in IndexedDB, restoring...");
             token = storedSession.token;
             creatorId = storedSession.creatorId;
             creatorName = storedSession.name;
@@ -182,6 +190,10 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     const token = localStorage.getItem("creatorToken");
+
+    // Set signed-out flag FIRST to prevent auto-login from kicking back in
+    setSignedOutFlag();
+    console.log("[CreatorLayout] Setting signed-out flag");
 
     // Call logout API to invalidate session on server
     if (token) {

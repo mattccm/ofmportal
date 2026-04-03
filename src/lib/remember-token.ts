@@ -469,6 +469,7 @@ export function isIOSPWA(): boolean {
 
 const CREATOR_TOKEN_KEY = "creator-session";
 const CREATOR_LS_KEY = "ccm-creator-session";
+const CREATOR_COOKIE_NAME = "ccm-has-creator-session"; // Indicator cookie for quick checks
 
 interface CreatorSession {
   token: string;
@@ -524,6 +525,31 @@ export async function storeCreatorSession(session: {
   } catch (error) {
     console.warn("[CreatorSession] localStorage store failed:", error);
   }
+
+  // 3. Set indicator cookie (30 days)
+  try {
+    if (typeof document !== "undefined") {
+      const maxAge = 30 * 24 * 60 * 60; // 30 days
+      document.cookie = `${CREATOR_COOKIE_NAME}=1; path=/; max-age=${maxAge}; SameSite=Lax`;
+      console.log("[CreatorSession] Set indicator cookie");
+    }
+  } catch (error) {
+    console.warn("[CreatorSession] Cookie set failed:", error);
+  }
+}
+
+/**
+ * Check if the creator session indicator cookie exists (quick synchronous check)
+ */
+export function hasCreatorSessionIndicator(): boolean {
+  try {
+    if (typeof document !== "undefined") {
+      return document.cookie.includes(`${CREATOR_COOKIE_NAME}=1`);
+    }
+  } catch (error) {
+    console.warn("[CreatorSession] Cookie read failed:", error);
+  }
+  return false;
 }
 
 /**
@@ -608,5 +634,15 @@ export async function clearCreatorSession(): Promise<void> {
     }
   } catch (error) {
     console.warn("[CreatorSession] localStorage clear failed:", error);
+  }
+
+  // 3. Clear indicator cookie
+  try {
+    if (typeof document !== "undefined") {
+      document.cookie = `${CREATOR_COOKIE_NAME}=; path=/; max-age=0`;
+      console.log("[CreatorSession] Cleared indicator cookie");
+    }
+  } catch (error) {
+    console.warn("[CreatorSession] Cookie clear failed:", error);
   }
 }
