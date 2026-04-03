@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { validateTemplateFields, TemplateField } from "@/lib/templates";
 
@@ -9,10 +10,27 @@ import { validateTemplateFields, TemplateField } from "@/lib/templates";
 // VALIDATION SCHEMA
 // ============================================
 
+// Rich content schema for template and field-level examples
+const richContentSchema = z.object({
+  description: z.string().optional(),
+  exampleText: z.string().optional(),
+  exampleImages: z.array(z.object({
+    url: z.string(),
+    caption: z.string().optional(),
+  })).optional(),
+  exampleVideoUrl: z.string().optional(),
+  referenceLinks: z.array(z.object({
+    label: z.string(),
+    url: z.string(),
+  })).optional(),
+  exampleImageUrl: z.string().optional(), // Legacy support
+}).optional();
+
 const createTemplateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   categoryId: z.string().optional().nullable(),
+  richContent: richContentSchema,
   fields: z.array(z.object({
     id: z.string(),
     label: z.string(),
@@ -36,9 +54,21 @@ const createTemplateSchema = z.object({
       value: z.union([z.string(), z.number(), z.boolean()]),
     }).optional(),
     defaultValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
+    // Quantity/multiplier for fields
+    quantity: z.number().min(1).max(20).optional(),
+    quantityLabel: z.string().optional(),
+    // Rich content for field-level examples
+    richContent: richContentSchema,
+    // File-specific options
     acceptedFileTypes: z.array(z.string()).optional(),
     maxFileSize: z.number().optional(),
     maxFiles: z.number().optional(),
+    minFiles: z.number().optional(),
+    showMaxFileSize: z.boolean().optional(),
+    // Enforcement flags
+    enforceFileTypes: z.boolean().optional(),
+    enforceMaxFileSize: z.boolean().optional(),
+    enforceFileCount: z.boolean().optional(),
   })).default([]),
   defaultDueDays: z.number().min(1).default(7),
   defaultUrgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
@@ -235,6 +265,7 @@ export async function POST(req: NextRequest) {
         name: validatedData.name,
         description: validatedData.description || null,
         categoryId: validatedData.categoryId || null,
+        richContent: validatedData.richContent ?? Prisma.DbNull,
         fields: JSON.stringify(validatedData.fields),
         defaultDueDays: validatedData.defaultDueDays,
         defaultUrgency: validatedData.defaultUrgency,

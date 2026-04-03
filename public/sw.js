@@ -1,7 +1,7 @@
 // Content Portal Service Worker
 // Version: 1.0.0
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `content-portal-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `content-portal-dynamic-${CACHE_VERSION}`;
 const API_CACHE = `content-portal-api-${CACHE_VERSION}`;
@@ -18,6 +18,15 @@ const STATIC_ASSETS = [
 // API routes that should use network-first strategy
 const API_ROUTES = [
   '/api/',
+];
+
+// Auth routes that should NEVER be cached or intercepted by service worker
+// This is critical for iOS Safari PWA where service worker can interfere with auth cookies
+const AUTH_ROUTES = [
+  '/api/auth/',
+  '/login',
+  '/register',
+  '/portal/login',
 ];
 
 // Routes that should be cached for offline access
@@ -100,9 +109,16 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // CRITICAL: Skip ALL auth routes entirely - let browser handle them directly
+  // This fixes iOS Safari PWA session issues where service worker interferes with cookies
+  if (isAuthRoute(url)) {
+    return; // Let the browser handle auth requests without any SW interference
+  }
+
   // Skip non-GET requests for caching (but handle POST for background sync)
+  // But never intercept auth-related POST requests
   if (request.method !== 'GET') {
-    if (request.method === 'POST' || request.method === 'PUT' || request.method === 'DELETE') {
+    if ((request.method === 'POST' || request.method === 'PUT' || request.method === 'DELETE') && !isAuthRoute(url)) {
       event.respondWith(handleMutationRequest(request));
     }
     return;
@@ -431,7 +447,18 @@ function openDatabase() {
 // ============================================
 
 function isApiRequest(url) {
+  // Don't treat auth routes as regular API routes
+  if (isAuthRoute(url)) return false;
   return API_ROUTES.some((route) => url.pathname.startsWith(route));
+}
+
+/**
+ * Check if the request is for an auth-related route
+ * These should NEVER be intercepted by the service worker to avoid
+ * cookie/session issues, especially on iOS Safari PWA
+ */
+function isAuthRoute(url) {
+  return AUTH_ROUTES.some((route) => url.pathname.startsWith(route));
 }
 
 function isImageRequest(url) {

@@ -9,10 +9,27 @@ import { validateTemplateFields, TemplateField, deserializeTemplate } from "@/li
 // VALIDATION SCHEMA
 // ============================================
 
+// Rich content schema for template and field-level examples
+const richContentSchema = z.object({
+  description: z.string().optional(),
+  exampleText: z.string().optional(),
+  exampleImages: z.array(z.object({
+    url: z.string(),
+    caption: z.string().optional(),
+  })).optional(),
+  exampleVideoUrl: z.string().optional(),
+  referenceLinks: z.array(z.object({
+    label: z.string(),
+    url: z.string(),
+  })).optional(),
+  exampleImageUrl: z.string().optional(), // Legacy support
+}).optional();
+
 const updateTemplateSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
   description: z.string().optional().nullable(),
   categoryId: z.string().optional().nullable(),
+  richContent: richContentSchema,
   fields: z.array(z.object({
     id: z.string(),
     label: z.string(),
@@ -36,9 +53,21 @@ const updateTemplateSchema = z.object({
       value: z.union([z.string(), z.number(), z.boolean()]),
     }).optional(),
     defaultValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
+    // Quantity/multiplier for fields
+    quantity: z.number().min(1).max(20).optional(),
+    quantityLabel: z.string().optional(),
+    // Rich content for field-level examples
+    richContent: richContentSchema,
+    // File-specific options
     acceptedFileTypes: z.array(z.string()).optional(),
     maxFileSize: z.number().optional(),
     maxFiles: z.number().optional(),
+    minFiles: z.number().optional(),
+    showMaxFileSize: z.boolean().optional(),
+    // Enforcement flags
+    enforceFileTypes: z.boolean().optional(),
+    enforceMaxFileSize: z.boolean().optional(),
+    enforceFileCount: z.boolean().optional(),
   })).optional(),
   defaultDueDays: z.number().min(1).optional(),
   defaultUrgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
@@ -178,6 +207,8 @@ export async function PATCH(
       updateData.description = validatedData.description;
     if (validatedData.categoryId !== undefined)
       updateData.categoryId = validatedData.categoryId;
+    if (validatedData.richContent !== undefined)
+      updateData.richContent = validatedData.richContent;
     if (validatedData.fields !== undefined)
       updateData.fields = JSON.stringify(validatedData.fields);
     if (validatedData.defaultDueDays !== undefined)
