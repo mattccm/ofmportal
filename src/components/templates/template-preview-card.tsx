@@ -25,6 +25,16 @@ import { cn } from "@/lib/utils";
 import type { Template, TemplateField, FieldType } from "@/lib/template-types";
 
 // ============================================
+// HELPERS
+// ============================================
+
+// Helper function to strip HTML tags from text
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -160,7 +170,7 @@ export function TemplatePreviewCard({
               <CardTitle className="text-lg">{template.name}</CardTitle>
               {template.description && (
                 <CardDescription className="mt-0.5">
-                  {template.description}
+                  {stripHtml(template.description)}
                 </CardDescription>
               )}
             </div>
@@ -354,6 +364,11 @@ function FieldPreviewItem({ field, isExpanded, onToggle }: FieldPreviewItemProps
             <p className="font-medium text-sm truncate">{field.label}</p>
             {field.required && (
               <span className="text-red-500 text-xs">*</span>
+            )}
+            {field.quantity && field.quantity > 1 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                ×{field.quantity}
+              </Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground">{config.label}</p>

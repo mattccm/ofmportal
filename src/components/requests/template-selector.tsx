@@ -38,6 +38,16 @@ import { cn } from "@/lib/utils";
 import type { Template, TemplateField, FieldType } from "@/lib/template-types";
 
 // ============================================
+// HELPERS
+// ============================================
+
+// Helper function to strip HTML tags from text
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -525,7 +535,7 @@ function TemplateGridCard({
         </div>
         {template.description && (
           <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-            {template.description}
+            {stripHtml(template.description)}
           </p>
         )}
       </CardHeader>
@@ -614,7 +624,7 @@ function TemplateListCard({
         </div>
         {template.description && (
           <p className="text-sm text-muted-foreground truncate">
-            {template.description}
+            {stripHtml(template.description)}
           </p>
         )}
       </div>
@@ -686,7 +696,7 @@ function TemplatePreviewTooltip({ template }: TemplatePreviewTooltipProps) {
           <p className="font-medium">{template.name}</p>
           {template.description && (
             <p className="text-sm text-muted-foreground mt-1">
-              {template.description}
+              {stripHtml(template.description)}
             </p>
           )}
         </div>
@@ -705,10 +715,17 @@ function TemplatePreviewTooltip({ template }: TemplatePreviewTooltipProps) {
                   {FIELD_ICONS[field.type]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{field.label}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium truncate">{field.label}</p>
+                    {field.quantity && field.quantity > 1 && (
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                        ×{field.quantity}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground capitalize">
                     {field.type}
-                    {field.required && " - Required"}
+                    {field.required && " • Required"}
                   </p>
                 </div>
               </div>
