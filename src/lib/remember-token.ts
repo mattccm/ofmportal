@@ -2,20 +2,114 @@
  * Remember Token Management for iOS PWA Session Persistence
  *
  * This module handles storing and retrieving "remember me" tokens
- * in IndexedDB, which iOS Safari preserves better than cookies
- * in standalone (PWA) mode.
+ * using MULTIPLE storage mechanisms for maximum reliability:
+ * 1. IndexedDB - Primary storage (persists well on iOS)
+ * 2. localStorage - Backup storage (another layer of redundancy)
+ * 3. Cookie - Non-HttpOnly for JS readability check
+ *
+ * On iOS Safari standalone mode, any single storage can be cleared,
+ * so we use all three and check them all.
  */
 
 const DB_NAME = "auth-remember";
 const DB_VERSION = 1;
 const STORE_NAME = "tokens";
 const TOKEN_KEY = "remember-token";
+const LS_KEY = "ccm-remember-token"; // localStorage key
+const COOKIE_NAME = "ccm-has-remember"; // Non-HttpOnly cookie to indicate we have a token
 
 interface StoredToken {
   token: string;
   expiresAt: string;
   deviceName: string;
   storedAt: string;
+}
+
+// ============================================
+// localStorage helpers (backup storage)
+// ============================================
+
+function storeInLocalStorage(data: StoredToken): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+      console.log("[RememberToken] Stored in localStorage");
+    }
+  } catch (error) {
+    console.warn("[RememberToken] localStorage store failed:", error);
+  }
+}
+
+function getFromLocalStorage(): StoredToken | null {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(LS_KEY);
+      if (stored) {
+        const data = JSON.parse(stored) as StoredToken;
+        // Check expiry
+        if (new Date(data.expiresAt) > new Date()) {
+          return data;
+        }
+        // Expired - clean up
+        localStorage.removeItem(LS_KEY);
+      }
+    }
+  } catch (error) {
+    console.warn("[RememberToken] localStorage read failed:", error);
+  }
+  return null;
+}
+
+function clearLocalStorage(): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(LS_KEY);
+    }
+  } catch (error) {
+    console.warn("[RememberToken] localStorage clear failed:", error);
+  }
+}
+
+// ============================================
+// Cookie helpers (indicator that we have a token)
+// ============================================
+
+function setIndicatorCookie(expiresAt: string): void {
+  try {
+    if (typeof document !== "undefined") {
+      const expires = new Date(expiresAt).toUTCString();
+      // Non-HttpOnly cookie that JS can read to know we have a remember token
+      document.cookie = `${COOKIE_NAME}=1; path=/; expires=${expires}; SameSite=Lax`;
+      console.log("[RememberToken] Set indicator cookie");
+    }
+  } catch (error) {
+    console.warn("[RememberToken] Cookie set failed:", error);
+  }
+}
+
+/**
+ * Check if the indicator cookie exists (quick check without async)
+ * This can be used to quickly determine if we might have a remember token
+ */
+export function hasIndicatorCookie(): boolean {
+  try {
+    if (typeof document !== "undefined") {
+      return document.cookie.includes(`${COOKIE_NAME}=1`);
+    }
+  } catch (error) {
+    console.warn("[RememberToken] Cookie read failed:", error);
+  }
+  return false;
+}
+
+function clearIndicatorCookie(): void {
+  try {
+    if (typeof document !== "undefined") {
+      document.cookie = `${COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    }
+  } catch (error) {
+    console.warn("[RememberToken] Cookie clear failed:", error);
+  }
 }
 
 /**
@@ -44,52 +138,75 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 /**
- * Store a remember token in IndexedDB
+ * Store a remember token in ALL available storage mechanisms
+ * Uses IndexedDB (primary), localStorage (backup), and a cookie indicator
  */
 export async function storeRememberToken(
   token: string,
   expiresAt: string,
   deviceName: string
 ): Promise<void> {
+  const data: StoredToken = {
+    token,
+    expiresAt,
+    deviceName,
+    storedAt: new Date().toISOString(),
+  };
+
+  // Store in all mechanisms for redundancy
+  let indexedDBSuccess = false;
+
+  // 1. Try IndexedDB (primary)
   try {
     const db = await openDatabase();
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
 
-    const data: StoredToken = {
-      token,
-      expiresAt,
-      deviceName,
-      storedAt: new Date().toISOString(),
-    };
-
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const request = store.put(data, TOKEN_KEY);
       request.onsuccess = () => {
-        console.log("[RememberToken] Token stored successfully");
+        console.log("[RememberToken] Token stored in IndexedDB");
+        indexedDBSuccess = true;
         resolve();
       };
       request.onerror = () => {
-        console.error("[RememberToken] Failed to store token:", request.error);
+        console.error("[RememberToken] IndexedDB store failed:", request.error);
         reject(request.error);
       };
     });
   } catch (error) {
-    console.error("[RememberToken] Error storing token:", error);
-    throw error;
+    console.error("[RememberToken] IndexedDB error:", error);
   }
+
+  // 2. Store in localStorage (backup)
+  storeInLocalStorage(data);
+
+  // 3. Set indicator cookie (so we know to check for token)
+  setIndicatorCookie(expiresAt);
+
+  // If IndexedDB failed but localStorage worked, that's still a success
+  if (!indexedDBSuccess) {
+    const lsData = getFromLocalStorage();
+    if (!lsData) {
+      throw new Error("Failed to store token in any storage mechanism");
+    }
+  }
+
+  console.log("[RememberToken] Token stored successfully in all mechanisms");
 }
 
 /**
- * Retrieve the stored remember token from IndexedDB
+ * Retrieve the stored remember token from ANY available storage
+ * Tries IndexedDB first, falls back to localStorage
  */
 export async function getRememberToken(): Promise<StoredToken | null> {
+  // 1. Try IndexedDB first (primary)
   try {
     const db = await openDatabase();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
 
-    return new Promise((resolve, reject) => {
+    const idbData = await new Promise<StoredToken | null>((resolve, reject) => {
       const request = store.get(TOKEN_KEY);
       request.onsuccess = () => {
         const data = request.result as StoredToken | undefined;
@@ -101,49 +218,81 @@ export async function getRememberToken(): Promise<StoredToken | null> {
 
         // Check if token is expired
         if (new Date(data.expiresAt) < new Date()) {
-          console.log("[RememberToken] Token expired, clearing");
-          clearRememberToken().catch(console.error);
+          console.log("[RememberToken] IndexedDB token expired");
           resolve(null);
           return;
         }
 
+        console.log("[RememberToken] Found valid token in IndexedDB");
         resolve(data);
       };
       request.onerror = () => {
-        console.error("[RememberToken] Failed to get token:", request.error);
+        console.error("[RememberToken] IndexedDB read failed:", request.error);
         reject(request.error);
       };
     });
+
+    if (idbData) {
+      return idbData;
+    }
   } catch (error) {
-    console.error("[RememberToken] Error getting token:", error);
-    return null;
+    console.warn("[RememberToken] IndexedDB error, trying localStorage:", error);
   }
+
+  // 2. Fall back to localStorage
+  const lsData = getFromLocalStorage();
+  if (lsData) {
+    console.log("[RememberToken] Found valid token in localStorage");
+    return lsData;
+  }
+
+  // 3. Check if indicator cookie exists but we have no token
+  // This means storage was cleared - clean up the cookie
+  if (hasIndicatorCookie()) {
+    console.log("[RememberToken] Indicator cookie exists but no token found, cleaning up");
+    clearIndicatorCookie();
+  }
+
+  return null;
 }
 
 /**
- * Clear the stored remember token
+ * Clear the stored remember token from ALL storage mechanisms
  */
 export async function clearRememberToken(): Promise<void> {
+  // Clear from all mechanisms
+  const errors: Error[] = [];
+
+  // 1. Clear IndexedDB
   try {
     const db = await openDatabase();
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
 
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const request = store.delete(TOKEN_KEY);
       request.onsuccess = () => {
-        console.log("[RememberToken] Token cleared");
+        console.log("[RememberToken] Cleared from IndexedDB");
         resolve();
       };
       request.onerror = () => {
-        console.error("[RememberToken] Failed to clear token:", request.error);
         reject(request.error);
       };
     });
   } catch (error) {
-    console.error("[RememberToken] Error clearing token:", error);
-    throw error;
+    console.warn("[RememberToken] IndexedDB clear failed:", error);
+    errors.push(error as Error);
   }
+
+  // 2. Clear localStorage
+  clearLocalStorage();
+  console.log("[RememberToken] Cleared from localStorage");
+
+  // 3. Clear indicator cookie
+  clearIndicatorCookie();
+  console.log("[RememberToken] Cleared indicator cookie");
+
+  console.log("[RememberToken] Token cleared from all mechanisms");
 }
 
 /**

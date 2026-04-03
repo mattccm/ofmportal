@@ -73,6 +73,7 @@ import {
 } from "@/components/ui/table";
 import { SessionList, type SessionData } from "@/components/security/session-card";
 import { SessionTimeoutWarning } from "@/components/security/session-timeout-warning";
+import { TrustedDevices } from "@/components/security/trusted-devices";
 
 // Types
 interface Session {
@@ -657,6 +658,10 @@ export default function SecuritySettingsPage() {
             <KeyRound className="h-4 w-4 mr-2" />
             API Keys
           </TabsTrigger>
+          <TabsTrigger value="trusted-devices">
+            <Smartphone className="h-4 w-4 mr-2" />
+            Trusted Devices
+          </TabsTrigger>
         </TabsList>
 
         {/* Authentication Tab */}
@@ -972,6 +977,11 @@ export default function SecuritySettingsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Trusted Devices Tab */}
+        <TabsContent value="trusted-devices" className="space-y-6">
+          <TrustedDevices />
         </TabsContent>
       </Tabs>
 

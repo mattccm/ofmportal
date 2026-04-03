@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { useState, Suspense, useEffect, useRef } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ArrowRight, ShieldCheck, Smartphone } from "lucide-react";
-import { createRememberToken, isIOSPWA } from "@/lib/remember-token";
+import {
+  createRememberToken,
+  isIOSPWA,
+  attemptAutoLogin,
+  isIndexedDBAvailable,
+  getRememberToken,
+  hasIndicatorCookie,
+} from "@/lib/remember-token";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const { status } = useSession();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,15 +32,81 @@ function LoginForm() {
   const [requires2FA, setRequires2FA] = useState(false);
   const [staySignedIn, setStaySignedIn] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
+  const [autoLoginInProgress, setAutoLoginInProgress] = useState(false);
+  const autoLoginAttempted = useRef(false);
 
-  // Check if running as PWA on mount
+  // Check if running as PWA on mount and attempt auto-login
   useEffect(() => {
-    setIsPWA(isIOSPWA());
+    const isPWAMode = isIOSPWA();
+    setIsPWA(isPWAMode);
+
     // Default to stay signed in when running as PWA
-    if (isIOSPWA()) {
+    if (isPWAMode) {
       setStaySignedIn(true);
     }
-  }, []);
+
+    // Attempt auto-login if we have a remember token
+    // This is the PRIMARY auto-login trigger for returning PWA users
+    const tryAutoLogin = async () => {
+      // Don't retry if already attempted
+      if (autoLoginAttempted.current) return;
+
+      // Quick check: if no indicator cookie, likely no token
+      // This is a fast synchronous check before doing async storage checks
+      if (!hasIndicatorCookie() && !isPWAMode) {
+        console.log("[Login] No indicator cookie and not in PWA mode, skipping auto-login");
+        return;
+      }
+
+      // Check if we have a stored token (checks IndexedDB and localStorage)
+      const storedToken = await getRememberToken();
+      if (!storedToken) {
+        console.log("[Login] No remember token found in any storage");
+        return;
+      }
+
+      console.log("[Login] Found remember token, attempting auto-login");
+      autoLoginAttempted.current = true;
+      setAutoLoginInProgress(true);
+
+      try {
+        const result = await attemptAutoLogin();
+
+        if (result) {
+          console.log("[Login] Auto-login validated, creating session");
+          const signInResult = await signIn("credentials", {
+            redirect: false,
+            email: result.user.email,
+            password: "__REMEMBER_TOKEN_VALIDATED__",
+            rememberUserId: result.user.id,
+          });
+
+          if (signInResult?.ok) {
+            console.log("[Login] Session created, redirecting to:", callbackUrl);
+            router.push(callbackUrl);
+            router.refresh();
+            return;
+          } else {
+            console.error("[Login] signIn failed:", signInResult?.error);
+          }
+        }
+      } catch (err) {
+        console.error("[Login] Auto-login error:", err);
+      } finally {
+        setAutoLoginInProgress(false);
+      }
+    };
+
+    // Run auto-login check immediately
+    tryAutoLogin();
+  }, [callbackUrl, router]);
+
+  // If already authenticated, redirect
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push(callbackUrl);
+    }
+  }, [status, callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +197,23 @@ function LoginForm() {
       setLoading(false);
     }
   };
+
+  // Show loading state during auto-login or if already authenticated
+  if (autoLoginInProgress || status === "authenticated") {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            {autoLoginInProgress ? "Signing you in..." : "Redirecting..."}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {autoLoginInProgress ? "Using your saved credentials" : "Please wait..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
