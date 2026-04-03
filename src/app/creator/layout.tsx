@@ -204,8 +204,8 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
         />
       </div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border/40">
+      {/* Header - Hidden on mobile since bottom nav provides navigation */}
+      <header className="hidden md:block sticky top-0 z-50 glass border-b border-border/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
@@ -225,14 +225,14 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
                     <Sparkles className="h-5 w-5 text-white" />
                   </div>
                 )}
-                <span className="hidden sm:block text-lg font-semibold">
+                <span className="text-lg font-semibold">
                   {branding.portalTitle || "Creator Portal"}
                 </span>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="flex items-center gap-1">
               {navItems.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
@@ -277,10 +277,10 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
                         image: creator.avatar,
                       }}
                     />
-                    <span className="hidden sm:block text-sm font-medium">
+                    <span className="text-sm font-medium">
                       {creator.name}
                     </span>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -302,54 +302,9 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* Mobile menu button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden h-9 w-9"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
             </div>
           </div>
         </div>
-
-        {/* Mobile Navigation */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur-sm">
-            <nav className="px-4 py-3 space-y-1">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    )}
-                  >
-                    {item.icon}
-                    {item.label}
-                  </Link>
-                );
-              })}
-              <Link
-                href="/creator/settings"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              >
-                <Settings className="h-5 w-5" />
-                Settings
-              </Link>
-            </nav>
-          </div>
-        )}
       </header>
 
       {/* Mobile Bottom Navigation */}

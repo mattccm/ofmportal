@@ -1444,7 +1444,8 @@ export function FieldTypePalette({ onAddField }: FieldTypePaletteProps) {
       <h3 className="text-sm font-medium text-muted-foreground px-1">
         Add Field
       </h3>
-      <div className="grid grid-cols-2 gap-2">
+      {/* Mobile: horizontal scroll, compact | Desktop: 2-col grid */}
+      <div className="flex gap-2 overflow-x-auto pb-2 lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
         {(Object.keys(FIELD_TYPE_CONFIG) as FieldType[]).map((type) => {
           const Icon = fieldTypeIcons[type];
           const config = FIELD_TYPE_CONFIG[type];
@@ -1453,24 +1454,24 @@ export function FieldTypePalette({ onAddField }: FieldTypePaletteProps) {
               key={type}
               onClick={() => onAddField(type)}
               className={cn(
-                "flex flex-col items-center gap-2 p-4 rounded-xl border border-border/50",
+                "flex flex-col items-center gap-1.5 p-3 lg:p-4 rounded-xl border border-border/50",
                 "bg-card hover:bg-muted/50 hover:border-border transition-all duration-200",
-                "group cursor-pointer"
+                "group cursor-pointer shrink-0 min-w-[80px] lg:min-w-0"
               )}
             >
               <div
                 className={cn(
-                  "h-10 w-10 rounded-lg flex items-center justify-center",
+                  "h-8 w-8 lg:h-10 lg:w-10 rounded-lg flex items-center justify-center",
                   "bg-muted group-hover:bg-primary/10 transition-colors"
                 )}
               >
-                <Icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                <Icon className="h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
               <div className="text-center">
-                <div className="text-sm font-medium text-foreground">
+                <div className="text-xs lg:text-sm font-medium text-foreground">
                   {config.label}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="hidden lg:block text-xs text-muted-foreground">
                   {config.description}
                 </div>
               </div>

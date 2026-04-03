@@ -508,7 +508,7 @@ export function TemplateBuilder({
     : undefined;
 
   return (
-    <div className="flex gap-6 h-full">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full">
       {/* Main Builder Area */}
       {/* Recovery Dialog */}
       <RecoveryDialog
@@ -528,7 +528,7 @@ export function TemplateBuilder({
         }}
       />
 
-      <div className="flex-1 space-y-6 overflow-auto pb-6">
+      <div className="flex-1 min-w-0 space-y-4 lg:space-y-6 overflow-auto pb-6">
         {/* Header - Responsive layout for mobile */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
@@ -840,14 +840,14 @@ export function TemplateBuilder({
         )}
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - Responsive: full width on mobile, fixed width on desktop */}
       {!isPreviewMode && (
-        <div className="w-72 shrink-0 space-y-6">
-          <div className="sticky top-0 space-y-6">
+        <div className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:space-y-6 order-first lg:order-last">
+          <div className="lg:sticky lg:top-0 space-y-4 lg:space-y-6">
             <FieldTypePalette onAddField={handleAddField} />
 
-            {/* Quick Tips */}
-            <Card className="bg-gradient-to-br from-primary/5 to-violet-500/5">
+            {/* Quick Tips - Hidden on mobile to save space */}
+            <Card className="hidden lg:block bg-gradient-to-br from-primary/5 to-violet-500/5">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Quick Tips</CardTitle>
               </CardHeader>
