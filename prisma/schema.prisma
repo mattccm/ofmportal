@@ -61,6 +61,7 @@ model User {
   onboardingSteps          OnboardingStep[]
   watchedRequests          RequestWatcher[]
   bulkEmails               BulkEmail[]
+  rememberTokens           RememberToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -104,6 +105,35 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Remember tokens for "Stay Logged In" functionality
+// Enables session persistence across iOS PWA restarts
+model RememberToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Token data (hashed for security)
+  tokenHash String   @unique
+
+  // Device identification
+  deviceName   String?  // "iPhone 15 Pro", "Chrome on Windows"
+  deviceType   String?  // "mobile", "desktop", "tablet"
+  userAgent    String?
+
+  // Security tracking
+  ipAddress    String?
+  lastUsedAt   DateTime?
+  lastUsedIp   String?
+
+  // Lifecycle
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
 }
 
 // ============================================

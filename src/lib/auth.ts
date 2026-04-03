@@ -55,12 +55,64 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         totpCode: { label: "2FA Code", type: "text" },
+        rememberUserId: { label: "Remember User ID", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password required");
         }
 
+        // Special case: Remember token auto-login
+        // The remember token API has already validated the token and verified the user
+        // We just need to fetch the user data and create a session
+        if (
+          credentials.password === "__REMEMBER_TOKEN_VALIDATED__" &&
+          credentials.rememberUserId
+        ) {
+          const user = await db.user.findUnique({
+            where: { id: credentials.rememberUserId },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              avatar: true,
+              image: true,
+              role: true,
+              twoFactorEnabled: true,
+              agencyId: true,
+              agency: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          });
+
+          if (!user) {
+            throw new Error("Invalid remember token");
+          }
+
+          // Verify the email matches (extra security check)
+          if (user.email.toLowerCase() !== credentials.email.toLowerCase()) {
+            throw new Error("Invalid remember token");
+          }
+
+          console.log(`[Auth] Remember token auto-login for user: ${user.email}`);
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.avatar || user.image,
+            role: user.role,
+            agencyId: user.agencyId,
+            agencyName: user.agency?.name || "",
+            twoFactorEnabled: user.twoFactorEnabled,
+          };
+        }
+
+        // Normal login flow
         // Use explicit select to ensure password field is always returned
         const user = await db.user.findUnique({
           where: { email: credentials.email.toLowerCase() },

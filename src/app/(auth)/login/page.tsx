@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, ArrowRight, ShieldCheck } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, ArrowRight, ShieldCheck, Smartphone } from "lucide-react";
+import { createRememberToken, isIOSPWA } from "@/lib/remember-token";
 
 function LoginForm() {
   const router = useRouter();
@@ -20,6 +22,17 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
+  const [staySignedIn, setStaySignedIn] = useState(false);
+  const [isPWA, setIsPWA] = useState(false);
+
+  // Check if running as PWA on mount
+  useEffect(() => {
+    setIsPWA(isIOSPWA());
+    // Default to stay signed in when running as PWA
+    if (isIOSPWA()) {
+      setStaySignedIn(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +54,16 @@ function LoginForm() {
 
       if (result?.ok && !result.error) {
         // Team member login successful
+        // Create remember token if user opted in (especially for PWA)
+        if (staySignedIn) {
+          try {
+            await createRememberToken();
+            console.log("Remember token created successfully");
+          } catch (err) {
+            console.error("Failed to create remember token:", err);
+            // Non-blocking - continue with login even if token creation fails
+          }
+        }
         router.push(callbackUrl);
         router.refresh();
         return;
@@ -160,6 +183,30 @@ function LoginForm() {
               disabled={loading}
               className="h-12 rounded-xl border-border bg-background px-4 transition-all focus:ring-2 focus:ring-primary/20"
             />
+          </div>
+
+          {/* Stay Signed In - especially useful for PWA users */}
+          <div className="flex items-center space-x-3">
+            <Checkbox
+              id="staySignedIn"
+              checked={staySignedIn}
+              onCheckedChange={(checked) => setStaySignedIn(checked === true)}
+              disabled={loading}
+            />
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="staySignedIn"
+                className="text-sm font-medium cursor-pointer"
+              >
+                Stay signed in
+              </Label>
+              {isPWA && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  <Smartphone className="h-3 w-3" />
+                  Recommended for app
+                </span>
+              )}
+            </div>
           </div>
 
           {requires2FA && (
