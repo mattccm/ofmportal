@@ -53,6 +53,7 @@ interface Creator {
   name: string;
   email: string;
   phone?: string | null;
+  avatar?: string | null;
 }
 
 interface TemplateField {
@@ -136,6 +137,8 @@ interface CloneHistoryItem {
   creator: {
     id: string;
     name: string;
+    email?: string;
+    avatar?: string | null;
   };
 }
 
@@ -570,11 +573,14 @@ export function RequestDetailClient({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
-                    {request.creator.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <Avatar
+                  size="md"
+                  user={{
+                    name: request.creator.name,
+                    email: request.creator.email,
+                    image: request.creator.avatar,
+                  }}
+                />
                 <div>
                   <Link
                     href={`/dashboard/creators/${request.creator.id}`}
@@ -668,11 +674,14 @@ export function RequestDetailClient({
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 min-w-0">
-                            <Avatar className="h-6 w-6 flex-shrink-0">
-                              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-xs">
-                                {clone.creator.name.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
+                            <Avatar
+                              size="xs"
+                              user={{
+                                name: clone.creator.name,
+                                email: clone.creator.email,
+                                image: clone.creator.avatar,
+                              }}
+                            />
                             <span className="text-sm truncate">{clone.creator.name}</span>
                           </div>
                           {getStatusBadge(clone.status)}

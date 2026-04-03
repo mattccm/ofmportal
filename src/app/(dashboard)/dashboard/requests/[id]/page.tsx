@@ -51,6 +51,7 @@ async function getCreators(agencyId: string) {
       id: true,
       name: true,
       email: true,
+      avatar: true,
     },
     orderBy: { name: "asc" },
   });
