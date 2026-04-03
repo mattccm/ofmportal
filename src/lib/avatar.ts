@@ -114,11 +114,11 @@ export interface AvatarUser {
 
 /**
  * Get avatar URL from user object
- * Falls back through image -> avatar -> null
+ * Prioritizes avatar (user-uploaded) over image (OAuth/legacy)
  */
 export function getAvatarUrl(user: AvatarUser | null | undefined): string | null {
   if (!user) return null;
-  return user.image || user.avatar || null;
+  return user.avatar || user.image || null;
 }
 
 /**
