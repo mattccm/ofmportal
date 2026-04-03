@@ -76,11 +76,22 @@ export function MobileHeader({
 
   // Main navigation pages where the bottom nav is the primary navigation
   // These pages don't need a top header - saves screen space on mobile
+  // Includes all pages accessible from bottom nav (main tabs + "More" menu)
   const mainNavPages = [
     "/dashboard",
     "/dashboard/creators",
     "/dashboard/requests",
     "/dashboard/messages",
+    "/dashboard/uploads",
+    "/dashboard/templates",
+    "/dashboard/recurring-requests",
+    "/dashboard/analytics",
+    "/dashboard/exports",
+    "/dashboard/reminders",
+    "/dashboard/notifications",
+    "/dashboard/team",
+    "/dashboard/settings",
+    "/dashboard/help",
   ];
 
   // On main nav pages (not sub-pages), hide the header completely

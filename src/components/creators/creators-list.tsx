@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -40,6 +40,7 @@ interface Creator {
   name: string;
   email: string;
   phone: string | null;
+  avatar: string | null;
   inviteStatus: string;
   lastLoginAt: Date | null;
   _count: {
@@ -108,11 +109,14 @@ export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) 
               <div className="flex items-start gap-4">
                 {/* Avatar */}
                 <Link href={`/dashboard/creators/${creator.id}`}>
-                  <Avatar className="h-12 w-12 flex-shrink-0">
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white text-lg font-semibold">
-                      {creator.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar
+                    className="h-12 w-12 flex-shrink-0"
+                    user={{
+                      name: creator.name,
+                      email: creator.email,
+                      image: creator.avatar,
+                    }}
+                  />
                 </Link>
 
                 {/* Info */}
@@ -188,11 +192,13 @@ export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) 
                 <TableRow key={creator.id} className="group">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white">
-                          {creator.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <Avatar
+                        user={{
+                          name: creator.name,
+                          email: creator.email,
+                          image: creator.avatar,
+                        }}
+                      />
                       <div>
                         <Link
                           href={`/dashboard/creators/${creator.id}`}

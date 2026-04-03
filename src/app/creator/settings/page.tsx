@@ -22,42 +22,91 @@ import {
   Lock,
   Globe,
   Save,
+  Palette,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ThemeSwitcher } from "@/components/theme/theme-toggle";
+import { useTheme } from "@/components/theme/theme-provider";
 
 const TIMEZONES = [
+  // UTC-12 to UTC-8
   { value: "Pacific/Midway", label: "Midway Island (UTC-11)", offset: -11 },
   { value: "Pacific/Honolulu", label: "Hawaii (UTC-10)", offset: -10 },
   { value: "America/Anchorage", label: "Alaska (UTC-9)", offset: -9 },
-  { value: "America/Los_Angeles", label: "Pacific Time (UTC-8)", offset: -8 },
-  { value: "America/Phoenix", label: "Arizona (UTC-7)", offset: -7 },
-  { value: "America/Denver", label: "Mountain Time (UTC-7)", offset: -7 },
-  { value: "America/Chicago", label: "Central Time (UTC-6)", offset: -6 },
-  { value: "America/New_York", label: "Eastern Time (UTC-5)", offset: -5 },
-  { value: "America/Halifax", label: "Atlantic Time (UTC-4)", offset: -4 },
-  { value: "America/Sao_Paulo", label: "Brasilia (UTC-3)", offset: -3 },
+  { value: "America/Los_Angeles", label: "Los Angeles / Pacific (UTC-8)", offset: -8 },
+  { value: "America/Vancouver", label: "Vancouver (UTC-8)", offset: -8 },
+  // UTC-7
+  { value: "America/Phoenix", label: "Phoenix / Arizona (UTC-7)", offset: -7 },
+  { value: "America/Denver", label: "Denver / Mountain (UTC-7)", offset: -7 },
+  // UTC-6 to UTC-4
+  { value: "America/Chicago", label: "Chicago / Central (UTC-6)", offset: -6 },
+  { value: "America/Mexico_City", label: "Mexico City (UTC-6)", offset: -6 },
+  { value: "America/New_York", label: "New York / Eastern (UTC-5)", offset: -5 },
+  { value: "America/Toronto", label: "Toronto (UTC-5)", offset: -5 },
+  { value: "America/Bogota", label: "Bogota (UTC-5)", offset: -5 },
+  { value: "America/Halifax", label: "Halifax / Atlantic (UTC-4)", offset: -4 },
+  { value: "America/Caracas", label: "Caracas (UTC-4)", offset: -4 },
+  // UTC-3 to UTC-1
+  { value: "America/Sao_Paulo", label: "Sao Paulo / Brasilia (UTC-3)", offset: -3 },
+  { value: "America/Buenos_Aires", label: "Buenos Aires (UTC-3)", offset: -3 },
   { value: "Atlantic/South_Georgia", label: "Mid-Atlantic (UTC-2)", offset: -2 },
   { value: "Atlantic/Azores", label: "Azores (UTC-1)", offset: -1 },
-  { value: "Europe/London", label: "London (UTC+0)", offset: 0 },
+  // UTC+0 to UTC+3
+  { value: "Europe/London", label: "London / GMT (UTC+0)", offset: 0 },
+  { value: "Europe/Dublin", label: "Dublin (UTC+0)", offset: 0 },
+  { value: "Europe/Lisbon", label: "Lisbon (UTC+0)", offset: 0 },
+  { value: "Africa/Lagos", label: "Lagos (UTC+1)", offset: 1 },
   { value: "Europe/Paris", label: "Paris (UTC+1)", offset: 1 },
   { value: "Europe/Berlin", label: "Berlin (UTC+1)", offset: 1 },
+  { value: "Europe/Amsterdam", label: "Amsterdam (UTC+1)", offset: 1 },
+  { value: "Europe/Rome", label: "Rome (UTC+1)", offset: 1 },
+  { value: "Europe/Madrid", label: "Madrid (UTC+1)", offset: 1 },
+  { value: "Africa/Cairo", label: "Cairo (UTC+2)", offset: 2 },
   { value: "Europe/Helsinki", label: "Helsinki (UTC+2)", offset: 2 },
+  { value: "Europe/Athens", label: "Athens (UTC+2)", offset: 2 },
+  { value: "Africa/Johannesburg", label: "Johannesburg (UTC+2)", offset: 2 },
   { value: "Europe/Moscow", label: "Moscow (UTC+3)", offset: 3 },
+  { value: "Asia/Istanbul", label: "Istanbul (UTC+3)", offset: 3 },
+  { value: "Asia/Riyadh", label: "Riyadh (UTC+3)", offset: 3 },
+  // UTC+4 to UTC+6
   { value: "Asia/Dubai", label: "Dubai (UTC+4)", offset: 4 },
+  { value: "Asia/Baku", label: "Baku (UTC+4)", offset: 4 },
   { value: "Asia/Karachi", label: "Karachi (UTC+5)", offset: 5 },
-  { value: "Asia/Kolkata", label: "Mumbai (UTC+5:30)", offset: 5.5 },
+  { value: "Asia/Tashkent", label: "Tashkent (UTC+5)", offset: 5 },
+  { value: "Asia/Kolkata", label: "Mumbai / India (UTC+5:30)", offset: 5.5 },
   { value: "Asia/Dhaka", label: "Dhaka (UTC+6)", offset: 6 },
+  { value: "Asia/Almaty", label: "Almaty (UTC+6)", offset: 6 },
+  // UTC+7 to UTC+9
   { value: "Asia/Bangkok", label: "Bangkok (UTC+7)", offset: 7 },
+  { value: "Asia/Jakarta", label: "Jakarta (UTC+7)", offset: 7 },
+  { value: "Asia/Ho_Chi_Minh", label: "Ho Chi Minh City (UTC+7)", offset: 7 },
   { value: "Asia/Singapore", label: "Singapore (UTC+8)", offset: 8 },
-  { value: "Asia/Shanghai", label: "Shanghai (UTC+8)", offset: 8 },
+  { value: "Asia/Hong_Kong", label: "Hong Kong (UTC+8)", offset: 8 },
+  { value: "Asia/Shanghai", label: "Shanghai / Beijing (UTC+8)", offset: 8 },
+  { value: "Asia/Taipei", label: "Taipei (UTC+8)", offset: 8 },
+  { value: "Asia/Manila", label: "Manila (UTC+8)", offset: 8 },
+  { value: "Australia/Perth", label: "Perth (UTC+8)", offset: 8 },
   { value: "Asia/Tokyo", label: "Tokyo (UTC+9)", offset: 9 },
-  { value: "Australia/Sydney", label: "Sydney (UTC+10)", offset: 10 },
-  { value: "Pacific/Auckland", label: "Auckland (UTC+12)", offset: 12 },
+  { value: "Asia/Seoul", label: "Seoul (UTC+9)", offset: 9 },
+  // UTC+9:30 to UTC+11 - Australia
+  { value: "Australia/Darwin", label: "Darwin (UTC+9:30)", offset: 9.5 },
+  { value: "Australia/Adelaide", label: "Adelaide (UTC+9:30)", offset: 9.5 },
+  { value: "Australia/Brisbane", label: "Brisbane (UTC+10)", offset: 10 },
+  { value: "Australia/Sydney", label: "Sydney (UTC+10/11)", offset: 10 },
+  { value: "Australia/Melbourne", label: "Melbourne (UTC+10/11)", offset: 10 },
+  { value: "Australia/Hobart", label: "Hobart (UTC+10/11)", offset: 10 },
+  { value: "Pacific/Guam", label: "Guam (UTC+10)", offset: 10 },
+  { value: "Pacific/Noumea", label: "Noumea (UTC+11)", offset: 11 },
+  // UTC+12 to UTC+13
+  { value: "Pacific/Auckland", label: "Auckland (UTC+12/13)", offset: 12 },
+  { value: "Pacific/Fiji", label: "Fiji (UTC+12)", offset: 12 },
+  { value: "Pacific/Tongatapu", label: "Tonga (UTC+13)", offset: 13 },
 ].sort((a, b) => a.offset - b.offset);
 
 export default function CreatorSettingsPage() {
   const router = useRouter();
   const { branding } = useBranding();
+  const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
@@ -368,6 +417,34 @@ export default function CreatorSettingsPage() {
             )}
             Save Timezone
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Appearance / Theme */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Palette className="h-5 w-5" style={{ color: branding.primaryColor }} />
+            Appearance
+          </CardTitle>
+          <CardDescription>
+            Choose your preferred color theme
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium mb-3 block">Theme</Label>
+              <ThemeSwitcher
+                theme={theme}
+                setTheme={setTheme}
+                className="w-full justify-center"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Choose Light, Dark, or System to match your device settings
+            </p>
+          </div>
         </CardContent>
       </Card>
 

@@ -58,11 +58,32 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
   } | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("creatorToken");
-    const creatorId = localStorage.getItem("creatorId");
-    const creatorName = localStorage.getItem("creatorName");
-    const creatorEmail = localStorage.getItem("creatorEmail");
-    const creatorAvatar = localStorage.getItem("creatorAvatar");
+    // Helper to get cookie value
+    const getCookie = (name: string): string | null => {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return match ? decodeURIComponent(match[2]) : null;
+    };
+
+    // Try localStorage first, fall back to cookies (for iOS PWA persistence)
+    let token = localStorage.getItem("creatorToken");
+    let creatorId = localStorage.getItem("creatorId");
+    let creatorName = localStorage.getItem("creatorName");
+    let creatorEmail = localStorage.getItem("creatorEmail");
+    let creatorAvatar = localStorage.getItem("creatorAvatar");
+
+    // If localStorage is empty but cookies exist, restore from cookies
+    if (!token && getCookie("creatorToken")) {
+      token = getCookie("creatorToken");
+      creatorId = getCookie("creatorId");
+      creatorName = getCookie("creatorName");
+      creatorEmail = getCookie("creatorEmail");
+
+      // Restore to localStorage for faster access
+      if (token) localStorage.setItem("creatorToken", token);
+      if (creatorId) localStorage.setItem("creatorId", creatorId);
+      if (creatorName) localStorage.setItem("creatorName", creatorName);
+      if (creatorEmail) localStorage.setItem("creatorEmail", creatorEmail);
+    }
 
     if (!token || !creatorId) {
       router.push("/login");
@@ -136,6 +157,13 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("creatorId");
     localStorage.removeItem("creatorName");
     localStorage.removeItem("creatorEmail");
+    localStorage.removeItem("creatorAvatar");
+
+    // Clear cookies too
+    document.cookie = "creatorToken=; path=/; max-age=0";
+    document.cookie = "creatorId=; path=/; max-age=0";
+    document.cookie = "creatorName=; path=/; max-age=0";
+    document.cookie = "creatorEmail=; path=/; max-age=0";
     localStorage.removeItem("creatorOnboardingComplete");
     router.push("/login");
   };

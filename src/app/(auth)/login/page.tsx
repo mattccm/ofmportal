@@ -67,12 +67,19 @@ function LoginForm() {
         const creatorData = await creatorResponse.json();
 
         if (creatorResponse.ok) {
-          // Store creator token and info
+          // Store creator token and info in localStorage
           localStorage.setItem("creatorToken", creatorData.token);
           localStorage.setItem("creatorId", creatorData.creatorId);
           localStorage.setItem("creatorName", creatorData.name);
           localStorage.setItem("creatorEmail", creatorData.email);
           localStorage.setItem("creatorOnboardingComplete", "true");
+
+          // Also store in cookies for iOS PWA persistence (localStorage can be cleared on app close)
+          const maxAge = 30 * 24 * 60 * 60; // 30 days
+          document.cookie = `creatorToken=${creatorData.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          document.cookie = `creatorId=${creatorData.creatorId}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          document.cookie = `creatorName=${encodeURIComponent(creatorData.name)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          document.cookie = `creatorEmail=${encodeURIComponent(creatorData.email)}; path=/; max-age=${maxAge}; SameSite=Lax`;
 
           // Redirect to creator dashboard
           router.push("/creator/dashboard");

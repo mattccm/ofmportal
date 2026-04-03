@@ -77,6 +77,7 @@ export default async function CreatorsPage() {
     name: string;
     email: string;
     phone: string | null;
+    avatar: string | null;
     inviteStatus: string;
     lastLoginAt: Date | null;
     _count: { requests: number; uploads: number };
@@ -93,6 +94,7 @@ export default async function CreatorsPage() {
       name: creator.name,
       email: creator.email,
       phone: creator.phone,
+      avatar: creator.avatar,
       inviteStatus: creator.inviteStatus,
       lastLoginAt: creator.lastLoginAt,
       _count: creator._count,
