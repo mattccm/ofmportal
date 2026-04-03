@@ -233,6 +233,8 @@ export interface TeamMember {
   assignedCreatorIds?: string[];
   // Template visibility settings
   templateVisibility?: TemplateVisibility;
+  // Template category restrictions (empty = all categories)
+  allowedCategoryIds?: string[];
   // Activity restrictions
   activityRestrictions?: ActivityRestrictions;
   createdAt: Date;

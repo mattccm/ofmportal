@@ -45,6 +45,8 @@ model User {
   customRole           CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   permissionOverrides  Json        @default("[]") // Array of permission override objects
   assignedCreatorIds   Json        @default("[]") // Specific creators assigned to this user
+  templateVisibility   Json        @default("{\"type\":\"all\"}") // Template visibility settings {type: "all" | "include" | "exclude", templateIds?: string[]}
+  allowedCategoryIds   Json        @default("[]") // Template categories this user can access (empty = all)
   activityRestrictions Json        @default("{}") // Time/IP restrictions
 
   // Relations
@@ -349,6 +351,10 @@ model RequestTemplate {
 
   isActive Boolean @default(true)
 
+  // Category for organizing templates (Instagram, OnlyFans, Reddit, etc.)
+  categoryId String?
+  category   TemplateCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   // Relations
   requests ContentRequest[]
 
@@ -356,6 +362,37 @@ model RequestTemplate {
   updatedAt DateTime @updatedAt
 
   @@index([agencyId])
+  @@index([categoryId])
+}
+
+// ============================================
+// TEMPLATE CATEGORIES (User-Restricted Access)
+// ============================================
+
+model TemplateCategory {
+  id       String @id @default(cuid())
+  agencyId String
+
+  // Category details
+  name        String
+  description String?
+
+  // Customization
+  icon  String? // Icon name from Lucide icons (e.g., "Instagram", "Heart", "MessageCircle")
+  color String? // Hex color code for visual distinction
+
+  // Ordering
+  sortOrder Int @default(0)
+
+  // Relations
+  templates RequestTemplate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, name])
+  @@index([agencyId])
+  @@index([sortOrder])
 }
 
 // ============================================

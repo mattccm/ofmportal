@@ -12,6 +12,7 @@ import { validateTemplateFields, TemplateField } from "@/lib/templates";
 const createTemplateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
+  categoryId: z.string().optional().nullable(),
   fields: z.array(z.object({
     id: z.string(),
     label: z.string(),
@@ -59,8 +60,34 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const isActiveParam = searchParams.get("isActive");
     const includeInactive = searchParams.get("includeInactive") === "true";
+    const categoryId = searchParams.get("categoryId");
 
-    const where: { agencyId: string; isActive?: boolean } = {
+    // Get user's allowed categories (if restricted)
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { allowedCategoryIds: true, role: true },
+    });
+
+    let allowedCategoryIds: string[] = [];
+    if (user?.allowedCategoryIds) {
+      try {
+        const parsed = typeof user.allowedCategoryIds === "string"
+          ? JSON.parse(user.allowedCategoryIds)
+          : user.allowedCategoryIds;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          allowedCategoryIds = parsed;
+        }
+      } catch {
+        allowedCategoryIds = [];
+      }
+    }
+
+    // Build where clause
+    const where: {
+      agencyId: string;
+      isActive?: boolean;
+      categoryId?: string | { in: string[] } | null;
+    } = {
       agencyId: session.user.agencyId,
     };
 
@@ -72,18 +99,53 @@ export async function GET(req: NextRequest) {
       where.isActive = true;
     }
 
+    // Filter by specific category if requested
+    if (categoryId) {
+      if (categoryId === "uncategorized") {
+        where.categoryId = null;
+      } else {
+        where.categoryId = categoryId;
+      }
+    }
+
+    // Apply category restrictions for non-admin users
+    // If user has allowed categories, only show templates in those categories (or uncategorized)
+    if (allowedCategoryIds.length > 0 && !["OWNER", "ADMIN"].includes(user?.role || "")) {
+      // User can see templates in their allowed categories OR uncategorized templates
+      // This is handled by fetching all then filtering (Prisma doesn't support OR with null easily in where)
+    }
+
     const templates = await db.requestTemplate.findMany({
       where,
       include: {
         _count: {
           select: { requests: true },
         },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            icon: true,
+          },
+        },
       },
       orderBy: { updatedAt: "desc" },
     });
 
+    // Filter by allowed categories if user has restrictions
+    let filteredTemplates = templates;
+    if (allowedCategoryIds.length > 0 && !["OWNER", "ADMIN"].includes(user?.role || "")) {
+      filteredTemplates = templates.filter((t) => {
+        // Allow uncategorized templates
+        if (!t.categoryId) return true;
+        // Allow templates in user's allowed categories
+        return allowedCategoryIds.includes(t.categoryId);
+      });
+    }
+
     // Parse fields JSON for each template
-    const serializedTemplates = templates.map((t) => {
+    const serializedTemplates = filteredTemplates.map((t) => {
       let fields: TemplateField[] = [];
       try {
         if (typeof t.fields === "string") {
@@ -99,6 +161,8 @@ export async function GET(req: NextRequest) {
         id: t.id,
         name: t.name,
         description: t.description,
+        categoryId: t.categoryId,
+        category: t.category,
         fields,
         fieldCount: fields.length,
         usageCount: t._count.requests,
@@ -149,11 +213,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // If categoryId is provided, verify it exists and belongs to the agency
+    if (validatedData.categoryId) {
+      const category = await db.templateCategory.findFirst({
+        where: {
+          id: validatedData.categoryId,
+          agencyId: session.user.agencyId,
+        },
+      });
+      if (!category) {
+        return NextResponse.json(
+          { error: "Category not found" },
+          { status: 404 }
+        );
+      }
+    }
+
     const template = await db.requestTemplate.create({
       data: {
         agencyId: session.user.agencyId,
         name: validatedData.name,
         description: validatedData.description || null,
+        categoryId: validatedData.categoryId || null,
         fields: JSON.stringify(validatedData.fields),
         defaultDueDays: validatedData.defaultDueDays,
         defaultUrgency: validatedData.defaultUrgency,
@@ -163,6 +244,14 @@ export async function POST(req: NextRequest) {
         _count: {
           select: { requests: true },
         },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            icon: true,
+          },
+        },
       },
     });
 
@@ -170,6 +259,8 @@ export async function POST(req: NextRequest) {
       id: template.id,
       name: template.name,
       description: template.description,
+      categoryId: template.categoryId,
+      category: template.category,
       fields: validatedData.fields,
       fieldCount: validatedData.fields.length,
       usageCount: 0,

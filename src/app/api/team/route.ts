@@ -57,6 +57,9 @@ export async function GET(request: NextRequest) {
         },
         permissionOverrides: true,
         assignedCreatorIds: true,
+        templateVisibility: true,
+        allowedCategoryIds: true,
+        activityRestrictions: true,
         activityLogs: {
           take: 10,
           orderBy: { createdAt: "desc" },

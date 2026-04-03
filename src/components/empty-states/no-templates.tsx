@@ -21,7 +21,7 @@ interface NoTemplatesProps {
   /** Whether to show in card */
   withCard?: boolean;
   /** Filter context */
-  filterContext?: "active" | "inactive" | "search";
+  filterContext?: "active" | "inactive" | "search" | "category";
 }
 
 export function NoTemplates({
@@ -43,6 +43,8 @@ export function NoTemplates({
           return "No inactive templates found. Deactivate templates you're not currently using.";
         case "search":
           return "No templates match your search. Try different keywords.";
+        case "category":
+          return "No templates found in this category. Assign templates to this category or try a different filter.";
         default:
           return "No templates match your current filters. Try adjusting your criteria.";
       }

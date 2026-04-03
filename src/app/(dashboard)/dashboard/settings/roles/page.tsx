@@ -256,6 +256,9 @@ export default function RolesSettingsPage() {
   const [templates, setTemplates] = useState<
     Array<{ id: string; name: string; description?: string | null }>
   >([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string; color: string | null; templateCount?: number }>
+  >([]);
   const [creatorGroups, setCreatorGroups] = useState<
     Array<{ id: string; name: string }>
   >([]);
@@ -277,12 +280,13 @@ export default function RolesSettingsPage() {
       setIsLoading(true);
       setError(null);
 
-      const [rolesRes, membersRes, creatorsRes, groupsRes, templatesRes] = await Promise.all([
+      const [rolesRes, membersRes, creatorsRes, groupsRes, templatesRes, categoriesRes] = await Promise.all([
         fetch("/api/roles"),
         fetch("/api/team"),
         fetch("/api/creators?limit=1000"),
         fetch("/api/creators/groups"),
         fetch("/api/templates"),
+        fetch("/api/template-categories?includeTemplateCount=true"),
       ]);
 
       if (rolesRes.ok) {
@@ -302,6 +306,8 @@ export default function RolesSettingsPage() {
             roleId: m.customRoleId || m.role.toLowerCase(),
             permissionOverrides: m.permissionOverrides,
             assignedCreatorIds: m.assignedCreatorIds,
+            templateVisibility: m.templateVisibility,
+            allowedCategoryIds: m.allowedCategoryIds || [],
             activityRestrictions: m.activityRestrictions,
             createdAt: new Date(m.createdAt),
             updatedAt: new Date(m.updatedAt || m.createdAt),
@@ -343,6 +349,18 @@ export default function RolesSettingsPage() {
             id: t.id,
             name: t.name,
             description: t.description,
+          }))
+        );
+      }
+
+      if (categoriesRes.ok) {
+        const categoriesData = await categoriesRes.json();
+        setCategories(
+          (categoriesData.categories || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            color: c.color,
+            templateCount: c.templateCount,
           }))
         );
       }
@@ -524,6 +542,8 @@ export default function RolesSettingsPage() {
         roleId: updates.roleId,
         permissionOverrides: updates.permissionOverrides,
         assignedCreatorIds: updates.assignedCreatorIds,
+        templateVisibility: updates.templateVisibility,
+        allowedCategoryIds: updates.allowedCategoryIds,
         activityRestrictions: updates.activityRestrictions,
       }),
     });
@@ -749,6 +769,7 @@ export default function RolesSettingsPage() {
                 roles={allRoles}
                 creators={creators}
                 templates={templates}
+                categories={categories}
                 onUpdateMember={handleUpdateMember}
                 isLoading={isLoading}
               />

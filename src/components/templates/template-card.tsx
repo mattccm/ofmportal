@@ -40,10 +40,18 @@ import { toast } from "sonner";
 // TYPES
 // ============================================
 
+interface TemplateCategory {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+}
+
 interface TemplateCardProps {
   id: string;
   name: string;
   description?: string | null;
+  category?: TemplateCategory | null;
   fieldCount: number;
   usageCount: number;
   isActive: boolean;
@@ -62,6 +70,7 @@ export function TemplateCard({
   id,
   name,
   description,
+  category,
   fieldCount,
   usageCount,
   isActive,
@@ -215,7 +224,25 @@ export function TemplateCard({
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="space-y-3">
+          {/* Category Badge */}
+          {category && (
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className="text-xs font-normal"
+                style={category.color ? {
+                  borderColor: `${category.color}40`,
+                  backgroundColor: `${category.color}10`,
+                  color: category.color,
+                } : undefined}
+              >
+                {category.name}
+              </Badge>
+            </div>
+          )}
+
+          {/* Stats */}
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <Layers className="h-4 w-4" />

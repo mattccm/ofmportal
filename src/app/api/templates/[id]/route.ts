@@ -12,6 +12,7 @@ import { validateTemplateFields, TemplateField, deserializeTemplate } from "@/li
 const updateTemplateSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
   description: z.string().optional().nullable(),
+  categoryId: z.string().optional().nullable(),
   fields: z.array(z.object({
     id: z.string(),
     label: z.string(),
@@ -70,6 +71,14 @@ export async function GET(
         _count: {
           select: { requests: true },
         },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            icon: true,
+          },
+        },
       },
     });
 
@@ -81,6 +90,8 @@ export async function GET(
 
     return NextResponse.json({
       ...deserialized,
+      categoryId: template.categoryId,
+      category: template.category,
       fieldCount: deserialized.fields.length,
       usageCount: template._count.requests,
     });
@@ -144,11 +155,29 @@ export async function PATCH(
       }
     }
 
+    // If categoryId is being set, verify it exists and belongs to the agency
+    if (validatedData.categoryId) {
+      const category = await db.templateCategory.findFirst({
+        where: {
+          id: validatedData.categoryId,
+          agencyId: session.user.agencyId,
+        },
+      });
+      if (!category) {
+        return NextResponse.json(
+          { error: "Category not found" },
+          { status: 404 }
+        );
+      }
+    }
+
     // Build update data
     const updateData: Record<string, unknown> = {};
     if (validatedData.name !== undefined) updateData.name = validatedData.name;
     if (validatedData.description !== undefined)
       updateData.description = validatedData.description;
+    if (validatedData.categoryId !== undefined)
+      updateData.categoryId = validatedData.categoryId;
     if (validatedData.fields !== undefined)
       updateData.fields = JSON.stringify(validatedData.fields);
     if (validatedData.defaultDueDays !== undefined)
@@ -165,6 +194,14 @@ export async function PATCH(
         _count: {
           select: { requests: true },
         },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            icon: true,
+          },
+        },
       },
     });
 
@@ -172,6 +209,8 @@ export async function PATCH(
 
     return NextResponse.json({
       ...deserialized,
+      categoryId: updatedTemplate.categoryId,
+      category: updatedTemplate.category,
       fieldCount: deserialized.fields.length,
       usageCount: updatedTemplate._count.requests,
     });

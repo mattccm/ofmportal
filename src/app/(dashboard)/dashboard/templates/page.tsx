@@ -41,6 +41,14 @@ async function getTemplates(agencyId: string) {
       _count: {
         select: { requests: true },
       },
+      category: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          icon: true,
+        },
+      },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -61,12 +69,28 @@ async function getTemplates(agencyId: string) {
       id: t.id,
       name: t.name,
       description: t.description,
+      categoryId: t.categoryId,
+      category: t.category,
       fieldCount: fields.length,
       usageCount: t._count.requests,
       isActive: t.isActive,
       updatedAt: t.updatedAt,
     };
   });
+}
+
+async function getCategories(agencyId: string) {
+  const categories = await db.templateCategory.findMany({
+    where: { agencyId },
+    select: {
+      id: true,
+      name: true,
+      color: true,
+      icon: true,
+    },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+  return categories;
 }
 
 async function getTemplateStats(agencyId: string) {
@@ -94,15 +118,18 @@ export default async function TemplatesPage() {
 
   let templates: Awaited<ReturnType<typeof getTemplates>>;
   let stats: Awaited<ReturnType<typeof getTemplateStats>>;
+  let categories: Awaited<ReturnType<typeof getCategories>>;
   try {
-    [templates, stats] = await Promise.all([
+    [templates, stats, categories] = await Promise.all([
       getTemplates(agencyId),
       getTemplateStats(agencyId),
+      getCategories(agencyId),
     ]);
   } catch (error) {
     console.error("Failed to fetch templates data:", error);
     templates = [];
     stats = { totalTemplates: 0, activeTemplates: 0, totalUsage: 0 };
+    categories = [];
   }
 
   return (
@@ -170,7 +197,7 @@ export default async function TemplatesPage() {
       </div>
 
       {/* Client-side filtering and list */}
-      <TemplatesClient initialTemplates={templates} />
+      <TemplatesClient initialTemplates={templates} categories={categories} />
     </div>
   );
 }

@@ -26,7 +26,11 @@ async function getTemplate(id: string, agencyId: string) {
     return null;
   }
 
-  return deserializeTemplate(template);
+  const deserialized = deserializeTemplate(template);
+  return {
+    ...deserialized,
+    categoryId: template.categoryId,
+  };
 }
 
 // ============================================

@@ -33,6 +33,8 @@ import {
   Plus,
   Layers,
   Settings,
+  Tag,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,11 +83,18 @@ import { clearFormData } from "@/lib/form-storage";
 // TYPES
 // ============================================
 
+interface TemplateCategory {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+}
+
 interface TemplateBuilderProps {
-  initialData?: TemplateFormData;
+  initialData?: TemplateFormData & { categoryId?: string | null };
   templateId?: string;
   usageCount?: number;
-  onSave: (data: TemplateFormData, isDraft: boolean) => Promise<void>;
+  onSave: (data: TemplateFormData & { categoryId?: string | null }, isDraft: boolean) => Promise<void>;
   onDuplicate?: () => Promise<void>;
   onDelete?: () => Promise<void>;
 }
@@ -288,6 +297,29 @@ export function TemplateBuilder({
     "LOW" | "NORMAL" | "HIGH" | "URGENT"
   >(initialData?.defaultUrgency || "NORMAL");
   const [isActive, setIsActive] = React.useState(initialData?.isActive ?? true);
+  const [categoryId, setCategoryId] = React.useState<string | null>(
+    initialData?.categoryId || null
+  );
+  const [categories, setCategories] = React.useState<TemplateCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = React.useState(true);
+
+  // Fetch categories on mount
+  React.useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const response = await fetch("/api/template-categories");
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data.categories || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }
+    fetchCategories();
+  }, []);
 
   // UI state
   const [isPreviewMode, setIsPreviewMode] = React.useState(false);
@@ -321,8 +353,9 @@ export function TemplateBuilder({
       defaultDueDays,
       defaultUrgency,
       isActive,
+      categoryId,
     }),
-    [name, description, richContent, fields, defaultDueDays, defaultUrgency, isActive]
+    [name, description, richContent, fields, defaultDueDays, defaultUrgency, isActive, categoryId]
   );
 
   // Initialize autosave
@@ -487,6 +520,7 @@ export function TemplateBuilder({
           defaultDueDays,
           defaultUrgency,
           isActive: isDraft ? false : isActive,
+          categoryId,
         },
         isDraft
       );
@@ -658,6 +692,48 @@ export function TemplateBuilder({
               title="Template Examples & Reference Materials"
               description="Add example images, videos, and reference links that apply to the entire request - not specific to any individual field."
             />
+
+            {/* Category Selection */}
+            {categories.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Tag className="h-4 w-4" />
+                  Category
+                </Label>
+                <Select
+                  value={categoryId || "uncategorized"}
+                  onValueChange={(v) => setCategoryId(v === "uncategorized" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="uncategorized">
+                      <div className="flex items-center gap-2">
+                        <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                        Uncategorized
+                      </div>
+                    </SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        <div className="flex items-center gap-2">
+                          {cat.color && (
+                            <div
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: cat.color }}
+                            />
+                          )}
+                          {cat.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Categorize templates to organize them and control team member access
+                </p>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">

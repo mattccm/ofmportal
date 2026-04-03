@@ -107,6 +107,8 @@ export async function PUT(request: NextRequest) {
       customRoleId,
       permissionOverrides,
       assignedCreatorIds,
+      templateVisibility,
+      allowedCategoryIds,
       activityRestrictions,
     } = body;
 
@@ -198,6 +200,14 @@ export async function PUT(request: NextRequest) {
       updateData.assignedCreatorIds = assignedCreatorIds;
     }
 
+    if (templateVisibility !== undefined) {
+      updateData.templateVisibility = templateVisibility;
+    }
+
+    if (allowedCategoryIds !== undefined) {
+      updateData.allowedCategoryIds = allowedCategoryIds;
+    }
+
     if (activityRestrictions !== undefined) {
       updateData.activityRestrictions = activityRestrictions;
     }
@@ -235,6 +245,8 @@ export async function PUT(request: NextRequest) {
         customRoleId: updatedUser.customRoleId,
         permissionOverrides: updatedUser.permissionOverrides,
         assignedCreatorIds: updatedUser.assignedCreatorIds,
+        templateVisibility: updatedUser.templateVisibility,
+        allowedCategoryIds: updatedUser.allowedCategoryIds,
         activityRestrictions: updatedUser.activityRestrictions,
       },
     });

@@ -21,6 +21,8 @@ import {
   Eye,
   EyeOff,
   FileText,
+  Tag,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,11 +82,19 @@ import {
   DEFAULT_ROLES,
 } from "@/types/permissions";
 
+interface TemplateCategory {
+  id: string;
+  name: string;
+  color: string | null;
+  templateCount?: number;
+}
+
 interface MemberPermissionsProps {
   member: TeamMember;
   roles: Role[];
   creators?: Array<{ id: string; name: string; email: string; avatar?: string }>;
   templates?: Array<{ id: string; name: string; description?: string | null }>;
+  categories?: TemplateCategory[];
   onSave: (memberId: string, updates: Partial<TeamMember>) => Promise<void>;
   onClose: () => void;
 }
@@ -584,6 +594,136 @@ function TemplateAssignment({
   );
 }
 
+// Category Assignment Component
+function CategoryAssignment({
+  allowedCategoryIds,
+  categories,
+  onChange,
+}: {
+  allowedCategoryIds: string[];
+  categories: TemplateCategory[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredCategories = categories.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleCategory = (id: string) => {
+    if (allowedCategoryIds.includes(id)) {
+      onChange(allowedCategoryIds.filter((cid) => cid !== id));
+    } else {
+      onChange([...allowedCategoryIds, id]);
+    }
+  };
+
+  const selectAll = () => {
+    onChange(filteredCategories.map((c) => c.id));
+  };
+
+  const clearAll = () => {
+    onChange([]);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="p-3 rounded-lg border bg-muted/30">
+        <div className="flex items-center gap-2 text-sm">
+          <FolderOpen className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium">
+            {allowedCategoryIds.length === 0
+              ? "All categories accessible"
+              : `${allowedCategoryIds.length} categor${allowedCategoryIds.length === 1 ? "y" : "ies"} selected`}
+          </span>
+        </div>
+        {allowedCategoryIds.length === 0 && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Leave empty to grant access to all categories and uncategorized templates
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search categories..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Button variant="outline" size="sm" onClick={selectAll}>
+          Select All
+        </Button>
+        <Button variant="outline" size="sm" onClick={clearAll}>
+          Clear
+        </Button>
+      </div>
+
+      <ScrollArea className="h-48 border rounded-lg">
+        <div className="p-2 space-y-1">
+          {filteredCategories.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              No categories found
+            </div>
+          ) : (
+            filteredCategories.map((category) => {
+              const isSelected = allowedCategoryIds.includes(category.id);
+
+              return (
+                <div
+                  key={category.id}
+                  className={cn(
+                    "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
+                    isSelected
+                      ? "bg-primary/10 border border-primary/20"
+                      : "hover:bg-muted/50"
+                  )}
+                  onClick={() => toggleCategory(category.id)}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleCategory(category.id)}
+                  />
+                  <div
+                    className="h-8 w-8 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: `${category.color || "#6B7280"}15` }}
+                  >
+                    <Tag
+                      className="h-4 w-4"
+                      style={{ color: category.color || "#6B7280" }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{category.name}</p>
+                    {category.templateCount !== undefined && (
+                      <p className="text-xs text-muted-foreground">
+                        {category.templateCount} template{category.templateCount !== 1 ? "s" : ""}
+                      </p>
+                    )}
+                  </div>
+                  {isSelected && <Check className="h-4 w-4 text-primary" />}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </ScrollArea>
+
+      {allowedCategoryIds.length > 0 && (
+        <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">
+          <AlertTriangle className="h-4 w-4" />
+          <span>
+            Member can only see templates in these categories plus uncategorized templates
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Activity Restrictions Editor
 function ActivityRestrictionsEditor({
   restrictions,
@@ -819,6 +959,7 @@ export function MemberPermissions({
   roles,
   creators = [],
   templates = [],
+  categories = [],
   onSave,
   onClose,
 }: MemberPermissionsProps) {
@@ -831,6 +972,9 @@ export function MemberPermissions({
   );
   const [templateVisibility, setTemplateVisibility] = useState<TemplateVisibility>(
     member.templateVisibility || { type: "all" }
+  );
+  const [allowedCategoryIds, setAllowedCategoryIds] = useState<string[]>(
+    member.allowedCategoryIds || []
   );
   const [activityRestrictions, setActivityRestrictions] = useState<
     ActivityRestrictions | undefined
@@ -868,18 +1012,22 @@ export function MemberPermissions({
     const templateVisibilityChanged =
       JSON.stringify(templateVisibility) !==
       JSON.stringify(member.templateVisibility || { type: "all" });
+    const categoriesChanged =
+      JSON.stringify(allowedCategoryIds.sort()) !==
+      JSON.stringify((member.allowedCategoryIds || []).sort());
     const restrictionsChanged =
       JSON.stringify(activityRestrictions) !==
       JSON.stringify(member.activityRestrictions);
 
     setHasChanges(
-      roleChanged || overridesChanged || creatorsChanged || templateVisibilityChanged || restrictionsChanged
+      roleChanged || overridesChanged || creatorsChanged || templateVisibilityChanged || categoriesChanged || restrictionsChanged
     );
   }, [
     selectedRoleId,
     permissionOverrides,
     assignedCreatorIds,
     templateVisibility,
+    allowedCategoryIds,
     activityRestrictions,
     member,
   ]);
@@ -892,6 +1040,7 @@ export function MemberPermissions({
         permissionOverrides,
         assignedCreatorIds,
         templateVisibility,
+        allowedCategoryIds,
         activityRestrictions,
       });
       toast.success("Member permissions updated");
@@ -1055,6 +1204,33 @@ export function MemberPermissions({
 
             <Separator />
 
+            {/* Category Access */}
+            <div className="space-y-3">
+              <div>
+                <Label className="flex items-center gap-2">
+                  <Tag className="h-4 w-4" />
+                  Category Access
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Restrict access to templates in specific categories
+                </p>
+              </div>
+
+              {categories.length > 0 ? (
+                <CategoryAssignment
+                  allowedCategoryIds={allowedCategoryIds}
+                  categories={categories}
+                  onChange={setAllowedCategoryIds}
+                />
+              ) : (
+                <div className="p-4 text-center text-sm text-muted-foreground bg-muted/50 rounded-lg">
+                  No categories available. Create categories in Settings to enable category-based access control.
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
             {/* Activity Restrictions */}
             <ActivityRestrictionsEditor
               restrictions={activityRestrictions}
@@ -1092,6 +1268,7 @@ interface TeamMemberListProps {
   roles: Role[];
   creators?: Array<{ id: string; name: string; email: string; avatar?: string }>;
   templates?: Array<{ id: string; name: string; description?: string | null }>;
+  categories?: TemplateCategory[];
   onUpdateMember: (memberId: string, updates: Partial<TeamMember>) => Promise<void>;
   isLoading?: boolean;
 }
@@ -1101,6 +1278,7 @@ export function TeamMemberPermissionsList({
   roles,
   creators = [],
   templates = [],
+  categories = [],
   onUpdateMember,
   isLoading = false,
 }: TeamMemberListProps) {
@@ -1266,6 +1444,21 @@ export function TeamMemberPermissionsList({
                           </Tooltip>
                         </TooltipProvider>
                       )}
+                      {(member.allowedCategoryIds || []).length > 0 && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge variant="secondary" className="text-xs">
+                                <Tag className="h-3 w-3 mr-1" />
+                                {member.allowedCategoryIds!.length}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Access limited to {member.allowedCategoryIds!.length} categor{member.allowedCategoryIds!.length === 1 ? "y" : "ies"}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                       <ChevronRight className="h-4 w-4 text-muted-foreground ml-2" />
                     </div>
                   </div>
@@ -1282,6 +1475,7 @@ export function TeamMemberPermissionsList({
           roles={roles}
           creators={creators}
           templates={templates}
+          categories={categories}
           onSave={onUpdateMember}
           onClose={() => setSelectedMember(null)}
         />

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 // ============================================
 
 interface EditTemplateClientProps {
-  template: Template;
+  template: Template & { categoryId?: string | null };
 }
 
 // ============================================
@@ -21,13 +21,14 @@ interface EditTemplateClientProps {
 export function EditTemplateClient({ template }: EditTemplateClientProps) {
   const router = useRouter();
 
-  const initialData: TemplateFormData = {
+  const initialData: TemplateFormData & { categoryId?: string | null } = {
     name: template.name,
     description: template.description,
     fields: template.fields,
     defaultDueDays: template.defaultDueDays,
     defaultUrgency: template.defaultUrgency,
     isActive: template.isActive,
+    categoryId: template.categoryId,
   };
 
   const handleSave = async (data: TemplateFormData, isDraft: boolean) => {

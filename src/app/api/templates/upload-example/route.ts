@@ -47,10 +47,14 @@ function getAssetPublicUrl(key: string): string {
     return `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
   }
   const publicDomain = process.env.R2_PUBLIC_DOMAIN;
-  if (publicDomain) {
-    return `https://${publicDomain}/${key}`;
+  if (!publicDomain) {
+    console.error(
+      "R2_PUBLIC_DOMAIN is not set. Template asset URLs will not work. " +
+      "Set R2_PUBLIC_DOMAIN to your custom domain or r2.dev URL."
+    );
+    return `https://missing-r2-public-domain/${key}`;
   }
-  return `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
+  return `https://${publicDomain}/${key}`;
 }
 
 // POST: Upload template example image or video

@@ -708,8 +708,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
     }
   };
 
-  const hasContent = richContent?.description || richContent?.exampleText ||
-    richContent?.exampleImageUrl || richContent?.exampleVideoUrl ||
+  const hasContent = richContent?.exampleImageUrl || richContent?.exampleVideoUrl ||
     (richContent?.exampleImages && richContent.exampleImages.length > 0) ||
     (richContent?.referenceLinks && richContent.referenceLinks.length > 0);
 
@@ -736,35 +735,12 @@ export function RichContentEditor({ richContent, onChange, title, description }:
 
       {!expanded && !hasContent && (
         <p className="text-xs text-muted-foreground">
-          {description || "Add detailed instructions, examples, or reference content to help creators understand exactly what you need."}
+          {description || "Add example images, videos, or reference links to help creators understand what you need."}
         </p>
       )}
 
       {expanded && (
         <div className="space-y-4 pt-2">
-          {/* Detailed Description - WYSIWYG Editor */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Detailed Instructions</Label>
-            <WysiwygEditor
-              value={richContent?.description || ""}
-              onChange={(html) => updateRichContent({ description: html })}
-              placeholder="Provide detailed instructions for this field. What exactly do you need? What format? Any specific requirements?"
-              minHeight="100px"
-              maxHeight="250px"
-            />
-          </div>
-
-          {/* Example Text */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Example Text</Label>
-            <Textarea
-              value={richContent?.exampleText || ""}
-              onChange={(e) => updateRichContent({ exampleText: e.target.value })}
-              placeholder="Provide an example of what good content looks like for this field..."
-              rows={2}
-            />
-          </div>
-
           {/* Example Images - Upload Only (Bulk) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
