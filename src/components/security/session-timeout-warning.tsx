@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { signOut } from "next-auth/react";
+import { clearRememberToken } from "@/lib/remember-token";
 import {
   Clock,
   LogOut,
@@ -160,6 +161,8 @@ export function SessionTimeoutWarning({
     clearAllTimers();
 
     try {
+      // Clear remember token to prevent auto-login after timeout
+      await clearRememberToken();
       await signOut({ callbackUrl: "/login?reason=timeout" });
     } catch (error) {
       console.error("Failed to sign out:", error);

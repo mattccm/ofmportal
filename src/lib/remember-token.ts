@@ -411,3 +411,152 @@ export function isIOSPWA(): boolean {
     window.matchMedia("(display-mode: standalone)").matches
   );
 }
+
+// ============================================
+// Creator Token Storage (for creator portal)
+// Uses IndexedDB for PWA persistence
+// ============================================
+
+const CREATOR_TOKEN_KEY = "creator-session";
+const CREATOR_LS_KEY = "ccm-creator-session";
+
+interface CreatorSession {
+  token: string;
+  creatorId: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  storedAt: string;
+}
+
+/**
+ * Store creator session in IndexedDB and localStorage
+ */
+export async function storeCreatorSession(session: {
+  token: string;
+  creatorId: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}): Promise<void> {
+  const data: CreatorSession = {
+    ...session,
+    storedAt: new Date().toISOString(),
+  };
+
+  // 1. Store in IndexedDB
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+
+    await new Promise<void>((resolve, reject) => {
+      const request = store.put(data, CREATOR_TOKEN_KEY);
+      request.onsuccess = () => {
+        console.log("[CreatorSession] Stored in IndexedDB");
+        resolve();
+      };
+      request.onerror = () => {
+        console.error("[CreatorSession] IndexedDB store failed:", request.error);
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.warn("[CreatorSession] IndexedDB error:", error);
+  }
+
+  // 2. Store in localStorage
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(CREATOR_LS_KEY, JSON.stringify(data));
+      console.log("[CreatorSession] Stored in localStorage");
+    }
+  } catch (error) {
+    console.warn("[CreatorSession] localStorage store failed:", error);
+  }
+}
+
+/**
+ * Retrieve creator session from IndexedDB or localStorage
+ */
+export async function getCreatorSession(): Promise<CreatorSession | null> {
+  // 1. Try IndexedDB first
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+
+    const idbData = await new Promise<CreatorSession | null>((resolve, reject) => {
+      const request = store.get(CREATOR_TOKEN_KEY);
+      request.onsuccess = () => {
+        const data = request.result as CreatorSession | undefined;
+        if (data) {
+          console.log("[CreatorSession] Found in IndexedDB");
+          resolve(data);
+        } else {
+          resolve(null);
+        }
+      };
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+
+    if (idbData) {
+      return idbData;
+    }
+  } catch (error) {
+    console.warn("[CreatorSession] IndexedDB error:", error);
+  }
+
+  // 2. Try localStorage
+  try {
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(CREATOR_LS_KEY);
+      if (stored) {
+        const data = JSON.parse(stored) as CreatorSession;
+        console.log("[CreatorSession] Found in localStorage");
+        return data;
+      }
+    }
+  } catch (error) {
+    console.warn("[CreatorSession] localStorage error:", error);
+  }
+
+  return null;
+}
+
+/**
+ * Clear creator session from all storage
+ */
+export async function clearCreatorSession(): Promise<void> {
+  // 1. Clear IndexedDB
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+
+    await new Promise<void>((resolve, reject) => {
+      const request = store.delete(CREATOR_TOKEN_KEY);
+      request.onsuccess = () => {
+        console.log("[CreatorSession] Cleared from IndexedDB");
+        resolve();
+      };
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.warn("[CreatorSession] IndexedDB clear failed:", error);
+  }
+
+  // 2. Clear localStorage
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(CREATOR_LS_KEY);
+      console.log("[CreatorSession] Cleared from localStorage");
+    }
+  } catch (error) {
+    console.warn("[CreatorSession] localStorage clear failed:", error);
+  }
+}

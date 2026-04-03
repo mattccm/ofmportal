@@ -16,6 +16,7 @@ import {
   isIndexedDBAvailable,
   getRememberToken,
   hasIndicatorCookie,
+  storeCreatorSession,
 } from "@/lib/remember-token";
 
 function LoginForm() {
@@ -177,6 +178,18 @@ function LoginForm() {
           document.cookie = `creatorId=${creatorData.creatorId}; path=/; max-age=${maxAge}; SameSite=Lax`;
           document.cookie = `creatorName=${encodeURIComponent(creatorData.name)}; path=/; max-age=${maxAge}; SameSite=Lax`;
           document.cookie = `creatorEmail=${encodeURIComponent(creatorData.email)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+
+          // Store in IndexedDB for iOS PWA persistence (most reliable on iOS)
+          try {
+            await storeCreatorSession({
+              token: creatorData.token,
+              creatorId: creatorData.creatorId,
+              name: creatorData.name,
+              email: creatorData.email,
+            });
+          } catch (err) {
+            console.warn("Failed to store creator session in IndexedDB:", err);
+          }
 
           // Redirect to creator dashboard
           router.push("/creator/dashboard");

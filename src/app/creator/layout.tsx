@@ -31,6 +31,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCreatorSession, clearCreatorSession } from "@/lib/remember-token";
 
 interface NavItem {
   href: string;
@@ -64,75 +65,119 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       return match ? decodeURIComponent(match[2]) : null;
     };
 
-    // Try localStorage first, fall back to cookies (for iOS PWA persistence)
-    let token = localStorage.getItem("creatorToken");
-    let creatorId = localStorage.getItem("creatorId");
-    let creatorName = localStorage.getItem("creatorName");
-    let creatorEmail = localStorage.getItem("creatorEmail");
-    let creatorAvatar = localStorage.getItem("creatorAvatar");
+    // Async function to check all storage mechanisms
+    const checkAuth = async () => {
+      // Try localStorage first, fall back to cookies, then IndexedDB (for iOS PWA persistence)
+      let token = localStorage.getItem("creatorToken");
+      let creatorId = localStorage.getItem("creatorId");
+      let creatorName = localStorage.getItem("creatorName");
+      let creatorEmail = localStorage.getItem("creatorEmail");
+      let creatorAvatar = localStorage.getItem("creatorAvatar");
 
-    // If localStorage is empty but cookies exist, restore from cookies
-    if (!token && getCookie("creatorToken")) {
-      token = getCookie("creatorToken");
-      creatorId = getCookie("creatorId");
-      creatorName = getCookie("creatorName");
-      creatorEmail = getCookie("creatorEmail");
+      // If localStorage is empty but cookies exist, restore from cookies
+      if (!token && getCookie("creatorToken")) {
+        console.log("[CreatorLayout] Restoring from cookies");
+        token = getCookie("creatorToken");
+        creatorId = getCookie("creatorId");
+        creatorName = getCookie("creatorName");
+        creatorEmail = getCookie("creatorEmail");
 
-      // Restore to localStorage for faster access
-      if (token) localStorage.setItem("creatorToken", token);
-      if (creatorId) localStorage.setItem("creatorId", creatorId);
-      if (creatorName) localStorage.setItem("creatorName", creatorName);
-      if (creatorEmail) localStorage.setItem("creatorEmail", creatorEmail);
-    }
+        // Restore to localStorage for faster access
+        if (token) localStorage.setItem("creatorToken", token);
+        if (creatorId) localStorage.setItem("creatorId", creatorId);
+        if (creatorName) localStorage.setItem("creatorName", creatorName);
+        if (creatorEmail) localStorage.setItem("creatorEmail", creatorEmail);
+      }
 
-    if (!token || !creatorId) {
-      router.push("/login");
-      return;
-    }
+      // If still no token, try IndexedDB (most reliable on iOS PWA)
+      if (!token) {
+        console.log("[CreatorLayout] Checking IndexedDB for creator session");
+        try {
+          const storedSession = await getCreatorSession();
+          if (storedSession) {
+            console.log("[CreatorLayout] Found session in IndexedDB");
+            token = storedSession.token;
+            creatorId = storedSession.creatorId;
+            creatorName = storedSession.name;
+            creatorEmail = storedSession.email;
+            creatorAvatar = storedSession.avatar || null;
 
-    // Fetch fresh profile data to get latest avatar
-    // Using IIFE to handle async fetch properly
-    (async () => {
+            // Restore to localStorage
+            localStorage.setItem("creatorToken", token);
+            localStorage.setItem("creatorId", creatorId);
+            localStorage.setItem("creatorName", creatorName);
+            localStorage.setItem("creatorEmail", creatorEmail);
+            if (creatorAvatar) localStorage.setItem("creatorAvatar", creatorAvatar);
+
+            // Also restore cookies
+            const maxAge = 30 * 24 * 60 * 60;
+            document.cookie = `creatorToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+            document.cookie = `creatorId=${creatorId}; path=/; max-age=${maxAge}; SameSite=Lax`;
+            document.cookie = `creatorName=${encodeURIComponent(creatorName)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+            document.cookie = `creatorEmail=${encodeURIComponent(creatorEmail)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          }
+        } catch (error) {
+          console.error("[CreatorLayout] IndexedDB error:", error);
+        }
+      }
+
+      if (!token || !creatorId) {
+        console.log("[CreatorLayout] No valid session found, redirecting to login");
+        router.push("/login");
+        return;
+      }
+
+      return { token, creatorId, creatorName, creatorEmail, creatorAvatar };
+    };
+
+    checkAuth().then((authData) => {
+      if (!authData) return;
+
+      const { token, creatorId, creatorName, creatorEmail, creatorAvatar } = authData;
+
       // Set initial state from localStorage first
       const initialCreator = {
-        id: creatorId,
+        id: creatorId!,
         name: creatorName || "Creator",
         email: creatorEmail || "",
         avatar: creatorAvatar || undefined,
       };
 
-      try {
-        const response = await fetch("/api/portal/profile", {
-          headers: {
-            "x-creator-token": token,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          // Update localStorage with fresh data
-          if (data.name) localStorage.setItem("creatorName", data.name);
-          if (data.avatar) {
-            localStorage.setItem("creatorAvatar", data.avatar);
-          } else {
-            localStorage.removeItem("creatorAvatar");
-          }
-          // Update state with fresh data including avatar
-          setCreator({
-            id: creatorId,
-            name: data.name || creatorName || "Creator",
-            email: data.email || creatorEmail || "",
-            avatar: data.avatar || undefined,
+      // Fetch fresh profile data to get latest avatar
+      (async () => {
+        try {
+          const response = await fetch("/api/portal/profile", {
+            headers: {
+              "x-creator-token": token!,
+            },
           });
-        } else {
-          // If fetch fails, use localStorage data
+          if (response.ok) {
+            const data = await response.json();
+            // Update localStorage with fresh data
+            if (data.name) localStorage.setItem("creatorName", data.name);
+            if (data.avatar) {
+              localStorage.setItem("creatorAvatar", data.avatar);
+            } else {
+              localStorage.removeItem("creatorAvatar");
+            }
+            // Update state with fresh data including avatar
+            setCreator({
+              id: creatorId!,
+              name: data.name || creatorName || "Creator",
+              email: data.email || creatorEmail || "",
+              avatar: data.avatar || undefined,
+            });
+          } else {
+            // If fetch fails, use localStorage data
+            setCreator(initialCreator);
+          }
+        } catch (error) {
+          console.error("Error fetching creator profile:", error);
+          // Use localStorage data on error
           setCreator(initialCreator);
         }
-      } catch (error) {
-        console.error("Error fetching creator profile:", error);
-        // Use localStorage data on error
-        setCreator(initialCreator);
-      }
-    })();
+      })();
+    });
   }, [router]);
 
   const handleLogout = async () => {
@@ -152,19 +197,27 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Clear IndexedDB (most important for iOS PWA)
+    try {
+      await clearCreatorSession();
+    } catch (error) {
+      console.error("Error clearing IndexedDB:", error);
+    }
+
     // Clear local storage
     localStorage.removeItem("creatorToken");
     localStorage.removeItem("creatorId");
     localStorage.removeItem("creatorName");
     localStorage.removeItem("creatorEmail");
     localStorage.removeItem("creatorAvatar");
+    localStorage.removeItem("creatorOnboardingComplete");
 
     // Clear cookies too
     document.cookie = "creatorToken=; path=/; max-age=0";
     document.cookie = "creatorId=; path=/; max-age=0";
     document.cookie = "creatorName=; path=/; max-age=0";
     document.cookie = "creatorEmail=; path=/; max-age=0";
-    localStorage.removeItem("creatorOnboardingComplete");
+
     router.push("/login");
   };
 
