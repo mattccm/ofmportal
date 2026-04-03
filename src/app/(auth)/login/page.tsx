@@ -194,6 +194,7 @@ function LoginForm() {
           document.cookie = `creatorEmail=${encodeURIComponent(creatorData.email)}; path=/; max-age=${maxAge}; SameSite=Lax`;
 
           // Store in IndexedDB for iOS PWA persistence (most reliable on iOS)
+          let indexedDBSuccess = false;
           try {
             await storeCreatorSession({
               token: creatorData.token,
@@ -201,8 +202,32 @@ function LoginForm() {
               name: creatorData.name,
               email: creatorData.email,
             });
+            indexedDBSuccess = true;
           } catch (err) {
             console.warn("Failed to store creator session in IndexedDB:", err);
+          }
+
+          // Send debug log to server
+          try {
+            await fetch("/api/debug/session-log", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                deviceId: localStorage.getItem("debug-device-id") || "unknown",
+                event: "creator-login",
+                data: {
+                  email: creatorData.email,
+                  creatorId: creatorData.creatorId,
+                  indexedDBSuccess,
+                  localStorageSet: true,
+                  cookiesSet: true,
+                  isPWA: isIOSPWA(),
+                  timestamp: new Date().toISOString(),
+                },
+              }),
+            });
+          } catch (e) {
+            // Ignore debug log failures
           }
 
           // Redirect to creator dashboard

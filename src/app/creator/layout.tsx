@@ -68,6 +68,39 @@ function isStandaloneMode(): boolean {
   return false;
 }
 
+/**
+ * Get or create a unique device ID for tracking
+ */
+function getDeviceId(): string {
+  if (typeof localStorage === "undefined") return "server";
+  let deviceId = localStorage.getItem("debug-device-id");
+  if (!deviceId) {
+    deviceId = "device-" + Math.random().toString(36).substring(2, 10);
+    localStorage.setItem("debug-device-id", deviceId);
+  }
+  return deviceId;
+}
+
+/**
+ * Send diagnostic log to server
+ */
+async function sendDebugLog(event: string, data: Record<string, unknown>) {
+  try {
+    await fetch("/api/debug/session-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        deviceId: getDeviceId(),
+        event,
+        data,
+      }),
+    });
+  } catch (e) {
+    // Silently fail - don't break the app for debug logging
+    console.error("[DebugLog] Failed to send:", e);
+  }
+}
+
 function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -112,10 +145,14 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
       // Log specific values
       const diagnosticData = {
+        source,
+        localStorageKeys: allKeys,
         creatorToken: localStorage.getItem("creatorToken") ? "EXISTS (" + localStorage.getItem("creatorToken")?.substring(0, 20) + "...)" : "NULL",
         creatorId: localStorage.getItem("creatorId"),
         creatorName: localStorage.getItem("creatorName"),
+        creatorEmail: localStorage.getItem("creatorEmail"),
         themePreference: localStorage.getItem("theme-preference"),
+        signedOutFlag: hasSignedOutFlag(),
       };
       console.log(`[CreatorLayout] Diagnostic localStorage values:`, JSON.stringify(diagnosticData));
 
@@ -123,6 +160,18 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       const hasLocalToken = !!localStorage.getItem("creatorToken");
       const hasCookieToken = !!getCookie("creatorToken");
       const isPWA = isStandaloneMode();
+
+      // Send diagnostic log to server
+      const fullDiagnostics = {
+        ...diagnosticData,
+        hasIndicatorCookie: hasIndicator,
+        hasLocalStorageToken: hasLocalToken,
+        hasCookieToken: hasCookieToken,
+        isPWA: isPWA,
+        url: typeof window !== "undefined" ? window.location.href : "unknown",
+        timestamp: new Date().toISOString(),
+      };
+      sendDebugLog(source, fullDiagnostics);
 
       console.log(`[CreatorLayout] Session state - indicator: ${hasIndicator}, localStorage: ${hasLocalToken}, cookie: ${hasCookieToken}, PWA: ${isPWA}`);
 
@@ -158,6 +207,16 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
         try {
           const storedSession = await getCreatorSession();
           console.log("[CreatorLayout] IndexedDB result:", storedSession ? "FOUND" : "NOT FOUND");
+
+          // Send IndexedDB result to server
+          sendDebugLog("indexeddb-check", {
+            source,
+            found: !!storedSession,
+            email: storedSession?.email || null,
+            creatorId: storedSession?.creatorId || null,
+            storedAt: storedSession?.storedAt || null,
+          });
+
           if (storedSession) {
             console.log("[CreatorLayout] Found session in IndexedDB, restoring to all storage...");
             token = storedSession.token;
@@ -190,14 +249,17 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
             });
 
             console.log("[CreatorLayout] Session fully restored from IndexedDB");
+            sendDebugLog("session-restored", { source, email: creatorEmail, creatorId });
           }
         } catch (error) {
           console.error("[CreatorLayout] IndexedDB error:", error);
+          sendDebugLog("indexeddb-error", { source, error: String(error) });
         }
       }
 
       if (!token || !creatorId) {
         console.log(`[CreatorLayout] No valid session found (${source})`);
+        sendDebugLog("no-session", { source, redirectingToLogin: true });
         return null;
       }
 
