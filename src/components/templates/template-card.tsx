@@ -62,6 +62,16 @@ interface TemplateCardProps {
   onFavoriteToggle?: (isFavorited: boolean) => void;
 }
 
+// Helper function to strip HTML tags and truncate text
+function stripHtmlAndTruncate(html: string | null | undefined, maxLength: number = 80): string {
+  if (!html) return "";
+  // Remove HTML tags
+  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  // Truncate if too long
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).trim() + "...";
+}
+
 // ============================================
 // TEMPLATE CARD COMPONENT
 // ============================================
@@ -141,7 +151,7 @@ export function TemplateCard({
               >
                 <FileText className="h-5 w-5" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <CardTitle className="text-base truncate">
                   <Link
                     href={`/dashboard/templates/${id}/edit`}
@@ -151,8 +161,8 @@ export function TemplateCard({
                   </Link>
                 </CardTitle>
                 {description && (
-                  <CardDescription className="truncate">
-                    {description}
+                  <CardDescription className="line-clamp-1 text-xs">
+                    {stripHtmlAndTruncate(description, 60)}
                   </CardDescription>
                 )}
               </div>

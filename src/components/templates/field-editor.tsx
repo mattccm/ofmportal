@@ -543,8 +543,12 @@ export function RichContentEditor({ richContent, onChange, title, description }:
   const [expanded, setExpanded] = React.useState(false);
   const [uploadingImage, setUploadingImage] = React.useState(false);
   const [uploadingVideo, setUploadingVideo] = React.useState(false);
+  const [isDraggingImage, setIsDraggingImage] = React.useState(false);
+  const [isDraggingVideo, setIsDraggingVideo] = React.useState(false);
   const imageInputRef = React.useRef<HTMLInputElement>(null);
   const videoInputRef = React.useRef<HTMLInputElement>(null);
+  const imageDragCounter = React.useRef(0);
+  const videoDragCounter = React.useRef(0);
 
   const updateRichContent = (updates: Partial<NonNullable<TemplateField["richContent"]>>) => {
     onChange({
@@ -708,6 +712,177 @@ export function RichContentEditor({ richContent, onChange, title, description }:
     }
   };
 
+  // Helper function to handle files for drag and drop
+  const handleImageFiles = async (files: FileList | File[]) => {
+    setUploadingImage(true);
+    const newImages: { url: string; caption: string }[] = [];
+
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) {
+          toast.error(`${file.name} is not an image`);
+          continue;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} is too large (max 5MB)`);
+          continue;
+        }
+
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const response = await fetch("/api/templates/upload-example", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file: base64,
+            fileName: file.name,
+            fileType: file.type,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Upload failed");
+        }
+
+        const result = await response.json();
+        newImages.push({ url: result.url, caption: file.name.replace(/\.[^/.]+$/, "") });
+      }
+
+      if (newImages.length > 0) {
+        const existingImages = richContent?.exampleImages || [];
+        updateRichContent({
+          exampleImages: [...existingImages, ...newImages],
+        });
+        toast.success(`${newImages.length} example image(s) added`);
+      }
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to upload images");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Drag and drop handlers for images
+  const handleImageDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    imageDragCounter.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingImage(true);
+    }
+  };
+
+  const handleImageDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    imageDragCounter.current--;
+    if (imageDragCounter.current === 0) {
+      setIsDraggingImage(false);
+    }
+  };
+
+  const handleImageDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleImageDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(false);
+    imageDragCounter.current = 0;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await handleImageFiles(files);
+    }
+  };
+
+  // Drag and drop handlers for video
+  const handleVideoDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    videoDragCounter.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingVideo(true);
+    }
+  };
+
+  const handleVideoDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    videoDragCounter.current--;
+    if (videoDragCounter.current === 0) {
+      setIsDraggingVideo(false);
+    }
+  };
+
+  const handleVideoDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleVideoDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingVideo(false);
+    videoDragCounter.current = 0;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (!file.type.startsWith("video/")) {
+        toast.error("Please drop a video file");
+        return;
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error("Video is too large (max 50MB)");
+        return;
+      }
+
+      setUploadingVideo(true);
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const response = await fetch("/api/templates/upload-example", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file: base64,
+            fileName: file.name,
+            fileType: file.type,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Upload failed");
+        }
+
+        const result = await response.json();
+        updateRichContent({ exampleVideoUrl: result.url });
+        toast.success("Example video added");
+      } catch (error) {
+        console.error("Error uploading video:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to upload video");
+      } finally {
+        setUploadingVideo(false);
+      }
+    }
+  };
+
   const hasContent = richContent?.exampleImageUrl || richContent?.exampleVideoUrl ||
     (richContent?.exampleImages && richContent.exampleImages.length > 0) ||
     (richContent?.referenceLinks && richContent.referenceLinks.length > 0);
@@ -770,52 +945,92 @@ export function RichContentEditor({ richContent, onChange, title, description }:
 
             {/* Example images grid */}
             {richContent?.exampleImages && richContent.exampleImages.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {richContent.exampleImages.map((img, index) => (
-                  <div key={index} className="relative group">
-                    <div className="aspect-square rounded-lg border bg-muted overflow-hidden">
-                      {img.url ? (
-                        <img
-                          src={img.url}
-                          alt={img.caption || `Example ${index + 1}`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
-                        </div>
-                      )}
+              <div
+                className={cn(
+                  "p-3 rounded-lg transition-colors",
+                  isDraggingImage ? "bg-primary/10 ring-2 ring-primary ring-dashed" : ""
+                )}
+                onDragEnter={handleImageDragEnter}
+                onDragLeave={handleImageDragLeave}
+                onDragOver={handleImageDragOver}
+                onDrop={handleImageDrop}
+              >
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {richContent.exampleImages.map((img, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square rounded-lg border bg-muted overflow-hidden">
+                        {img.url ? (
+                          <img
+                            src={img.url}
+                            alt={img.caption || `Example ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeExampleImage(index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                      <Input
+                        value={img.caption || ""}
+                        onChange={(e) => updateExampleImage(index, { caption: e.target.value })}
+                        placeholder="Caption"
+                        className="mt-1 h-7 text-xs"
+                      />
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute -top-2 -right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => removeExampleImage(index)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                    <Input
-                      value={img.caption || ""}
-                      onChange={(e) => updateExampleImage(index, { caption: e.target.value })}
-                      placeholder="Caption"
-                      className="mt-1 h-7 text-xs"
-                    />
+                  ))}
+                </div>
+                {isDraggingImage && (
+                  <div className="mt-3 p-3 border-2 border-dashed border-primary rounded-lg text-center">
+                    <Upload className="h-6 w-6 mx-auto text-primary mb-1" />
+                    <p className="text-sm text-primary font-medium">Drop to add more images</p>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
             {(!richContent?.exampleImages || richContent.exampleImages.length === 0) && (
               <div
-                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+                  isDraggingImage
+                    ? "border-primary bg-primary/10"
+                    : "hover:bg-muted/50"
+                )}
                 onClick={() => imageInputRef.current?.click()}
+                onDragEnter={handleImageDragEnter}
+                onDragLeave={handleImageDragLeave}
+                onDragOver={handleImageDragOver}
+                onDrop={handleImageDrop}
               >
-                <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">Click to upload example images</p>
-                <p className="text-xs text-muted-foreground mt-1">You can select multiple images at once</p>
+                {uploadingImage ? (
+                  <>
+                    <Loader2 className="h-8 w-8 mx-auto text-primary mb-2 animate-spin" />
+                    <p className="text-sm text-muted-foreground">Uploading...</p>
+                  </>
+                ) : isDraggingImage ? (
+                  <>
+                    <Upload className="h-8 w-8 mx-auto text-primary mb-2" />
+                    <p className="text-sm text-primary font-medium">Drop images here</p>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">Drag & drop images here or click to upload</p>
+                    <p className="text-xs text-muted-foreground mt-1">You can select multiple images at once</p>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -857,16 +1072,35 @@ export function RichContentEditor({ richContent, onChange, title, description }:
               </div>
             ) : (
               <div
-                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+                  isDraggingVideo
+                    ? "border-primary bg-primary/10"
+                    : "hover:bg-muted/50"
+                )}
                 onClick={() => videoInputRef.current?.click()}
+                onDragEnter={handleVideoDragEnter}
+                onDragLeave={handleVideoDragLeave}
+                onDragOver={handleVideoDragOver}
+                onDrop={handleVideoDrop}
               >
                 {uploadingVideo ? (
-                  <Loader2 className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2 animate-spin" />
+                  <>
+                    <Loader2 className="h-8 w-8 mx-auto text-primary mb-2 animate-spin" />
+                    <p className="text-sm text-muted-foreground">Uploading...</p>
+                  </>
+                ) : isDraggingVideo ? (
+                  <>
+                    <Upload className="h-8 w-8 mx-auto text-primary mb-2" />
+                    <p className="text-sm text-primary font-medium">Drop video here</p>
+                  </>
                 ) : (
-                  <Video className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                  <>
+                    <Video className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">Drag & drop video here or click to upload</p>
+                    <p className="text-xs text-muted-foreground mt-1">Max 50MB - MP4, WebM, MOV</p>
+                  </>
                 )}
-                <p className="text-sm text-muted-foreground">Click to upload example video</p>
-                <p className="text-xs text-muted-foreground mt-1">Max 50MB - MP4, WebM, MOV</p>
               </div>
             )}
             <input

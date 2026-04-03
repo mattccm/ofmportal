@@ -11,6 +11,8 @@ import {
   Filter,
   SortAsc,
   Sparkles,
+  Tag,
+  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,15 +150,23 @@ export default async function TemplatesPage() {
             Create and manage reusable templates for content requests
           </p>
         </div>
-        <Button
-          asChild
-          className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
-        >
-          <Link href="/dashboard/templates/new">
-            <Plus className="h-4 w-4 mr-2" />
-            New Template
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/dashboard/settings/template-categories">
+              <Tag className="h-4 w-4 mr-2" />
+              Manage Categories
+            </Link>
+          </Button>
+          <Button
+            asChild
+            className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+          >
+            <Link href="/dashboard/templates/new">
+              <Plus className="h-4 w-4 mr-2" />
+              New Template
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
