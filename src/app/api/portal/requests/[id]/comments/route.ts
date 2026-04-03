@@ -41,7 +41,7 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            image: true,
+            avatar: true,
           },
         },
       },
@@ -57,7 +57,7 @@ export async function GET(
       user: comment.user
         ? {
             name: comment.user.name,
-            image: comment.user.image,
+            image: comment.user.avatar,
           }
         : undefined,
     }));

@@ -85,6 +85,7 @@ interface CommentItem {
   user: {
     id: string;
     name: string | null;
+    avatar?: string | null;
   };
   [key: string]: unknown;
 }

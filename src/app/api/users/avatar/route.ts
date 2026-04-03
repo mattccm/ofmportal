@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
     // Get current user to check for existing avatar
     const currentUser = await db.user.findUnique({
       where: { id: session.user.id },
-      select: { image: true },
+      select: { avatar: true },
     });
 
     // Try to upload to S3 first
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
       buffer,
       mimeType,
       session.user.id,
-      currentUser?.image || null
+      currentUser?.avatar || null
     );
 
     // If S3 fails or is not configured, store base64 directly in DB
@@ -233,10 +233,10 @@ export async function POST(request: NextRequest) {
       avatarUrl = image; // Store the original base64 data URL
     }
 
-    // Update user record
+    // Update user record - use 'avatar' field (not 'image' which is for OAuth)
     await db.user.update({
       where: { id: session.user.id },
-      data: { image: avatarUrl },
+      data: { avatar: avatarUrl },
     });
 
     return NextResponse.json({
@@ -267,10 +267,10 @@ export async function DELETE() {
     // Get current user
     const currentUser = await db.user.findUnique({
       where: { id: session.user.id },
-      select: { image: true },
+      select: { avatar: true },
     });
 
-    if (!currentUser?.image) {
+    if (!currentUser?.avatar) {
       return NextResponse.json({
         success: true,
         message: "No avatar to delete",
@@ -278,8 +278,8 @@ export async function DELETE() {
     }
 
     // Delete from S3/R2 if it's our avatar (not a base64 URL)
-    if (s3Client && !currentUser.image.startsWith("data:")) {
-      const key = extractKeyFromUrl(currentUser.image);
+    if (s3Client && !currentUser.avatar.startsWith("data:")) {
+      const key = extractKeyFromUrl(currentUser.avatar);
       if (key && key.startsWith(AVATAR_PREFIX)) {
         try {
           await s3Client.send(
@@ -295,10 +295,10 @@ export async function DELETE() {
       }
     }
 
-    // Update user record to remove avatar
+    // Update user record to remove avatar - use 'avatar' field (not 'image' which is for OAuth)
     await db.user.update({
       where: { id: session.user.id },
-      data: { image: null },
+      data: { avatar: null },
     });
 
     return NextResponse.json({

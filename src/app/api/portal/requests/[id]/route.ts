@@ -116,7 +116,7 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            image: true,
+            avatar: true,
             email: true,
           },
         },
@@ -149,7 +149,7 @@ export async function GET(
         user: isCreatorComment
           ? { name: creatorInfo?.name || creator.name }
           : comment.user
-            ? { name: comment.user.name, image: comment.user.image }
+            ? { name: comment.user.name, image: comment.user.avatar }
             : undefined,
       };
     });

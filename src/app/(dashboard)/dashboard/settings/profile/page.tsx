@@ -62,7 +62,7 @@ interface ProfileData {
   email: string;
   name: string;
   phone: string | null;
-  image: string | null;
+  avatar: string | null;
   bio: string | null;
   timezone: string;
   preferredLanguage: string;
@@ -387,7 +387,7 @@ export default function ProfileSettingsPage() {
             <div className="-mt-12 flex flex-col items-center text-center">
               <AvatarUpload
                 user={profile}
-                currentAvatarUrl={profile?.image}
+                currentAvatarUrl={profile?.avatar}
                 onUpload={handleAvatarUpload}
                 onRemove={handleAvatarRemove}
                 size="3xl"

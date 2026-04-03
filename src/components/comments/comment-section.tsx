@@ -25,7 +25,7 @@ interface Comment {
     id: string;
     name: string | null;
     email?: string;
-    image?: string | null;
+    avatar?: string | null;
   };
   mentions?: string[];
 }
@@ -248,7 +248,7 @@ function CommentItem({ comment, currentUserId }: CommentItemProps) {
         user={{
           name: comment.user.name,
           email: comment.user.email,
-          image: comment.user.image,
+          image: comment.user.avatar,
         }}
         size="sm"
       />

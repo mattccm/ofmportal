@@ -35,7 +35,7 @@ export async function GET(
     // Get the mentioned by user details
     const mentionedBy = await db.user.findUnique({
       where: { id: mention.mentionedById },
-      select: { id: true, name: true, email: true, image: true },
+      select: { id: true, name: true, email: true, avatar: true },
     });
 
     return NextResponse.json({

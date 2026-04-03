@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         email: true,
-        image: true,
+        avatar: true,
         role: true,
       },
       take: limit,
@@ -78,11 +78,11 @@ export async function GET(request: NextRequest) {
 
     // Transform to suggestion format and sort
     const suggestions: MentionSuggestion[] = users
-      .map((user: { id: string; name: string; email: string; image: string | null; role: string }) => ({
+      .map((user: { id: string; name: string; email: string; avatar: string | null; role: string }) => ({
         id: user.id,
         name: user.name || user.email.split("@")[0],
         email: user.email,
-        avatar: user.image,
+        avatar: user.avatar,
         role: user.role || undefined,
         isOnline: false, // Could be determined by presence system
       }))

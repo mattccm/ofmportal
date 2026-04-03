@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const mentionedByIds = [...new Set(mentions.map((m) => m.mentionedById))];
     const users = await db.user.findMany({
       where: { id: { in: mentionedByIds } },
-      select: { id: true, name: true, email: true, image: true },
+      select: { id: true, name: true, email: true, avatar: true },
     });
     const usersMap = new Map(users.map((u) => [u.id, u]));
 

@@ -68,7 +68,8 @@ export const authOptions: NextAuthOptions = {
             id: true,
             email: true,
             name: true,
-            image: true,
+            avatar: true, // Primary avatar field (uploaded by user)
+            image: true,  // OAuth/legacy avatar field
             role: true,
             password: true,
             twoFactorEnabled: true,
@@ -129,7 +130,8 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
-          image: user.image,
+          // Prefer avatar field (uploaded by user), fall back to image (OAuth)
+          image: user.avatar || user.image,
           role: user.role,
           agencyId: user.agencyId,
           agencyName: user.agency?.name || "",
