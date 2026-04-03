@@ -575,6 +575,9 @@ model Upload {
   creatorId String
   creator   Creator        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
+  // Field association (for per-field uploads)
+  fieldId String? // Template field ID this upload belongs to
+
   // File info
   fileName     String
   originalName String
@@ -620,10 +623,12 @@ model Upload {
   @@index([uploadStatus])
   @@index([uploadedAt])
   @@index([createdAt])
+  @@index([fieldId])
   // Composite indexes for common query patterns
   @@index([requestId, status])
   @@index([creatorId, uploadedAt])
   @@index([requestId, uploadStatus, status])
+  @@index([requestId, fieldId])
 }
 
 enum UploadStatus {

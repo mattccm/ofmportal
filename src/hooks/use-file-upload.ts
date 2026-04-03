@@ -21,6 +21,7 @@ export interface QueuedFile {
   speed?: number; // bytes per second
   timeRemaining?: number; // seconds
   retryCount: number;
+  fieldId?: string; // Template field ID for per-field uploads
 }
 
 export interface UseFileUploadOptions {
@@ -35,7 +36,7 @@ export interface UseFileUploadOptions {
 
 export interface UseFileUploadReturn {
   queue: QueuedFile[];
-  addFiles: (files: FileList | File[]) => void;
+  addFiles: (files: FileList | File[], fieldId?: string) => void;
   removeFile: (fileId: string) => void;
   pauseFile: (fileId: string) => void;
   resumeFile: (fileId: string) => void;
@@ -83,7 +84,7 @@ export function useFileUpload({
   }, []);
 
   // Add files to upload queue
-  const addFiles = useCallback((files: FileList | File[]) => {
+  const addFiles = useCallback((files: FileList | File[], fieldId?: string) => {
     const fileArray = Array.from(files);
     const newQueueItems: QueuedFile[] = [];
 
@@ -100,6 +101,7 @@ export function useFileUpload({
         progress: 0,
         status: "pending",
         retryCount: 0,
+        fieldId,
       });
     }
 
@@ -125,6 +127,9 @@ export function useFileUpload({
     const formData = new FormData();
     formData.append("file", queuedFile.file);
     formData.append("requestId", requestId);
+    if (queuedFile.fieldId) {
+      formData.append("fieldId", queuedFile.fieldId);
+    }
 
     const xhr = new XMLHttpRequest();
 
@@ -212,6 +217,7 @@ export function useFileUpload({
           fileName: queuedFile.file.name,
           fileType: queuedFile.file.type,
           fileSize: queuedFile.file.size,
+          fieldId: queuedFile.fieldId,
         }),
       });
 

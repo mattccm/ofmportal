@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/components/theme/theme-provider";
 import { useUnreadMentions } from "@/hooks/use-mentions";
+import { useCreatorMessagesCount } from "@/hooks/use-creator-messages";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -50,6 +51,7 @@ const navigation = [
   { name: "Uploads", href: "/dashboard/uploads", icon: Upload },
   { name: "Templates", href: "/dashboard/templates", icon: LayoutTemplate },
   { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
+  { name: "Creator Messages", href: "/dashboard/creator-messages", icon: MessageSquare, showBadge: true },
 ];
 
 const toolsNavigation = [
@@ -69,9 +71,11 @@ const adminNavigation = [
 const NavItem = React.memo(function NavItem({
   item,
   isActive,
+  badge,
 }: {
-  item: { name: string; href: string; icon: React.ElementType };
+  item: { name: string; href: string; icon: React.ElementType; showBadge?: boolean };
   isActive: boolean;
+  badge?: number;
 }) {
   return (
     <Link
@@ -94,7 +98,12 @@ const NavItem = React.memo(function NavItem({
         <item.icon className="h-[18px] w-[18px]" />
       </div>
       <span className="flex-1">{item.name}</span>
-      {isActive && (
+      {badge !== undefined && badge > 0 && (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+      {isActive && !badge && (
         <ChevronRight className="h-4 w-4 text-sidebar-foreground/40" />
       )}
     </Link>
@@ -106,6 +115,7 @@ function SidebarComponent() {
   const user = useUser();
   const { openSearch } = useSearch();
   const { theme, setTheme, mounted } = useTheme();
+  const { count: creatorMessagesCount } = useCreatorMessagesCount();
 
   const isAdmin = user?.role === "OWNER" || user?.role === "ADMIN";
 
@@ -178,6 +188,7 @@ function SidebarComponent() {
             key={item.name}
             item={item}
             isActive={activeStates[item.href]}
+            badge={item.showBadge ? creatorMessagesCount : undefined}
           />
         ))}
 

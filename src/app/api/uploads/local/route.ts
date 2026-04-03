@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const requestId = formData.get("requestId") as string | null;
+    const fieldId = formData.get("fieldId") as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
         uploadStatus: "COMPLETED",
         uploadProgress: 100,
         uploadedAt: new Date(),
+        fieldId: fieldId || null,
       },
     });
 

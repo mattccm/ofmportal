@@ -694,16 +694,24 @@ function NewRequestForm() {
           fetch("/api/creators/groups"),
         ]);
 
+        // Parse creators
         if (creatorsRes.ok) {
           const creatorsData = await creatorsRes.json();
           // Handle both paginated response and raw array
-          setCreators(Array.isArray(creatorsData) ? creatorsData : creatorsData.data || []);
+          const parsedCreators = Array.isArray(creatorsData) ? creatorsData : creatorsData.data || [];
+          setCreators(parsedCreators);
+          console.log("[NewRequest] Loaded creators:", parsedCreators.length);
+        } else {
+          console.error("[NewRequest] Failed to load creators:", creatorsRes.status);
         }
+
+        // Parse templates
         if (templatesRes.ok) {
           const templatesRaw = await templatesRes.json();
           // Handle both paginated response and raw array
           const templatesData = Array.isArray(templatesRaw) ? templatesRaw : templatesRaw.data || [];
           setTemplates(templatesData);
+          console.log("[NewRequest] Loaded templates:", templatesData.length);
 
           if (preselectedTemplateId) {
             const template = templatesData.find((t: Template) => t.id === preselectedTemplateId);
@@ -711,17 +719,25 @@ function NewRequestForm() {
               applyTemplate(template);
             }
           }
+        } else {
+          console.error("[NewRequest] Failed to load templates:", templatesRes.status);
         }
+
+        // Parse groups
         if (groupsRes.ok) {
           const groupsData = await groupsRes.json();
           // Handle both paginated response and raw array
-          setGroups(Array.isArray(groupsData) ? groupsData : groupsData.data || []);
+          const parsedGroups = Array.isArray(groupsData) ? groupsData : groupsData.data || [];
+          setGroups(parsedGroups);
+          console.log("[NewRequest] Loaded groups:", parsedGroups.length);
+        } else {
+          console.error("[NewRequest] Failed to load groups:", groupsRes.status);
         }
 
         setRecentTemplateIds(getRecentTemplates());
         setFavoriteTemplateIds(getFavoriteTemplates());
       } catch (error) {
-        console.error("Failed to load data:", error);
+        console.error("[NewRequest] Failed to load data:", error);
         toast.error("Failed to load data. Please refresh the page.");
       } finally {
         setLoadingData(false);

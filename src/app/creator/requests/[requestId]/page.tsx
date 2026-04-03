@@ -7,6 +7,7 @@ import { UploadedFilesGrid } from "@/components/portal/upload-zone";
 import { FileDropzone } from "@/components/uploads/file-dropzone";
 import { UploadQueue } from "@/components/uploads/upload-queue";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
+import { PerFieldUpload } from "@/components/portal/per-field-upload";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { useBranding } from "@/components/providers/branding-provider";
 import type { TemplateField } from "@/lib/template-types";
@@ -44,6 +45,12 @@ interface RequestField {
   value: string;
   type: string;
   richContent?: TemplateField["richContent"];
+  required?: boolean;
+  acceptedFileTypes?: string[];
+  maxFiles?: number;
+  minFiles?: number;
+  maxFileSize?: number;
+  helpText?: string;
 }
 
 interface Request {
@@ -65,6 +72,7 @@ interface UploadFile {
   status: string;
   uploadStatus: string;
   thumbnailUrl?: string;
+  fieldId?: string | null;
 }
 
 interface Comment {
@@ -146,6 +154,7 @@ export default function CreatorRequestDetailPage({
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingFieldId, setPendingFieldId] = useState<string | undefined>(undefined);
   const [duplicateProcessing, setDuplicateProcessing] = useState(false);
   const [duplicateAlertResult, setDuplicateAlertResult] = useState<{ result: DuplicateCheckResult; fileName: string } | null>(null);
 
@@ -250,30 +259,33 @@ export default function CreatorRequestDetailPage({
   const handleDuplicateReplace = async () => {
     if (pendingFiles.length === 0) return;
     setDuplicateProcessing(true);
-    addFiles(pendingFiles);
+    addFiles(pendingFiles, pendingFieldId);
     setDuplicateProcessing(false);
     setDuplicateDialogOpen(false);
     setPendingFiles([]);
+    setPendingFieldId(undefined);
     setDuplicateResult(null);
   };
 
   const handleDuplicateKeepBoth = async () => {
     if (pendingFiles.length === 0) return;
     setDuplicateProcessing(true);
-    addFiles(pendingFiles);
+    addFiles(pendingFiles, pendingFieldId);
     setDuplicateProcessing(false);
     setDuplicateDialogOpen(false);
     setPendingFiles([]);
+    setPendingFieldId(undefined);
     setDuplicateResult(null);
   };
 
   const handleDuplicateCancel = () => {
     setDuplicateDialogOpen(false);
     setPendingFiles([]);
+    setPendingFieldId(undefined);
     setDuplicateResult(null);
   };
 
-  const handleFilesSelected = async (files: FileList | File[]) => {
+  const handleFilesSelected = async (files: FileList | File[], fieldId?: string) => {
     const fileArray = Array.from(files);
 
     if (fileArray.length > 0) {
@@ -281,6 +293,7 @@ export default function CreatorRequestDetailPage({
 
       if (duplicateCheck && duplicateCheck.isDuplicate && duplicateCheck.highestConfidence >= 0.7) {
         setPendingFiles(fileArray);
+        setPendingFieldId(fieldId);
         setDuplicateResult(duplicateCheck);
         setDuplicateDialogOpen(true);
         return;
@@ -293,7 +306,7 @@ export default function CreatorRequestDetailPage({
       }
     }
 
-    addFiles(fileArray);
+    addFiles(fileArray, fieldId);
   };
 
   const handleSubmit = async () => {
@@ -574,18 +587,22 @@ export default function CreatorRequestDetailPage({
       )}
 
       {/* Upload Section */}
-      {canUpload && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+      {canUpload && (() => {
+        // Get file fields from request
+        const fileFields = request.fields?.filter(f => f.type === "file") || [];
+        const hasFileFields = fileFields.length > 0;
+
+        return hasFileFields ? (
+          // Per-field upload UI
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
               <Upload className="h-5 w-5" style={{ color: branding.primaryColor }} />
-              Upload Content
-            </CardTitle>
-            <CardDescription>
-              Drag and drop files or tap to select. We support images, videos, and audio up to 5GB.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+              <h2 className="text-lg font-semibold">Upload Content</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Upload files for each required field below. Drag and drop or tap to select files.
+            </p>
+
             {duplicateAlertResult && (
               <DuplicateAlert
                 result={duplicateAlertResult.result}
@@ -594,34 +611,84 @@ export default function CreatorRequestDetailPage({
               />
             )}
 
-            <FileDropzone
+            <PerFieldUpload
+              fields={fileFields.map(f => ({
+                id: f.id || `field-${f.label}`,
+                label: f.label,
+                type: "file" as const,
+                required: f.required,
+                acceptedFileTypes: f.acceptedFileTypes,
+                maxFiles: f.maxFiles,
+                minFiles: f.minFiles,
+                maxFileSize: f.maxFileSize,
+                helpText: f.helpText,
+                richContent: f.richContent,
+              }))}
+              uploads={uploads}
+              queue={uploadQueue}
               onFilesSelected={handleFilesSelected}
-              fullPageDrop={true}
-              showPasteButton={true}
+              onPause={pauseFile}
+              onResume={resumeFile}
+              onRetry={retryFile}
+              onCancel={cancelFile}
+              onRemove={removeFile}
+              onClearCompleted={clearCompleted}
+              onPauseAll={pauseAll}
+              onResumeAll={resumeAll}
+              isUploading={isUploading}
+              primaryColor={branding.primaryColor}
             />
+          </div>
+        ) : (
+          // Standard single upload UI
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Upload className="h-5 w-5" style={{ color: branding.primaryColor }} />
+                Upload Content
+              </CardTitle>
+              <CardDescription>
+                Drag and drop files or tap to select. We support images, videos, and audio up to 5GB.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {duplicateAlertResult && (
+                <DuplicateAlert
+                  result={duplicateAlertResult.result}
+                  fileName={duplicateAlertResult.fileName}
+                  onDismiss={() => setDuplicateAlertResult(null)}
+                />
+              )}
 
-            {uploadQueue.length > 0 && (
-              <UploadQueue
-                queue={uploadQueue}
-                onPause={pauseFile}
-                onResume={resumeFile}
-                onRetry={retryFile}
-                onCancel={cancelFile}
-                onRemove={removeFile}
-                onClearCompleted={clearCompleted}
-                onPauseAll={pauseAll}
-                onResumeAll={resumeAll}
-                totalProgress={totalProgress}
-                totalSize={totalSize}
-                uploadedSize={uploadedSize}
-                isUploading={isUploading}
-                collapsible={true}
-                maxVisibleItems={5}
+              <FileDropzone
+                onFilesSelected={handleFilesSelected}
+                fullPageDrop={true}
+                showPasteButton={true}
               />
-            )}
-          </CardContent>
-        </Card>
-      )}
+
+              {uploadQueue.length > 0 && (
+                <UploadQueue
+                  queue={uploadQueue}
+                  onPause={pauseFile}
+                  onResume={resumeFile}
+                  onRetry={retryFile}
+                  onCancel={cancelFile}
+                  onRemove={removeFile}
+                  onClearCompleted={clearCompleted}
+                  onPauseAll={pauseAll}
+                  onResumeAll={resumeAll}
+                  totalProgress={totalProgress}
+                  totalSize={totalSize}
+                  uploadedSize={uploadedSize}
+                  isUploading={isUploading}
+                  collapsible={true}
+                  maxVisibleItems={5}
+                />
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Duplicate Warning Dialog */}
       {duplicateResult && pendingFiles.length > 0 && (

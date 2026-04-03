@@ -16,6 +16,7 @@ const presignRequestSchema = z.object({
   fileName: z.string().min(1, "File name is required"),
   fileType: z.string().min(1, "File type is required"),
   fileSize: z.number().min(1, "File size is required"),
+  fieldId: z.string().optional(), // Template field ID for per-field uploads
 });
 
 export async function POST(req: NextRequest) {
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
           fileSize: BigInt(validatedData.fileSize),
           storageKey: key,
           uploadStatus: "PENDING",
+          fieldId: validatedData.fieldId || null,
         },
       });
 
@@ -187,6 +189,7 @@ export async function POST(req: NextRequest) {
           fileSize: BigInt(validatedData.fileSize),
           storageKey: key,
           uploadStatus: "PENDING",
+          fieldId: validatedData.fieldId || null,
         },
       });
 
