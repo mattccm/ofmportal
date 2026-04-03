@@ -51,6 +51,7 @@ import {
   SelectOption,
   ValidationRule,
   ConditionalVisibility,
+  RichContent,
   FIELD_TYPE_CONFIG,
 } from "@/lib/template-types";
 
@@ -531,12 +532,14 @@ function OptionsEditor({ options, onChange }: OptionsEditorProps) {
 // RICH CONTENT EDITOR
 // ============================================
 
-interface RichContentEditorProps {
-  richContent?: TemplateField["richContent"];
-  onChange: (richContent: TemplateField["richContent"]) => void;
+export interface RichContentEditorProps {
+  richContent?: RichContent;
+  onChange: (richContent: RichContent | undefined) => void;
+  title?: string; // Optional custom title
+  description?: string; // Optional custom description
 }
 
-function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
+export function RichContentEditor({ richContent, onChange, title, description }: RichContentEditorProps) {
   const [expanded, setExpanded] = React.useState(false);
   const [uploadingImage, setUploadingImage] = React.useState(false);
   const [uploadingVideo, setUploadingVideo] = React.useState(false);
@@ -600,7 +603,7 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
           continue;
         }
 
-        // Convert to base64
+        // Convert to base64 for upload
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -608,7 +611,24 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
           reader.readAsDataURL(file);
         });
 
-        newImages.push({ url: base64, caption: file.name.replace(/\.[^/.]+$/, "") });
+        // Upload to S3/R2 storage instead of storing base64 directly
+        const response = await fetch("/api/templates/upload-example", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file: base64,
+            fileName: file.name,
+            fileType: file.type,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Upload failed");
+        }
+
+        const result = await response.json();
+        newImages.push({ url: result.url, caption: file.name.replace(/\.[^/.]+$/, "") });
       }
 
       if (newImages.length > 0) {
@@ -621,7 +641,7 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
       }
     } catch (error) {
       console.error("Error uploading images:", error);
-      toast.error("Failed to upload images");
+      toast.error(error instanceof Error ? error.message : "Failed to upload images");
     } finally {
       setUploadingImage(false);
       if (imageInputRef.current) {
@@ -650,7 +670,7 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
 
     setUploadingVideo(true);
     try {
-      // Convert to base64
+      // Convert to base64 for upload
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -658,11 +678,28 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
         reader.readAsDataURL(file);
       });
 
-      updateRichContent({ exampleVideoUrl: base64 });
+      // Upload to S3/R2 storage instead of storing base64 directly
+      const response = await fetch("/api/templates/upload-example", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file: base64,
+          fileName: file.name,
+          fileType: file.type,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
+
+      const result = await response.json();
+      updateRichContent({ exampleVideoUrl: result.url });
       toast.success("Example video added");
     } catch (error) {
       console.error("Error uploading video:", error);
-      toast.error("Failed to upload video");
+      toast.error(error instanceof Error ? error.message : "Failed to upload video");
     } finally {
       setUploadingVideo(false);
       if (videoInputRef.current) {
@@ -680,7 +717,7 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
     <div className="space-y-3 p-4 rounded-lg bg-muted/50">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">Rich Content & Examples</Label>
+          <Label className="text-sm font-medium">{title || "Rich Content & Examples"}</Label>
           {hasContent && (
             <Badge variant="secondary" className="text-xs">
               Configured
@@ -699,7 +736,7 @@ function RichContentEditor({ richContent, onChange }: RichContentEditorProps) {
 
       {!expanded && !hasContent && (
         <p className="text-xs text-muted-foreground">
-          Add detailed instructions, examples, or reference content to help creators understand exactly what you need.
+          {description || "Add detailed instructions, examples, or reference content to help creators understand exactly what you need."}
         </p>
       )}
 

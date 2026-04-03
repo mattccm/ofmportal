@@ -4,10 +4,45 @@ import bcrypt from "bcryptjs";
 import { db } from "./db";
 import * as OTPAuth from "otpauth";
 
+// Cookie configuration for iOS Safari PWA support
+const useSecureCookies = process.env.NODE_ENV === "production";
+const cookiePrefix = useSecureCookies ? "__Secure-" : "";
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  // Explicit cookie configuration for iOS Safari PWA persistence
+  cookies: {
+    sessionToken: {
+      name: `${cookiePrefix}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax", // "lax" works better for PWAs than "strict"
+        path: "/",
+        secure: useSecureCookies,
+        maxAge: 30 * 24 * 60 * 60, // 30 days - match session maxAge
+      },
+    },
+    callbackUrl: {
+      name: `${cookiePrefix}next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
+    csrfToken: {
+      name: `${cookiePrefix}next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
   },
   pages: {
     signIn: "/login",

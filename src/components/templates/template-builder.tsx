@@ -62,6 +62,7 @@ import {
   TemplateField,
   FieldType,
   TemplateFormData,
+  RichContent,
   validateTemplateFields,
   createEmptyField,
   duplicateField,
@@ -69,7 +70,7 @@ import {
   isFieldVisible,
   ValidationError,
 } from "@/lib/template-types";
-import { FieldEditor, FieldTypePalette } from "./field-editor";
+import { FieldEditor, FieldTypePalette, RichContentEditor } from "./field-editor";
 import { toast } from "sonner";
 import { useAutosave } from "@/hooks/use-autosave";
 import { AutosaveStatusBadge } from "@/components/forms/autosave-indicator";
@@ -274,6 +275,9 @@ export function TemplateBuilder({
   const [description, setDescription] = React.useState(
     initialData?.description || ""
   );
+  const [richContent, setRichContent] = React.useState<RichContent | undefined>(
+    initialData?.richContent
+  );
   const [fields, setFields] = React.useState<TemplateField[]>(
     initialData?.fields || []
   );
@@ -312,12 +316,13 @@ export function TemplateBuilder({
     () => ({
       name,
       description,
+      richContent,
       fields,
       defaultDueDays,
       defaultUrgency,
       isActive,
     }),
-    [name, description, fields, defaultDueDays, defaultUrgency, isActive]
+    [name, description, richContent, fields, defaultDueDays, defaultUrgency, isActive]
   );
 
   // Initialize autosave
@@ -337,6 +342,7 @@ export function TemplateBuilder({
     if (recovered) {
       setName(recovered.name || "");
       setDescription(recovered.description || "");
+      setRichContent(recovered.richContent);
       setFields(recovered.fields || []);
       setDefaultDueDays(recovered.defaultDueDays || 7);
       setDefaultUrgency(recovered.defaultUrgency || "NORMAL");
@@ -373,6 +379,7 @@ export function TemplateBuilder({
       const hasFormChanges =
         name !== initialData.name ||
         description !== (initialData.description || "") ||
+        JSON.stringify(richContent) !== JSON.stringify(initialData.richContent) ||
         defaultDueDays !== initialData.defaultDueDays ||
         defaultUrgency !== initialData.defaultUrgency ||
         isActive !== initialData.isActive ||
@@ -381,7 +388,7 @@ export function TemplateBuilder({
     } else {
       setHasChanges(name !== "" || fields.length > 0);
     }
-  }, [name, description, fields, defaultDueDays, defaultUrgency, isActive, initialData]);
+  }, [name, description, richContent, fields, defaultDueDays, defaultUrgency, isActive, initialData]);
 
   // Save to history
   const saveToHistory = (newFields: TemplateField[]) => {
@@ -475,6 +482,7 @@ export function TemplateBuilder({
         {
           name,
           description,
+          richContent,
           fields,
           defaultDueDays,
           defaultUrgency,
@@ -513,6 +521,7 @@ export function TemplateBuilder({
         fieldLabels={{
           name: "Template Name",
           description: "Description",
+          richContent: "Examples & Reference Materials",
           fields: "Fields",
           defaultDueDays: "Default Due Days",
           defaultUrgency: "Default Urgency",
@@ -641,6 +650,15 @@ export function TemplateBuilder({
                 These instructions will be shown to creators at the top of the request form
               </p>
             </div>
+
+            {/* Template-Level Rich Content & Examples */}
+            <RichContentEditor
+              richContent={richContent}
+              onChange={setRichContent}
+              title="Template Examples & Reference Materials"
+              description="Add example images, videos, and reference links that apply to the entire request - not specific to any individual field."
+            />
+
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>Default Due Days</Label>

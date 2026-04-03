@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Download,
   Repeat,
+  Sun,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { MobileSheet } from "@/components/ui/mobile-sheet";
@@ -73,6 +74,7 @@ const moreMenuItems = [
 
 const adminItems = [
   { name: "Team", href: "/dashboard/team", icon: UserCog },
+  { name: "Appearance", href: "/dashboard/settings/appearance", icon: Sun },
   { name: "Settings", href: "/dashboard/settings/profile", icon: Settings },
 ];
 

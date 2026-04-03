@@ -20,6 +20,17 @@ export interface SelectOption {
   value: string;
 }
 
+// Rich content for template instructions/examples (shared between Template and TemplateField)
+export interface RichContent {
+  description?: string; // Detailed description/instructions (supports markdown)
+  exampleText?: string; // Text example of what's expected
+  exampleImages?: { url: string; caption?: string }[]; // Multiple example images with optional captions
+  exampleVideoUrl?: string; // URL to example video (YouTube, Vimeo, or direct)
+  referenceLinks?: { label: string; url: string }[]; // Reference links
+  // Legacy single image support (deprecated, use exampleImages array)
+  exampleImageUrl?: string;
+}
+
 export interface ValidationRule {
   type: "minLength" | "maxLength" | "min" | "max" | "pattern" | "required";
   value: string | number | boolean;
@@ -76,6 +87,7 @@ export interface Template {
   id: string;
   name: string;
   description?: string;
+  richContent?: RichContent; // Global rich content/examples for the entire template
   fields: TemplateField[];
   defaultDueDays: number;
   defaultUrgency: "LOW" | "NORMAL" | "HIGH" | "URGENT";
@@ -90,6 +102,7 @@ export interface Template {
 export interface TemplateFormData {
   name: string;
   description?: string;
+  richContent?: RichContent; // Global rich content/examples for the entire template
   fields: TemplateField[];
   defaultDueDays: number;
   defaultUrgency: "LOW" | "NORMAL" | "HIGH" | "URGENT";
@@ -564,6 +577,7 @@ export const FIELD_TYPE_CONFIG: Record<
 export function serializeTemplate(template: TemplateFormData): {
   name: string;
   description: string | null;
+  richContent: string | null; // JSON string
   fields: string; // JSON string
   defaultDueDays: number;
   defaultUrgency: string;
@@ -572,6 +586,7 @@ export function serializeTemplate(template: TemplateFormData): {
   return {
     name: template.name,
     description: template.description || null,
+    richContent: template.richContent ? JSON.stringify(template.richContent) : null,
     fields: JSON.stringify(template.fields),
     defaultDueDays: template.defaultDueDays,
     defaultUrgency: template.defaultUrgency,
@@ -583,6 +598,7 @@ export function deserializeTemplate(dbTemplate: {
   id: string;
   name: string;
   description: string | null;
+  richContent?: unknown;
   fields: unknown;
   defaultDueDays: number;
   defaultUrgency: string;
@@ -592,6 +608,7 @@ export function deserializeTemplate(dbTemplate: {
   _count?: { requests: number };
 }): Template {
   let fields: TemplateField[] = [];
+  let richContent: RichContent | undefined = undefined;
 
   try {
     if (typeof dbTemplate.fields === "string") {
@@ -603,10 +620,21 @@ export function deserializeTemplate(dbTemplate: {
     fields = [];
   }
 
+  try {
+    if (typeof dbTemplate.richContent === "string") {
+      richContent = JSON.parse(dbTemplate.richContent);
+    } else if (dbTemplate.richContent && typeof dbTemplate.richContent === "object") {
+      richContent = dbTemplate.richContent as RichContent;
+    }
+  } catch {
+    richContent = undefined;
+  }
+
   return {
     id: dbTemplate.id,
     name: dbTemplate.name,
     description: dbTemplate.description || undefined,
+    richContent,
     fields,
     defaultDueDays: dbTemplate.defaultDueDays,
     defaultUrgency: dbTemplate.defaultUrgency as Template["defaultUrgency"],

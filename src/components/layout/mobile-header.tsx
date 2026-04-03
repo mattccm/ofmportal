@@ -4,33 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useUser } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   ArrowLeft,
   Bell,
-  Settings,
-  Shield,
-  LogOut,
-  User,
-  Moon,
-  Sun,
-  Monitor,
   Search,
 } from "lucide-react";
-import { generateInitials } from "@/lib/avatar";
-import { signOut } from "next-auth/react";
 import { useSearch } from "@/components/search";
-import { useTheme } from "@/components/theme/theme-provider";
 import { MentionsBell } from "@/components/mentions";
 
 interface MobileHeaderProps {
@@ -77,9 +58,7 @@ export function MobileHeader({
 }: MobileHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const user = useUser();
   const { openSearch } = useSearch();
-  const { theme, setTheme, mounted } = useTheme();
   const [notificationCount] = useState(3); // Example notification count
 
   // Determine title from pathname if not provided
@@ -158,7 +137,7 @@ export function MobileHeader({
           </h1>
         </div>
 
-        {/* Right: Notifications & Profile */}
+        {/* Right: Quick actions only - Settings/Profile available via bottom nav "More" */}
         <div className="flex items-center gap-1 min-w-[80px] justify-end">
           {rightContent ? (
             rightContent
@@ -195,128 +174,6 @@ export function MobileHeader({
                   )}
                 </Button>
               </Link>
-
-              {/* User Profile Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 rounded-xl p-0 touch-manipulation active:scale-95 transition-transform"
-                  >
-                    <Avatar className="h-8 w-8 ring-2 ring-border">
-                      {user?.image && (
-                        <AvatarImage src={user.image} alt={user?.name || "User"} />
-                      )}
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-xs">
-                        {generateInitials(user?.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-64 p-2"
-                  sideOffset={8}
-                >
-                  {/* User Info */}
-                  <div className="px-3 py-3 rounded-xl bg-muted/50 mb-2">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-                        {user?.image && (
-                          <AvatarImage src={user.image} alt={user?.name || "User"} />
-                        )}
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-sm">
-                          {generateInitials(user?.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">
-                          {user?.name || "User"}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {user?.email || ""}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <DropdownMenuItem asChild className="py-3 rounded-xl">
-                    <Link href="/dashboard/settings/profile">
-                      <User className="mr-3 h-4 w-4" />
-                      View Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="py-3 rounded-xl">
-                    <Link href="/dashboard/settings">
-                      <Settings className="mr-3 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="py-3 rounded-xl">
-                    <Link href="/dashboard/settings/security">
-                      <Shield className="mr-3 h-4 w-4" />
-                      Security
-                    </Link>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator className="my-2" />
-
-                  {/* Theme Selection */}
-                  {mounted && (
-                    <div className="px-2 py-2">
-                      <p className="px-2 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Theme
-                      </p>
-                      <div className="grid grid-cols-3 gap-1">
-                        <button
-                          onClick={() => setTheme("light")}
-                          className={`flex flex-col items-center gap-1.5 rounded-lg py-2 px-2 text-xs transition-all ${
-                            theme === "light"
-                              ? "bg-primary/10 text-primary border border-primary/20"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          <Sun className="h-4 w-4" />
-                          <span>Light</span>
-                        </button>
-                        <button
-                          onClick={() => setTheme("dark")}
-                          className={`flex flex-col items-center gap-1.5 rounded-lg py-2 px-2 text-xs transition-all ${
-                            theme === "dark"
-                              ? "bg-primary/10 text-primary border border-primary/20"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          <Moon className="h-4 w-4" />
-                          <span>Dark</span>
-                        </button>
-                        <button
-                          onClick={() => setTheme("system")}
-                          className={`flex flex-col items-center gap-1.5 rounded-lg py-2 px-2 text-xs transition-all ${
-                            theme === "system"
-                              ? "bg-primary/10 text-primary border border-primary/20"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          <Monitor className="h-4 w-4" />
-                          <span>System</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <DropdownMenuSeparator className="my-2" />
-
-                  <DropdownMenuItem
-                    onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="py-3 rounded-xl text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
-                  >
-                    <LogOut className="mr-3 h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </>
           )}
         </div>

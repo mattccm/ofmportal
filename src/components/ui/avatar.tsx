@@ -119,6 +119,10 @@ function Avatar({
   // Get gradient style for fallback
   const gradientStyle = getAvatarGradientStyle(displayName)
 
+  // Check if children contains custom AvatarImage or AvatarFallback components
+  // If children are provided, don't render the automatic fallback to avoid duplicates
+  const hasChildren = React.Children.count(children) > 0
+
   return (
     <div className="relative inline-flex">
       <AvatarPrimitive.Root
@@ -132,22 +136,29 @@ function Avatar({
         )}
         {...props}
       >
-        {imageSrc ? (
-          <AvatarPrimitive.Image
-            data-slot="avatar-image"
-            src={imageSrc}
-            alt={displayName}
-            className="aspect-square size-full rounded-full object-cover"
-          />
-        ) : null}
-        <AvatarPrimitive.Fallback
-          data-slot="avatar-fallback"
-          className="flex size-full items-center justify-center rounded-full font-medium text-white"
-          style={gradientStyle}
-        >
-          {initials}
-        </AvatarPrimitive.Fallback>
-        {children}
+        {hasChildren ? (
+          // Render children directly (custom AvatarImage/AvatarFallback)
+          children
+        ) : (
+          // Use automatic image and fallback
+          <>
+            {imageSrc ? (
+              <AvatarPrimitive.Image
+                data-slot="avatar-image"
+                src={imageSrc}
+                alt={displayName}
+                className="aspect-square size-full rounded-full object-cover"
+              />
+            ) : null}
+            <AvatarPrimitive.Fallback
+              data-slot="avatar-fallback"
+              className="flex size-full items-center justify-center rounded-full font-medium text-white"
+              style={gradientStyle}
+            >
+              {initials}
+            </AvatarPrimitive.Fallback>
+          </>
+        )}
       </AvatarPrimitive.Root>
       {showStatus && (
         <span

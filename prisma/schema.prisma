@@ -337,6 +337,9 @@ model RequestTemplate {
   name        String
   description String?
 
+  // Rich content for the entire template (instructions, examples, reference materials)
+  richContent Json? // { description, exampleText, exampleImages, exampleVideoUrl, referenceLinks }
+
   // Template fields configuration
   fields Json @default("[]") // Array of field definitions
 
