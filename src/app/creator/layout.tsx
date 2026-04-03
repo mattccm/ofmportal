@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Toaster } from "sonner";
@@ -31,7 +31,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCreatorSession, clearCreatorSession, hasCreatorSessionIndicator, setSignedOutFlag } from "@/lib/remember-token";
+import { getCreatorSession, clearCreatorSession, hasCreatorSessionIndicator, setSignedOutFlag, hasSignedOutFlag, storeCreatorSession } from "@/lib/remember-token";
 
 interface NavItem {
   href: string;
@@ -46,11 +46,34 @@ const navItems: NavItem[] = [
   { href: "/creator/messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" /> },
 ];
 
+/**
+ * Check if we're in any standalone/PWA mode
+ */
+function isStandaloneMode(): boolean {
+  if (typeof window === "undefined") return false;
+
+  // Check iOS standalone
+  if (
+    "standalone" in window.navigator &&
+    (window.navigator as { standalone?: boolean }).standalone === true
+  ) {
+    return true;
+  }
+
+  // Check display-mode media query (works on all platforms)
+  if (window.matchMedia("(display-mode: standalone)").matches) {
+    return true;
+  }
+
+  return false;
+}
+
 function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { branding, agencyName } = useBranding();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const sessionCheckInProgress = useRef(false);
   const [creator, setCreator] = useState<{
     id: string;
     name: string;
@@ -58,23 +81,39 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
     avatar?: string;
   } | null>(null);
 
-  useEffect(() => {
-    // Helper to get cookie value
-    const getCookie = (name: string): string | null => {
-      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-      return match ? decodeURIComponent(match[2]) : null;
-    };
+  // Helper to get cookie value
+  const getCookie = useCallback((name: string): string | null => {
+    if (typeof document === "undefined") return null;
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : null;
+  }, []);
 
-    // Async function to check all storage mechanisms
-    const checkAuth = async () => {
-      // Quick check: if no indicator cookie and no localStorage, likely no session at all
+  // Core function to check and restore session from all storage mechanisms
+  const checkAndRestoreSession = useCallback(async (source: string): Promise<{ token: string; creatorId: string; creatorName: string | null; creatorEmail: string | null; creatorAvatar: string | null } | null> => {
+    // Prevent concurrent checks
+    if (sessionCheckInProgress.current) {
+      console.log(`[CreatorLayout] Session check already in progress, skipping (${source})`);
+      return null;
+    }
+
+    // Check if user intentionally signed out
+    if (hasSignedOutFlag()) {
+      console.log(`[CreatorLayout] User signed out intentionally, skipping session check (${source})`);
+      return null;
+    }
+
+    sessionCheckInProgress.current = true;
+    console.log(`[CreatorLayout] Starting session check (${source})`);
+
+    try {
       const hasIndicator = hasCreatorSessionIndicator();
       const hasLocalToken = !!localStorage.getItem("creatorToken");
       const hasCookieToken = !!getCookie("creatorToken");
+      const isPWA = isStandaloneMode();
 
-      console.log("[CreatorLayout] Session check - indicator:", hasIndicator, "localStorage:", hasLocalToken, "cookie:", hasCookieToken);
+      console.log(`[CreatorLayout] Session state - indicator: ${hasIndicator}, localStorage: ${hasLocalToken}, cookie: ${hasCookieToken}, PWA: ${isPWA}`);
 
-      // Try localStorage first, fall back to cookies, then IndexedDB (for iOS PWA persistence)
+      // Try localStorage first
       let token = localStorage.getItem("creatorToken");
       let creatorId = localStorage.getItem("creatorId");
       let creatorName = localStorage.getItem("creatorName");
@@ -97,13 +136,13 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       }
 
       // If still no token, try IndexedDB (most reliable on iOS PWA)
-      // Check if we have the indicator cookie OR if we're in PWA mode
-      if (!token && (hasIndicator || window.matchMedia("(display-mode: standalone)").matches)) {
+      // ALWAYS check IndexedDB if: we have indicator cookie, OR we're in PWA mode, OR it's a resume event
+      if (!token && (hasIndicator || isPWA || source === "pageshow" || source === "visibilitychange")) {
         console.log("[CreatorLayout] Checking IndexedDB for creator session");
         try {
           const storedSession = await getCreatorSession();
           if (storedSession) {
-            console.log("[CreatorLayout] Found session in IndexedDB, restoring...");
+            console.log("[CreatorLayout] Found session in IndexedDB, restoring to all storage...");
             token = storedSession.token;
             creatorId = storedSession.creatorId;
             creatorName = storedSession.name;
@@ -117,12 +156,23 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
             localStorage.setItem("creatorEmail", creatorEmail);
             if (creatorAvatar) localStorage.setItem("creatorAvatar", creatorAvatar);
 
-            // Also restore cookies
+            // Also restore cookies (30 days)
             const maxAge = 30 * 24 * 60 * 60;
             document.cookie = `creatorToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
             document.cookie = `creatorId=${creatorId}; path=/; max-age=${maxAge}; SameSite=Lax`;
             document.cookie = `creatorName=${encodeURIComponent(creatorName)}; path=/; max-age=${maxAge}; SameSite=Lax`;
             document.cookie = `creatorEmail=${encodeURIComponent(creatorEmail)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+
+            // Re-store in IndexedDB to refresh the indicator cookie
+            await storeCreatorSession({
+              token,
+              creatorId,
+              name: creatorName,
+              email: creatorEmail,
+              avatar: creatorAvatar || undefined,
+            });
+
+            console.log("[CreatorLayout] Session fully restored from IndexedDB");
           }
         } catch (error) {
           console.error("[CreatorLayout] IndexedDB error:", error);
@@ -130,16 +180,104 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       }
 
       if (!token || !creatorId) {
-        console.log("[CreatorLayout] No valid session found, redirecting to login");
-        router.push("/login");
-        return;
+        console.log(`[CreatorLayout] No valid session found (${source})`);
+        return null;
       }
 
       return { token, creatorId, creatorName, creatorEmail, creatorAvatar };
-    };
+    } finally {
+      sessionCheckInProgress.current = false;
+    }
+  }, [getCookie]);
 
-    checkAuth().then((authData) => {
-      if (!authData) return;
+  // Handle pageshow event - fires when PWA is resumed from background
+  const handlePageShow = useCallback(async (event: PageTransitionEvent) => {
+    console.log("[CreatorLayout] pageshow event, persisted:", event.persisted);
+
+    // event.persisted is true when page is restored from bfcache (back-forward cache)
+    if (event.persisted) {
+      // Check if localStorage was cleared but we have IndexedDB data
+      const hasLocalToken = !!localStorage.getItem("creatorToken");
+
+      if (!hasLocalToken) {
+        console.log("[CreatorLayout] No localStorage token on resume, checking IndexedDB...");
+        const authData = await checkAndRestoreSession("pageshow");
+
+        if (authData) {
+          // Session restored from IndexedDB, update UI
+          setCreator({
+            id: authData.creatorId,
+            name: authData.creatorName || "Creator",
+            email: authData.creatorEmail || "",
+            avatar: authData.creatorAvatar || undefined,
+          });
+        } else if (!hasSignedOutFlag()) {
+          // No session found and user didn't sign out - redirect to login
+          console.log("[CreatorLayout] Session lost on PWA resume, redirecting to login");
+          router.push("/login");
+        }
+      }
+    }
+  }, [checkAndRestoreSession, router]);
+
+  // Handle visibilitychange - fires when app comes to foreground
+  const handleVisibilityChange = useCallback(async () => {
+    if (document.visibilityState === "visible") {
+      console.log("[CreatorLayout] App became visible");
+
+      // Small delay to let iOS settle
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Check if session is still valid
+      const hasLocalToken = !!localStorage.getItem("creatorToken");
+
+      if (!hasLocalToken && !hasSignedOutFlag()) {
+        console.log("[CreatorLayout] No localStorage token on visibility change, checking IndexedDB...");
+        const authData = await checkAndRestoreSession("visibilitychange");
+
+        if (authData) {
+          // Session restored from IndexedDB, update UI
+          setCreator({
+            id: authData.creatorId,
+            name: authData.creatorName || "Creator",
+            email: authData.creatorEmail || "",
+            avatar: authData.creatorAvatar || undefined,
+          });
+        } else if (!hasSignedOutFlag()) {
+          // No session found and user didn't sign out - redirect to login
+          console.log("[CreatorLayout] Session lost after visibility change, redirecting to login");
+          router.push("/login");
+        }
+      }
+    }
+  }, [checkAndRestoreSession, router]);
+
+  // Set up PWA event listeners
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const isPWA = isStandaloneMode();
+    console.log("[CreatorLayout] Setting up PWA event listeners, isPWA:", isPWA);
+
+    // Always set up event listeners (they're cheap and help with debugging)
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [handlePageShow, handleVisibilityChange]);
+
+  // Initial auth check on mount
+  useEffect(() => {
+    checkAndRestoreSession("mount").then((authData) => {
+      if (!authData) {
+        if (!hasSignedOutFlag()) {
+          router.push("/login");
+        }
+        return;
+      }
 
       const { token, creatorId, creatorName, creatorEmail, creatorAvatar } = authData;
 
@@ -186,7 +324,7 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
         }
       })();
     });
-  }, [router]);
+  }, [checkAndRestoreSession, router]);
 
   const handleLogout = async () => {
     const token = localStorage.getItem("creatorToken");
