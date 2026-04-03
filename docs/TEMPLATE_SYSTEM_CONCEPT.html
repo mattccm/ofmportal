@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elite Template System - Concept Document</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwindcss.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f4ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .concept-section { scroll-margin-top: 2rem; }
+    .phone-frame {
+      width: 375px;
+      height: 812px;
+      border-radius: 40px;
+      border: 12px solid #1f2937;
+      overflow: hidden;
+      background: white;
+    }
+    .phone-notch {
+      width: 150px;
+      height: 30px;
+      background: #1f2937;
+      border-radius: 0 0 20px 20px;
+      margin: 0 auto;
+    }
+    .desktop-frame {
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      overflow: hidden;
+      background: white;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <!-- Navigation -->
+  <nav class="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4">
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold text-brand-600">Template System v2.0</h1>
+        <div class="flex gap-4 text-sm">
+          <a href="#overview" class="hover:text-brand-600">Overview</a>
+          <a href="#concept1" class="hover:text-brand-600">Concept 1</a>
+          <a href="#concept2" class="hover:text-brand-600">Concept 2</a>
+          <a href="#concept3" class="hover:text-brand-600">Concept 3</a>
+          <a href="#concept4" class="hover:text-brand-600">Concept 4</a>
+          <a href="#concept5" class="hover:text-brand-600">Concept 5</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="pt-20 pb-20">
+    <!-- Overview Section -->
+    <section id="overview" class="concept-section max-w-7xl mx-auto px-6 py-12">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold mb-4">Elite Template System</h2>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+          A complete redesign of the request template system - balancing powerful customization
+          for agencies with crystal-clear simplicity for creators.
+        </p>
+      </div>
+
+      <!-- Core Principles -->
+      <div class="grid md:grid-cols-3 gap-8 mb-16">
+        <div class="bg-white rounded-2xl p-8 shadow-sm border">
+          <div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold mb-2">Agency Power</h3>
+          <p class="text-gray-600 text-sm">Advanced field types, conditional logic, validation rules, AI-powered suggestions, and analytics - all while maintaining clean management UX.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-8 shadow-sm border">
+          <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold mb-2">Creator Clarity</h3>
+          <p class="text-gray-600 text-sm">Step-by-step guided experience, visual examples, progress tracking, and contextual help - creators always know exactly what's needed.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-8 shadow-sm border">
+          <div class="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold mb-2">Smart Defaults</h3>
+          <p class="text-gray-600 text-sm">Intelligent presets, template categories, field bundles, and learning from past requests to minimize setup time.</p>
+        </div>
+      </div>
+
+      <!-- Key Features Grid -->
+      <div class="bg-white rounded-2xl p-8 shadow-sm border mb-16">
+        <h3 class="text-xl font-semibold mb-6">New Feature Overview</h3>
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="space-y-2">
+            <h4 class="font-medium text-brand-600">Field Sections</h4>
+            <ul class="text-sm text-gray-600 space-y-1">
+              <li>• Group related fields</li>
+              <li>• Collapsible sections</li>
+              <li>• Section-level visibility</li>
+              <li>• Section descriptions</li>
+            </ul>
+          </div>
+          <div class="space-y-2">
+            <h4 class="font-medium text-brand-600">Enhanced Fields</h4>
+            <ul class="text-sm text-gray-600 space-y-1">
+              <li>• Quantity multipliers</li>
+              <li>• Rich text descriptions</li>
+              <li>• Example media (images/videos)</li>
+              <li>• Reference link collections</li>
+            </ul>
+          </div>
+          <div class="space-y-2">
+            <h4 class="font-medium text-brand-600">Smart Logic</h4>
+            <ul class="text-sm text-gray-600 space-y-1">
+              <li>• Multi-condition visibility</li>
+              <li>• Field value dependencies</li>
+              <li>• Auto-calculations</li>
+              <li>• Validation chains</li>
+            </ul>
+          </div>
+          <div class="space-y-2">
+            <h4 class="font-medium text-brand-600">Creator UX</h4>
+            <ul class="text-sm text-gray-600 space-y-1">
+              <li>• Progress wizard</li>
+              <li>• Inline examples</li>
+              <li>• Quick upload zones</li>
+              <li>• Mobile-first design</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONCEPT 1: Template Builder Desktop -->
+    <section id="concept1" class="concept-section bg-white py-16">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="mb-8">
+          <span class="text-sm font-medium text-brand-600 bg-brand-50 px-3 py-1 rounded-full">Concept 1</span>
+          <h2 class="text-3xl font-bold mt-4 mb-2">Template Builder - Desktop View</h2>
+          <p class="text-gray-600">The agency-side template creation experience with advanced customization.</p>
+        </div>
+
+        <!-- Desktop Frame -->
+        <div class="desktop-frame shadow-xl">
+          <!-- Header -->
+          <div class="bg-gray-900 text-white px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <button class="p-2 hover:bg-gray-800 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+              </button>
+              <div>
+                <input type="text" value="Product Photography Bundle" class="bg-transparent text-xl font-semibold border-none focus:outline-none focus:ring-2 focus:ring-brand-500 rounded px-2 py-1 -ml-2">
+                <p class="text-gray-400 text-sm">Template • 8 fields • Last edited 2 min ago</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button class="px-4 py-2 text-sm hover:bg-gray-800 rounded-lg flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                Preview
+              </button>
+              <button class="px-4 py-2 text-sm bg-brand-600 hover:bg-brand-700 rounded-lg font-medium">
+                Save Template
+              </button>
+            </div>
+          </div>
+
+          <!-- Main Content -->
+          <div class="flex h-[700px]">
+            <!-- Left Sidebar - Field Types -->
+            <div class="w-64 bg-gray-50 border-r p-4 overflow-y-auto">
+              <div class="mb-6">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Add Fields</h3>
+                <div class="grid grid-cols-2 gap-2">
+                  <button class="p-3 bg-white border rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-center">
+                    <div class="w-8 h-8 mx-auto mb-1 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                      </svg>
+                    </div>
+                    <span class="text-xs font-medium">Text</span>
+                  </button>
+                  <button class="p-3 bg-white border rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-center">
+                    <div class="w-8 h-8 mx-auto mb-1 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                      </svg>
+                    </div>
+                    <span class="text-xs font-medium">Long Text</span>
+                  </button>
+                  <button class="p-3 bg-white border rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-center">
+                    <div class="w-8 h-8 mx-auto mb-1 bg-amber-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                    </div>
+                    <span class="text-xs font-medium">File Upload</span>
+                  </button>
+                  <button class="p-3 bg-white border rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-center">
+                    <div class="w-8 h-8 mx-auto mb-1 bg-green-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                      </svg>
+                    </div>
+                    <span class="text-xs font-medium">Number</span>
+                  </button>
+                  <button class="p-3 bg-white border rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-center">
+                    <div class="w-8 h-8 mx-auto mb-1 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </div>
+                    <span class="text-xs font-medium">Dropdown</span>
+                  </button>
+                  <button class="p-3 bg-white border rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-center">
+                    <div class="w-8 h-8 mx-auto mb-1 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                    </div>
+                    <span class="text-xs font-medium">Date</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mb-6">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Structure</h3>
+                <div class="space-y-2">
+                  <button class="w-full p-3 bg-white border rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-left flex items-center gap-3">
+                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <span class="text-sm font-medium">Section</span>
+                      <p class="text-xs text-gray-500">Group related fields</p>
+                    </div>
+                  </button>
+                  <button class="w-full p-3 bg-white border rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-left flex items-center gap-3">
+                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <span class="text-sm font-medium">Info Block</span>
+                      <p class="text-xs text-gray-500">Add instructions</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Presets</h3>
+                <div class="space-y-2">
+                  <button class="w-full p-3 bg-gradient-to-r from-brand-50 to-violet-50 border border-brand-200 rounded-xl hover:shadow-sm transition-all text-left">
+                    <span class="text-sm font-medium text-brand-700">Photo Bundle</span>
+                    <p class="text-xs text-brand-600">5x photos, specs, mood board</p>
+                  </button>
+                  <button class="w-full p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl hover:shadow-sm transition-all text-left">
+                    <span class="text-sm font-medium text-emerald-700">Video Package</span>
+                    <p class="text-xs text-emerald-600">Hook, story, UGC format</p>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Center - Field Canvas -->
+            <div class="flex-1 p-6 overflow-y-auto bg-gray-50/50">
+              <!-- Section: Product Details -->
+              <div class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center gap-3">
+                    <button class="p-1 hover:bg-gray-200 rounded">
+                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                      </svg>
+                    </button>
+                    <h3 class="font-semibold text-gray-700">Product Details</h3>
+                    <span class="text-xs text-gray-400">3 fields</span>
+                  </div>
+                  <button class="text-xs text-gray-500 hover:text-gray-700">Edit Section</button>
+                </div>
+
+                <!-- Field Cards -->
+                <div class="space-y-3">
+                  <!-- Field 1 -->
+                  <div class="bg-white rounded-xl border border-gray-200 p-4 hover:border-brand-300 hover:shadow-sm transition-all cursor-pointer group">
+                    <div class="flex items-start justify-between">
+                      <div class="flex items-start gap-3">
+                        <button class="p-1 hover:bg-gray-100 rounded cursor-grab">
+                          <svg class="w-4 h-4 text-gray-300 group-hover:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                          </svg>
+                        </button>
+                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                          </svg>
+                        </div>
+                        <div class="flex-1">
+                          <div class="flex items-center gap-2">
+                            <span class="font-medium">Product Name</span>
+                            <span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Required</span>
+                          </div>
+                          <p class="text-sm text-gray-500 mt-0.5">Short text • Max 100 chars</p>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button class="p-1.5 hover:bg-gray-100 rounded"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>
+                        <button class="p-1.5 hover:bg-red-50 rounded"><svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Field 2 - With Quantity -->
+                  <div class="bg-white rounded-xl border-2 border-brand-300 p-4 shadow-sm cursor-pointer">
+                    <div class="flex items-start justify-between">
+                      <div class="flex items-start gap-3">
+                        <button class="p-1 hover:bg-gray-100 rounded cursor-grab">
+                          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                          </svg>
+                        </button>
+                        <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                          </svg>
+                        </div>
+                        <div class="flex-1">
+                          <div class="flex items-center gap-2">
+                            <span class="text-brand-600 font-semibold">5x</span>
+                            <span class="font-medium">Product Photos</span>
+                            <span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Required</span>
+                            <span class="text-xs bg-brand-100 text-brand-600 px-1.5 py-0.5 rounded">Has Examples</span>
+                          </div>
+                          <p class="text-sm text-gray-500 mt-0.5">File upload • Images only • Max 50MB each</p>
+                        </div>
+                      </div>
+                      <button class="text-brand-600 text-sm font-medium">Edit</button>
+                    </div>
+
+                    <!-- Expanded Editor Preview -->
+                    <div class="mt-4 pt-4 border-t space-y-4">
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                          <input type="number" value="5" class="w-full border rounded-lg px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-700 mb-1">Unit Label</label>
+                          <input type="text" value="photos" placeholder="items, pieces, etc." class="w-full border rounded-lg px-3 py-2 text-sm">
+                        </div>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Rich Description (Markdown)</label>
+                        <textarea rows="3" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="**Requirements:**&#10;- White background&#10;- Product centered&#10;- Good lighting">**Requirements:**
+- White background
+- Product centered
+- Good lighting</textarea>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Example Images</label>
+                        <div class="flex gap-2">
+                          <div class="w-16 h-16 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                            <img src="https://placehold.co/64x64/e2e8f0/64748b?text=Ex1" class="rounded-lg">
+                          </div>
+                          <div class="w-16 h-16 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-brand-300">
+                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Field 3 -->
+                  <div class="bg-white rounded-xl border border-gray-200 p-4 hover:border-brand-300 hover:shadow-sm transition-all cursor-pointer group">
+                    <div class="flex items-start gap-3">
+                      <button class="p-1 hover:bg-gray-100 rounded cursor-grab">
+                        <svg class="w-4 h-4 text-gray-300 group-hover:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                        </svg>
+                      </button>
+                      <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                        </svg>
+                      </div>
+                      <div class="flex-1">
+                        <span class="font-medium">Product Description</span>
+                        <p class="text-sm text-gray-500 mt-0.5">Long text • For captions and copy</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section: Delivery Requirements -->
+              <div class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center gap-3">
+                    <button class="p-1 hover:bg-gray-200 rounded">
+                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </button>
+                    <h3 class="font-semibold text-gray-700">Delivery Requirements</h3>
+                    <span class="text-xs text-gray-400">2 fields</span>
+                  </div>
+                </div>
+
+                <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
+                  <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  <p class="text-gray-500 text-sm">Drag fields here or click to add</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Sidebar - Properties -->
+            <div class="w-80 border-l bg-white p-4 overflow-y-auto">
+              <div class="mb-6">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Template Settings</h3>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Default Due Days</label>
+                    <input type="number" value="7" class="w-full border rounded-lg px-3 py-2 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Default Urgency</label>
+                    <select class="w-full border rounded-lg px-3 py-2 text-sm">
+                      <option>Normal</option>
+                      <option>Low</option>
+                      <option>High</option>
+                      <option>Urgent</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select class="w-full border rounded-lg px-3 py-2 text-sm">
+                      <option>Product Photography</option>
+                      <option>Video Content</option>
+                      <option>Social Media</option>
+                      <option>Branding</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-6">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Template Description</h3>
+                <textarea rows="4" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Describe what this template is for...">Professional product photography package for e-commerce listings. Includes multiple angles and lifestyle shots.</textarea>
+              </div>
+
+              <div>
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Quick Actions</h3>
+                <div class="space-y-2">
+                  <button class="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg flex items-center gap-3 text-sm">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    Duplicate Template
+                  </button>
+                  <button class="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg flex items-center gap-3 text-sm">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                    Export as JSON
+                  </button>
+                  <button class="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg flex items-center gap-3 text-sm">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    View Analytics
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONCEPT 2: Template Builder Mobile -->
+    <section id="concept2" class="concept-section py-16">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="mb-8">
+          <span class="text-sm font-medium text-brand-600 bg-brand-50 px-3 py-1 rounded-full">Concept 2</span>
+          <h2 class="text-3xl font-bold mt-4 mb-2">Template Builder - Mobile View</h2>
+          <p class="text-gray-600">On-the-go template editing with touch-optimized interactions.</p>
+        </div>
+
+        <div class="flex justify-center">
+          <div class="phone-frame shadow-2xl">
+            <div class="phone-notch"></div>
+            <div class="h-full overflow-y-auto">
+              <!-- Header -->
+              <div class="sticky top-0 bg-white border-b px-4 py-3 z-10">
+                <div class="flex items-center justify-between">
+                  <button class="p-2 -ml-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                  </button>
+                  <h1 class="font-semibold">Edit Template</h1>
+                  <button class="text-brand-600 font-medium text-sm">Save</button>
+                </div>
+              </div>
+
+              <!-- Template Name -->
+              <div class="p-4 border-b bg-gray-50">
+                <input type="text" value="Product Photography" class="w-full text-lg font-semibold bg-transparent border-none focus:outline-none">
+                <p class="text-sm text-gray-500 mt-1">8 fields • Last edited 2 min ago</p>
+              </div>
+
+              <!-- Fields List -->
+              <div class="p-4 space-y-3">
+                <!-- Section Header -->
+                <div class="flex items-center justify-between py-2">
+                  <h3 class="font-medium text-gray-700">Product Details</h3>
+                  <button class="text-xs text-brand-600">+ Add Field</button>
+                </div>
+
+                <!-- Field Card 1 -->
+                <div class="bg-white rounded-xl border p-4 shadow-sm">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                      </svg>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-medium">Product Name</p>
+                      <p class="text-sm text-gray-500">Text • Required</p>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Field Card 2 - With Quantity Badge -->
+                <div class="bg-white rounded-xl border-2 border-brand-200 p-4 shadow-sm">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center relative">
+                      <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                      <span class="absolute -top-1 -right-1 w-5 h-5 bg-brand-600 text-white text-xs rounded-full flex items-center justify-center font-bold">5</span>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <p class="font-medium">Product Photos</p>
+                        <span class="text-xs bg-brand-100 text-brand-600 px-1.5 py-0.5 rounded">5x</span>
+                      </div>
+                      <p class="text-sm text-gray-500">Images • Required</p>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+
+                  <!-- Quick Tags -->
+                  <div class="flex gap-2 mt-3 pt-3 border-t">
+                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Has examples</span>
+                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Max 50MB</span>
+                  </div>
+                </div>
+
+                <!-- Field Card 3 -->
+                <div class="bg-white rounded-xl border p-4 shadow-sm">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                      </svg>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-medium">Description</p>
+                      <p class="text-sm text-gray-500">Long text</p>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Add Field Button -->
+                <button class="w-full py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 flex items-center justify-center gap-2 hover:border-brand-300 hover:text-brand-600 transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  Add Field
+                </button>
+              </div>
+
+              <!-- Bottom Action Bar -->
+              <div class="sticky bottom-0 bg-white border-t p-4 flex gap-3">
+                <button class="flex-1 py-3 border rounded-xl font-medium text-gray-700 flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  Preview
+                </button>
+                <button class="flex-1 py-3 bg-brand-600 text-white rounded-xl font-medium">
+                  Save Template
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONCEPT 3: Creator Request View Desktop -->
+    <section id="concept3" class="concept-section bg-white py-16">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="mb-8">
+          <span class="text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Concept 3</span>
+          <h2 class="text-3xl font-bold mt-4 mb-2">Creator Request View - Desktop</h2>
+          <p class="text-gray-600">The creator-facing experience with step-by-step guidance and visual examples.</p>
+        </div>
+
+        <div class="desktop-frame shadow-xl">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-6 py-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-4">
+                <button class="p-2 hover:bg-white/10 rounded-lg">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                  </svg>
+                </button>
+                <div>
+                  <p class="text-sm text-white/70">Request from Agency Name</p>
+                  <h1 class="text-xl font-semibold">Product Photography Bundle</h1>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="text-right">
+                  <p class="text-sm text-white/70">Due in</p>
+                  <p class="font-semibold">5 days</p>
+                </div>
+                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <span class="text-2xl font-bold">5</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="px-6 py-4 bg-gray-50 border-b">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium">Your Progress</span>
+              <span class="text-sm text-gray-500">2 of 4 sections complete</span>
+            </div>
+            <div class="flex gap-1">
+              <div class="h-2 flex-1 bg-emerald-500 rounded-full"></div>
+              <div class="h-2 flex-1 bg-emerald-500 rounded-full"></div>
+              <div class="h-2 flex-1 bg-gray-200 rounded-full"></div>
+              <div class="h-2 flex-1 bg-gray-200 rounded-full"></div>
+            </div>
+          </div>
+
+          <!-- Main Content -->
+          <div class="flex h-[600px]">
+            <!-- Left - Sections Navigation -->
+            <div class="w-64 bg-gray-50 border-r p-4">
+              <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Sections</h3>
+              <div class="space-y-2">
+                <button class="w-full text-left p-3 rounded-xl flex items-center gap-3 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <div class="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1">
+                    <p class="font-medium text-sm">Product Details</p>
+                    <p class="text-xs text-emerald-600">Complete</p>
+                  </div>
+                </button>
+                <button class="w-full text-left p-3 rounded-xl flex items-center gap-3 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <div class="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1">
+                    <p class="font-medium text-sm">Photo Upload</p>
+                    <p class="text-xs text-emerald-600">5/5 uploaded</p>
+                  </div>
+                </button>
+                <button class="w-full text-left p-3 rounded-xl flex items-center gap-3 bg-brand-50 text-brand-700 border-2 border-brand-300">
+                  <div class="w-6 h-6 bg-brand-500 rounded-full flex items-center justify-center text-white text-xs font-bold">3</div>
+                  <div class="flex-1">
+                    <p class="font-medium text-sm">Video Content</p>
+                    <p class="text-xs text-brand-600">In progress</p>
+                  </div>
+                </button>
+                <button class="w-full text-left p-3 rounded-xl flex items-center gap-3 hover:bg-gray-100">
+                  <div class="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-xs font-bold">4</div>
+                  <div class="flex-1">
+                    <p class="font-medium text-sm text-gray-500">Delivery Notes</p>
+                    <p class="text-xs text-gray-400">Not started</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Center - Active Section -->
+            <div class="flex-1 p-8 overflow-y-auto">
+              <div class="max-w-2xl mx-auto">
+                <!-- Section Header -->
+                <div class="mb-8">
+                  <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 class="text-2xl font-bold">Video Content</h2>
+                      <p class="text-gray-500">Upload your video files for this request</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Field with Examples -->
+                <div class="mb-8">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xl font-bold text-brand-600">3x</span>
+                      <h3 class="text-lg font-semibold">Product Videos</h3>
+                      <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Required</span>
+                    </div>
+                  </div>
+
+                  <!-- Instructions Callout -->
+                  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                    <div class="flex gap-3">
+                      <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      <div>
+                        <p class="font-medium text-amber-800 mb-1">What we need:</p>
+                        <ul class="text-sm text-amber-700 space-y-1">
+                          <li>• 15-30 second clips showing product in use</li>
+                          <li>• Natural lighting preferred</li>
+                          <li>• Portrait orientation (9:16) for social media</li>
+                          <li>• No music needed - we'll add that later</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Examples Section -->
+                  <div class="mb-4">
+                    <button class="flex items-center gap-2 text-sm text-brand-600 font-medium mb-3">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
+                      View Examples
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </button>
+                    <div class="flex gap-3 overflow-x-auto pb-2">
+                      <div class="flex-shrink-0 w-32 h-56 bg-gray-100 rounded-xl overflow-hidden relative group cursor-pointer">
+                        <img src="https://placehold.co/128x224/e2e8f0/64748b?text=Example+1" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                          </svg>
+                        </div>
+                        <span class="absolute bottom-2 left-2 text-xs bg-black/60 text-white px-2 py-0.5 rounded">Good</span>
+                      </div>
+                      <div class="flex-shrink-0 w-32 h-56 bg-gray-100 rounded-xl overflow-hidden relative group cursor-pointer">
+                        <img src="https://placehold.co/128x224/e2e8f0/64748b?text=Example+2" class="w-full h-full object-cover">
+                        <span class="absolute bottom-2 left-2 text-xs bg-black/60 text-white px-2 py-0.5 rounded">Good</span>
+                      </div>
+                      <div class="flex-shrink-0 w-32 h-56 bg-red-50 rounded-xl overflow-hidden relative border-2 border-red-200 group cursor-pointer">
+                        <img src="https://placehold.co/128x224/fef2f2/dc2626?text=Avoid" class="w-full h-full object-cover">
+                        <span class="absolute bottom-2 left-2 text-xs bg-red-500 text-white px-2 py-0.5 rounded">Avoid</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Upload Zone -->
+                  <div class="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors cursor-pointer">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-brand-100 rounded-2xl flex items-center justify-center">
+                      <svg class="w-8 h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                      </svg>
+                    </div>
+                    <p class="font-semibold text-gray-700 mb-1">Drop videos here or click to upload</p>
+                    <p class="text-sm text-gray-500">MP4, MOV up to 500MB each • 0/3 uploaded</p>
+                  </div>
+
+                  <!-- Uploaded Files Preview -->
+                  <div class="mt-4 grid grid-cols-3 gap-3">
+                    <div class="aspect-[9/16] bg-gray-100 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
+                      <span class="text-gray-400 text-sm">1</span>
+                    </div>
+                    <div class="aspect-[9/16] bg-gray-100 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
+                      <span class="text-gray-400 text-sm">2</span>
+                    </div>
+                    <div class="aspect-[9/16] bg-gray-100 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
+                      <span class="text-gray-400 text-sm">3</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between pt-4 border-t">
+                  <button class="px-6 py-3 border rounded-xl font-medium text-gray-700 flex items-center gap-2 hover:bg-gray-50">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    Previous Section
+                  </button>
+                  <button class="px-6 py-3 bg-brand-600 text-white rounded-xl font-medium flex items-center gap-2 hover:bg-brand-700">
+                    Next Section
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right - Help Panel -->
+            <div class="w-72 border-l bg-gray-50 p-4">
+              <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Need Help?</h3>
+
+              <div class="bg-white rounded-xl p-4 border mb-4">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 bg-violet-100 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="font-medium">Message Agency</p>
+                    <p class="text-xs text-gray-500">Usually responds in 2h</p>
+                  </div>
+                </div>
+                <button class="w-full py-2 border rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  Send Message
+                </button>
+              </div>
+
+              <div class="space-y-3">
+                <h4 class="font-medium text-sm">Quick Tips</h4>
+                <div class="bg-white rounded-xl p-3 border">
+                  <p class="text-sm text-gray-600">Use natural daylight for best results. Avoid harsh shadows.</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 border">
+                  <p class="text-sm text-gray-600">Keep your phone steady - use a tripod if possible.</p>
+                </div>
+              </div>
+
+              <div class="mt-6">
+                <h4 class="font-medium text-sm mb-3">Reference Links</h4>
+                <div class="space-y-2">
+                  <a href="#" class="flex items-center gap-2 text-sm text-brand-600 hover:underline">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                    Brand Guidelines PDF
+                  </a>
+                  <a href="#" class="flex items-center gap-2 text-sm text-brand-600 hover:underline">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                    Mood Board (Pinterest)
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONCEPT 4: Creator Request View Mobile -->
+    <section id="concept4" class="concept-section py-16">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="mb-8">
+          <span class="text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Concept 4</span>
+          <h2 class="text-3xl font-bold mt-4 mb-2">Creator Request View - Mobile</h2>
+          <p class="text-gray-600">Mobile-first experience with swipeable sections and touch-optimized uploads.</p>
+        </div>
+
+        <div class="flex justify-center gap-8 flex-wrap">
+          <!-- Phone 1: Overview Screen -->
+          <div>
+            <p class="text-center text-sm text-gray-500 mb-4">Overview</p>
+            <div class="phone-frame shadow-2xl">
+              <div class="phone-notch"></div>
+              <div class="h-full overflow-hidden flex flex-col">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-4">
+                  <div class="flex items-center gap-3 mb-4">
+                    <button class="p-1">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                      </svg>
+                    </button>
+                    <div class="flex-1">
+                      <p class="text-xs text-white/70">Agency Name</p>
+                      <h1 class="font-semibold">Product Photography</h1>
+                    </div>
+                  </div>
+
+                  <!-- Due Date Card -->
+                  <div class="bg-white/20 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                      <p class="text-sm text-white/70">Due Date</p>
+                      <p class="font-semibold">March 15, 2024</p>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-3xl font-bold">5</div>
+                      <p class="text-xs text-white/70">days left</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Progress -->
+                <div class="px-4 py-3 bg-gray-50 border-b">
+                  <div class="flex items-center justify-between text-sm mb-2">
+                    <span class="font-medium">Progress</span>
+                    <span class="text-gray-500">50%</span>
+                  </div>
+                  <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div class="h-full w-1/2 bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full"></div>
+                  </div>
+                </div>
+
+                <!-- Sections List -->
+                <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                  <!-- Section 1: Complete -->
+                  <div class="bg-white rounded-2xl border p-4 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                      </svg>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-semibold">Product Details</p>
+                      <p class="text-sm text-emerald-600">Complete</p>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+
+                  <!-- Section 2: In Progress -->
+                  <div class="bg-brand-50 rounded-2xl border-2 border-brand-300 p-4 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center">
+                      <span class="text-brand-600 font-bold">5x</span>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-semibold">Photo Upload</p>
+                      <p class="text-sm text-brand-600">3 of 5 uploaded</p>
+                    </div>
+                    <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+
+                  <!-- Section 3: Not Started -->
+                  <div class="bg-white rounded-2xl border p-4 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      </svg>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-semibold text-gray-700">Video Content</p>
+                      <p class="text-sm text-gray-500">Not started</p>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+
+                  <!-- Section 4: Not Started -->
+                  <div class="bg-white rounded-2xl border p-4 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-semibold text-gray-700">Delivery Notes</p>
+                      <p class="text-sm text-gray-500">Not started</p>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Bottom CTA -->
+                <div class="p-4 border-t bg-white">
+                  <button class="w-full py-4 bg-brand-600 text-white rounded-2xl font-semibold flex items-center justify-center gap-2">
+                    Continue Upload
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phone 2: Upload Screen -->
+          <div>
+            <p class="text-center text-sm text-gray-500 mb-4">Upload View</p>
+            <div class="phone-frame shadow-2xl">
+              <div class="phone-notch"></div>
+              <div class="h-full overflow-hidden flex flex-col">
+                <!-- Header -->
+                <div class="bg-white border-b px-4 py-3">
+                  <div class="flex items-center gap-3">
+                    <button class="p-1">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                      </svg>
+                    </button>
+                    <div class="flex-1">
+                      <h1 class="font-semibold">Photo Upload</h1>
+                      <p class="text-xs text-gray-500">3 of 5 photos</p>
+                    </div>
+                    <button class="text-brand-600 font-medium text-sm">Help</button>
+                  </div>
+                </div>
+
+                <!-- Instructions -->
+                <div class="px-4 py-3 bg-amber-50 border-b border-amber-100">
+                  <div class="flex gap-2">
+                    <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p class="text-sm text-amber-800">White background, product centered, good lighting</p>
+                  </div>
+                </div>
+
+                <!-- Examples -->
+                <div class="px-4 py-3 border-b">
+                  <p class="text-xs font-medium text-gray-500 mb-2">EXAMPLES</p>
+                  <div class="flex gap-2 overflow-x-auto pb-1">
+                    <div class="w-16 h-16 bg-gray-100 rounded-xl flex-shrink-0 overflow-hidden">
+                      <img src="https://placehold.co/64x64/e2e8f0/64748b?text=Ex" class="w-full h-full object-cover">
+                    </div>
+                    <div class="w-16 h-16 bg-gray-100 rounded-xl flex-shrink-0 overflow-hidden">
+                      <img src="https://placehold.co/64x64/e2e8f0/64748b?text=Ex" class="w-full h-full object-cover">
+                    </div>
+                    <div class="w-16 h-16 bg-red-50 rounded-xl flex-shrink-0 overflow-hidden border border-red-200">
+                      <img src="https://placehold.co/64x64/fef2f2/dc2626?text=No" class="w-full h-full object-cover">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Upload Grid -->
+                <div class="flex-1 overflow-y-auto p-4">
+                  <div class="grid grid-cols-2 gap-3">
+                    <!-- Uploaded Photo 1 -->
+                    <div class="aspect-square bg-gray-100 rounded-2xl overflow-hidden relative">
+                      <img src="https://placehold.co/200x200/f1f5f9/64748b?text=Photo+1" class="w-full h-full object-cover">
+                      <div class="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                      </div>
+                    </div>
+                    <!-- Uploaded Photo 2 -->
+                    <div class="aspect-square bg-gray-100 rounded-2xl overflow-hidden relative">
+                      <img src="https://placehold.co/200x200/f1f5f9/64748b?text=Photo+2" class="w-full h-full object-cover">
+                      <div class="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                      </div>
+                    </div>
+                    <!-- Uploaded Photo 3 -->
+                    <div class="aspect-square bg-gray-100 rounded-2xl overflow-hidden relative">
+                      <img src="https://placehold.co/200x200/f1f5f9/64748b?text=Photo+3" class="w-full h-full object-cover">
+                      <div class="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                      </div>
+                    </div>
+                    <!-- Empty Slot 4 -->
+                    <div class="aspect-square border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center">
+                      <span class="text-gray-400 font-medium">4</span>
+                      <span class="text-xs text-gray-400">Tap to add</span>
+                    </div>
+                    <!-- Empty Slot 5 -->
+                    <div class="aspect-square border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center">
+                      <span class="text-gray-400 font-medium">5</span>
+                      <span class="text-xs text-gray-400">Tap to add</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bottom Actions -->
+                <div class="p-4 border-t bg-white space-y-3">
+                  <div class="flex gap-3">
+                    <button class="flex-1 py-3 border-2 border-brand-600 text-brand-600 rounded-xl font-medium flex items-center justify-center gap-2">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      </svg>
+                      Camera
+                    </button>
+                    <button class="flex-1 py-3 border-2 border-brand-600 text-brand-600 rounded-xl font-medium flex items-center justify-center gap-2">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                      Gallery
+                    </button>
+                  </div>
+                  <button class="w-full py-4 bg-brand-600 text-white rounded-2xl font-semibold">
+                    Continue (3/5)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONCEPT 5: Advanced Field Types -->
+    <section id="concept5" class="concept-section bg-white py-16">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="mb-8">
+          <span class="text-sm font-medium text-violet-600 bg-violet-50 px-3 py-1 rounded-full">Concept 5</span>
+          <h2 class="text-3xl font-bold mt-4 mb-2">Advanced Field Types & Smart Features</h2>
+          <p class="text-gray-600">New field types and intelligent features for power users.</p>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-8">
+          <!-- Left Column: New Field Types -->
+          <div class="space-y-6">
+            <h3 class="text-xl font-semibold">New Field Types</h3>
+
+            <!-- Multi-File Bundle -->
+            <div class="bg-white rounded-2xl border p-6 shadow-sm">
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold">Multi-File Bundle</h4>
+                  <p class="text-sm text-gray-600">Group related files with specific quantity and type requirements</p>
+                </div>
+              </div>
+              <div class="bg-gray-50 rounded-xl p-4">
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium">Product Hero Shot</span>
+                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">1 required</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium">Lifestyle Photos</span>
+                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">3-5 photos</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium">Detail Shots</span>
+                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">2-4 photos</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Checklist Field -->
+            <div class="bg-white rounded-2xl border p-6 shadow-sm">
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold">Pre-Delivery Checklist</h4>
+                  <p class="text-sm text-gray-600">Creator must confirm all items before submission</p>
+                </div>
+              </div>
+              <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+                <label class="flex items-center gap-3">
+                  <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-emerald-600">
+                  <span class="text-sm">All photos are properly lit and focused</span>
+                </label>
+                <label class="flex items-center gap-3">
+                  <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-emerald-600">
+                  <span class="text-sm">Product is clean and free of dust/fingerprints</span>
+                </label>
+                <label class="flex items-center gap-3">
+                  <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-emerald-600">
+                  <span class="text-sm">Files are named according to guidelines</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Rating/Scale Field -->
+            <div class="bg-white rounded-2xl border p-6 shadow-sm">
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-violet-400 to-purple-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold">Confidence Rating</h4>
+                  <p class="text-sm text-gray-600">Let creators rate their work quality</p>
+                </div>
+              </div>
+              <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-600 mb-3">How confident are you in this content?</p>
+                <div class="flex gap-1">
+                  <button class="w-10 h-10 bg-violet-500 text-white rounded-lg">1</button>
+                  <button class="w-10 h-10 bg-violet-500 text-white rounded-lg">2</button>
+                  <button class="w-10 h-10 bg-violet-500 text-white rounded-lg">3</button>
+                  <button class="w-10 h-10 bg-violet-200 text-violet-600 rounded-lg">4</button>
+                  <button class="w-10 h-10 bg-violet-100 text-violet-400 rounded-lg">5</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Smart Features -->
+          <div class="space-y-6">
+            <h3 class="text-xl font-semibold">Smart Features</h3>
+
+            <!-- AI Suggestions -->
+            <div class="bg-gradient-to-br from-brand-50 to-violet-50 rounded-2xl border border-brand-200 p-6">
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-brand-500 to-violet-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-brand-700">AI Template Suggestions</h4>
+                  <p class="text-sm text-brand-600">Get field recommendations based on request type</p>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-white rounded-xl p-3 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                    </div>
+                    <span class="text-sm font-medium">Add "Mood Board" reference field</span>
+                  </div>
+                  <button class="text-xs text-brand-600 font-medium">+ Add</button>
+                </div>
+                <div class="bg-white rounded-xl p-3 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                      </svg>
+                    </div>
+                    <span class="text-sm font-medium">Add "Shot List" checklist</span>
+                  </div>
+                  <button class="text-xs text-brand-600 font-medium">+ Add</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Conditional Logic -->
+            <div class="bg-white rounded-2xl border p-6 shadow-sm">
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold">Advanced Conditional Logic</h4>
+                  <p class="text-sm text-gray-600">Show/hide fields based on multiple conditions</p>
+                </div>
+              </div>
+              <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+                <div class="flex items-center gap-2 text-sm">
+                  <span class="font-medium">When</span>
+                  <select class="border rounded-lg px-2 py-1 text-sm">
+                    <option>Content Type</option>
+                  </select>
+                  <select class="border rounded-lg px-2 py-1 text-sm">
+                    <option>equals</option>
+                  </select>
+                  <select class="border rounded-lg px-2 py-1 text-sm">
+                    <option>Video</option>
+                  </select>
+                </div>
+                <div class="flex items-center gap-2 text-sm pl-4 text-gray-500">
+                  <span>AND</span>
+                  <select class="border rounded-lg px-2 py-1 text-sm">
+                    <option>Platform</option>
+                  </select>
+                  <select class="border rounded-lg px-2 py-1 text-sm">
+                    <option>equals</option>
+                  </select>
+                  <select class="border rounded-lg px-2 py-1 text-sm">
+                    <option>TikTok</option>
+                  </select>
+                </div>
+                <div class="border-t pt-3">
+                  <span class="text-sm text-gray-600">Then show: </span>
+                  <span class="text-sm font-medium text-brand-600">"Vertical Video Specs" section</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Analytics Preview -->
+            <div class="bg-white rounded-2xl border p-6 shadow-sm">
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-pink-400 to-rose-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold">Template Analytics</h4>
+                  <p class="text-sm text-gray-600">Track completion rates and pain points</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-4">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-emerald-600">87%</div>
+                  <p class="text-xs text-gray-500">Completion Rate</p>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-amber-600">2.3d</div>
+                  <p class="text-xs text-gray-500">Avg. Time</p>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-brand-600">12</div>
+                  <p class="text-xs text-gray-500">Active Requests</p>
+                </div>
+              </div>
+              <div class="mt-4 pt-4 border-t">
+                <p class="text-xs text-gray-500 mb-2">Most skipped field:</p>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium">Brand Guidelines Link</span>
+                  <span class="text-xs text-red-500">43% skip rate</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Implementation Roadmap -->
+    <section class="py-16 bg-gray-50">
+      <div class="max-w-5xl mx-auto px-6">
+        <h2 class="text-3xl font-bold mb-8 text-center">Implementation Roadmap</h2>
+
+        <div class="space-y-6">
+          <!-- Phase 1 -->
+          <div class="bg-white rounded-2xl p-6 border shadow-sm">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                <span class="font-bold text-emerald-600">1</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Phase 1: Foundation</h3>
+                <p class="text-sm text-gray-500">2-3 weeks</p>
+              </div>
+            </div>
+            <ul class="text-sm text-gray-600 space-y-2 ml-14">
+              <li>• Field sections with collapsible UI</li>
+              <li>• Quantity multiplier for fields</li>
+              <li>• Markdown description support</li>
+              <li>• Basic example image/video URLs</li>
+            </ul>
+          </div>
+
+          <!-- Phase 2 -->
+          <div class="bg-white rounded-2xl p-6 border shadow-sm">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <span class="font-bold text-blue-600">2</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Phase 2: Creator Experience</h3>
+                <p class="text-sm text-gray-500">2-3 weeks</p>
+              </div>
+            </div>
+            <ul class="text-sm text-gray-600 space-y-2 ml-14">
+              <li>• Step-by-step wizard navigation</li>
+              <li>• Progress tracking per section</li>
+              <li>• Inline examples with lightbox</li>
+              <li>• Mobile-optimized upload experience</li>
+            </ul>
+          </div>
+
+          <!-- Phase 3 -->
+          <div class="bg-white rounded-2xl p-6 border shadow-sm">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="w-10 h-10 bg-violet-100 rounded-full flex items-center justify-center">
+                <span class="font-bold text-violet-600">3</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Phase 3: Advanced Features</h3>
+                <p class="text-sm text-gray-500">3-4 weeks</p>
+              </div>
+            </div>
+            <ul class="text-sm text-gray-600 space-y-2 ml-14">
+              <li>• Multi-condition visibility logic</li>
+              <li>• New field types (bundle, checklist, rating)</li>
+              <li>• Template presets and categories</li>
+              <li>• Template analytics dashboard</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-white py-8">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <p class="text-gray-400">Template System v2.0 Concept Document</p>
+      <p class="text-sm text-gray-500 mt-2">Created for development team review</p>
+    </div>
+  </footer>
+
+  <script>
+    // Smooth scroll for navigation
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({
+          behavior: 'smooth'
+        });
+      });
+    });
+  </script>
+</body>
+</html>

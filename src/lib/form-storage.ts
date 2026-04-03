@@ -264,6 +264,7 @@ export function detectConflict<T>(
 
 /**
  * Check if form data appears to be empty/default
+ * This checks if the form is in its initial "new" state
  */
 function isEmptyFormData<T>(data: T): boolean {
   if (!data || typeof data !== "object") {
@@ -275,6 +276,12 @@ function isEmptyFormData<T>(data: T): boolean {
     if (value === "") return true;
     if (Array.isArray(value) && value.length === 0) return true;
     if (typeof value === "object" && Object.keys(value).length === 0) return true;
+    // Default boolean values are considered "empty" for form initialization purposes
+    if (typeof value === "boolean") return true;
+    // Default number values (common defaults like 7 for due days) are considered "empty"
+    if (typeof value === "number") return true;
+    // Common string defaults like "NORMAL" for urgency
+    if (typeof value === "string" && ["NORMAL", "LOW", "HIGH", "URGENT"].includes(value)) return true;
     return false;
   };
 

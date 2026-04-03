@@ -312,10 +312,19 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // Generate public URL (or presigned URL for private buckets)
-    const url = isLocal
-      ? `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`
-      : `https://${process.env.R2_PUBLIC_DOMAIN || `${BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`}/${key}`;
+    // Generate public URL - requires R2_PUBLIC_DOMAIN for production
+    let url: string;
+    if (isLocal) {
+      url = `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
+    } else if (process.env.R2_PUBLIC_DOMAIN) {
+      url = `https://${process.env.R2_PUBLIC_DOMAIN}/${key}`;
+    } else {
+      console.error(
+        "R2_PUBLIC_DOMAIN is not set. Branding asset URLs will not work. " +
+        "Set R2_PUBLIC_DOMAIN to your custom domain or r2.dev URL."
+      );
+      url = `https://missing-r2-public-domain/${key}`;
+    }
 
     // Update agency branding with new logo URL
     const agency = await db.agency.findUnique({

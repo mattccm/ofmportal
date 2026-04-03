@@ -83,14 +83,19 @@ function getAvatarPublicUrl(key: string): string {
     // Local MinIO URL
     return `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
   }
-  // Cloudflare R2 public URL (requires public bucket or custom domain)
-  // Adjust this based on your R2 configuration
+  // Cloudflare R2 public URL - requires R2_PUBLIC_DOMAIN to be set
+  // This should be your custom domain connected to the R2 bucket
+  // or the r2.dev public URL (e.g., pub-xxxxx.r2.dev)
   const publicDomain = process.env.R2_PUBLIC_DOMAIN;
-  if (publicDomain) {
-    return `https://${publicDomain}/${key}`;
+  if (!publicDomain) {
+    console.error(
+      "R2_PUBLIC_DOMAIN is not set. Avatar URLs will not work. " +
+      "Set R2_PUBLIC_DOMAIN to your custom domain or r2.dev URL."
+    );
+    // Return a placeholder that will fail gracefully
+    return `https://missing-r2-public-domain/${key}`;
   }
-  // Fallback to R2.dev URL if configured
-  return `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
+  return `https://${publicDomain}/${key}`;
 }
 
 /**
@@ -219,18 +224,22 @@ export async function POST(request: NextRequest) {
       select: { avatar: true },
     });
 
-    // Try to upload to S3 first
-    let avatarUrl = await tryS3Upload(
+    // Try to upload to S3/R2
+    const avatarUrl = await tryS3Upload(
       buffer,
       mimeType,
       session.user.id,
       currentUser?.avatar || null
     );
 
-    // If S3 fails or is not configured, store base64 directly in DB
+    // If S3/R2 fails, return an error - DO NOT store base64 in DB
+    // Base64 avatars break JWT authentication due to cookie size limits (~4KB)
     if (!avatarUrl) {
-      console.log("Using database storage for avatar (S3 not available)");
-      avatarUrl = image; // Store the original base64 data URL
+      console.error("S3/R2 upload failed - avatar storage requires R2 to be configured");
+      return NextResponse.json(
+        { error: "Avatar storage is not configured. Please contact support." },
+        { status: 503 }
+      );
     }
 
     // Update user record - use 'avatar' field (not 'image' which is for OAuth)

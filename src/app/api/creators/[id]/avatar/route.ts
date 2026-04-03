@@ -68,10 +68,14 @@ function getAvatarPublicUrl(key: string): string {
     return `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
   }
   const publicDomain = process.env.R2_PUBLIC_DOMAIN;
-  if (publicDomain) {
-    return `https://${publicDomain}/${key}`;
+  if (!publicDomain) {
+    console.error(
+      "R2_PUBLIC_DOMAIN is not set. Avatar URLs will not work. " +
+      "Set R2_PUBLIC_DOMAIN to your custom domain or r2.dev URL."
+    );
+    return `https://missing-r2-public-domain/${key}`;
   }
-  return `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
+  return `https://${publicDomain}/${key}`;
 }
 
 async function tryS3Upload(
@@ -187,18 +191,21 @@ export async function POST(
       );
     }
 
-    // Try S3 upload first
-    let avatarUrl = await tryS3Upload(
+    // Try S3/R2 upload
+    const avatarUrl = await tryS3Upload(
       buffer,
       mimeType,
       creatorId,
       creator.avatar
     );
 
-    // Fall back to database storage
+    // If S3/R2 fails, return an error - DO NOT store base64 in DB
     if (!avatarUrl) {
-      console.log("Using database storage for creator avatar (S3 not available)");
-      avatarUrl = image;
+      console.error("S3/R2 upload failed - avatar storage requires R2 to be configured");
+      return NextResponse.json(
+        { error: "Avatar storage is not configured. Please contact support." },
+        { status: 503 }
+      );
     }
 
     // Update creator record

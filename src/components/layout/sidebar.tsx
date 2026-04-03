@@ -224,6 +224,7 @@ function SidebarComponent() {
               className="w-full h-auto justify-start gap-3 px-3 py-3 text-left rounded-xl hover:bg-sidebar-accent transition-all duration-200"
             >
               <Avatar
+                key={user?.image || "no-avatar"}
                 className="h-10 w-10 ring-2 ring-sidebar-accent"
                 user={user ? { name: user.name, email: user.email, image: user.image } : undefined}
                 size="md"
@@ -323,5 +324,5 @@ function SidebarComponent() {
   );
 }
 
-// Export memoized sidebar to prevent unnecessary re-renders
-export const Sidebar = React.memo(SidebarComponent);
+// Export sidebar - removed memo to ensure avatar/session updates propagate correctly
+export const Sidebar = SidebarComponent;
