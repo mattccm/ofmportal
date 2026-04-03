@@ -304,7 +304,9 @@ export function useFileUpload({
       });
 
       if (!completeResponse.ok) {
-        throw new Error("Failed to complete upload");
+        const errorData = await completeResponse.json().catch(() => ({}));
+        console.error("[FileUpload] Complete upload failed:", completeResponse.status, errorData);
+        throw new Error(errorData.details || errorData.error || "Failed to complete upload");
       }
 
       // Mark as completed

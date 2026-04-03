@@ -14,8 +14,11 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     const creatorToken = req.headers.get("x-creator-token");
 
+    console.log("[UploadComplete] Request received - session:", !!session, "creatorToken:", !!creatorToken);
+
     const body = await req.json();
     const { uploadId } = completeUploadSchema.parse(body);
+    console.log("[UploadComplete] Upload ID:", uploadId);
 
     // Get the upload record
     const upload = await db.upload.findUnique({
@@ -51,8 +54,17 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (!creator || creator.id !== upload.creatorId) {
+      if (!creator) {
+        console.error("[UploadComplete] Creator not found or session expired for token:", creatorToken.substring(0, 20) + "...");
         return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+      }
+
+      if (creator.id !== upload.creatorId) {
+        console.error("[UploadComplete] Creator mismatch - session creator:", creator.id, "upload creator:", upload.creatorId);
+        // Allow upload if request has no creator assigned yet or if creator matches request's creator
+        if (upload.request.creatorId && upload.request.creatorId !== creator.id) {
+          return NextResponse.json({ error: "Not authorized to complete this upload" }, { status: 401 });
+        }
       }
     } else {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -126,9 +138,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.error("Error completing upload:", error);
+    console.error("[UploadComplete] Error completing upload:", error);
+    console.error("[UploadComplete] Error stack:", error instanceof Error ? error.stack : "No stack");
     return NextResponse.json(
-      { error: "Failed to complete upload" },
+      { error: "Failed to complete upload", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
