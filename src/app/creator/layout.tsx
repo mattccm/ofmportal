@@ -29,7 +29,6 @@ import {
   X,
   ChevronDown,
   Sparkles,
-  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -63,17 +62,56 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
     const creatorId = localStorage.getItem("creatorId");
     const creatorName = localStorage.getItem("creatorName");
     const creatorEmail = localStorage.getItem("creatorEmail");
+    const creatorAvatar = localStorage.getItem("creatorAvatar");
 
     if (!token || !creatorId) {
       router.push("/login");
       return;
     }
 
-    setCreator({
-      id: creatorId,
-      name: creatorName || "Creator",
-      email: creatorEmail || "",
-    });
+    // Fetch fresh profile data to get latest avatar
+    // Using IIFE to handle async fetch properly
+    (async () => {
+      // Set initial state from localStorage first
+      const initialCreator = {
+        id: creatorId,
+        name: creatorName || "Creator",
+        email: creatorEmail || "",
+        avatar: creatorAvatar || undefined,
+      };
+
+      try {
+        const response = await fetch("/api/portal/profile", {
+          headers: {
+            "x-creator-token": token,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Update localStorage with fresh data
+          if (data.name) localStorage.setItem("creatorName", data.name);
+          if (data.avatar) {
+            localStorage.setItem("creatorAvatar", data.avatar);
+          } else {
+            localStorage.removeItem("creatorAvatar");
+          }
+          // Update state with fresh data including avatar
+          setCreator({
+            id: creatorId,
+            name: data.name || creatorName || "Creator",
+            email: data.email || creatorEmail || "",
+            avatar: data.avatar || undefined,
+          });
+        } else {
+          // If fetch fails, use localStorage data
+          setCreator(initialCreator);
+        }
+      } catch (error) {
+        console.error("Error fetching creator profile:", error);
+        // Use localStorage data on error
+        setCreator(initialCreator);
+      }
+    })();
   }, [router]);
 
   const handleLogout = async () => {

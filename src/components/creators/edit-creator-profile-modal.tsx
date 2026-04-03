@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -32,12 +31,9 @@ import {
   Phone,
   Globe,
   Key,
-  Camera,
-  Clock,
   AlertCircle,
   Send,
   Shield,
-  Settings,
   RefreshCw,
 } from "lucide-react";
 
@@ -143,6 +139,14 @@ export function EditCreatorProfileModal({
       }
 
       const updated = await response.json();
+
+      // Apply cache-busting to avatar URL if it was changed and isn't a data URL
+      if (updated.creator.avatar &&
+          updated.creator.avatar !== creator.avatar &&
+          !updated.creator.avatar.startsWith("data:")) {
+        updated.creator.avatar = `${updated.creator.avatar}${updated.creator.avatar.includes("?") ? "&" : "?"}t=${Date.now()}`;
+      }
+
       onUpdate(updated.creator);
       toast.success("Creator profile updated successfully");
       onOpenChange(false);
@@ -195,8 +199,52 @@ export function EditCreatorProfileModal({
     }
   };
 
-  const handleAvatarChange = (url: string) => {
-    handleInputChange("avatar", url);
+  // Upload avatar to dedicated API endpoint for S3 storage
+  const handleAvatarUpload = async (dataUrl: string) => {
+    try {
+      const response = await fetch(`/api/creators/${creator.id}/avatar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: dataUrl }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to upload avatar");
+      }
+
+      const data = await response.json();
+      // Use the URL from S3/API response with cache-busting
+      const cacheBustedUrl = data.url.startsWith("data:")
+        ? data.url
+        : `${data.url}${data.url.includes("?") ? "&" : "?"}t=${Date.now()}`;
+      handleInputChange("avatar", cacheBustedUrl);
+      toast.success("Avatar uploaded successfully");
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to upload avatar");
+      throw error;
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    try {
+      const response = await fetch(`/api/creators/${creator.id}/avatar`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to remove avatar");
+      }
+
+      handleInputChange("avatar", "");
+      toast.success("Avatar removed");
+    } catch (error) {
+      console.error("Error removing avatar:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to remove avatar");
+      throw error;
+    }
   };
 
   return (
@@ -235,12 +283,8 @@ export function EditCreatorProfileModal({
               <AvatarUpload
                 user={{ name: formData.name, image: formData.avatar }}
                 currentAvatarUrl={formData.avatar}
-                onUpload={async (dataUrl) => {
-                  handleInputChange("avatar", dataUrl);
-                }}
-                onRemove={async () => {
-                  handleInputChange("avatar", "");
-                }}
+                onUpload={handleAvatarUpload}
+                onRemove={handleAvatarRemove}
                 size="xl"
               />
               <div className="flex-1 space-y-2 pt-2">

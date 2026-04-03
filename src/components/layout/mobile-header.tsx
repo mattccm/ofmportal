@@ -1,18 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
-  Bell,
   Search,
 } from "lucide-react";
 import { useSearch } from "@/components/search";
-import { MentionsBell } from "@/components/mentions";
 
 interface MobileHeaderProps {
   title?: string;
@@ -59,7 +55,6 @@ export function MobileHeader({
   const router = useRouter();
   const pathname = usePathname();
   const { openSearch } = useSearch();
-  const [notificationCount] = useState(3); // Example notification count
 
   // Determine title from pathname if not provided
   const pageTitle = title || pageTitles[pathname] || "CCM";
@@ -71,17 +66,6 @@ export function MobileHeader({
     (pathname.split("/").length > 3 && pathname.startsWith("/dashboard"))
   );
 
-  // Determine back href
-  const getBackHref = () => {
-    if (backHref) return backHref;
-    // Navigate to parent route
-    const segments = pathname.split("/").filter(Boolean);
-    if (segments.length > 1) {
-      return "/" + segments.slice(0, -1).join("/");
-    }
-    return "/dashboard";
-  };
-
   const handleBack = () => {
     if (backHref) {
       router.push(backHref);
@@ -89,6 +73,24 @@ export function MobileHeader({
       router.back();
     }
   };
+
+  // Main navigation pages where the bottom nav is the primary navigation
+  // These pages don't need a top header - saves screen space on mobile
+  const mainNavPages = [
+    "/dashboard",
+    "/dashboard/creators",
+    "/dashboard/requests",
+    "/dashboard/messages",
+  ];
+
+  // On main nav pages (not sub-pages), hide the header completely
+  // Sub-pages need the header for back navigation and context
+  const isMainPage = !shouldShowBack && mainNavPages.includes(pathname);
+
+  // Don't render header on main pages - bottom nav provides all navigation
+  if (isMainPage && !rightContent) {
+    return null;
+  }
 
   return (
     <header
@@ -102,9 +104,9 @@ export function MobileHeader({
         paddingTop: "env(safe-area-inset-top, 0px)",
       }}
     >
-      <div className="flex items-center justify-between h-16 px-4 pt-2">
+      <div className="flex items-center justify-between h-14 px-4">
         {/* Left: Back Button or Logo */}
-        <div className="flex items-center gap-3 min-w-[80px]">
+        <div className="flex items-center gap-3 min-w-[48px]">
           {shouldShowBack ? (
             <Button
               variant="ghost"
@@ -119,7 +121,7 @@ export function MobileHeader({
               href="/dashboard"
               className="flex items-center gap-2 touch-manipulation active:opacity-80 transition-opacity"
             >
-              <div className="relative h-8 w-8">
+              <div className="relative h-7 w-7">
                 <img
                   src="/ccm-logo.png"
                   alt="CCM"
@@ -132,18 +134,18 @@ export function MobileHeader({
 
         {/* Center: Title */}
         <div className="flex-1 text-center">
-          <h1 className="text-base font-semibold text-foreground truncate px-2">
+          <h1 className="text-sm font-semibold text-foreground truncate px-2">
             {pageTitle}
           </h1>
         </div>
 
-        {/* Right: Quick actions only - Settings/Profile available via bottom nav "More" */}
-        <div className="flex items-center gap-1 min-w-[80px] justify-end">
+        {/* Right: Minimal actions - most available via bottom nav */}
+        <div className="flex items-center gap-1 min-w-[48px] justify-end">
           {rightContent ? (
             rightContent
           ) : (
-            <>
-              {/* Search Button */}
+            // Only show search on sub-pages for quick access
+            shouldShowBack && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -152,29 +154,7 @@ export function MobileHeader({
               >
                 <Search className="h-5 w-5" />
               </Button>
-
-              {/* Mentions */}
-              <MentionsBell className="h-10 w-10 rounded-xl touch-manipulation active:scale-95 transition-transform" />
-
-              {/* Notifications */}
-              <Link href="/dashboard/notifications">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-xl relative touch-manipulation active:scale-95 transition-transform"
-                >
-                  <Bell className="h-5 w-5" />
-                  {notificationCount > 0 && (
-                    <Badge
-                      variant="destructive"
-                      className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] font-bold"
-                    >
-                      {notificationCount > 9 ? "9+" : notificationCount}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
-            </>
+            )
           )}
         </div>
       </div>
