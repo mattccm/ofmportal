@@ -298,22 +298,10 @@ export function UploadsList({ uploads, requestId, fields }: UploadsListProps) {
     }
   };
 
-  const handleDownload = async (upload: Upload) => {
-    try {
-      const response = await fetch(`/api/uploads/${upload.id}/url`);
-      if (!response.ok) throw new Error("Failed to get download URL");
-      const { url } = await response.json();
-
-      // Create a temporary link and click it
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = upload.originalName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch {
-      toast.error("Failed to download file");
-    }
+  const handleDownload = (upload: Upload) => {
+    // Use the download endpoint which redirects to a presigned URL with Content-Disposition: attachment
+    // This ensures the file downloads rather than opening in browser
+    window.open(`/api/uploads/${upload.id}/download`, "_blank");
   };
 
   if (uploads.length === 0) {

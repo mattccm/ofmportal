@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl } from "@/lib/storage";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
@@ -53,16 +53,15 @@ export async function GET(
       );
     }
 
-    // Generate download URLs for each file (NO bandwidth through Vercel!)
+    // Generate presigned download URLs for each file
+    // We use presigned URLs (not public URLs) because:
+    // 1. Presigned URLs have proper CORS headers from R2 directly
+    // 2. Public custom domain URLs may not have CORS configured correctly
+    // 3. The browser needs to fetch these URLs to create the ZIP client-side
     const downloadFiles = await Promise.all(
       request.uploads.map(async (upload) => {
-        // Try public URL first (zero bandwidth cost)
-        let url = getPublicFileUrl(upload.storageKey);
-
-        // Fall back to presigned URL if no public domain configured
-        if (!url) {
-          url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName);
-        }
+        // Always use presigned URL for ZIP downloads - includes proper CORS headers
+        const url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName);
 
         return {
           id: upload.id,
