@@ -16,9 +16,10 @@ interface ImageViewerProps {
   src: string;
   alt: string;
   className?: string;
+  onLoad?: () => void;
 }
 
-export function ImageViewer({ src, alt, className }: ImageViewerProps) {
+export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -166,12 +167,12 @@ export function ImageViewer({ src, alt, className }: ImageViewerProps) {
   }, [handleZoomIn, handleZoomOut, handleRotateRight, handleRotateLeft, handleFitToScreen]);
 
   return (
-    <div className={cn("relative flex flex-col h-full", className)}>
+    <div className={cn("relative flex flex-col w-full h-full max-h-[calc(100dvh-10rem)]", className)}>
       {/* Image container */}
       <div
         ref={containerRef}
         className={cn(
-          "flex-1 flex items-center justify-center overflow-hidden bg-black/50 rounded-lg",
+          "flex-1 flex items-center justify-center overflow-hidden rounded-lg",
           scale > 1 ? "cursor-grab" : "cursor-default",
           isDragging && "cursor-grabbing"
         )}
@@ -195,11 +196,12 @@ export function ImageViewer({ src, alt, className }: ImageViewerProps) {
             transformOrigin: "center center",
           }}
           draggable={false}
+          onLoad={onLoad}
         />
       </div>
 
       {/* Controls toolbar */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1.5 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10">
+      <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -271,8 +273,8 @@ export function ImageViewer({ src, alt, className }: ImageViewerProps) {
         )}
       </div>
 
-      {/* Keyboard shortcuts hint */}
-      <div className="absolute top-4 right-4 text-xs text-white/50 bg-black/30 px-2 py-1 rounded">
+      {/* Keyboard shortcuts hint - hidden on mobile */}
+      <div className="hidden sm:block absolute top-4 right-4 text-xs text-white/50 bg-black/30 px-2 py-1 rounded">
         Scroll to zoom | +/- keys | R to rotate
       </div>
     </div>

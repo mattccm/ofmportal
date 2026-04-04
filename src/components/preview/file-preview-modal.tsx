@@ -288,12 +288,13 @@ export function FilePreviewModal({
         </div>
 
         {/* Main content area */}
-        <div className="flex h-full pt-16">
+        <div className="flex h-full pt-16 pb-4">
           {/* Preview area */}
           <div
             className={cn(
-              "flex-1 flex items-center justify-center p-4 transition-all",
-              showMetadata ? "pr-80" : ""
+              "flex-1 flex items-center justify-center px-4 sm:px-16 transition-all",
+              showMetadata ? "sm:pr-80" : "",
+              hasMultipleFiles ? "pb-24" : "pb-4"
             )}
           >
             {/* Navigation arrows */}
@@ -302,24 +303,24 @@ export function FilePreviewModal({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 z-40 text-white hover:bg-white/20 h-12 w-12"
+                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
                   onClick={goToPrevious}
                   title="Previous (Left arrow)"
                 >
-                  <ChevronLeft className="h-8 w-8" />
+                  <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
                 </Button>
 
                 <Button
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    "absolute right-4 top-1/2 -translate-y-1/2 z-40 text-white hover:bg-white/20 h-12 w-12",
-                    showMetadata && "right-84"
+                    "absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12",
+                    showMetadata && "sm:right-84"
                   )}
                   onClick={goToNext}
                   title="Next (Right arrow)"
                 >
-                  <ChevronRight className="h-8 w-8" />
+                  <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
                 </Button>
               </>
             )}
@@ -331,20 +332,20 @@ export function FilePreviewModal({
               </div>
             )}
 
-            {/* Content preview */}
-            <div className="w-full h-full flex items-center justify-center">
+            {/* Content preview - constrained container */}
+            <div className="w-full h-full flex items-center justify-center max-w-[min(100%,1400px)] max-h-full mx-auto">
               {isImage && (
                 <ImageViewer
                   src={currentFile.url}
                   alt={currentFile.originalName}
-                  className="w-full h-full"
+                  onLoad={handleContentLoad}
                 />
               )}
 
               {isVideo && (
                 <VideoPlayer
                   src={currentFile.url}
-                  className="w-full max-w-full sm:max-w-5xl max-h-[calc(100dvh-12rem)]"
+                  onLoad={handleContentLoad}
                 />
               )}
 

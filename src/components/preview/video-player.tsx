@@ -27,11 +27,12 @@ interface VideoPlayerProps {
   src: string;
   className?: string;
   poster?: string;
+  onLoad?: () => void;
 }
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
-export function VideoPlayer({ src, className, poster }: VideoPlayerProps) {
+export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -315,8 +316,8 @@ export function VideoPlayer({ src, className, poster }: VideoPlayerProps) {
     <div
       ref={containerRef}
       className={cn(
-        "relative bg-black rounded-lg overflow-hidden group",
-        isFullscreen && "rounded-none",
+        "relative bg-black rounded-lg overflow-hidden group w-full max-w-4xl max-h-[calc(100dvh-10rem)]",
+        isFullscreen && "rounded-none max-w-none max-h-none",
         className
       )}
       onMouseMove={resetControlsTimer}
@@ -326,9 +327,11 @@ export function VideoPlayer({ src, className, poster }: VideoPlayerProps) {
         ref={videoRef}
         src={src}
         poster={poster}
-        className="w-full h-full"
+        className="w-full h-full max-h-[calc(100dvh-10rem)] object-contain"
+        style={isFullscreen ? { maxHeight: 'none' } : undefined}
         onClick={togglePlay}
         playsInline
+        onLoadedData={onLoad}
       />
 
       {/* Big play button overlay */}
