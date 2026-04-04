@@ -232,22 +232,18 @@ export function UploadReviewCard({
     }
   };
 
-  const handleDownload = async () => {
-    try {
-      const response = await fetch(`/api/uploads/${upload.id}/url`);
-      if (!response.ok) throw new Error("Failed to get download URL");
-      const { url } = await response.json();
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = upload.originalName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("Download started");
-    } catch {
-      toast.error("Failed to download file");
-    }
+  const handleDownload = () => {
+    // Use a hidden iframe to trigger the download without opening a new tab
+    // The download endpoint redirects to a presigned URL with Content-Disposition: attachment
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = `/api/uploads/${upload.id}/download`;
+    document.body.appendChild(iframe);
+    toast.success("Download started");
+    // Clean up after download starts
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 5000);
   };
 
   const handleApprove = async () => {
@@ -420,12 +416,19 @@ export function UploadReviewCard({
               </div>
             )}
 
-            {/* Creator Info */}
+            {/* Creator & Request Info */}
             <div className="flex items-center gap-2 pt-2 border-t">
               <Avatar user={upload.creator} size="xs" />
-              <span className="text-xs text-muted-foreground truncate">
-                {upload.creator.name}
-              </span>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs text-muted-foreground truncate block">
+                  {upload.creator.name}
+                </span>
+                {upload.request?.title && (
+                  <span className="text-xs text-muted-foreground/70 truncate block">
+                    {upload.request.title}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Rating (if reviewed) */}

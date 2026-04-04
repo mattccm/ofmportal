@@ -249,6 +249,16 @@ export function RequestDetailClient({
     }));
   }, []);
 
+  // Handle upload status change (approve/reject) without page reload
+  const handleUploadStatusChange = useCallback((uploadId: string, newStatus: string) => {
+    setRequest((prev) => ({
+      ...prev,
+      uploads: prev.uploads.map((u) =>
+        u.id === uploadId ? { ...u, status: newStatus } : u
+      ),
+    }));
+  }, []);
+
   // Fetch clone history on mount
   useEffect(() => {
     async function fetchCloneHistory() {
@@ -463,6 +473,7 @@ export function RequestDetailClient({
                   <UploadsList
                     uploads={fieldUploads}
                     requestId={request.id}
+                    onStatusChange={handleUploadStatusChange}
                   />
                 </CardContent>
               </Card>
@@ -489,6 +500,7 @@ export function RequestDetailClient({
                 <UploadsList
                   uploads={request.uploads.filter(u => !u.fieldId)}
                   requestId={request.id}
+                  onStatusChange={handleUploadStatusChange}
                 />
               </CardContent>
             </Card>

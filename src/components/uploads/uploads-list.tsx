@@ -24,6 +24,7 @@ import {
   X,
   Loader2,
   Link2,
+  RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ interface UploadsListProps {
   uploads: Upload[];
   requestId: string;
   fields?: FieldInfo[];
+  onStatusChange?: (uploadId: string, newStatus: string) => void;
 }
 
 function getFileIcon(mimeType: string) {
@@ -153,7 +155,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function UploadsList({ uploads, requestId, fields }: UploadsListProps) {
+export function UploadsList({ uploads, requestId, fields, onStatusChange }: UploadsListProps) {
   const [selectedUploads, setSelectedUploads] = useState<Set<string>>(new Set());
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -231,7 +233,13 @@ export function UploadsList({ uploads, requestId, fields }: UploadsListProps) {
 
       toast.success(`${uploadIds.length} upload(s) approved`);
       setSelectedUploads(new Set());
-      window.location.reload();
+
+      // Update status locally via callback if provided, otherwise reload
+      if (onStatusChange) {
+        uploadIds.forEach(id => onStatusChange(id, "APPROVED"));
+      } else {
+        window.location.reload();
+      }
     } catch {
       toast.error("Failed to approve uploads");
     } finally {
@@ -257,9 +265,43 @@ export function UploadsList({ uploads, requestId, fields }: UploadsListProps) {
       setSelectedUploads(new Set());
       setRejectDialogOpen(false);
       setRejectReason("");
-      window.location.reload();
+
+      // Update status locally via callback if provided, otherwise reload
+      if (onStatusChange) {
+        uploadIds.forEach(id => onStatusChange(id, "REJECTED"));
+      } else {
+        window.location.reload();
+      }
     } catch {
       toast.error("Failed to reject uploads");
+    } finally {
+      setProcessingAction(null);
+    }
+  };
+
+  const handleReset = async (uploadId: string) => {
+    setProcessingAction("reset");
+    try {
+      const response = await fetch("/api/uploads/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uploadId, action: "reset" }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reset upload");
+      }
+
+      toast.success("Upload reset to pending");
+
+      // Update status locally via callback if provided, otherwise reload
+      if (onStatusChange) {
+        onStatusChange(uploadId, "PENDING");
+      } else {
+        window.location.reload();
+      }
+    } catch {
+      toast.error("Failed to reset upload");
     } finally {
       setProcessingAction(null);
     }
@@ -299,9 +341,16 @@ export function UploadsList({ uploads, requestId, fields }: UploadsListProps) {
   };
 
   const handleDownload = (upload: Upload) => {
-    // Use the download endpoint which redirects to a presigned URL with Content-Disposition: attachment
-    // This ensures the file downloads rather than opening in browser
-    window.open(`/api/uploads/${upload.id}/download`, "_blank");
+    // Use a hidden iframe to trigger the download without opening a new tab
+    // The download endpoint redirects to a presigned URL with Content-Disposition: attachment
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = `/api/uploads/${upload.id}/download`;
+    document.body.appendChild(iframe);
+    // Clean up after download starts
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 5000);
   };
 
   if (uploads.length === 0) {
@@ -464,6 +513,19 @@ export function UploadsList({ uploads, requestId, fields }: UploadsListProps) {
                           <X className="h-4 w-4" />
                         </Button>
                       </>
+                    )}
+
+                    {(upload.status === "APPROVED" || upload.status === "REJECTED") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-orange-600"
+                        onClick={() => handleReset(upload.id)}
+                        disabled={!!processingAction}
+                        title="Reset to pending"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
                 </div>

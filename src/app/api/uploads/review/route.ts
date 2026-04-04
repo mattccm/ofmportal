@@ -11,7 +11,7 @@ import { sendContentApprovedSms, sendRevisionRequestSms } from "@/lib/sms";
 
 const reviewSchema = z.object({
   uploadId: z.string().min(1, "Upload ID is required"),
-  action: z.enum(["approve", "reject"]),
+  action: z.enum(["approve", "reject", "reset"]),
   rating: z.number().min(0).max(5).optional(),
   notes: z.string().optional(),
 });
@@ -45,23 +45,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    if (upload.status !== "PENDING") {
-      return NextResponse.json(
-        { error: "Upload has already been reviewed" },
-        { status: 400 }
-      );
+    // For reset action, allow any status except PENDING
+    if (action === "reset") {
+      if (upload.status === "PENDING") {
+        return NextResponse.json(
+          { error: "Upload is already pending review" },
+          { status: 400 }
+        );
+      }
+    } else {
+      // For approve/reject, only allow PENDING status
+      if (upload.status !== "PENDING") {
+        return NextResponse.json(
+          { error: "Upload has already been reviewed" },
+          { status: 400 }
+        );
+      }
     }
 
-    const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
+    const newStatus = action === "approve" ? "APPROVED" : action === "reject" ? "REJECTED" : "PENDING";
 
     // Update upload
     const updatedUpload = await db.upload.update({
       where: { id: uploadId },
       data: {
         status: newStatus,
-        rating: rating || null,
-        reviewNote: notes || null,
-        reviewedById: session.user.id,
+        rating: action === "reset" ? null : (rating || null),
+        reviewNote: action === "reset" ? null : (notes || null),
+        reviewedById: action === "reset" ? null : session.user.id,
       },
     });
 
@@ -82,22 +93,44 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create notification for creator (via the request)
-    await db.notification.create({
-      data: {
-        userId: session.user.id, // This will need to be adjusted based on your notification system
-        type: action === "approve" ? "upload_approved" : "upload_rejected",
-        title:
-          action === "approve"
-            ? "Content Approved"
-            : "Revision Requested",
-        message:
-          action === "approve"
-            ? `Your upload "${upload.originalName}" has been approved.`
-            : `Your upload "${upload.originalName}" needs revision: ${notes || "No details provided"}`,
-        link: `/portal/requests/${upload.requestId}`,
-      },
-    });
+    // Create notification for creator (via the request) - skip for reset action
+    if (action !== "reset") {
+      await db.notification.create({
+        data: {
+          userId: session.user.id, // This will need to be adjusted based on your notification system
+          type: action === "approve" ? "upload_approved" : "upload_rejected",
+          title:
+            action === "approve"
+              ? "Content Approved"
+              : "Revision Requested",
+          message:
+            action === "approve"
+              ? `Your upload "${upload.originalName}" has been approved.`
+              : `Your upload "${upload.originalName}" needs revision: ${notes || "No details provided"}`,
+          link: `/portal/requests/${upload.requestId}`,
+        },
+      });
+    }
+
+    // Handle reset action - update request status back to in progress
+    if (action === "reset") {
+      await db.contentRequest.update({
+        where: { id: upload.requestId },
+        data: {
+          status: "IN_PROGRESS",
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        upload: {
+          id: updatedUpload.id,
+          status: updatedUpload.status,
+          rating: updatedUpload.rating,
+          reviewNote: updatedUpload.reviewNote,
+        },
+      });
+    }
 
     // Send notifications based on action
     if (action === "approve") {
