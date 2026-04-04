@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
 import { ShareButton } from "@/components/share/share-dialog";
+import Image from "next/image";
 
 interface Upload {
   id: string;
@@ -54,6 +55,85 @@ function getFileIcon(mimeType: string) {
   if (mimeType.startsWith("video/")) return <Video className="h-5 w-5" />;
   if (mimeType.startsWith("audio/")) return <Music className="h-5 w-5" />;
   return <File className="h-5 w-5" />;
+}
+
+// Thumbnail component that loads asynchronously
+function UploadThumbnail({ upload }: { upload: Upload }) {
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const isImage = upload.fileType.startsWith("image/");
+  const isVideo = upload.fileType.startsWith("video/");
+  const showThumbnail = isImage || isVideo;
+
+  useEffect(() => {
+    if (!showThumbnail) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchThumbnail = async () => {
+      try {
+        const response = await fetch(`/api/uploads/${upload.id}/thumbnail`);
+        if (!response.ok) throw new Error("Failed to fetch thumbnail");
+        const data = await response.json();
+        setThumbnailUrl(data.url);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchThumbnail();
+  }, [upload.id, showThumbnail]);
+
+  // Show icon for non-image/video files
+  if (!showThumbnail) {
+    return (
+      <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+        {getFileIcon(upload.fileType)}
+      </div>
+    );
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse">
+        {isVideo ? <Video className="h-5 w-5 text-gray-400" /> : <ImageIcon className="h-5 w-5 text-gray-400" />}
+      </div>
+    );
+  }
+
+  // Error state or no thumbnail
+  if (error || !thumbnailUrl) {
+    return (
+      <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+        {getFileIcon(upload.fileType)}
+      </div>
+    );
+  }
+
+  // Show thumbnail
+  return (
+    <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+      <Image
+        src={thumbnailUrl}
+        alt={upload.originalName}
+        fill
+        className="object-cover"
+        sizes="48px"
+        unoptimized // R2 URLs don't need Next.js image optimization
+      />
+      {isVideo && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+          <Video className="h-4 w-4 text-white" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function getStatusBadge(status: string) {
@@ -268,9 +348,7 @@ export function UploadsList({ uploads, requestId }: UploadsListProps) {
               />
             )}
 
-            <div className="p-2 bg-gray-100 rounded-lg">
-              {getFileIcon(upload.fileType)}
-            </div>
+            <UploadThumbnail upload={upload} />
 
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{upload.originalName}</p>
