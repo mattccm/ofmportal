@@ -201,9 +201,9 @@ export function PerFieldUpload({
                 {/* Dropzone */}
                 <FileDropzone
                   onFilesSelected={(files) => onFilesSelected(files, field.id)}
-                  accept={field.acceptedFileTypes?.join(",")}
-                  maxSize={field.maxFileSize}
-                  multiple={!field.maxFiles || field.maxFiles > 1}
+                  acceptedTypes={field.acceptedFileTypes}
+                  maxFileSize={field.maxFileSize}
+                  maxFiles={field.maxFiles}
                   compact={true}
                 />
 
