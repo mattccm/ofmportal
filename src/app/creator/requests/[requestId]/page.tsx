@@ -52,6 +52,13 @@ interface RequestField {
   helpText?: string;
 }
 
+interface FieldSubmission {
+  status: "PENDING" | "SUBMITTED" | "APPROVED" | "NEEDS_REVISION";
+  submittedAt?: string;
+  reviewedAt?: string;
+  feedback?: string;
+}
+
 interface Request {
   id: string;
   title: string;
@@ -60,6 +67,7 @@ interface Request {
   status: string;
   requirements: Record<string, string>;
   fields: RequestField[];
+  fieldSubmissions?: Record<string, FieldSubmission>;
 }
 
 interface UploadFile {
@@ -452,8 +460,48 @@ export default function CreatorRequestDetailPage({
 
   // Handler for per-field submit
   const handleFieldSubmit = async (fieldId: string) => {
-    // For now, just show a toast - could implement per-field status tracking
-    toast.success("Field uploads saved");
+    try {
+      const token = localStorage.getItem("creatorToken");
+      const response = await fetch(`/api/portal/requests/${requestId}/fields/${fieldId}/submit`, {
+        method: "POST",
+        headers: {
+          "x-creator-token": token || "",
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to submit field");
+      }
+
+      toast.success("Field submitted for review");
+      fetchData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to submit field");
+    }
+  };
+
+  // Handler for redacting a field submission
+  const handleFieldRedact = async (fieldId: string) => {
+    try {
+      const token = localStorage.getItem("creatorToken");
+      const response = await fetch(`/api/portal/requests/${requestId}/fields/${fieldId}/redact`, {
+        method: "POST",
+        headers: {
+          "x-creator-token": token || "",
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to redact submission");
+      }
+
+      toast.success("Submission redacted - you can now make changes");
+      fetchData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to redact submission");
+    }
   };
 
   return (
@@ -632,6 +680,7 @@ export default function CreatorRequestDetailPage({
             }))}
             uploads={uploads}
             queue={uploadQueue}
+            fieldSubmissions={request.fieldSubmissions}
             onFilesSelected={handleFilesSelected}
             onPause={pauseFile}
             onResume={resumeFile}
@@ -642,6 +691,7 @@ export default function CreatorRequestDetailPage({
             onPauseAll={pauseAll}
             onResumeAll={resumeAll}
             onFieldSubmit={handleFieldSubmit}
+            onFieldRedact={handleFieldRedact}
             onDeleteUpload={handleDeleteUpload}
             isUploading={isUploading}
             primaryColor={branding.primaryColor}

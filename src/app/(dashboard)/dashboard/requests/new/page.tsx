@@ -66,7 +66,14 @@ interface CreatorGroup {
 interface Template {
   id: string;
   name: string;
-  description: string;
+  description?: string;
+  richContent?: {
+    description?: string;
+    exampleText?: string;
+    exampleImages?: { url: string; caption?: string }[];
+    exampleVideoUrl?: string;
+    referenceLinks?: { label: string; url: string }[];
+  };
   fields: Array<{
     id: string;
     label: string;
@@ -79,6 +86,8 @@ interface Template {
     acceptedFileTypes?: string[];
     maxFileSize?: number;
     maxFiles?: number;
+    minFiles?: number;
+    richContent?: TemplateField["richContent"];
     validation?: Array<{ type: string; value: string | number | boolean; message?: string }>;
   }>;
   defaultDueDays: number;
@@ -95,6 +104,13 @@ interface CustomField {
   value: string;
   type: string;
   required: boolean;
+  helpText?: string;
+  richContent?: TemplateField["richContent"];
+  // File-specific options
+  acceptedFileTypes?: string[];
+  maxFileSize?: number;
+  maxFiles?: number;
+  minFiles?: number;
 }
 
 interface RequestFormData {
@@ -660,10 +676,19 @@ function NewRequestForm() {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + template.defaultDueDays);
 
+    // Build description from template description + richContent description
+    let description = template.description || "";
+    if (template.richContent?.description) {
+      description = description
+        ? `${description}\n\n${template.richContent.description}`
+        : template.richContent.description;
+    }
+
     setFormData((prev) => ({
       ...prev,
       title: template.name,
       templateId: template.id,
+      description,
       dueDate: format(dueDate, "yyyy-MM-dd"),
       urgency: template.defaultUrgency,
     }));
@@ -678,6 +703,13 @@ function NewRequestForm() {
         value: field.defaultValue !== undefined ? String(field.defaultValue) : "",
         type: field.type,
         required: field.required,
+        helpText: field.helpText,
+        richContent: field.richContent,
+        // File-specific options
+        acceptedFileTypes: field.acceptedFileTypes,
+        maxFileSize: field.maxFileSize,
+        maxFiles: field.maxFiles,
+        minFiles: field.minFiles,
       }))
     );
 

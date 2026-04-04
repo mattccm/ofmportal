@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { QueuedFile } from "@/hooks/use-file-upload";
 import type { TemplateField } from "@/lib/template-types";
+import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 
 interface UploadedFile {
   id: string;
@@ -46,10 +47,18 @@ interface FileField {
   richContent?: TemplateField["richContent"];
 }
 
+interface FieldSubmission {
+  status: "PENDING" | "SUBMITTED" | "APPROVED" | "NEEDS_REVISION";
+  submittedAt?: string;
+  reviewedAt?: string;
+  feedback?: string;
+}
+
 interface PerFieldUploadProps {
   fields: FileField[];
   uploads: UploadedFile[];
   queue: QueuedFile[];
+  fieldSubmissions?: Record<string, FieldSubmission>;
   onFilesSelected: (files: FileList | File[], fieldId: string) => void;
   onPause: (fileId: string) => void;
   onResume: (fileId: string) => void;
@@ -60,6 +69,7 @@ interface PerFieldUploadProps {
   onPauseAll: () => void;
   onResumeAll: () => void;
   onFieldSubmit?: (fieldId: string) => Promise<void>;
+  onFieldRedact?: (fieldId: string) => Promise<void>;
   onDeleteUpload?: (uploadId: string) => Promise<void>;
   isUploading: boolean;
   primaryColor?: string;
@@ -184,6 +194,7 @@ function FieldUploadSection({
   field,
   uploads,
   queue,
+  fieldSubmission,
   onFilesSelected,
   onPause,
   onResume,
@@ -194,6 +205,7 @@ function FieldUploadSection({
   onPauseAll,
   onResumeAll,
   onFieldSubmit,
+  onFieldRedact,
   onDeleteUpload,
   isUploading,
   primaryColor,
@@ -202,6 +214,7 @@ function FieldUploadSection({
   field: FileField;
   uploads: UploadedFile[];
   queue: QueuedFile[];
+  fieldSubmission?: FieldSubmission;
   onFilesSelected: (files: FileList | File[]) => void;
   onPause: (fileId: string) => void;
   onResume: (fileId: string) => void;
@@ -212,15 +225,27 @@ function FieldUploadSection({
   onPauseAll: () => void;
   onResumeAll: () => void;
   onFieldSubmit?: () => Promise<void>;
+  onFieldRedact?: () => Promise<void>;
   onDeleteUpload?: (uploadId: string) => Promise<void>;
   isUploading: boolean;
   primaryColor?: string;
   canUpload?: boolean;
 }) {
   const [submitting, setSubmitting] = React.useState(false);
+  const [redacting, setRedacting] = React.useState(false);
   const uploadCount = uploads.length;
   const hasMinFiles = field.minFiles ? uploadCount >= field.minFiles : uploadCount > 0;
-  const isFieldComplete = hasMinFiles && queue.length === 0;
+  const hasUploads = uploadCount > 0 && queue.length === 0;
+
+  // Determine field state based on submission status
+  const submissionStatus = fieldSubmission?.status || "PENDING";
+  const isSubmitted = submissionStatus === "SUBMITTED";
+  const isApproved = submissionStatus === "APPROVED";
+  const needsRevision = submissionStatus === "NEEDS_REVISION";
+  const canSubmitField = hasUploads && hasMinFiles && !isSubmitted && !isApproved;
+  const canRedactField = (isSubmitted || needsRevision) && !isApproved;
+  const canDeleteUploads = !isSubmitted && !isApproved;
+  const canUploadMore = canUpload && !isSubmitted && !isApproved;
 
   const handleSubmit = async () => {
     if (!onFieldSubmit) return;
@@ -232,6 +257,33 @@ function FieldUploadSection({
     }
   };
 
+  const handleRedact = async () => {
+    if (!onFieldRedact) return;
+    setRedacting(true);
+    try {
+      await onFieldRedact();
+    } finally {
+      setRedacting(false);
+    }
+  };
+
+  // Get icon and color based on status
+  const getStatusIcon = () => {
+    if (isApproved) return <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
+    if (isSubmitted) return <Send className="h-5 w-5 text-violet-600 dark:text-violet-400" />;
+    if (needsRevision) return <X className="h-5 w-5 text-red-600 dark:text-red-400" />;
+    if (hasUploads) return <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
+    return <Upload className="h-5 w-5" style={{ color: primaryColor }} />;
+  };
+
+  const getStatusBgClass = () => {
+    if (isApproved) return "bg-emerald-100 dark:bg-emerald-900/30";
+    if (isSubmitted) return "bg-violet-100 dark:bg-violet-900/30";
+    if (needsRevision) return "bg-red-100 dark:bg-red-900/30";
+    if (hasUploads) return "bg-emerald-100 dark:bg-emerald-900/30";
+    return "bg-slate-100 dark:bg-slate-800";
+  };
+
   return (
     <div className="space-y-4">
       {/* Field header */}
@@ -240,17 +292,11 @@ function FieldUploadSection({
           <div
             className={cn(
               "h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-              isFieldComplete
-                ? "bg-emerald-100 dark:bg-emerald-900/30"
-                : "bg-slate-100 dark:bg-slate-800"
+              getStatusBgClass()
             )}
-            style={!isFieldComplete ? { backgroundColor: `${primaryColor || "#6366f1"}15` } : undefined}
+            style={!hasUploads && !isSubmitted && !isApproved && !needsRevision ? { backgroundColor: `${primaryColor || "#6366f1"}15` } : undefined}
           >
-            {isFieldComplete ? (
-              <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <Upload className="h-5 w-5" style={{ color: primaryColor }} />
-            )}
+            {getStatusIcon()}
           </div>
           <div>
             <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -271,20 +317,34 @@ function FieldUploadSection({
           </div>
         </div>
 
-        {/* Status badge & submit button */}
+        {/* Status badge & action buttons */}
         <div className="flex items-center gap-2 shrink-0">
-          {uploadCount > 0 && (
-            <Badge
-              variant={isFieldComplete ? "default" : "secondary"}
-              className={cn(
-                "text-xs",
-                isFieldComplete && "bg-emerald-500 hover:bg-emerald-600"
-              )}
-            >
+          {/* Status badges */}
+          {isApproved && (
+            <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs">
+              <Check className="h-3 w-3 mr-1" />
+              Approved
+            </Badge>
+          )}
+          {isSubmitted && (
+            <Badge className="bg-violet-500 hover:bg-violet-600 text-xs">
+              <Send className="h-3 w-3 mr-1" />
+              Submitted
+            </Badge>
+          )}
+          {needsRevision && (
+            <Badge variant="destructive" className="text-xs">
+              Needs Revision
+            </Badge>
+          )}
+          {!isSubmitted && !isApproved && !needsRevision && uploadCount > 0 && (
+            <Badge variant="secondary" className="text-xs">
               {uploadCount} file{uploadCount !== 1 ? "s" : ""}
             </Badge>
           )}
-          {onFieldSubmit && isFieldComplete && (
+
+          {/* Submit button */}
+          {onFieldSubmit && canSubmitField && (
             <Button
               size="sm"
               onClick={handleSubmit}
@@ -300,11 +360,46 @@ function FieldUploadSection({
               Submit
             </Button>
           )}
+
+          {/* Redact button */}
+          {onFieldRedact && canRedactField && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRedact}
+              disabled={redacting}
+              className="gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-50"
+            >
+              {redacting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <X className="h-3.5 w-3.5" />
+              )}
+              Redact
+            </Button>
+          )}
         </div>
       </div>
 
+      {/* Revision feedback */}
+      {needsRevision && fieldSubmission?.feedback && (
+        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <p className="text-sm text-red-700 dark:text-red-300">
+            <span className="font-medium">Feedback:</span> {fieldSubmission.feedback}
+          </p>
+        </div>
+      )}
+
+      {/* Field instructions/examples */}
+      {field.richContent && (
+        <FieldExamplesDisplay
+          richContent={field.richContent}
+          fieldLabel={field.label}
+        />
+      )}
+
       {/* Upload dropzone */}
-      {canUpload && (
+      {canUploadMore && (
         <FileDropzone
           onFilesSelected={onFilesSelected}
           acceptedTypes={field.acceptedFileTypes}
@@ -343,10 +438,17 @@ function FieldUploadSection({
               key={upload.id}
               upload={upload}
               primaryColor={primaryColor}
-              onDelete={onDeleteUpload ? () => onDeleteUpload(upload.id) : undefined}
+              onDelete={canDeleteUploads && onDeleteUpload ? () => onDeleteUpload(upload.id) : undefined}
             />
           ))}
         </div>
+      )}
+
+      {/* Submitted state message */}
+      {isSubmitted && (
+        <p className="text-sm text-muted-foreground text-center py-2">
+          Waiting for review. You can redact your submission if you need to make changes.
+        </p>
       )}
     </div>
   );
@@ -356,6 +458,7 @@ export function PerFieldUpload({
   fields,
   uploads,
   queue,
+  fieldSubmissions,
   onFilesSelected,
   onPause,
   onResume,
@@ -366,6 +469,7 @@ export function PerFieldUpload({
   onPauseAll,
   onResumeAll,
   onFieldSubmit,
+  onFieldRedact,
   onDeleteUpload,
   isUploading,
   primaryColor = "#6366f1",
@@ -394,6 +498,7 @@ export function PerFieldUpload({
             field={field}
             uploads={getFieldUploads(field.id)}
             queue={getFieldQueue(field.id)}
+            fieldSubmission={fieldSubmissions?.[field.id]}
             onFilesSelected={(files) => onFilesSelected(files, field.id)}
             onPause={onPause}
             onResume={onResume}
@@ -404,6 +509,7 @@ export function PerFieldUpload({
             onPauseAll={onPauseAll}
             onResumeAll={onResumeAll}
             onFieldSubmit={onFieldSubmit ? () => onFieldSubmit(field.id) : undefined}
+            onFieldRedact={onFieldRedact ? () => onFieldRedact(field.id) : undefined}
             onDeleteUpload={onDeleteUpload}
             isUploading={isUploading}
             primaryColor={primaryColor}

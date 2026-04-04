@@ -481,6 +481,10 @@ model ContentRequest {
   // Custom fields (from template or ad-hoc)
   fields Json @default("[]") // Array of {label, value, type, required}
 
+  // Per-field submission tracking
+  // Format: { "fieldId": { status: "PENDING"|"SUBMITTED"|"APPROVED"|"NEEDS_REVISION", submittedAt?, reviewedAt?, feedback? } }
+  fieldSubmissions Json @default("{}")
+
   // Scheduling
   dueDate DateTime?
   urgency Urgency   @default(NORMAL)
