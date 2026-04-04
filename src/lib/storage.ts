@@ -269,3 +269,41 @@ export async function getFileUrl(key: string, filename?: string): Promise<string
   // Fall back to presigned URL
   return getDownloadPresignedUrl(key, filename);
 }
+
+/**
+ * Upload a file directly to R2 storage from the server.
+ * Use this for server-side uploads like voice notes, thumbnails, etc.
+ *
+ * Returns the storage key for the uploaded file.
+ */
+export async function uploadToStorage(
+  key: string,
+  data: Buffer | Uint8Array,
+  contentType: string
+): Promise<string> {
+  // Ensure bucket exists for local dev
+  if (isLocal) {
+    await ensureBucketExists();
+  }
+
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: data,
+      ContentType: contentType,
+    })
+  );
+
+  return key;
+}
+
+/**
+ * Generate a storage key for voice notes
+ */
+export function generateVoiceNoteKey(
+  sessionId: string,
+  noteId: string
+): string {
+  return `voice-notes/${sessionId}/${noteId}`;
+}

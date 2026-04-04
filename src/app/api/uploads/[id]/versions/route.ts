@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
 
 // Types for version history
 interface UploadVersion {
@@ -94,8 +94,11 @@ export async function GET(
     // Current upload is always version 1 (most recent)
     const versions: UploadVersion[] = [];
 
-    // Add current version
-    const currentPreviewUrl = await getDownloadPresignedUrl(upload.storageKey).catch(() => null);
+    // Add current version (prefer public URL for zero bandwidth)
+    let currentPreviewUrl = getPublicFileUrl(upload.storageKey);
+    if (!currentPreviewUrl) {
+      currentPreviewUrl = await getDownloadPresignedUrl(upload.storageKey).catch(() => null);
+    }
 
     versions.push({
       id: upload.id,
@@ -127,9 +130,13 @@ export async function GET(
       if (metadata?.previousVersion) {
         const prevVersion = metadata.previousVersion as Record<string, unknown>;
         const prevStorageKey = prevVersion.storageKey as string;
-        const prevPreviewUrl = prevStorageKey
-          ? await getDownloadPresignedUrl(prevStorageKey).catch(() => null)
-          : null;
+        let prevPreviewUrl: string | null = null;
+        if (prevStorageKey) {
+          prevPreviewUrl = getPublicFileUrl(prevStorageKey);
+          if (!prevPreviewUrl) {
+            prevPreviewUrl = await getDownloadPresignedUrl(prevStorageKey).catch(() => null);
+          }
+        }
 
         versions.push({
           id: `${upload.id}-v${versionLogs.length - i}`,

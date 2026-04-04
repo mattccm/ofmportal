@@ -6,7 +6,7 @@ import {
   logShareAccess,
   getSharedResource,
 } from "@/lib/share";
-import { getDownloadPresignedUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
 
 // POST - Validate share token and get shared content
 export async function POST(request: NextRequest) {
@@ -82,10 +82,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For uploads, get preview URL
+    // For uploads, get preview URL (prefer public URL for zero bandwidth)
     let enrichedResource: unknown = resource;
     if (shareLink.resourceType === "UPLOAD" && "storageKey" in resource) {
-      const previewUrl = await getDownloadPresignedUrl(resource.storageKey);
+      let previewUrl = getPublicFileUrl(resource.storageKey);
+      if (!previewUrl) {
+        previewUrl = await getDownloadPresignedUrl(resource.storageKey);
+      }
       enrichedResource = { ...resource, previewUrl };
     }
 

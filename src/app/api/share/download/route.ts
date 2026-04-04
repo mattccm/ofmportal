@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { validateShareAccess, logShareAccess } from "@/lib/share";
-import { getDownloadPresignedUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
 
 // POST - Download file through share link
 export async function POST(request: NextRequest) {
@@ -147,8 +147,11 @@ export async function POST(request: NextRequest) {
     // Log the download
     await logShareAccess(shareLink.id, "DOWNLOAD", metadata);
 
-    // Get presigned download URL
-    const url = await getDownloadPresignedUrl(upload.storageKey);
+    // Get download URL - prefer public URL (zero bandwidth) over presigned
+    let url = getPublicFileUrl(upload.storageKey);
+    if (!url) {
+      url = await getDownloadPresignedUrl(upload.storageKey);
+    }
 
     return NextResponse.json({
       url,

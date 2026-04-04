@@ -8,6 +8,12 @@ import {
   emitChatMessage,
 } from "@/lib/realtime-session";
 import { VoiceNote, ReviewSessionChatWithUser } from "@/types/review-session";
+import {
+  uploadToStorage,
+  generateVoiceNoteKey,
+  getPublicFileUrl,
+  getViewPresignedUrl,
+} from "@/lib/storage";
 
 // Mock auth helper - replace with real auth in production
 async function getCurrentUser(request: NextRequest) {
@@ -101,17 +107,27 @@ export async function POST(
       select: { id: true, name: true, avatar: true },
     });
 
-    // In production, upload to storage service (S3, etc.)
-    // For now, we'll simulate by creating a data URL or storing in memory
+    // Generate a unique ID for this voice note
+    const noteId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    // Upload audio to R2 storage (NOT base64 in DB - that wastes 33% more space)
     const arrayBuffer = await audioFile.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-    const voiceNoteUrl = `data:${audioFile.type};base64,${base64}`;
+    const storageKey = generateVoiceNoteKey(sessionId, noteId);
+    await uploadToStorage(storageKey, Buffer.from(arrayBuffer), audioFile.type);
+
+    // Get URL for the voice note (prefer public URL for zero bandwidth)
+    let voiceNoteUrl = getPublicFileUrl(storageKey);
+    if (!voiceNoteUrl) {
+      voiceNoteUrl = await getViewPresignedUrl(storageKey);
+    }
 
     // Get current upload ID for context
     const uploadIds = session.uploadIds as string[];
     const currentUploadId = uploadId || uploadIds[session.currentUploadIndex] || null;
 
     // Create voice note as a chat message with type VOICE_NOTE
+    // Store the storage key (not URL) so we can generate fresh URLs on-demand
+    // The key is prefixed with "r2:" to distinguish from legacy base64 data URLs
     const chatMessage = await db.reviewSessionChat.create({
       data: {
         sessionId,
@@ -119,7 +135,7 @@ export async function POST(
         message: `Voice note (${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, "0")})`,
         uploadId: currentUploadId,
         type: "VOICE_NOTE",
-        voiceNoteUrl,
+        voiceNoteUrl: `r2:${storageKey}`,
         voiceNoteDuration: duration,
       },
     });
@@ -134,6 +150,8 @@ export async function POST(
 
     const messageWithUser: ReviewSessionChatWithUser = {
       ...chatMessage,
+      // Return the actual URL (not the storage key) for immediate playback
+      voiceNoteUrl,
       user: user || { id: userId, name: "Unknown", avatar: null },
     };
 
@@ -219,17 +237,35 @@ export async function GET(
     });
     const userMap = new Map(users.map((u) => [u.id, u]));
 
-    const voiceNotesWithUsers = voiceNotes.map((vn) => ({
-      id: vn.id,
-      sessionId: vn.sessionId,
-      userId: vn.userId,
-      uploadId: vn.uploadId,
-      audioUrl: vn.voiceNoteUrl,
-      duration: vn.voiceNoteDuration,
-      transcript: null,
-      createdAt: vn.createdAt,
-      user: userMap.get(vn.userId) || { id: vn.userId, name: "Unknown", avatar: null },
-    }));
+    // Generate fresh URLs for each voice note
+    const voiceNotesWithUsers = await Promise.all(
+      voiceNotes.map(async (vn) => {
+        let audioUrl = vn.voiceNoteUrl;
+
+        // Check if this is an R2 storage key (new format) vs legacy base64 data URL
+        if (audioUrl?.startsWith("r2:")) {
+          const storageKey = audioUrl.substring(3); // Remove "r2:" prefix
+          // Prefer public URL (zero bandwidth) over presigned
+          audioUrl = getPublicFileUrl(storageKey);
+          if (!audioUrl) {
+            audioUrl = await getViewPresignedUrl(storageKey);
+          }
+        }
+        // Legacy base64 data URLs (data:audio/...) work as-is
+
+        return {
+          id: vn.id,
+          sessionId: vn.sessionId,
+          userId: vn.userId,
+          uploadId: vn.uploadId,
+          audioUrl,
+          duration: vn.voiceNoteDuration,
+          transcript: null,
+          createdAt: vn.createdAt,
+          user: userMap.get(vn.userId) || { id: vn.userId, name: "Unknown", avatar: null },
+        };
+      })
+    );
 
     return NextResponse.json({ voiceNotes: voiceNotesWithUsers });
   } catch (error) {
