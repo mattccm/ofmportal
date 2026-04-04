@@ -98,9 +98,16 @@ export async function GET(
         }
 
         return {
-          ...upload,
+          id: upload.id,
+          fileName: upload.fileName,
+          originalName: upload.originalName,
+          fileType: upload.fileType,
           fileSize: Number(upload.fileSize),
+          status: upload.status,
+          uploadStatus: upload.uploadStatus,
+          storageKey: upload.storageKey,
           thumbnailUrl,
+          fieldId: upload.fieldId,
         };
       })
     );

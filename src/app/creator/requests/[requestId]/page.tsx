@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UploadedFilesGrid } from "@/components/portal/upload-zone";
 import { FileDropzone } from "@/components/uploads/file-dropzone";
 import { UploadQueue } from "@/components/uploads/upload-queue";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
@@ -12,7 +11,7 @@ import { useFileUpload } from "@/hooks/use-file-upload";
 import { useBranding } from "@/components/providers/branding-provider";
 import type { TemplateField } from "@/lib/template-types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/ui/avatar";
@@ -30,10 +29,10 @@ import {
   AlertTriangle,
   Send,
   MessageCircle,
-  FileText,
-  Upload,
-  Sparkles,
   Timer,
+  ChevronDown,
+  ChevronUp,
+  Upload,
 } from "lucide-react";
 import { format, formatDistanceToNow, differenceInDays, isPast } from "date-fns";
 import { toast } from "sonner";
@@ -72,6 +71,7 @@ interface UploadFile {
   status: string;
   uploadStatus: string;
   thumbnailUrl?: string;
+  storageKey?: string;
   fieldId?: string | null;
 }
 
@@ -420,275 +420,171 @@ export default function CreatorRequestDetailPage({
       }
     : null;
 
+  // Get file fields from request
+  const fileFields = request.fields?.filter(f => f.type === "file") || [];
+  const nonFileFields = request.fields?.filter(f => f.type !== "file") || [];
+  const hasFileFields = fileFields.length > 0;
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Handler for deleting uploads
+  const handleDeleteUpload = async (uploadId: string) => {
+    try {
+      const token = localStorage.getItem("creatorToken");
+      const response = await fetch(`/api/uploads/${uploadId}`, {
+        method: "DELETE",
+        headers: {
+          "x-creator-token": token || "",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete upload");
+      }
+
+      toast.success("File deleted");
+      fetchData();
+    } catch {
+      toast.error("Failed to delete file");
+    }
+  };
+
+  // Handler for per-field submit
+  const handleFieldSubmit = async (fieldId: string) => {
+    // For now, just show a toast - could implement per-field status tracking
+    toast.success("Field uploads saved");
+  };
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-8">
       {/* Back navigation */}
       <Button
         asChild
         variant="ghost"
         size="sm"
-        className="-ml-2 text-muted-foreground"
+        className="-ml-2 text-muted-foreground hover:text-foreground"
       >
         <Link href="/creator/requests">
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          Back to Requests
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          Back
         </Link>
       </Button>
 
-      {/* Request Header */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Badge
-                variant="outline"
-                className={cn(
-                  "gap-1.5 font-medium",
-                  statusInfo.bgClass,
-                  statusInfo.color
-                )}
-              >
-                {statusInfo.icon}
-                {statusInfo.label}
-              </Badge>
-              {request.status === "NEEDS_REVISION" && (
-                <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-800">
-                  Action Required
-                </Badge>
-              )}
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold">{request.title}</h1>
-            {request.description && (
-              <p className="text-muted-foreground mt-2 max-w-2xl text-sm sm:text-base">
-                {request.description}
+      {/* Clean Header: Title + Due Date + Status */}
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
+              {request.title}
+            </h1>
+            {dueInfo && (
+              <p className={cn(
+                "text-sm mt-1 flex items-center gap-1.5",
+                dueInfo.isOverdue
+                  ? "text-red-600"
+                  : dueInfo.daysUntil <= 3
+                    ? "text-amber-600"
+                    : "text-muted-foreground"
+              )}>
+                <Calendar className="h-3.5 w-3.5" />
+                {dueInfo.isOverdue
+                  ? `Overdue · ${dueInfo.formatted}`
+                  : dueInfo.daysUntil === 0
+                    ? `Due Today · ${dueInfo.formatted}`
+                    : `Due ${dueInfo.relative} · ${dueInfo.formatted}`}
               </p>
             )}
           </div>
-
-          {/* Due date countdown */}
-          {dueInfo && (
-            <Card
-              className={cn(
-                "shrink-0 w-full sm:w-auto",
-                dueInfo.isOverdue && "border-red-200 bg-red-50/50 dark:bg-red-900/20 dark:border-red-800",
-                !dueInfo.isOverdue &&
-                  dueInfo.daysUntil <= 3 &&
-                  "border-amber-200 bg-amber-50/50 dark:bg-amber-900/20 dark:border-amber-800"
-              )}
-            >
-              <CardContent className="p-4 text-center">
-                <Calendar
-                  className={cn(
-                    "h-5 w-5 mx-auto mb-2",
-                    dueInfo.isOverdue
-                      ? "text-red-500"
-                      : dueInfo.daysUntil <= 3
-                        ? "text-amber-500"
-                        : "text-muted-foreground"
-                  )}
-                />
-                <p
-                  className={cn(
-                    "text-2xl font-bold",
-                    dueInfo.isOverdue
-                      ? "text-red-600"
-                      : dueInfo.daysUntil <= 3
-                        ? "text-amber-600"
-                        : ""
-                  )}
-                >
-                  {dueInfo.isOverdue
-                    ? "Overdue"
-                    : dueInfo.daysUntil === 0
-                      ? "Due Today"
-                      : `${dueInfo.daysUntil}d`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {dueInfo.formatted}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          <Badge
+            variant="outline"
+            className={cn(
+              "gap-1.5 font-medium shrink-0",
+              statusInfo.bgClass,
+              statusInfo.color
+            )}
+          >
+            {statusInfo.icon}
+            {statusInfo.label}
+          </Badge>
         </div>
-      </div>
 
-      {/* Requirements Card */}
-      {((request.requirements &&
-        Object.keys(request.requirements).length > 0) ||
-        (request.fields && request.fields.length > 0)) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-5 w-5" style={{ color: branding.primaryColor }} />
-              Requirements
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        {/* Description */}
+        {request.description && (
+          <p className="text-muted-foreground leading-relaxed">
+            {request.description}
+          </p>
+        )}
+
+        {/* Revision notice */}
+        {request.status === "NEEDS_REVISION" && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="text-sm font-medium">Revisions requested - please check comments below</span>
+          </div>
+        )}
+
+        {/* Additional details toggle (for non-file fields & requirements) */}
+        {(nonFileFields.length > 0 || (request.requirements && Object.keys(request.requirements).length > 0)) && (
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {showDetails ? "Hide details" : "Show details"}
+          </button>
+        )}
+
+        {/* Collapsible details section */}
+        {showDetails && (
+          <div className="space-y-3 pt-2">
+            {/* Legacy requirements */}
             {request.requirements && (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {request.requirements.quantity && (
-                  <div className="p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                      Quantity
-                    </p>
-                    <p className="font-medium">{request.requirements.quantity}</p>
+                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                    <span className="text-muted-foreground">Quantity:</span>{" "}
+                    <span className="font-medium">{request.requirements.quantity}</span>
                   </div>
                 )}
                 {request.requirements.format && (
-                  <div className="p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                      Format
-                    </p>
-                    <p className="font-medium">{request.requirements.format}</p>
+                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                    <span className="text-muted-foreground">Format:</span>{" "}
+                    <span className="font-medium">{request.requirements.format}</span>
                   </div>
                 )}
                 {request.requirements.resolution && (
-                  <div className="p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                      Resolution
-                    </p>
-                    <p className="font-medium">{request.requirements.resolution}</p>
+                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                    <span className="text-muted-foreground">Resolution:</span>{" "}
+                    <span className="font-medium">{request.requirements.resolution}</span>
+                  </div>
+                )}
+                {request.requirements.notes && (
+                  <div className="p-3 rounded-lg bg-muted/50 text-sm sm:col-span-2">
+                    <span className="text-muted-foreground">Notes:</span>{" "}
+                    <span>{request.requirements.notes}</span>
                   </div>
                 )}
               </div>
             )}
-            {request.requirements?.notes && (
-              <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                  Notes
-                </p>
-                <p className="text-sm">{request.requirements.notes}</p>
+            {/* Non-file fields */}
+            {nonFileFields.map((field, index) => (
+              <div key={field.id || index} className="p-3 rounded-lg bg-muted/50 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">{field.label}:</span>{" "}
+                    <span className="font-medium">{field.value}</span>
+                  </p>
+                </div>
+                {field.richContent && (
+                  <FieldExamplesDisplay
+                    richContent={field.richContent}
+                    fieldLabel={field.label}
+                  />
+                )}
               </div>
-            )}
-            {request.fields && request.fields.length > 0 && (
-              <div className="space-y-3">
-                {request.fields.map((field, index) => (
-                  <div key={field.id || index} className="p-4 rounded-lg bg-muted/50 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                          {field.label}
-                        </p>
-                        <p className="font-medium mt-1">{field.value}</p>
-                      </div>
-                    </div>
-                    {field.richContent && (
-                      <FieldExamplesDisplay
-                        richContent={field.richContent}
-                        fieldLabel={field.label}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Upload Section */}
-      {canUpload && (() => {
-        // Get file fields from request
-        const fileFields = request.fields?.filter(f => f.type === "file") || [];
-        const hasFileFields = fileFields.length > 0;
-
-        return hasFileFields ? (
-          // Per-field upload UI
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Upload className="h-5 w-5" style={{ color: branding.primaryColor }} />
-              <h2 className="text-lg font-semibold">Upload Content</h2>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Upload files for each required field below. Drag and drop or tap to select files.
-            </p>
-
-            {duplicateAlertResult && (
-              <DuplicateAlert
-                result={duplicateAlertResult.result}
-                fileName={duplicateAlertResult.fileName}
-                onDismiss={() => setDuplicateAlertResult(null)}
-              />
-            )}
-
-            <PerFieldUpload
-              fields={fileFields.map(f => ({
-                id: f.id || `field-${f.label}`,
-                label: f.label,
-                type: "file" as const,
-                required: f.required,
-                acceptedFileTypes: f.acceptedFileTypes,
-                maxFiles: f.maxFiles,
-                minFiles: f.minFiles,
-                maxFileSize: f.maxFileSize,
-                helpText: f.helpText,
-                richContent: f.richContent,
-              }))}
-              uploads={uploads}
-              queue={uploadQueue}
-              onFilesSelected={handleFilesSelected}
-              onPause={pauseFile}
-              onResume={resumeFile}
-              onRetry={retryFile}
-              onCancel={cancelFile}
-              onRemove={removeFile}
-              onClearCompleted={clearCompleted}
-              onPauseAll={pauseAll}
-              onResumeAll={resumeAll}
-              isUploading={isUploading}
-              primaryColor={branding.primaryColor}
-            />
+            ))}
           </div>
-        ) : (
-          // Standard single upload UI
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Upload className="h-5 w-5" style={{ color: branding.primaryColor }} />
-                Upload Content
-              </CardTitle>
-              <CardDescription>
-                Drag and drop files or tap to select. We support images, videos, and audio up to 5GB.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {duplicateAlertResult && (
-                <DuplicateAlert
-                  result={duplicateAlertResult.result}
-                  fileName={duplicateAlertResult.fileName}
-                  onDismiss={() => setDuplicateAlertResult(null)}
-                />
-              )}
-
-              <FileDropzone
-                onFilesSelected={handleFilesSelected}
-                fullPageDrop={true}
-                showPasteButton={true}
-              />
-
-              {uploadQueue.length > 0 && (
-                <UploadQueue
-                  queue={uploadQueue}
-                  onPause={pauseFile}
-                  onResume={resumeFile}
-                  onRetry={retryFile}
-                  onCancel={cancelFile}
-                  onRemove={removeFile}
-                  onClearCompleted={clearCompleted}
-                  onPauseAll={pauseAll}
-                  onResumeAll={resumeAll}
-                  totalProgress={totalProgress}
-                  totalSize={totalSize}
-                  uploadedSize={uploadedSize}
-                  isUploading={isUploading}
-                  collapsible={true}
-                  maxVisibleItems={5}
-                />
-              )}
-            </CardContent>
-          </Card>
-        );
-      })()}
+        )}
+      </div>
 
       {/* Duplicate Warning Dialog */}
       {duplicateResult && pendingFiles.length > 0 && (
@@ -708,145 +604,117 @@ export default function CreatorRequestDetailPage({
         />
       )}
 
-      {/* Uploaded Files */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between text-base">
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" style={{ color: branding.primaryColor }} />
-              Uploaded Files
-            </span>
-            <span className="text-sm font-normal text-muted-foreground">
-              {uploads.length} file{uploads.length !== 1 ? "s" : ""}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <UploadedFilesGrid files={uploads} />
-        </CardContent>
-      </Card>
-
-      {/* Comments / Feedback */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <MessageCircle className="h-5 w-5" style={{ color: branding.primaryColor }} />
-            Comments & Feedback
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {comments.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6">
-              No comments yet
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className={cn(
-                    "flex gap-3",
-                    !comment.isAgency && "flex-row-reverse"
-                  )}
-                >
-                  <Avatar
-                    size="sm"
-                    user={{
-                      name: comment.isAgency
-                        ? comment.user?.name || "Agency"
-                        : creator?.name || "You",
-                      image: comment.isAgency
-                        ? comment.user?.image
-                        : creator?.image,
-                    }}
-                  />
-                  <div
-                    className={cn(
-                      "flex-1 max-w-[80%]",
-                      !comment.isAgency && "text-right"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "inline-block rounded-2xl px-4 py-2",
-                        comment.isAgency
-                          ? "bg-muted rounded-tl-none"
-                          : "rounded-tr-none text-white"
-                      )}
-                      style={!comment.isAgency ? { backgroundColor: branding.primaryColor } : undefined}
-                    >
-                      <p className="text-sm">{comment.content}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatDistanceToNow(new Date(comment.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* Upload Section - Per Field */}
+      {canUpload && hasFileFields && (
+        <div className="space-y-2">
+          {duplicateAlertResult && (
+            <DuplicateAlert
+              result={duplicateAlertResult.result}
+              fileName={duplicateAlertResult.fileName}
+              onDismiss={() => setDuplicateAlertResult(null)}
+            />
           )}
 
-          <div className="flex gap-3 pt-4 border-t">
-            <Textarea
-              placeholder="Type a message..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[60px] resize-none"
-            />
-            <Button
-              onClick={handleSendComment}
-              disabled={!newComment.trim() || sendingComment}
-              className="shrink-0"
-              style={{ backgroundColor: branding.primaryColor }}
-            >
-              {sendingComment ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <PerFieldUpload
+            fields={fileFields.map(f => ({
+              id: f.id || `field-${f.label}`,
+              label: f.label,
+              type: "file" as const,
+              required: f.required,
+              acceptedFileTypes: f.acceptedFileTypes,
+              maxFiles: f.maxFiles,
+              minFiles: f.minFiles,
+              maxFileSize: f.maxFileSize,
+              helpText: f.helpText,
+              richContent: f.richContent,
+            }))}
+            uploads={uploads}
+            queue={uploadQueue}
+            onFilesSelected={handleFilesSelected}
+            onPause={pauseFile}
+            onResume={resumeFile}
+            onRetry={retryFile}
+            onCancel={cancelFile}
+            onRemove={removeFile}
+            onClearCompleted={clearCompleted}
+            onPauseAll={pauseAll}
+            onResumeAll={resumeAll}
+            onFieldSubmit={handleFieldSubmit}
+            onDeleteUpload={handleDeleteUpload}
+            isUploading={isUploading}
+            primaryColor={branding.primaryColor}
+            canUpload={canUpload}
+          />
+        </div>
+      )}
 
-      {/* Submit Button */}
+      {/* Fallback: Standard upload UI when no file fields defined */}
+      {canUpload && !hasFileFields && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Upload Content</h2>
+            <p className="text-sm text-muted-foreground">
+              Drag and drop files or tap to select. We support images, videos, and audio up to 5GB.
+            </p>
+          </div>
+
+          {duplicateAlertResult && (
+            <DuplicateAlert
+              result={duplicateAlertResult.result}
+              fileName={duplicateAlertResult.fileName}
+              onDismiss={() => setDuplicateAlertResult(null)}
+            />
+          )}
+
+          <FileDropzone
+            onFilesSelected={handleFilesSelected}
+            fullPageDrop={true}
+            showPasteButton={true}
+          />
+
+          {uploadQueue.length > 0 && (
+            <UploadQueue
+              queue={uploadQueue}
+              onPause={pauseFile}
+              onResume={resumeFile}
+              onRetry={retryFile}
+              onCancel={cancelFile}
+              onRemove={removeFile}
+              onClearCompleted={clearCompleted}
+              onPauseAll={pauseAll}
+              onResumeAll={resumeAll}
+              totalProgress={totalProgress}
+              totalSize={totalSize}
+              uploadedSize={uploadedSize}
+              isUploading={isUploading}
+              collapsible={true}
+              maxVisibleItems={5}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Submit Button - Clean and minimal */}
       {canSubmit && (
-        <Card
-          className="border-2"
-          style={{ borderColor: `${branding.primaryColor}40` }}
-        >
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto shadow-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${branding.primaryColor}, ${branding.secondaryColor})`,
-                }}
-              >
-                <CheckCircle2 className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Ready to Submit?</h3>
-                <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                  You have {uploads.length} file{uploads.length !== 1 ? "s" : ""}{" "}
-                  ready. Submit your content for review.
-                </p>
-              </div>
-              <Button
-                onClick={handleSubmit}
-                disabled={submitting}
-                size="lg"
-                className="px-8"
-                style={{ backgroundColor: branding.primaryColor }}
-              >
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submit for Review
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center gap-3 py-4">
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting}
+            size="lg"
+            className="px-8 h-12 text-base font-medium shadow-lg hover:shadow-xl transition-shadow"
+            style={{ backgroundColor: branding.primaryColor }}
+          >
+            {submitting ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-2 h-5 w-5" />
+            )}
+            Submit for Review
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            {uploads.length} file{uploads.length !== 1 ? "s" : ""} ready to submit
+          </p>
+        </div>
       )}
 
       {/* Status Messages */}
@@ -877,6 +745,93 @@ export default function CreatorRequestDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Comments / Feedback - Collapsible */}
+      <div className="space-y-4 pt-4 border-t">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-5 w-5" style={{ color: branding.primaryColor }} />
+          <h2 className="text-lg font-semibold">Comments</h2>
+          {comments.length > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {comments.length}
+            </Badge>
+          )}
+        </div>
+
+        {comments.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">
+            No comments yet. Send a message if you have any questions.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {comments.map((comment) => (
+              <div
+                key={comment.id}
+                className={cn(
+                  "flex gap-3",
+                  !comment.isAgency && "flex-row-reverse"
+                )}
+              >
+                <Avatar
+                  size="sm"
+                  user={{
+                    name: comment.isAgency
+                      ? comment.user?.name || "Agency"
+                      : creator?.name || "You",
+                    image: comment.isAgency
+                      ? comment.user?.image
+                      : creator?.image,
+                  }}
+                />
+                <div
+                  className={cn(
+                    "flex-1 max-w-[80%]",
+                    !comment.isAgency && "text-right"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "inline-block rounded-2xl px-4 py-2",
+                      comment.isAgency
+                        ? "bg-muted rounded-tl-none"
+                        : "rounded-tr-none text-white"
+                    )}
+                    style={!comment.isAgency ? { backgroundColor: branding.primaryColor } : undefined}
+                  >
+                    <p className="text-sm">{comment.content}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatDistanceToNow(new Date(comment.createdAt), {
+                      addSuffix: true,
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <Textarea
+            placeholder="Type a message..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="min-h-[60px] resize-none"
+          />
+          <Button
+            onClick={handleSendComment}
+            disabled={!newComment.trim() || sendingComment}
+            className="shrink-0"
+            style={{ backgroundColor: branding.primaryColor }}
+          >
+            {sendingComment ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

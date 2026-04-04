@@ -128,7 +128,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      upload: updatedUpload,
+      upload: {
+        ...updatedUpload,
+        fileSize: Number(updatedUpload.fileSize),
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
