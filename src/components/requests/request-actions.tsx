@@ -38,6 +38,7 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 import { ShareButton } from "@/components/share/share-dialog";
+import { createZipFromUrls, downloadBlob } from "@/lib/client-zip";
 
 interface Request {
   id: string;
@@ -164,20 +165,26 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
   const handleBulkDownload = async () => {
     setLoading(true);
     try {
+      // Get download URLs from API (returns JSON with direct R2 URLs)
       const response = await fetch(`/api/requests/${request.id}/download`);
       if (!response.ok) throw new Error("Failed to generate download");
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${request.title.replace(/[^a-z0-9]/gi, "_")}_${request.id}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const data = await response.json();
+      const files = data.files as Array<{ url: string; fileName: string }>;
 
-      toast.success("Download started");
+      if (files.length === 0) {
+        toast.error("No files to download");
+        return;
+      }
+
+      toast.info(`Downloading ${files.length} file(s)...`);
+
+      // Create ZIP client-side (files fetched directly from R2 - no Vercel bandwidth)
+      const zipBlob = await createZipFromUrls(files);
+      const filename = `${request.title.replace(/[^a-z0-9]/gi, "_")}_${request.id}.zip`;
+      downloadBlob(zipBlob, filename);
+
+      toast.success("Download complete");
     } catch {
       toast.error("Failed to download files");
     } finally {

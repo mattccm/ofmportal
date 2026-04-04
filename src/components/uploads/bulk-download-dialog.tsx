@@ -43,6 +43,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";
+import { createZipFromUrls, downloadBlob, downloadFilesIndividually } from "@/lib/client-zip";
 
 export interface UploadForDownload {
   id: string;
@@ -239,82 +240,73 @@ export function BulkDownloadDialog({
 
     setIsDownloading(true);
     setDownloadProgress(0);
-    setDownloadStatus("Preparing download...");
+    setDownloadStatus("Getting download URLs...");
 
     try {
+      // First, get the download URLs from the API
+      const response = await fetch("/api/uploads/bulk-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uploadIds: selectedUploads.map((u) => u.id),
+          format: "urls",
+          organization: folderOrganization,
+          includeMetadata,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to get download URLs");
+      }
+
+      const data = await response.json();
+      const files = data.files as Array<{
+        url: string;
+        fileName: string;
+        folder?: string;
+      }>;
+
       if (downloadFormat === "individual") {
-        // Download files individually
+        // Download files individually (direct from R2 - no Vercel bandwidth)
         setDownloadStatus("Downloading files...");
-        let completed = 0;
-
-        for (const upload of selectedUploads) {
-          setDownloadStatus(`Downloading ${upload.originalName}...`);
-
-          const response = await fetch(`/api/uploads/${upload.id}/url`);
-          if (!response.ok) {
-            console.error(`Failed to get URL for ${upload.originalName}`);
-            continue;
-          }
-
-          const { url } = await response.json();
-
-          // Create a download link
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = upload.originalName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-
-          completed++;
-          setDownloadProgress((completed / selectedUploads.length) * 100);
-
-          // Small delay between downloads to prevent browser blocking
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
-
-        toast.success(`Downloaded ${completed} file(s)`);
+        await downloadFilesIndividually(
+          files,
+          (current, total, fileName) => {
+            setDownloadProgress((current / total) * 100);
+            setDownloadStatus(`Downloading ${fileName}...`);
+          },
+          500
+        );
+        toast.success(`Downloaded ${files.length} file(s)`);
       } else {
-        // ZIP download
-        setDownloadStatus("Creating ZIP archive...");
-        setDownloadProgress(10);
+        // Create ZIP client-side (files fetched directly from R2 - no Vercel bandwidth)
+        setDownloadStatus("Downloading files for ZIP...");
 
-        const response = await fetch("/api/uploads/bulk-download", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            uploadIds: selectedUploads.map((u) => u.id),
-            format: downloadFormat,
-            organization: folderOrganization,
-            includeMetadata,
-          }),
-        });
+        const zipBlob = await createZipFromUrls(
+          files.map(f => ({
+            url: f.url,
+            fileName: f.fileName,
+            folder: downloadFormat === "folder" ? f.folder : undefined,
+          })),
+          (progress) => {
+            if (progress.phase === "fetching") {
+              setDownloadProgress((progress.current / progress.total) * 80);
+              setDownloadStatus(`Downloading ${progress.fileName}... (${progress.current}/${progress.total})`);
+            } else if (progress.phase === "zipping") {
+              setDownloadProgress(90);
+              setDownloadStatus("Creating ZIP archive...");
+            } else {
+              setDownloadProgress(100);
+              setDownloadStatus("Complete!");
+            }
+          }
+        );
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to create download");
-        }
-
-        setDownloadProgress(80);
-        setDownloadStatus("Preparing file...");
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-
-        // Generate filename based on selection
+        // Download the ZIP
         const dateStr = format(new Date(), "yyyy-MM-dd");
-        const filename = `uploads-${dateStr}.zip`;
-        link.download = filename;
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        setDownloadProgress(100);
-        toast.success(`Downloaded ${selectedUploads.length} file(s) as ZIP`);
+        downloadBlob(zipBlob, `uploads-${dateStr}.zip`);
+        toast.success(`Downloaded ${files.length} file(s) as ZIP`);
       }
 
       // Close dialog after successful download
