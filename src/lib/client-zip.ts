@@ -30,6 +30,9 @@ export async function createZipFromUrls(
   // Track filenames to handle duplicates
   const usedNames = new Map<string, number>();
 
+  // Track failed downloads
+  const failedFiles: string[] = [];
+
   // Download all files and add to zip
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -43,9 +46,15 @@ export async function createZipFromUrls(
 
     try {
       // Fetch file directly from R2/storage URL
-      const response = await fetch(file.url);
+      // Use no-cors mode is not viable as we need the blob data
+      // Instead, ensure R2 bucket has proper CORS configured
+      const response = await fetch(file.url, {
+        mode: "cors",
+        credentials: "omit", // Don't send cookies to R2
+      });
       if (!response.ok) {
         console.error(`Failed to fetch ${file.fileName}: ${response.status}`);
+        failedFiles.push(file.fileName);
         continue;
       }
 
@@ -74,8 +83,22 @@ export async function createZipFromUrls(
       zip.file(zipPath, blob);
     } catch (error) {
       console.error(`Error fetching ${file.fileName}:`, error);
+      failedFiles.push(file.fileName);
       // Continue with other files
     }
+  }
+
+  // If all files failed, throw an error
+  if (failedFiles.length === files.length) {
+    throw new Error(
+      `Failed to download all files. This may be due to CORS configuration on the storage bucket. ` +
+      `Please ensure CORS is configured to allow requests from this domain.`
+    );
+  }
+
+  // Log warning if some files failed
+  if (failedFiles.length > 0) {
+    console.warn(`Failed to download ${failedFiles.length} file(s):`, failedFiles);
   }
 
   onProgress?.({

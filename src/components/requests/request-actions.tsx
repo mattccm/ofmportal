@@ -185,8 +185,9 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
       downloadBlob(zipBlob, filename);
 
       toast.success("Download complete");
-    } catch {
-      toast.error("Failed to download files");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to download files");
     } finally {
       setLoading(false);
     }
