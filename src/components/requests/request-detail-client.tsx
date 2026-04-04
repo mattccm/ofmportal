@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ import {
   Loader2,
   StickyNote,
   PanelRightOpen,
+  Pencil,
 } from "lucide-react";
 import { NotesPanel } from "@/components/notes/notes-panel";
 import { type Note } from "@/lib/notes-utils";
@@ -48,6 +50,7 @@ import {
   useSetCreatorContext,
 } from "@/components/providers/creator-context-provider";
 import { HtmlContent } from "@/components/ui/html-content";
+import { RequestEditor } from "@/components/requests/request-editor";
 
 interface Creator {
   id: string;
@@ -214,6 +217,10 @@ export function RequestDetailClient({
   currentUserId = "",
   currentUser = { id: "", name: "Unknown", role: "MEMBER" },
 }: RequestDetailClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEditMode = searchParams.get("mode") === "edit";
+
   const [request, setRequest] = useState(initialRequest);
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const [watchers, setWatchers] = useState<Watcher[]>(
@@ -226,6 +233,23 @@ export function RequestDetailClient({
   // Creator context panel integration
   const { openCreatorContext } = useCreatorContextPanel();
   useSetCreatorContext(initialRequest.creator.id);
+
+  // Handle exiting edit mode
+  const handleExitEditMode = useCallback(() => {
+    router.push(`/dashboard/requests/${request.id}`);
+    router.refresh();
+  }, [router, request.id]);
+
+  // If in edit mode, render the request editor
+  if (isEditMode) {
+    return (
+      <RequestEditor
+        request={request as unknown as Parameters<typeof RequestEditor>[0]["request"]}
+        onSave={handleExitEditMode}
+        onCancel={handleExitEditMode}
+      />
+    );
+  }
 
   // Mark comments as read when viewing this request
   useEffect(() => {
@@ -381,6 +405,13 @@ export function RequestDetailClient({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/dashboard/requests/${request.id}?mode=edit`)}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Request
+          </Button>
           <Button
             variant="outline"
             onClick={() => setCloneDialogOpen(true)}

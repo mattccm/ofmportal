@@ -102,6 +102,7 @@ export default function CreatorMessagesPage() {
     const creatorId = localStorage.getItem("creatorId");
     const name = localStorage.getItem("creatorName");
     const email = localStorage.getItem("creatorEmail");
+    const avatar = localStorage.getItem("creatorAvatar");
 
     if (!token || !creatorId) {
       router.push("/login");
@@ -112,6 +113,7 @@ export default function CreatorMessagesPage() {
       id: creatorId,
       name: name || "Creator",
       email: email || "",
+      image: avatar || undefined,
     });
 
     fetchThreads();

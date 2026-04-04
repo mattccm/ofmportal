@@ -51,10 +51,21 @@ export interface TemplateField {
   maxFiles?: number;
 }
 
+// Rich content for template instructions/examples
+export interface RichContent {
+  description?: string;
+  exampleText?: string;
+  exampleImages?: { url: string; caption?: string }[];
+  exampleVideoUrl?: string;
+  referenceLinks?: { label: string; url: string }[];
+  exampleImageUrl?: string; // Legacy
+}
+
 export interface Template {
   id: string;
   name: string;
   description?: string;
+  richContent?: RichContent;
   fields: TemplateField[];
   defaultDueDays: number;
   defaultUrgency: "LOW" | "NORMAL" | "HIGH" | "URGENT";
@@ -69,6 +80,7 @@ export interface Template {
 export interface TemplateFormData {
   name: string;
   description?: string;
+  richContent?: RichContent;
   fields: TemplateField[];
   defaultDueDays: number;
   defaultUrgency: "LOW" | "NORMAL" | "HIGH" | "URGENT";
@@ -504,6 +516,7 @@ export function deserializeTemplate(dbTemplate: {
   id: string;
   name: string;
   description: string | null;
+  richContent?: unknown;
   fields: unknown;
   defaultDueDays: number;
   defaultUrgency: string;
@@ -524,10 +537,25 @@ export function deserializeTemplate(dbTemplate: {
     fields = [];
   }
 
+  // Parse richContent if it's a string (from JSON column)
+  let richContent: RichContent | undefined;
+  if (dbTemplate.richContent) {
+    if (typeof dbTemplate.richContent === "string") {
+      try {
+        richContent = JSON.parse(dbTemplate.richContent);
+      } catch {
+        richContent = undefined;
+      }
+    } else if (typeof dbTemplate.richContent === "object") {
+      richContent = dbTemplate.richContent as RichContent;
+    }
+  }
+
   return {
     id: dbTemplate.id,
     name: dbTemplate.name,
     description: dbTemplate.description || undefined,
+    richContent,
     fields,
     defaultDueDays: dbTemplate.defaultDueDays,
     defaultUrgency: dbTemplate.defaultUrgency as Template["defaultUrgency"],

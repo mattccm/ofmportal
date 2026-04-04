@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { TemplateSelector } from "@/components/requests/template-selector";
 import { TemplatePreviewCard } from "@/components/templates/template-preview-card";
 import { expandQuantityFields, type Template as FullTemplate, type TemplateField } from "@/lib/template-types";
+import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 
 // ============================================
 // TYPES
@@ -1198,20 +1199,22 @@ function NewRequestForm() {
 
                 <div className="space-y-2">
                   <HelpLabel
-                    label="Description"
+                    label="Description / Instructions"
                     helpKey="form.request-description"
                     htmlFor="description"
                   />
-                  <Textarea
-                    id="description"
-                    placeholder="Describe what content you need..."
+                  <WysiwygEditor
                     value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
+                    onChange={(value) =>
+                      setFormData({ ...formData, description: value })
                     }
-                    rows={3}
-                    disabled={loading}
+                    placeholder="Add instructions for the creator. You can format text, add lists, links, etc."
+                    minHeight="120px"
+                    maxHeight="300px"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    These instructions will be shown to the creator when they view this request
+                  </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1263,11 +1266,11 @@ function NewRequestForm() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Custom Fields</CardTitle>
+                    <CardTitle>Request Fields</CardTitle>
                     <CardDescription>
                       {selectedTemplate
-                        ? "Fields from your selected template"
-                        : "Add custom fields for the creator to fill out"}
+                        ? "Customize the fields for this specific request"
+                        : "Add fields for the creator to fill out or upload content"}
                     </CardDescription>
                   </div>
                   <Button
@@ -1284,71 +1287,93 @@ function NewRequestForm() {
               </CardHeader>
               <CardContent>
                 {customFields.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No custom fields added. Click &quot;Add Field&quot; to add fields like captions, pricing, tags, etc.
-                  </p>
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      No fields added yet. Click &quot;Add Field&quot; to add fields like text inputs, file uploads, etc.
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
-                    {customFields.map((field) => (
+                    {customFields.map((field, index) => (
                       <div
                         key={field.id}
-                        className="p-4 border rounded-lg space-y-4"
+                        className="p-4 border rounded-lg space-y-4 bg-muted/30"
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label>Field Label</Label>
-                              <Input
-                                placeholder="e.g., Caption, PPV Price"
-                                value={field.label}
-                                onChange={(e) =>
-                                  updateCustomField(field.id, { label: e.target.value })
-                                }
-                                disabled={loading}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Default Value (Optional)</Label>
-                              <Input
-                                placeholder="Pre-fill value"
-                                value={field.value}
-                                onChange={(e) =>
-                                  updateCustomField(field.id, { value: e.target.value })
-                                }
-                                disabled={loading}
-                              />
-                            </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="font-medium">#{index + 1}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {field.type === "file" ? "File Upload" : field.type}
+                            </Badge>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                id={`required-${field.id}`}
-                                checked={field.required}
-                                onCheckedChange={(checked) =>
-                                  updateCustomField(field.id, { required: !!checked })
-                                }
-                                disabled={loading}
-                              />
-                              <Label htmlFor={`required-${field.id}`} className="text-sm">
-                                Required
-                              </Label>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeCustomField(field.id)}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => removeCustomField(field.id)}
+                            disabled={loading}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>Field Label</Label>
+                            <Input
+                              placeholder="e.g., Caption, Photo, Content Theme"
+                              value={field.label}
+                              onChange={(e) =>
+                                updateCustomField(field.id, { label: e.target.value })
+                              }
+                              disabled={loading}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Field Type</Label>
+                            <Select
+                              value={field.type}
+                              onValueChange={(value) =>
+                                updateCustomField(field.id, { type: value })
+                              }
                               disabled={loading}
                             >
-                              <X className="h-4 w-4" />
-                            </Button>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Text</SelectItem>
+                                <SelectItem value="textarea">Long Text</SelectItem>
+                                <SelectItem value="number">Number</SelectItem>
+                                <SelectItem value="date">Date</SelectItem>
+                                <SelectItem value="select">Dropdown</SelectItem>
+                                <SelectItem value="checkbox">Checkbox</SelectItem>
+                                <SelectItem value="file">File Upload</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
-                        {/* Instructions/Help text - editable per-request */}
+
+                        {field.type !== "file" && (
+                          <div className="space-y-2">
+                            <Label>Default Value (Optional)</Label>
+                            <Input
+                              placeholder="Pre-fill value for creator"
+                              value={field.value}
+                              onChange={(e) =>
+                                updateCustomField(field.id, { value: e.target.value })
+                              }
+                              disabled={loading}
+                            />
+                          </div>
+                        )}
+
                         <div className="space-y-2">
-                          <Label className="text-muted-foreground">Instructions for Creator (Optional)</Label>
+                          <Label className="text-muted-foreground">Instructions for Creator</Label>
                           <Textarea
-                            placeholder="Add specific instructions for this request..."
+                            placeholder="Add specific instructions for this field..."
                             value={field.helpText || ""}
                             onChange={(e) =>
                               updateCustomField(field.id, { helpText: e.target.value })
@@ -1358,7 +1383,21 @@ function NewRequestForm() {
                             className="text-sm"
                           />
                         </div>
-                        {/* Show if field has rich content from template */}
+
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`required-${field.id}`}
+                            checked={field.required}
+                            onCheckedChange={(checked) =>
+                              updateCustomField(field.id, { required: !!checked })
+                            }
+                            disabled={loading}
+                          />
+                          <Label htmlFor={`required-${field.id}`} className="text-sm cursor-pointer">
+                            Required field
+                          </Label>
+                        </div>
+
                         {field.richContent && (field.richContent.exampleImages?.length || field.richContent.exampleVideoUrl || field.richContent.referenceLinks?.length) && (
                           <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded">
                             This field has examples/references from the template

@@ -24,6 +24,7 @@ export function EditTemplateClient({ template }: EditTemplateClientProps) {
   const initialData: TemplateFormData & { categoryId?: string | null } = {
     name: template.name,
     description: template.description,
+    richContent: template.richContent,
     fields: template.fields,
     defaultDueDays: template.defaultDueDays,
     defaultUrgency: template.defaultUrgency,
