@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Clock,
   Settings2,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ import { useAutosave } from "@/hooks/use-autosave";
 import { SaveStatusBar } from "@/components/forms/autosave-indicator";
 import { RecoveryDialog } from "@/components/forms/recovery-dialog";
 import { clearFormData } from "@/lib/form-storage";
+import { clearRememberToken, setSignedOutFlag } from "@/lib/remember-token";
 
 // Languages (for future use)
 const LANGUAGES = [
@@ -624,6 +626,34 @@ export default function ProfileSettingsPage() {
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
             </Link>
+          </CardContent>
+        </Card>
+
+        {/* Sign Out */}
+        <Card className="card-elevated border-red-200 dark:border-red-900/50">
+          <CardContent className="p-4">
+            <button
+              type="button"
+              onClick={async () => {
+                setSignedOutFlag();
+                await clearRememberToken();
+                signOut({ callbackUrl: "/login" });
+              }}
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group w-full text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <LogOut className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-red-600">Sign Out</p>
+                  <p className="text-sm text-muted-foreground">
+                    Sign out of your account on this device
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-red-400 group-hover:translate-x-1 transition-transform" />
+            </button>
           </CardContent>
         </Card>
 

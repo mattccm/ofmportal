@@ -98,14 +98,8 @@ function UploadPreviewCard({
   const isVideo = upload.fileType.startsWith("video/");
   const [imageError, setImageError] = React.useState(false);
 
-  // Generate preview URL
-  const previewUrl = React.useMemo(() => {
-    if (upload.thumbnailUrl) return upload.thumbnailUrl;
-    if (upload.storageKey) {
-      return `/api/local-files/${encodeURIComponent(upload.storageKey)}`;
-    }
-    return null;
-  }, [upload.thumbnailUrl, upload.storageKey]);
+  // Use thumbnailUrl from API (already resolved to public URL or presigned)
+  const previewUrl = upload.thumbnailUrl || null;
 
   return (
     <div className="group relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 transition-all duration-200 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600">

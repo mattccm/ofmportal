@@ -101,8 +101,12 @@ function ResponsiveLayoutComponent({
           <div
             className={cn(
               "min-h-full",
-              !fullWidth && "px-4 py-4"
+              !fullWidth && "py-4"
             )}
+            style={{
+              paddingLeft: fullWidth ? 'env(safe-area-inset-left, 0px)' : 'max(16px, env(safe-area-inset-left, 16px))',
+              paddingRight: fullWidth ? 'env(safe-area-inset-right, 0px)' : 'max(16px, env(safe-area-inset-right, 16px))',
+            }}
           >
             {children}
           </div>

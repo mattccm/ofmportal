@@ -214,7 +214,7 @@ export function FilePreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[100vw] max-h-[100vh] w-screen h-screen p-0 border-0 bg-black/95 gap-0"
+        className="max-w-[100vw] max-h-[100dvh] w-screen h-[100dvh] p-0 border-0 bg-black/95 gap-0 pb-safe"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <VisuallyHidden.Root>
@@ -344,7 +344,7 @@ export function FilePreviewModal({
               {isVideo && (
                 <VideoPlayer
                   src={currentFile.url}
-                  className="w-full max-w-5xl aspect-video"
+                  className="w-full max-w-full sm:max-w-5xl max-h-[calc(100dvh-12rem)]"
                 />
               )}
 

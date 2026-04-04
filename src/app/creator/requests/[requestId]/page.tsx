@@ -158,6 +158,9 @@ export default function CreatorRequestDetailPage({
   const [duplicateProcessing, setDuplicateProcessing] = useState(false);
   const [duplicateAlertResult, setDuplicateAlertResult] = useState<{ result: DuplicateCheckResult; fileName: string } | null>(null);
 
+  // UI state - must be at top level before any conditionals
+  const [showDetails, setShowDetails] = useState(false);
+
   const {
     queue: uploadQueue,
     addFiles,
@@ -424,7 +427,6 @@ export default function CreatorRequestDetailPage({
   const fileFields = request.fields?.filter(f => f.type === "file") || [];
   const nonFileFields = request.fields?.filter(f => f.type !== "file") || [];
   const hasFileFields = fileFields.length > 0;
-  const [showDetails, setShowDetails] = useState(false);
 
   // Handler for deleting uploads
   const handleDeleteUpload = async (uploadId: string) => {

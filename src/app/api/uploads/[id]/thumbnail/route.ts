@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getViewPresignedUrl } from "@/lib/storage";
+import { getViewPresignedUrl, getPublicFileUrl } from "@/lib/storage";
 
 export async function GET(
   req: NextRequest,
@@ -43,7 +43,11 @@ export async function GET(
       return NextResponse.json({ url: null });
     }
 
-    const url = await getViewPresignedUrl(keyToUse);
+    // Prefer public URL for zero bandwidth
+    let url = getPublicFileUrl(keyToUse);
+    if (!url) {
+      url = await getViewPresignedUrl(keyToUse);
+    }
 
     return NextResponse.json({ url });
   } catch (error) {

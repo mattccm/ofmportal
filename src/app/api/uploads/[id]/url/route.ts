@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
 
 export async function GET(
   req: NextRequest,
@@ -29,7 +29,11 @@ export async function GET(
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    const url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName || upload.fileName);
+    // Prefer public URL for zero bandwidth
+    let url = getPublicFileUrl(upload.storageKey);
+    if (!url) {
+      url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName || upload.fileName);
+    }
 
     return NextResponse.json({ url });
   } catch (error) {

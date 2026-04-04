@@ -332,6 +332,8 @@ export function MobileNav() {
         )}
         style={{
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+          paddingRight: "env(safe-area-inset-right, 0px)",
         }}
         role="navigation"
         aria-label="Main navigation"

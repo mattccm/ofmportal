@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validateCreatorSession } from "@/lib/portal-auth";
-import { getDownloadPresignedUrl, useLocalStorage } from "@/lib/storage";
+import { getDownloadPresignedUrl, useLocalStorage, getPublicFileUrl } from "@/lib/storage";
 
 export async function GET(
   req: NextRequest,
@@ -79,22 +79,38 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    // Convert BigInt to number and generate presigned URLs for thumbnails
+    // Convert BigInt to number and generate URLs for previews
     const serializedUploads = await Promise.all(
       uploads.map(async (upload) => {
         let thumbnailUrl = upload.thumbnailUrl;
 
-        // Generate presigned URL for thumbnail if it exists
-        if (upload.thumbnailKey && !thumbnailUrl) {
+        // For images, use the actual file as preview (via public URL if available)
+        const isImage = upload.fileType.startsWith("image/");
+        const isVideo = upload.fileType.startsWith("video/");
+
+        // Try to get a preview URL - prioritize public URL for zero bandwidth
+        let previewUrl: string | null = null;
+        const keyToUse = isImage ? upload.storageKey : upload.thumbnailKey;
+
+        if (keyToUse) {
           try {
-            if (useLocalStorage) {
-              thumbnailUrl = `/api/local-files/${encodeURIComponent(upload.thumbnailKey)}`;
-            } else {
-              thumbnailUrl = await getDownloadPresignedUrl(upload.thumbnailKey);
+            // Prefer public URL (zero bandwidth)
+            previewUrl = getPublicFileUrl(keyToUse);
+            if (!previewUrl) {
+              if (useLocalStorage) {
+                previewUrl = `/api/local-files/${encodeURIComponent(keyToUse)}`;
+              } else {
+                previewUrl = await getDownloadPresignedUrl(keyToUse);
+              }
             }
           } catch {
-            // Thumbnail generation failed, leave as null
+            // Preview generation failed
           }
+        }
+
+        // Use computed preview URL as thumbnail for images
+        if (isImage && previewUrl && !thumbnailUrl) {
+          thumbnailUrl = previewUrl;
         }
 
         return {
@@ -106,7 +122,7 @@ export async function GET(
           status: upload.status,
           uploadStatus: upload.uploadStatus,
           storageKey: upload.storageKey,
-          thumbnailUrl,
+          thumbnailUrl: thumbnailUrl || previewUrl,
           fieldId: upload.fieldId,
         };
       })
