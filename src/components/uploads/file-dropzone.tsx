@@ -97,6 +97,23 @@ export function FileDropzone({
   const dragCounterRef = useRef(0);
   const fullPageCounterRef = useRef(0);
 
+  // Determine which file types to show based on acceptedTypes
+  const showImages = acceptedTypes.some(t => t.startsWith("image") || t === "*/*");
+  const showVideos = acceptedTypes.some(t => t.startsWith("video") || t === "*/*");
+  const showAudio = acceptedTypes.some(t => t.startsWith("audio") || t === "*/*");
+
+  // Generate file type description text
+  const getFileTypeDescription = () => {
+    const types: string[] = [];
+    if (showImages) types.push("images");
+    if (showVideos) types.push("videos");
+    if (showAudio) types.push("audio");
+    if (types.length === 0) return "files";
+    if (types.length === 1) return types[0];
+    if (types.length === 2) return types.join(" and ");
+    return types.slice(0, -1).join(", ") + ", and " + types[types.length - 1];
+  };
+
   // Analyze files during drag to show preview
   const analyzeDataTransfer = useCallback(
     (dataTransfer: DataTransfer): DragPreviewInfo => {
@@ -393,21 +410,27 @@ export function FileDropzone({
 
             {/* Accepted types */}
             <div className="flex items-center justify-center gap-4 pt-2">
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                  <ImageIcon className="h-4 w-4 text-emerald-500" />
+              {showImages && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                    <ImageIcon className="h-4 w-4 text-emerald-500" />
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                  <Video className="h-4 w-4 text-blue-500" />
+              )}
+              {showVideos && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Video className="h-4 w-4 text-blue-500" />
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <div className="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-                  <Music className="h-4 w-4 text-violet-500" />
+              )}
+              {showAudio && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <div className="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+                    <Music className="h-4 w-4 text-violet-500" />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -454,7 +477,7 @@ export function FileDropzone({
                 {isDragging ? "Drop files here" : "Drag files or click to upload"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                Images, videos, audio{maxFileSize < MAX_FILE_SIZE && ` up to ${formatFileSize(maxFileSize)}`}
+                {getFileTypeDescription().charAt(0).toUpperCase() + getFileTypeDescription().slice(1)}{maxFileSize < MAX_FILE_SIZE && ` up to ${formatFileSize(maxFileSize)}`}
               </p>
             </div>
 
@@ -553,33 +576,39 @@ export function FileDropzone({
                   )}
                 </>
               ) : fullPageDrop ? (
-                `Drag files anywhere on the page, paste from clipboard, or click to browse. We support images, videos, and audio${maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
+                `Drag files anywhere on the page, paste from clipboard, or click to browse. We support ${getFileTypeDescription()}${maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
               ) : (
-                `Drag and drop your files here, paste from clipboard, or click to browse. We support images, videos, and audio${maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
+                `Drag and drop your files here, paste from clipboard, or click to browse. We support ${getFileTypeDescription()}${maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
               )}
             </p>
           </div>
 
           {/* File types */}
           <div className="flex items-center justify-center gap-6 mb-6">
-            <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                <ImageIcon className="h-5 w-5 text-emerald-500" />
+            {showImages && (
+              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <ImageIcon className="h-5 w-5 text-emerald-500" />
+                </div>
+                <span className="text-xs font-medium">Images</span>
               </div>
-              <span className="text-xs font-medium">Images</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                <Video className="h-5 w-5 text-blue-500" />
+            )}
+            {showVideos && (
+              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                  <Video className="h-5 w-5 text-blue-500" />
+                </div>
+                <span className="text-xs font-medium">Videos</span>
               </div>
-              <span className="text-xs font-medium">Videos</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-              <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-                <Music className="h-5 w-5 text-violet-500" />
+            )}
+            {showAudio && (
+              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+                  <Music className="h-5 w-5 text-violet-500" />
+                </div>
+                <span className="text-xs font-medium">Audio</span>
               </div>
-              <span className="text-xs font-medium">Audio</span>
-            </div>
+            )}
           </div>
 
           {/* Buttons */}

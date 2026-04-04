@@ -627,32 +627,38 @@ export function RichContentEditor({ richContent, onChange, title, description }:
           continue;
         }
 
-        // Convert to base64 for upload
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        // Upload to S3/R2 storage instead of storing base64 directly
-        const response = await fetch("/api/templates/upload-example", {
+        // Step 1: Get presigned URL from our API
+        const presignResponse = await fetch("/api/templates/upload-example", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            file: base64,
             fileName: file.name,
             fileType: file.type,
+            fileSize: file.size,
           }),
         });
 
-        if (!response.ok) {
-          const errorMessage = await parseErrorResponse(response);
+        if (!presignResponse.ok) {
+          const errorMessage = await parseErrorResponse(presignResponse);
           throw new Error(errorMessage);
         }
 
-        const result = await response.json();
-        newImages.push({ url: result.url, caption: file.name.replace(/\.[^/.]+$/, "") });
+        const { uploadUrl, publicUrl } = await presignResponse.json();
+
+        // Step 2: Upload directly to R2/S3 using presigned URL
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed: ${uploadResponse.status}`);
+        }
+
+        newImages.push({ url: publicUrl, caption: file.name.replace(/\.[^/.]+$/, "") });
       }
 
       if (newImages.length > 0) {
@@ -694,32 +700,38 @@ export function RichContentEditor({ richContent, onChange, title, description }:
 
     setUploadingVideo(true);
     try {
-      // Convert to base64 for upload
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      // Upload to S3/R2 storage instead of storing base64 directly
-      const response = await fetch("/api/templates/upload-example", {
+      // Step 1: Get presigned URL from our API
+      const presignResponse = await fetch("/api/templates/upload-example", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          file: base64,
           fileName: file.name,
           fileType: file.type,
+          fileSize: file.size,
         }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
+      if (!presignResponse.ok) {
+        const error = await presignResponse.json();
         throw new Error(error.error || "Upload failed");
       }
 
-      const result = await response.json();
-      updateRichContent({ exampleVideoUrl: result.url });
+      const { uploadUrl, publicUrl } = await presignResponse.json();
+
+      // Step 2: Upload directly to R2/S3 using presigned URL
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status}`);
+      }
+
+      updateRichContent({ exampleVideoUrl: publicUrl });
       toast.success("Example video added");
     } catch (error) {
       console.error("Error uploading video:", error);
@@ -748,30 +760,38 @@ export function RichContentEditor({ richContent, onChange, title, description }:
           continue;
         }
 
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        const response = await fetch("/api/templates/upload-example", {
+        // Step 1: Get presigned URL from our API
+        const presignResponse = await fetch("/api/templates/upload-example", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            file: base64,
             fileName: file.name,
             fileType: file.type,
+            fileSize: file.size,
           }),
         });
 
-        if (!response.ok) {
-          const errorMessage = await parseErrorResponse(response);
+        if (!presignResponse.ok) {
+          const errorMessage = await parseErrorResponse(presignResponse);
           throw new Error(errorMessage);
         }
 
-        const result = await response.json();
-        newImages.push({ url: result.url, caption: file.name.replace(/\.[^/.]+$/, "") });
+        const { uploadUrl, publicUrl } = await presignResponse.json();
+
+        // Step 2: Upload directly to R2/S3 using presigned URL
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed: ${uploadResponse.status}`);
+        }
+
+        newImages.push({ url: publicUrl, caption: file.name.replace(/\.[^/.]+$/, "") });
       }
 
       if (newImages.length > 0) {
@@ -869,30 +889,38 @@ export function RichContentEditor({ richContent, onChange, title, description }:
 
       setUploadingVideo(true);
       try {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        const response = await fetch("/api/templates/upload-example", {
+        // Step 1: Get presigned URL from our API
+        const presignResponse = await fetch("/api/templates/upload-example", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            file: base64,
             fileName: file.name,
             fileType: file.type,
+            fileSize: file.size,
           }),
         });
 
-        if (!response.ok) {
-          const errorMessage = await parseErrorResponse(response);
+        if (!presignResponse.ok) {
+          const errorMessage = await parseErrorResponse(presignResponse);
           throw new Error(errorMessage);
         }
 
-        const result = await response.json();
-        updateRichContent({ exampleVideoUrl: result.url });
+        const { uploadUrl, publicUrl } = await presignResponse.json();
+
+        // Step 2: Upload directly to R2/S3 using presigned URL
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed: ${uploadResponse.status}`);
+        }
+
+        updateRichContent({ exampleVideoUrl: publicUrl });
         toast.success("Example video added");
       } catch (error) {
         console.error("Error uploading video:", error);

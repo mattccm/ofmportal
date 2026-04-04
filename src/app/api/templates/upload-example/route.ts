@@ -1,37 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import {
-  S3Client,
-  PutObjectCommand,
-} from "@aws-sdk/client-s3";
-
-// Check if S3/R2 storage is properly configured
-const isStorageConfigured = !!(
-  process.env.R2_ACCESS_KEY_ID &&
-  process.env.R2_SECRET_ACCESS_KEY &&
-  (process.env.R2_ENDPOINT || process.env.R2_ACCOUNT_ID)
-);
+import { getUploadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
 
 // Determine if we're using local MinIO or Cloudflare R2
 const isLocal = process.env.R2_ENDPOINT?.includes("localhost");
-
-// S3-compatible client (works with both MinIO and R2)
-let s3Client: S3Client | null = null;
-if (isStorageConfigured) {
-  s3Client = new S3Client({
-    region: "auto",
-    endpoint: isLocal
-      ? process.env.R2_ENDPOINT
-      : `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
-    },
-    forcePathStyle: isLocal,
-  });
-}
-
 const BUCKET_NAME = process.env.R2_BUCKET_NAME || "upload-portal";
 const TEMPLATE_ASSETS_PREFIX = "template-assets";
 
@@ -43,9 +16,19 @@ const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
  * Get public URL for template asset
  */
 function getAssetPublicUrl(key: string): string {
+  // Try to use the public domain if configured
+  const publicUrl = getPublicFileUrl(key);
+  if (publicUrl) {
+    return publicUrl;
+  }
+
+  // Fallback for local development
   if (isLocal) {
     return `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
   }
+
+  // If no public domain is configured, we'll need to use presigned URLs for access
+  // This shouldn't happen in production with proper R2 setup
   const publicDomain = process.env.R2_PUBLIC_DOMAIN;
   if (!publicDomain) {
     console.error(
@@ -57,7 +40,8 @@ function getAssetPublicUrl(key: string): string {
   return `https://${publicDomain}/${key}`;
 }
 
-// POST: Upload template example image or video
+// POST: Get presigned URL for template example upload
+// Returns a presigned URL for direct browser-to-R2 upload
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -66,20 +50,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if storage is configured
-    if (!s3Client) {
-      return NextResponse.json(
-        { error: "Storage not configured. Please contact support." },
-        { status: 503 }
-      );
-    }
-
     const body = await request.json();
-    const { file, fileName, fileType } = body;
+    const { fileName, fileType, fileSize } = body;
 
-    if (!file || !fileName || !fileType) {
+    if (!fileName || !fileType || !fileSize) {
       return NextResponse.json(
-        { error: "Missing required fields: file, fileName, fileType" },
+        { error: "Missing required fields: fileName, fileType, fileSize" },
         { status: 400 }
       );
     }
@@ -95,22 +71,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract base64 data
-    const matches = file.match(/^data:([^;]+);base64,(.+)$/);
-    if (!matches) {
-      return NextResponse.json(
-        { error: "Invalid file format" },
-        { status: 400 }
-      );
-    }
-
-    const mimeType = matches[1];
-    const base64Data = matches[2];
-    const buffer = Buffer.from(base64Data, "base64");
-
     // Validate size
     const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_VIDEO_SIZE;
-    if (buffer.length > maxSize) {
+    if (fileSize > maxSize) {
       return NextResponse.json(
         { error: `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB` },
         { status: 400 }
@@ -122,35 +85,23 @@ export async function POST(request: NextRequest) {
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
     const key = `${TEMPLATE_ASSETS_PREFIX}/${session.user.agencyId}/${timestamp}-${sanitizedFileName}`;
 
-    // Upload to S3/R2
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        Body: buffer,
-        ContentType: mimeType,
-        CacheControl: "public, max-age=31536000", // 1 year cache for static assets
-        Metadata: {
-          agencyId: session.user.agencyId,
-          uploadedAt: new Date().toISOString(),
-          originalFileName: fileName,
-        },
-      })
-    );
+    // Get presigned URL for upload
+    const { url: uploadUrl } = await getUploadPresignedUrl(key, fileType, fileSize);
 
-    // Get public URL
-    const url = getAssetPublicUrl(key);
+    // Get the public URL where the file will be accessible after upload
+    const publicUrl = getAssetPublicUrl(key);
 
     return NextResponse.json({
       success: true,
-      url,
+      uploadUrl, // Presigned URL for PUT request
+      publicUrl, // URL to access the file after upload
       key,
       type: isImage ? "image" : "video",
     });
   } catch (error) {
-    console.error("Error uploading template asset:", error);
+    console.error("Error generating presigned URL for template asset:", error);
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { error: "Failed to generate upload URL" },
       { status: 500 }
     );
   }

@@ -41,6 +41,8 @@ interface UploadZoneProps {
   disabled?: boolean;
   maxFiles?: number;
   className?: string;
+  /** Restrict to specific file types (e.g., ["image/*", "video/*"]) */
+  acceptedTypes?: string[];
 }
 
 function getFileIcon(mimeType: string, className?: string) {
@@ -66,7 +68,25 @@ export function UploadZone({
   onCancel,
   disabled = false,
   className,
+  acceptedTypes,
 }: UploadZoneProps) {
+  // Determine which file types to show based on acceptedTypes
+  const showImages = !acceptedTypes || acceptedTypes.some(t => t.startsWith("image"));
+  const showVideos = !acceptedTypes || acceptedTypes.some(t => t.startsWith("video"));
+  const showAudio = !acceptedTypes || acceptedTypes.some(t => t.startsWith("audio"));
+  const acceptString = acceptedTypes?.join(",") || ALLOWED_TYPES.join(",");
+
+  // Generate file type description text
+  const getFileTypeDescription = () => {
+    const types: string[] = [];
+    if (showImages) types.push("images");
+    if (showVideos) types.push("videos");
+    if (showAudio) types.push("audio");
+    if (types.length === 0) return "files";
+    if (types.length === 1) return types[0];
+    if (types.length === 2) return types.join(" and ");
+    return types.slice(0, -1).join(", ") + ", and " + types[types.length - 1];
+  };
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -189,31 +209,36 @@ export function UploadZone({
               {isDragging ? "Drop files here" : "Upload your content"}
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Drag and drop your files here, or click to browse. We support
-              images, videos, and audio up to 5GB each.
+              Drag and drop your files here, or click to browse. We support {getFileTypeDescription()} up to 5GB each.
             </p>
           </div>
 
           {/* File types */}
           <div className="flex items-center justify-center gap-6 mb-6">
-            <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                <ImageIcon className="h-5 w-5 text-emerald-500" />
+            {showImages && (
+              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <ImageIcon className="h-5 w-5 text-emerald-500" />
+                </div>
+                <span className="text-xs font-medium">Images</span>
               </div>
-              <span className="text-xs font-medium">Images</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                <Video className="h-5 w-5 text-blue-500" />
+            )}
+            {showVideos && (
+              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                  <Video className="h-5 w-5 text-blue-500" />
+                </div>
+                <span className="text-xs font-medium">Videos</span>
               </div>
-              <span className="text-xs font-medium">Videos</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-              <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-                <Music className="h-5 w-5 text-violet-500" />
+            )}
+            {showAudio && (
+              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+                  <Music className="h-5 w-5 text-violet-500" />
+                </div>
+                <span className="text-xs font-medium">Audio</span>
               </div>
-              <span className="text-xs font-medium">Audio</span>
-            </div>
+            )}
           </div>
 
           {/* Button */}
@@ -221,7 +246,7 @@ export function UploadZone({
             ref={fileInputRef}
             type="file"
             multiple
-            accept={ALLOWED_TYPES.join(",")}
+            accept={acceptString}
             onChange={handleFileSelect}
             className="hidden"
             disabled={disabled}

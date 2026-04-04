@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { isPast, format } from "date-fns";
 import { useBranding } from "@/components/providers/branding-provider";
+import { stripHtml } from "@/components/ui/html-content";
 
 type RequestStatus =
   | "PENDING"
@@ -380,7 +381,7 @@ export default function CreatorRequestsPage() {
                                 "text-sm text-muted-foreground",
                                 viewMode === "grid" ? "line-clamp-2 flex-1" : "line-clamp-1"
                               )}>
-                                {request.description}
+                                {stripHtml(request.description)}
                               </p>
                             )}
                             <div className={cn(

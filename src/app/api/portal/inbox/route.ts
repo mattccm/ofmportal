@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { cookies } from "next/headers";
 
-// Helper to get creator from session
-async function getCreatorFromSession() {
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("creator_session")?.value;
+// Helper to get creator from session token header
+async function getCreatorFromSession(request: NextRequest) {
+  const sessionToken = request.headers.get("x-creator-token");
 
   if (!sessionToken) return null;
 
@@ -23,9 +21,9 @@ async function getCreatorFromSession() {
 }
 
 // GET /api/portal/inbox - Get creator's conversations
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const creator = await getCreatorFromSession();
+    const creator = await getCreatorFromSession(request);
     if (!creator) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -112,7 +110,7 @@ export async function GET() {
 // POST /api/portal/inbox - Creator sends a message
 export async function POST(request: NextRequest) {
   try {
-    const creator = await getCreatorFromSession();
+    const creator = await getCreatorFromSession(request);
     if (!creator) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

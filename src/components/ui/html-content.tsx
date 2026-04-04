@@ -14,6 +14,24 @@ export function sanitizeHtml(html: string): string {
     .replace(/on\w+='[^']*'/gi, "");
 }
 
+/**
+ * Strip all HTML tags and return plain text
+ * Useful for showing descriptions in list views
+ */
+export function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]*>/g, "") // Remove HTML tags
+    .replace(/&nbsp;/g, " ") // Replace non-breaking spaces
+    .replace(/&amp;/g, "&") // Replace HTML entities
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/\s+/g, " ") // Collapse whitespace
+    .trim();
+}
+
 interface HtmlContentProps {
   html: string | null | undefined;
   className?: string;

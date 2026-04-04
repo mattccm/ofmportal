@@ -129,7 +129,12 @@ export default function CreatorMessagesPage() {
   const fetchTeamConversation = async () => {
     try {
       setTeamLoading(true);
-      const response = await fetch("/api/portal/inbox");
+      const token = localStorage.getItem("creatorToken");
+      const response = await fetch("/api/portal/inbox", {
+        headers: {
+          "x-creator-token": token || "",
+        },
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -224,10 +229,12 @@ export default function CreatorMessagesPage() {
 
     setSending(true);
     try {
+      const token = localStorage.getItem("creatorToken");
       const response = await fetch("/api/portal/inbox", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-creator-token": token || "",
         },
         body: JSON.stringify({ content: newMessage }),
       });
