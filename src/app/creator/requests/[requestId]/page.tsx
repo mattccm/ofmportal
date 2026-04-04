@@ -37,6 +37,7 @@ import {
 import { format, formatDistanceToNow, differenceInDays, isPast } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { HtmlContent } from "@/components/ui/html-content";
 
 interface RequestField {
   id?: string;
@@ -561,9 +562,10 @@ export default function CreatorRequestDetailPage({
 
         {/* Description */}
         {request.description && (
-          <p className="text-muted-foreground leading-relaxed">
-            {request.description}
-          </p>
+          <HtmlContent
+            html={request.description}
+            className="text-muted-foreground leading-relaxed"
+          />
         )}
 
         {/* Revision notice */}
@@ -574,49 +576,20 @@ export default function CreatorRequestDetailPage({
           </div>
         )}
 
-        {/* Additional details toggle (for non-file fields & requirements) */}
-        {(nonFileFields.length > 0 || (request.requirements && Object.keys(request.requirements).length > 0)) && (
+        {/* Additional details toggle (for non-file fields like text, number, etc.) */}
+        {nonFileFields.length > 0 && (
           <button
             onClick={() => setShowDetails(!showDetails)}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            {showDetails ? "Hide details" : "Show details"}
+            {showDetails ? "Hide additional info" : "Show additional info"}
           </button>
         )}
 
         {/* Collapsible details section */}
-        {showDetails && (
+        {showDetails && nonFileFields.length > 0 && (
           <div className="space-y-3 pt-2">
-            {/* Legacy requirements */}
-            {request.requirements && (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {request.requirements.quantity && (
-                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                    <span className="text-muted-foreground">Quantity:</span>{" "}
-                    <span className="font-medium">{request.requirements.quantity}</span>
-                  </div>
-                )}
-                {request.requirements.format && (
-                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                    <span className="text-muted-foreground">Format:</span>{" "}
-                    <span className="font-medium">{request.requirements.format}</span>
-                  </div>
-                )}
-                {request.requirements.resolution && (
-                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                    <span className="text-muted-foreground">Resolution:</span>{" "}
-                    <span className="font-medium">{request.requirements.resolution}</span>
-                  </div>
-                )}
-                {request.requirements.notes && (
-                  <div className="p-3 rounded-lg bg-muted/50 text-sm sm:col-span-2">
-                    <span className="text-muted-foreground">Notes:</span>{" "}
-                    <span>{request.requirements.notes}</span>
-                  </div>
-                )}
-              </div>
-            )}
             {/* Non-file fields */}
             {nonFileFields.map((field, index) => (
               <div key={field.id || index} className="p-3 rounded-lg bg-muted/50 space-y-2">

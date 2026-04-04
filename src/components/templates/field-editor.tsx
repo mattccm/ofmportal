@@ -45,6 +45,26 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { cn } from "@/lib/utils";
+
+// Helper to safely parse error response
+async function parseErrorResponse(response: Response): Promise<string> {
+  try {
+    const error = await response.json();
+    return error.error || "Upload failed";
+  } catch {
+    // Response wasn't JSON, try to get text
+    try {
+      const text = await response.text();
+      if (text) {
+        return text.substring(0, 100); // Limit error message length
+      }
+    } catch {
+      // Ignore
+    }
+    return `Upload failed (${response.status})`;
+  }
+}
+
 import {
   TemplateField,
   FieldType,
@@ -627,8 +647,8 @@ export function RichContentEditor({ richContent, onChange, title, description }:
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Upload failed");
+          const errorMessage = await parseErrorResponse(response);
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();
@@ -746,8 +766,8 @@ export function RichContentEditor({ richContent, onChange, title, description }:
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Upload failed");
+          const errorMessage = await parseErrorResponse(response);
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();
@@ -867,8 +887,8 @@ export function RichContentEditor({ richContent, onChange, title, description }:
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Upload failed");
+          const errorMessage = await parseErrorResponse(response);
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();

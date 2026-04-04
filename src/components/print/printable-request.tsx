@@ -4,6 +4,7 @@ import * as React from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { HtmlContent } from "@/components/ui/html-content";
 import {
   Calendar,
   Clock,
@@ -218,7 +219,7 @@ export function PrintableRequest({
             Description
           </h2>
           <div className="p-4 bg-muted/30 rounded-lg border print:bg-gray-50 print:border-gray-200">
-            <p className="text-sm whitespace-pre-wrap">{request.description}</p>
+            <HtmlContent html={request.description} className="text-sm" />
           </div>
         </div>
       )}

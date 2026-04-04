@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -424,9 +425,13 @@ export function UploadReviewCard({
                   {upload.creator.name}
                 </span>
                 {upload.request?.title && (
-                  <span className="text-xs text-muted-foreground/70 truncate block">
+                  <Link
+                    href={`/dashboard/requests/${upload.request.id}`}
+                    className="text-xs text-primary/70 hover:text-primary hover:underline truncate block"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {upload.request.title}
-                  </span>
+                  </Link>
                 )}
               </div>
             </div>
@@ -689,6 +694,15 @@ export function UploadReviewCard({
                 ? format(new Date(upload.uploadedAt), "MMM d, h:mm a")
                 : "Uploading"}
             </span>
+            {upload.request?.title && (
+              <Link
+                href={`/dashboard/requests/${upload.request.id}`}
+                className="text-primary/70 hover:text-primary hover:underline truncate max-w-[200px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {upload.request.title}
+              </Link>
+            )}
           </div>
           {/* Tags in list view */}
           {upload.tags && upload.tags.length > 0 && (

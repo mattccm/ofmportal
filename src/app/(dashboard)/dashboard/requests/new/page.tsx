@@ -1261,71 +1261,6 @@ function NewRequestForm() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Content Requirements</CardTitle>
-                <CardDescription>
-                  Specify what you need from the creator
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">Quantity</Label>
-                    <Input
-                      id="quantity"
-                      placeholder="e.g., 10 photos, 3 videos"
-                      value={requirements.quantity}
-                      onChange={(e) =>
-                        setRequirements({ ...requirements, quantity: e.target.value })
-                      }
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="format">Format</Label>
-                    <Input
-                      id="format"
-                      placeholder="e.g., JPG, MP4"
-                      value={requirements.format}
-                      onChange={(e) =>
-                        setRequirements({ ...requirements, format: e.target.value })
-                      }
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="resolution">Resolution</Label>
-                    <Input
-                      id="resolution"
-                      placeholder="e.g., 1080p, 4K"
-                      value={requirements.resolution}
-                      onChange={(e) =>
-                        setRequirements({ ...requirements, resolution: e.target.value })
-                      }
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Additional Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Any specific requirements or notes for the creator..."
-                    value={requirements.notes}
-                    onChange={(e) =>
-                      setRequirements({ ...requirements, notes: e.target.value })
-                    }
-                    rows={2}
-                    disabled={loading}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Custom Fields</CardTitle>
@@ -1357,56 +1292,78 @@ function NewRequestForm() {
                     {customFields.map((field) => (
                       <div
                         key={field.id}
-                        className="flex items-start gap-4 p-4 border rounded-lg"
+                        className="p-4 border rounded-lg space-y-4"
                       >
-                        <div className="flex-1 grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>Field Label</Label>
-                            <Input
-                              placeholder="e.g., Caption, PPV Price"
-                              value={field.label}
-                              onChange={(e) =>
-                                updateCustomField(field.id, { label: e.target.value })
-                              }
-                              disabled={loading}
-                            />
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Field Label</Label>
+                              <Input
+                                placeholder="e.g., Caption, PPV Price"
+                                value={field.label}
+                                onChange={(e) =>
+                                  updateCustomField(field.id, { label: e.target.value })
+                                }
+                                disabled={loading}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Default Value (Optional)</Label>
+                              <Input
+                                placeholder="Pre-fill value"
+                                value={field.value}
+                                onChange={(e) =>
+                                  updateCustomField(field.id, { value: e.target.value })
+                                }
+                                disabled={loading}
+                              />
+                            </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label>Default Value (Optional)</Label>
-                            <Input
-                              placeholder="Pre-fill value"
-                              value={field.value}
-                              onChange={(e) =>
-                                updateCustomField(field.id, { value: e.target.value })
-                              }
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`required-${field.id}`}
+                                checked={field.required}
+                                onCheckedChange={(checked) =>
+                                  updateCustomField(field.id, { required: !!checked })
+                                }
+                                disabled={loading}
+                              />
+                              <Label htmlFor={`required-${field.id}`} className="text-sm">
+                                Required
+                              </Label>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeCustomField(field.id)}
                               disabled={loading}
-                            />
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`required-${field.id}`}
-                              checked={field.required}
-                              onCheckedChange={(checked) =>
-                                updateCustomField(field.id, { required: !!checked })
-                              }
-                              disabled={loading}
-                            />
-                            <Label htmlFor={`required-${field.id}`} className="text-sm">
-                              Required
-                            </Label>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeCustomField(field.id)}
+                        {/* Instructions/Help text - editable per-request */}
+                        <div className="space-y-2">
+                          <Label className="text-muted-foreground">Instructions for Creator (Optional)</Label>
+                          <Textarea
+                            placeholder="Add specific instructions for this request..."
+                            value={field.helpText || ""}
+                            onChange={(e) =>
+                              updateCustomField(field.id, { helpText: e.target.value })
+                            }
+                            rows={2}
                             disabled={loading}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                            className="text-sm"
+                          />
                         </div>
+                        {/* Show if field has rich content from template */}
+                        {field.richContent && (field.richContent.exampleImages?.length || field.richContent.exampleVideoUrl || field.richContent.referenceLinks?.length) && (
+                          <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded">
+                            This field has examples/references from the template
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

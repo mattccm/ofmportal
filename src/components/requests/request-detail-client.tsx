@@ -47,6 +47,7 @@ import {
   useCreatorContextPanel,
   useSetCreatorContext,
 } from "@/components/providers/creator-context-provider";
+import { HtmlContent } from "@/components/ui/html-content";
 
 interface Creator {
   id: string;
@@ -427,7 +428,7 @@ export function RequestDetailClient({
                 <CardTitle className="text-lg">Description</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="whitespace-pre-wrap">{request.description}</p>
+                <HtmlContent html={request.description} />
               </CardContent>
             </Card>
           )}
