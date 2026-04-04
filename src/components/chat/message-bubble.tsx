@@ -44,9 +44,9 @@ export function MessageBubble({
         <Avatar
           size="sm"
           user={{
-            name: message.sender.name,
-            email: message.sender.email,
-            image: message.sender.avatar,
+            name: message.sender?.name || "Unknown",
+            email: message.sender?.email || "",
+            image: message.sender?.avatar,
           }}
           className="flex-shrink-0 mt-0.5"
         />
@@ -64,7 +64,7 @@ export function MessageBubble({
         {/* Sender name for received messages (first in group) */}
         {!isOwn && !isGrouped && (
           <span className="text-xs font-medium text-muted-foreground mb-1 px-1">
-            {message.sender.name}
+            {message.sender?.name || "Unknown"}
           </span>
         )}
 

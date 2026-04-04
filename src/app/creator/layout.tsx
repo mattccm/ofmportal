@@ -590,8 +590,8 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/40 safe-area-pb safe-area-x">
-        <div className="flex items-center justify-around h-16">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/40">
+        <div className="flex items-center justify-around h-16 safe-area-x">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
@@ -619,10 +619,12 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
             <span className="text-[10px] font-medium">Settings</span>
           </Link>
         </div>
+        {/* Safe area spacer for home indicator */}
+        <div className="safe-area-bottom bg-background/80 backdrop-blur-xl" />
       </nav>
 
-      {/* Main content with bottom padding for mobile nav */}
-      <main className="relative z-10 pb-20 md:pb-0">
+      {/* Main content with bottom padding for mobile nav + safe area */}
+      <main className="relative z-10 pb-mobile-nav md:pb-0">
         {children}
       </main>
 

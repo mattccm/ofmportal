@@ -181,15 +181,25 @@ model Conversation {
   requestId String?
   request   ContentRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
 
+  // For CREATOR type conversations - links to a creator
+  creatorId String?
+  creator   Creator? @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+
+  // Agency for scoping
+  agencyId String?
+
   // Relations
   participants ConversationParticipant[]
   messages     Message[]
 
-  lastMessageAt DateTime?
-  createdAt     DateTime  @default(now())
+  lastMessageAt      DateTime?
+  lastMessagePreview String?   // Preview text of last message
+  createdAt          DateTime  @default(now())
 
   @@index([type])
   @@index([requestId])
+  @@index([creatorId])
+  @@index([agencyId])
   @@index([lastMessageAt])
 }
 
@@ -197,6 +207,7 @@ enum ConversationType {
   DIRECT
   GROUP
   REQUEST_THREAD
+  CREATOR  // Conversation between team members and a specific creator
 }
 
 model ConversationParticipant {
@@ -216,18 +227,27 @@ model Message {
   id             String       @id @default(cuid())
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderId       String
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Either sent by a User (team member) or a Creator
+  senderId  String?
+  sender    User?   @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  creatorId String? // If sent by a creator
+  creator   Creator? @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
   content     String
   attachments Json   @default("[]") // Array of attachment objects
-  readBy      Json   @default("[]") // Array of user IDs who have read
+  readBy      Json   @default("[]") // Array of {userId, readAt} objects
+
+  // Forwarded content - links to uploads or requests
+  // Format: [{type: "upload", id: "..."}, {type: "request", id: "..."}]
+  forwardedContent Json @default("[]")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([conversationId])
   @@index([senderId])
+  @@index([creatorId])
   @@index([createdAt])
 }
 
@@ -330,6 +350,8 @@ model Creator {
   groupMemberships   CreatorGroupMember[]
   fingerprints       ContentFingerprint[]
   duplicateAttempts  DuplicateAttempt[]
+  conversations      Conversation[]        // Creator conversations
+  messages           Message[]             // Messages sent by this creator
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -755,6 +777,9 @@ model Comment {
   attachments Json      @default("[]") // Array of attachment objects
   reactions   Json      @default("{}") // Object with reaction counts {emoji: [userIds]}
   editedAt    DateTime?
+
+  // Read tracking - array of {userId, readAt} objects
+  readBy Json @default("[]")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

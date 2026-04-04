@@ -227,6 +227,17 @@ export function RequestDetailClient({
   const { openCreatorContext } = useCreatorContextPanel();
   useSetCreatorContext(initialRequest.creator.id);
 
+  // Mark comments as read when viewing this request
+  useEffect(() => {
+    fetch("/api/comments/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId: initialRequest.id }),
+    }).catch(() => {
+      // Silently fail - not critical
+    });
+  }, [initialRequest.id]);
+
   // Use currentUserId if available, fall back to currentUser.id
   const userId = currentUserId || currentUser.id;
 

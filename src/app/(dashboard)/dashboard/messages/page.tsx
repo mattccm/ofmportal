@@ -3,11 +3,12 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { MessageSquarePlus, Users, X } from "lucide-react";
+import { MessageSquarePlus, Users, X, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -41,50 +42,151 @@ export default function MessagesPage() {
   const [messageCursor, setMessageCursor] = React.useState<string | null>(null);
   const [showNewConversationDialog, setShowNewConversationDialog] = React.useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = React.useState(false);
+  const [inboxType, setInboxType] = React.useState<"all" | "team" | "creator">("all");
+  const [unreadCounts, setUnreadCounts] = React.useState<{ team: number; creator: number }>({ team: 0, creator: 0 });
 
   const currentUserId = session?.user?.id || "";
   const selectedConversationId = searchParams.get("conversation");
 
-  // Fetch conversations
+  // Fetch conversations using the unified inbox API
   const fetchConversations = React.useCallback(async () => {
     try {
       setIsLoadingConversations(true);
-      const response = await fetch("/api/conversations");
+      const typeParam = inboxType === "all" ? "" : `?type=${inboxType}`;
+      const response = await fetch(`/api/inbox${typeParam}`);
       if (response.ok) {
         const data = await response.json();
-        setConversations(data.conversations || []);
+        // Transform inbox API response to match existing conversation type
+        const transformedConversations = (data.conversations || []).map((conv: {
+          id: string;
+          type: string;
+          name: string;
+          creator?: { id: string; name: string; email: string; avatar?: string };
+          request?: { id: string; title: string; status: string };
+          participants: { id: string; name: string; email: string; avatar?: string }[];
+          lastMessage?: { id: string; content: string; createdAt: string; isFromCreator: boolean };
+          lastMessageAt: string;
+          hasUnread: boolean;
+        }) => ({
+          id: conv.id,
+          type: conv.type,
+          name: conv.name,
+          requestId: conv.request?.id || null,
+          lastMessageAt: conv.lastMessageAt ? new Date(conv.lastMessageAt) : null,
+          createdAt: new Date(),
+          participants: conv.participants.map((p) => ({
+            id: p.id,
+            userId: p.id,
+            joinedAt: new Date(),
+            user: {
+              id: p.id,
+              name: p.name,
+              email: p.email,
+              avatar: p.avatar || null,
+              lastActiveAt: null,
+            },
+          })),
+          // Add creator as a pseudo-participant for CREATOR type conversations
+          ...(conv.type === "CREATOR" && conv.creator ? {
+            participants: [{
+              id: conv.creator.id,
+              userId: conv.creator.id,
+              joinedAt: new Date(),
+              user: {
+                id: conv.creator.id,
+                name: conv.creator.name,
+                email: conv.creator.email,
+                avatar: conv.creator.avatar || null,
+                lastActiveAt: null,
+              },
+            }],
+          } : {}),
+          messages: conv.lastMessage ? [{
+            id: conv.lastMessage.id,
+            content: conv.lastMessage.content,
+            senderId: conv.lastMessage.isFromCreator ? "creator" : "team",
+            createdAt: new Date(conv.lastMessage.createdAt),
+            sender: { id: "sender", name: conv.name },
+          }] : [],
+          _count: { messages: 0 },
+          unreadCount: conv.hasUnread ? 1 : 0,
+        }));
+        setConversations(transformedConversations);
+
+        // Count unreads by type
+        const teamUnread = (data.conversations || []).filter(
+          (c: { type: string; hasUnread: boolean }) => c.type !== "CREATOR" && c.hasUnread
+        ).length;
+        const creatorUnread = (data.conversations || []).filter(
+          (c: { type: string; hasUnread: boolean }) => c.type === "CREATOR" && c.hasUnread
+        ).length;
+        setUnreadCounts({ team: teamUnread, creator: creatorUnread });
       }
     } catch (error) {
       console.error("Failed to fetch conversations:", error);
     } finally {
       setIsLoadingConversations(false);
     }
-  }, []);
+  }, [inboxType]);
 
-  // Fetch messages for a conversation
-  const fetchMessages = React.useCallback(async (conversationId: string, cursor?: string) => {
+  // Fetch messages for a conversation using unified inbox API
+  const fetchMessages = React.useCallback(async (conversationId: string, before?: string) => {
     try {
       setIsLoadingMessages(true);
       const params = new URLSearchParams({ limit: "50" });
-      if (cursor) {
-        params.set("cursor", cursor);
+      if (before) {
+        params.set("before", before);
       }
 
-      const response = await fetch(`/api/conversations/${conversationId}/messages?${params}`);
+      const response = await fetch(`/api/inbox/${conversationId}?${params}`);
       if (response.ok) {
         const data = await response.json();
-        if (cursor) {
-          setMessages((prev) => [...prev, ...data.messages]);
+        // Transform inbox API messages to match existing message type
+        const transformedMessages = (data.messages || []).map((msg: {
+          id: string;
+          content: string;
+          sender?: { id: string; name: string; email: string; avatar?: string };
+          creator?: { id: string; name: string; email: string; avatar?: string };
+          isFromCreator: boolean;
+          attachments: unknown[];
+          forwardedContent: unknown[];
+          createdAt: string;
+        }) => ({
+          id: msg.id,
+          conversationId,
+          senderId: msg.isFromCreator ? msg.creator?.id || "creator" : msg.sender?.id || "unknown",
+          content: msg.content,
+          attachments: msg.attachments || [],
+          readBy: [],
+          createdAt: new Date(msg.createdAt),
+          updatedAt: new Date(msg.createdAt),
+          sender: msg.isFromCreator
+            ? {
+                id: msg.creator?.id || "creator",
+                name: msg.creator?.name || "Creator",
+                email: msg.creator?.email || "",
+                avatar: msg.creator?.avatar || null,
+              }
+            : {
+                id: msg.sender?.id || "unknown",
+                name: msg.sender?.name || "Unknown",
+                email: msg.sender?.email || "",
+                avatar: msg.sender?.avatar || null,
+              },
+          // Store forwarded content for special rendering
+          forwardedContent: msg.forwardedContent,
+        }));
+
+        if (before) {
+          setMessages((prev) => [...transformedMessages, ...prev]);
         } else {
-          setMessages(data.messages || []);
+          setMessages(transformedMessages);
         }
         setHasMoreMessages(data.hasMore || false);
-        setMessageCursor(data.nextCursor || null);
-
-        // Mark messages as read
-        fetch(`/api/conversations/${conversationId}/messages`, {
-          method: "PATCH",
-        });
+        // Use the first message's createdAt as cursor for pagination
+        if (transformedMessages.length > 0) {
+          setMessageCursor(transformedMessages[0].createdAt.toISOString());
+        }
       }
     } catch (error) {
       console.error("Failed to fetch messages:", error);
@@ -118,7 +220,7 @@ export default function MessagesPage() {
     router.push(`/dashboard/messages?conversation=${conversationId}`);
   };
 
-  // Send message handler
+  // Send message handler using unified inbox API
   const handleSendMessage = async (content: string, attachments?: File[]) => {
     if (!selectedConversationId) return;
 
@@ -133,7 +235,7 @@ export default function MessagesPage() {
         console.log("File attachments:", attachments);
       }
 
-      const response = await fetch(`/api/conversations/${selectedConversationId}/messages`, {
+      const response = await fetch(`/api/inbox/${selectedConversationId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -144,7 +246,18 @@ export default function MessagesPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setMessages((prev) => [data.message, ...prev]);
+        const newMessage = {
+          id: data.message.id,
+          conversationId: selectedConversationId,
+          senderId: currentUserId,
+          content: data.message.content,
+          attachments: data.message.attachments || [],
+          readBy: [],
+          createdAt: new Date(data.message.createdAt),
+          updatedAt: new Date(data.message.createdAt),
+          sender: data.message.sender,
+        };
+        setMessages((prev) => [...prev, newMessage]);
 
         // Update conversation list to show new message
         setConversations((prev) =>
@@ -153,7 +266,7 @@ export default function MessagesPage() {
               ? {
                   ...conv,
                   lastMessageAt: new Date(),
-                  messages: [data.message],
+                  messages: [newMessage],
                 }
               : conv
           ).sort((a, b) => {
@@ -182,17 +295,26 @@ export default function MessagesPage() {
     setShowNewConversationDialog(true);
   };
 
-  // Create conversation
-  const handleCreateConversation = async (participantIds: string[], name?: string) => {
+  // Create conversation using unified inbox API
+  const handleCreateConversation = async (participantIds: string[], name?: string, creatorId?: string) => {
     try {
-      const response = await fetch("/api/conversations", {
+      const body: {
+        type: string;
+        participantIds?: string[];
+        creatorId?: string;
+        name?: string;
+      } = creatorId
+        ? { type: "CREATOR", creatorId }
+        : {
+            type: participantIds.length > 1 ? "GROUP" : "DIRECT",
+            participantIds: [...participantIds, currentUserId],
+            name,
+          };
+
+      const response = await fetch("/api/inbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: participantIds.length > 1 ? "GROUP" : "DIRECT",
-          participantIds: [...participantIds, currentUserId],
-          name,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
@@ -230,13 +352,38 @@ export default function MessagesPage() {
       </Sheet>
 
       {/* Desktop sidebar */}
-      <div className="hidden md:flex w-80 flex-shrink-0">
+      <div className="hidden md:flex w-80 flex-shrink-0 flex-col border-r border-border/50 bg-card">
+        {/* Inbox type tabs */}
+        <div className="flex-shrink-0 p-3 border-b border-border/50">
+          <Tabs value={inboxType} onValueChange={(v) => setInboxType(v as "all" | "team" | "creator")}>
+            <TabsList className="w-full grid grid-cols-3">
+              <TabsTrigger value="all" className="text-xs">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="team" className="text-xs relative">
+                <Users className="h-3 w-3 mr-1" />
+                Team
+                {unreadCounts.team > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                    {unreadCounts.team}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="creator" className="text-xs relative">
+                <User className="h-3 w-3 mr-1" />
+                Creators
+                {unreadCounts.creator > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                    {unreadCounts.creator}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         {isLoadingConversations ? (
-          <div className="w-full border-r border-border/50 bg-card">
-            <div className="p-4 border-b border-border/50">
-              <div className="h-6 w-24 rounded bg-muted animate-shimmer mb-4" />
-              <div className="h-9 w-full rounded-lg bg-muted animate-shimmer" />
-            </div>
+          <div className="flex-1">
             <ConversationListSkeleton />
           </div>
         ) : (
@@ -246,7 +393,7 @@ export default function MessagesPage() {
             selectedConversationId={selectedConversationId || undefined}
             onSelectConversation={handleSelectConversation}
             onNewConversation={handleNewConversation}
-            className="w-full"
+            className="flex-1"
           />
         )}
       </div>
@@ -304,7 +451,7 @@ export default function MessagesPage() {
 interface NewConversationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateConversation: (participantIds: string[], name?: string) => void;
+  onCreateConversation: (participantIds: string[], name?: string, creatorId?: string) => void;
   currentUserId: string;
 }
 
@@ -316,44 +463,57 @@ function NewConversationDialog({
 }: NewConversationDialogProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedUsers, setSelectedUsers] = React.useState<
-    { id: string; name: string; email: string; avatar?: string }[]
+    { id: string; name: string; email: string; avatar?: string; isCreator?: boolean }[]
   >([]);
   const [groupName, setGroupName] = React.useState("");
   const [users, setUsers] = React.useState<
     { id: string; name: string; email: string; avatar?: string }[]
   >([]);
+  const [creators, setCreators] = React.useState<
+    { id: string; name: string; email: string; avatar?: string }[]
+  >([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isCreating, setIsCreating] = React.useState(false);
+  const [searchType, setSearchType] = React.useState<"team" | "creators">("team");
 
-  // Search for users
+  // Search for users or creators
   React.useEffect(() => {
-    const searchUsers = async () => {
+    const search = async () => {
       if (!searchQuery.trim()) {
         setUsers([]);
+        setCreators([]);
         return;
       }
 
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setUsers(data.users?.filter((u: { id: string }) => u.id !== currentUserId) || []);
+        if (searchType === "team") {
+          const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+          if (response.ok) {
+            const data = await response.json();
+            setUsers(data.users?.filter((u: { id: string }) => u.id !== currentUserId) || []);
+          }
+        } else {
+          const response = await fetch(`/api/creators?search=${encodeURIComponent(searchQuery)}&limit=10`);
+          if (response.ok) {
+            const data = await response.json();
+            setCreators(data.creators || []);
+          }
         }
       } catch (error) {
-        console.error("Failed to search users:", error);
+        console.error("Failed to search:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    const debounce = setTimeout(searchUsers, 300);
+    const debounce = setTimeout(search, 300);
     return () => clearTimeout(debounce);
-  }, [searchQuery, currentUserId]);
+  }, [searchQuery, currentUserId, searchType]);
 
-  const handleSelectUser = (user: { id: string; name: string; email: string; avatar?: string }) => {
+  const handleSelectUser = (user: { id: string; name: string; email: string; avatar?: string }, isCreator?: boolean) => {
     if (!selectedUsers.find((u) => u.id === user.id)) {
-      setSelectedUsers((prev) => [...prev, user]);
+      setSelectedUsers((prev) => [...prev, { ...user, isCreator }]);
     }
     setSearchQuery("");
   };
@@ -366,10 +526,17 @@ function NewConversationDialog({
     if (selectedUsers.length === 0) return;
 
     setIsCreating(true);
-    await onCreateConversation(
-      selectedUsers.map((u) => u.id),
-      selectedUsers.length > 1 ? groupName || undefined : undefined
-    );
+
+    // If we selected a creator, create a CREATOR type conversation
+    const selectedCreator = selectedUsers.find(u => u.isCreator);
+    if (selectedCreator) {
+      await onCreateConversation([], undefined, selectedCreator.id);
+    } else {
+      await onCreateConversation(
+        selectedUsers.map((u) => u.id),
+        selectedUsers.length > 1 ? groupName || undefined : undefined
+      );
+    }
     setIsCreating(false);
 
     // Reset state
@@ -383,7 +550,11 @@ function NewConversationDialog({
     setSelectedUsers([]);
     setGroupName("");
     setSearchQuery("");
+    setSearchType("team");
   };
+
+  const hasCreatorSelected = selectedUsers.some(u => u.isCreator);
+  const searchResults = searchType === "team" ? users : creators;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -394,7 +565,7 @@ function NewConversationDialog({
             New Conversation
           </DialogTitle>
           <DialogDescription>
-            Start a new conversation with one or more team members.
+            Start a new conversation with team members or creators.
           </DialogDescription>
         </DialogHeader>
 
@@ -405,16 +576,22 @@ function NewConversationDialog({
               {selectedUsers.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center gap-1.5 bg-primary/10 text-primary rounded-full pl-1 pr-2 py-1"
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full pl-1 pr-2 py-1",
+                    user.isCreator
+                      ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
+                      : "bg-primary/10 text-primary"
+                  )}
                 >
                   <Avatar
                     size="xs"
                     user={{ name: user.name, email: user.email, image: user.avatar }}
                   />
                   <span className="text-sm font-medium">{user.name}</span>
+                  {user.isCreator && <User className="h-3 w-3" />}
                   <button
                     onClick={() => handleRemoveUser(user.id)}
-                    className="ml-0.5 hover:bg-primary/20 rounded-full p-0.5"
+                    className="ml-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full p-0.5"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -423,8 +600,8 @@ function NewConversationDialog({
             </div>
           )}
 
-          {/* Group name input (shown for 2+ selected users) */}
-          {selectedUsers.length > 1 && (
+          {/* Group name input (shown for 2+ team members, not creators) */}
+          {selectedUsers.length > 1 && !hasCreatorSelected && (
             <div>
               <label className="text-sm font-medium mb-1.5 block">
                 Group Name (optional)
@@ -437,41 +614,70 @@ function NewConversationDialog({
             </div>
           )}
 
+          {/* Search type tabs */}
+          {!hasCreatorSelected && (
+            <Tabs value={searchType} onValueChange={(v) => {
+              setSearchType(v as "team" | "creators");
+              setSearchQuery("");
+            }}>
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="team" className="text-xs">
+                  <Users className="h-3 w-3 mr-1" />
+                  Team Members
+                </TabsTrigger>
+                <TabsTrigger value="creators" className="text-xs">
+                  <User className="h-3 w-3 mr-1" />
+                  Creators
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+
           {/* User search */}
           <div>
             <label className="text-sm font-medium mb-1.5 block">
-              {selectedUsers.length > 0 ? "Add more people" : "Search for people"}
+              {selectedUsers.length > 0 && !hasCreatorSelected
+                ? "Add more people"
+                : searchType === "team"
+                ? "Search team members"
+                : "Search creators"}
             </label>
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name or email..."
+              placeholder={searchType === "team" ? "Search by name or email..." : "Search creators..."}
+              disabled={hasCreatorSelected}
             />
           </div>
 
           {/* Search results */}
-          {users.length > 0 && (
+          {searchResults.length > 0 && (
             <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
-              {users.map((user) => (
+              {searchResults.map((item) => (
                 <button
-                  key={user.id}
-                  onClick={() => handleSelectUser(user)}
-                  disabled={selectedUsers.some((u) => u.id === user.id)}
+                  key={item.id}
+                  onClick={() => handleSelectUser(item, searchType === "creators")}
+                  disabled={selectedUsers.some((u) => u.id === item.id)}
                   className={cn(
                     "w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors",
-                    selectedUsers.some((u) => u.id === user.id)
+                    selectedUsers.some((u) => u.id === item.id)
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:bg-muted"
                   )}
                 >
                   <Avatar
                     size="sm"
-                    user={{ name: user.name, email: user.email, image: user.avatar }}
+                    user={{ name: item.name, email: item.email, image: item.avatar }}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{user.name}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm font-medium truncate">{item.name}</p>
+                      {searchType === "creators" && (
+                        <User className="h-3 w-3 text-violet-500" />
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate">
-                      {user.email}
+                      {item.email}
                     </p>
                   </div>
                 </button>
@@ -485,9 +691,9 @@ function NewConversationDialog({
             </div>
           )}
 
-          {searchQuery && !isLoading && users.length === 0 && (
+          {searchQuery && !isLoading && searchResults.length === 0 && (
             <div className="text-sm text-muted-foreground text-center py-4">
-              No users found
+              No {searchType === "team" ? "team members" : "creators"} found
             </div>
           )}
 

@@ -13,7 +13,7 @@ export interface Attachment {
 export interface MessageWithSender {
   id: string;
   conversationId: string;
-  senderId: string;
+  senderId: string | null;
   content: string;
   attachments: Attachment[];
   readBy: string[];
@@ -24,7 +24,10 @@ export interface MessageWithSender {
     name: string;
     email: string;
     avatar: string | null;
-  };
+  } | null;
+  // For creator messages
+  creatorId?: string | null;
+  isFromCreator?: boolean;
 }
 
 export interface ConversationWithDetails {
@@ -49,12 +52,12 @@ export interface ConversationWithDetails {
   messages: {
     id: string;
     content: string;
-    senderId: string;
+    senderId: string | null;
     createdAt: Date;
     sender: {
       id: string;
       name: string;
-    };
+    } | null;
   }[];
   _count: {
     messages: number;

@@ -99,6 +99,7 @@ import {
   createEmptyFilterGroup,
 } from "@/lib/filter-utils";
 import { BackToTop } from "@/components/ui/back-to-top";
+import { useUnreadComments } from "@/hooks/use-unread-comments";
 
 interface Creator {
   id: string;
@@ -299,6 +300,9 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
+
+  // Unread comment tracking
+  const { getCountForRequest } = useUnreadComments();
 
   // Relation options for filter builder (creators and templates)
   const relationOptions = useMemo(() => ({
@@ -1328,9 +1332,17 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                                 <span>{request._count.uploads}</span>
                               </div>
                               {request._count.comments > 0 && (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <MessageSquare className="h-3 w-3" />
+                                <div className={`flex items-center gap-1 text-xs ${getCountForRequest(request.id) > 0 ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                                  <div className="relative">
+                                    <MessageSquare className="h-3 w-3" />
+                                    {getCountForRequest(request.id) > 0 && (
+                                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                                    )}
+                                  </div>
                                   <span>{request._count.comments}</span>
+                                  {getCountForRequest(request.id) > 0 && (
+                                    <span className="text-[10px]">({getCountForRequest(request.id)} new)</span>
+                                  )}
                                 </div>
                               )}
                             </div>

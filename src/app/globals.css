@@ -475,6 +475,11 @@ main {
     padding-left: env(safe-area-inset-left, 0px);
   }
 
+  /* Mobile nav padding - accounts for nav height (64px/4rem) + safe area */
+  .pb-mobile-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+
   /* Touch target sizing (minimum 44px for accessibility) */
   .touch-target {
     min-height: 44px;

@@ -359,11 +359,11 @@ export async function GET(req: NextRequest) {
             id: message.id,
             type: "message",
             title: preview,
-            subtitle: `${message.sender.name} in ${conversationTitle}`,
+            subtitle: `${message.sender?.name || "Unknown"} in ${conversationTitle}`,
             highlight: highlightMatch(preview, query),
             href: `/dashboard/messages?conversation=${message.conversationId}`,
             metadata: {
-              from: message.sender.name,
+              from: message.sender?.name || "Unknown",
               conversation: conversationTitle,
             },
           });
