@@ -292,7 +292,7 @@ export function useMentionsPanel(
           params.set("read", filters.read.toString());
         }
         if (filters?.resourceType && filters.resourceType !== "all") {
-          params.set("resourceType", filters.resourceType);
+          params.set("contextType", filters.resourceType);
         }
 
         const response = await fetch(`/api/mentions?${params.toString()}`);

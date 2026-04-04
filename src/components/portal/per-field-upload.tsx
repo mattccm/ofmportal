@@ -244,9 +244,10 @@ function FieldUploadSection({
   const isSubmitted = submissionStatus === "SUBMITTED";
   const isApproved = submissionStatus === "APPROVED";
   const needsRevision = submissionStatus === "NEEDS_REVISION";
-  const canSubmitField = hasUploads && hasMinFiles && !isSubmitted && !isApproved;
-  const canRedactField = (isSubmitted || needsRevision) && !isApproved;
-  const canDeleteUploads = !isSubmitted && !isApproved;
+  // Only allow submit if canUpload is true (request is in an editable state) AND field isn't already submitted/approved
+  const canSubmitField = canUpload && hasUploads && hasMinFiles && !isSubmitted && !isApproved;
+  const canRedactField = canUpload && (isSubmitted || needsRevision) && !isApproved;
+  const canDeleteUploads = canUpload && !isSubmitted && !isApproved;
   const canUploadMore = canUpload && !isSubmitted && !isApproved;
 
   const handleSubmit = async () => {

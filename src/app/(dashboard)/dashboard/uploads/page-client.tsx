@@ -17,10 +17,6 @@ import {
   UploadReviewCard,
   type UploadWithCreator,
 } from "@/components/uploads/upload-review-card";
-import {
-  UploadReviewPanel,
-  type UploadDetails,
-} from "@/components/uploads/upload-review-panel";
 import { BulkActionsBar } from "@/components/uploads/bulk-actions-bar";
 import {
   BulkDownloadDialog,
@@ -120,8 +116,6 @@ export function UploadsPageClient({
 
   const [uploads, setUploads] = useState(initialUploads);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectedUpload, setSelectedUpload] = useState<UploadDetails | null>(null);
-  const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -269,12 +263,6 @@ export function UploadsPageClient({
 
   const handleDeselectAll = () => {
     setSelectedIds(new Set());
-  };
-
-  // Open review panel
-  const handleOpenReviewPanel = (upload: UploadWithCreator) => {
-    setSelectedUpload(upload as UploadDetails);
-    setReviewPanelOpen(true);
   };
 
   // Refresh data
@@ -777,37 +765,27 @@ export function UploadsPageClient({
       ) : filters.view === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredUploads.map((upload) => (
-            <div
+            <UploadReviewCard
               key={upload.id}
-              onClick={() => handleOpenReviewPanel(upload)}
-              className="cursor-pointer"
-            >
-              <UploadReviewCard
-                upload={upload}
-                isSelected={selectedIds.has(upload.id)}
-                onSelect={handleSelect}
-                onReviewComplete={refreshData}
-                viewMode="grid"
-              />
-            </div>
+              upload={upload}
+              isSelected={selectedIds.has(upload.id)}
+              onSelect={handleSelect}
+              onReviewComplete={refreshData}
+              viewMode="grid"
+            />
           ))}
         </div>
       ) : (
         <div className="space-y-2">
           {filteredUploads.map((upload) => (
-            <div
+            <UploadReviewCard
               key={upload.id}
-              onClick={() => handleOpenReviewPanel(upload)}
-              className="cursor-pointer"
-            >
-              <UploadReviewCard
-                upload={upload}
-                isSelected={selectedIds.has(upload.id)}
-                onSelect={handleSelect}
-                onReviewComplete={refreshData}
-                viewMode="list"
-              />
-            </div>
+              upload={upload}
+              isSelected={selectedIds.has(upload.id)}
+              onSelect={handleSelect}
+              onReviewComplete={refreshData}
+              viewMode="list"
+            />
           ))}
         </div>
       )}
@@ -834,14 +812,6 @@ export function UploadsPageClient({
 
       {/* Back to Top Button */}
       <BackToTop threshold={400} variant="gradient" />
-
-      {/* Review Panel */}
-      <UploadReviewPanel
-        upload={selectedUpload}
-        open={reviewPanelOpen}
-        onOpenChange={setReviewPanelOpen}
-        onReviewComplete={refreshData}
-      />
 
       {/* Bulk Download Dialog */}
       <BulkDownloadDialog

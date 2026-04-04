@@ -44,6 +44,55 @@ interface UseRecentActivityReturn {
 }
 
 // ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function mapActionToActivityType(action: string): ActivityType {
+  const mapping: Record<string, ActivityType> = {
+    "upload.created": "upload_new",
+    "upload.completed": "upload_new",
+    "upload.approved": "upload_approved",
+    "upload.rejected": "upload_rejected",
+    "upload.reviewed": "upload_pending",
+    "comment.created": "comment_new",
+    "comment.updated": "comment_new",
+    "comment.deleted": "comment_new",
+    "request.created": "request_created",
+    "request.updated": "request_created",
+    "request.submitted": "request_completed",
+    "request.approved": "request_completed",
+    "request.rejected": "upload_rejected",
+    "request.revision_requested": "upload_rejected",
+    "request.status_changed": "request_created",
+    "reminder.sent": "message_new",
+    "reminder.scheduled": "message_new",
+    "reminder.escalation": "message_new",
+    "creator.invited": "team_member_added",
+    "creator.login": "request_viewed",
+    "creator.portal_accessed": "request_viewed",
+    "creator.updated": "file_edited",
+    "creator.note_added": "comment_new",
+    "creator.note_updated": "comment_new",
+    "creator.note_deleted": "comment_new",
+  };
+  return mapping[action] || "bulk_action";
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getActivityHref(activity: any): string | undefined {
+  if (activity.entityType === "Upload" && activity.metadata?.requestId) {
+    return `/dashboard/requests/${activity.metadata.requestId}`;
+  }
+  if (activity.entityType === "ContentRequest") {
+    return `/dashboard/requests/${activity.entityId}`;
+  }
+  if (activity.entityType === "Creator") {
+    return `/dashboard/creators/${activity.entityId}`;
+  }
+  return undefined;
+}
+
+// ============================================
 // MOCK DATA GENERATOR (for development)
 // ============================================
 
@@ -294,14 +343,35 @@ export function useRecentActivity(
         const data = await response.json();
 
         if (isMountedRef.current) {
-          const parsedActivities = data.activities.map(
-            (a: ActivityItemData) => ({
-              ...a,
+          // Map API response format to ActivityItemData format
+          const parsedActivities = (data.activities || []).map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (a: any): ActivityItemData => ({
+              id: a.id,
+              type: mapActionToActivityType(a.action),
+              title: a.description || a.action,
+              description: a.metadata?.requestTitle || a.metadata?.uploadName || null,
               timestamp: new Date(a.timestamp),
+              user: a.user ? {
+                id: a.user.id,
+                name: a.user.name,
+                email: a.user.email,
+                image: a.user.avatar,
+              } : null,
+              metadata: {
+                requestId: a.metadata?.requestId,
+                requestTitle: a.metadata?.requestTitle,
+                uploadId: a.entityType === "Upload" ? a.entityId : undefined,
+                uploadName: a.metadata?.uploadName,
+                creatorId: a.metadata?.creatorId,
+                creatorName: a.metadata?.creatorName,
+              },
+              href: getActivityHref(a),
+              isRead: true, // Activity log items are not marked as read/unread
             })
           );
           setActivities(parsedActivities);
-          setUnreadCount(data.unreadCount ?? parsedActivities.filter((a: ActivityItemData) => !a.isRead).length);
+          setUnreadCount(0); // Activity feed doesn't track unread
           setError(null);
           setIsUsingMockData(false);
         }

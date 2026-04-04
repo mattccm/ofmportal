@@ -66,8 +66,8 @@ export function NoCreators({
         icon: UserPlus,
       }}
       secondaryAction={{
-        label: "Learn More",
-        href: "/help/creators",
+        label: "View Invitations",
+        href: "/dashboard/creators?tab=invitations",
         variant: "ghost",
       }}
     >
