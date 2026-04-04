@@ -223,6 +223,7 @@ export default function CreatorRequestDetailPage({
     const creatorId = localStorage.getItem("creatorId");
     const name = localStorage.getItem("creatorName");
     const email = localStorage.getItem("creatorEmail");
+    const avatar = localStorage.getItem("creatorAvatar");
 
     if (!token || !creatorId) {
       router.push("/login");
@@ -233,6 +234,7 @@ export default function CreatorRequestDetailPage({
       id: creatorId,
       name: name || "Creator",
       email: email || "",
+      image: avatar || undefined,
     });
 
     fetchData();
@@ -654,8 +656,8 @@ export default function CreatorRequestDetailPage({
         />
       )}
 
-      {/* Upload Section - Per Field */}
-      {canUpload && hasFileFields && (
+      {/* Upload Section - Per Field (always show if there are file fields) */}
+      {hasFileFields && (
         <div className="space-y-2">
           {duplicateAlertResult && (
             <DuplicateAlert

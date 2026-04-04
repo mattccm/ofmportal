@@ -23,10 +23,12 @@ import {
   Globe,
   Save,
   Palette,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeSwitcher } from "@/components/theme/theme-toggle";
 import { useTheme } from "@/components/theme/theme-provider";
+import { clearCreatorSession, setSignedOutFlag } from "@/lib/remember-token";
 
 const TIMEZONES = [
   // UTC-12 to UTC-8
@@ -253,6 +255,50 @@ export default function CreatorSettingsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    const token = localStorage.getItem("creatorToken");
+
+    // Set signed-out flag to prevent auto-login
+    setSignedOutFlag();
+
+    // Call logout API to invalidate session
+    if (token) {
+      try {
+        await fetch("/api/portal/logout", {
+          method: "POST",
+          headers: {
+            "x-creator-token": token,
+          },
+        });
+      } catch (error) {
+        console.error("Error logging out:", error);
+      }
+    }
+
+    // Clear IndexedDB
+    try {
+      await clearCreatorSession();
+    } catch (error) {
+      console.error("Error clearing IndexedDB:", error);
+    }
+
+    // Clear local storage
+    localStorage.removeItem("creatorToken");
+    localStorage.removeItem("creatorId");
+    localStorage.removeItem("creatorName");
+    localStorage.removeItem("creatorEmail");
+    localStorage.removeItem("creatorAvatar");
+    localStorage.removeItem("creatorOnboardingComplete");
+
+    // Clear cookies
+    document.cookie = "creatorToken=; path=/; max-age=0";
+    document.cookie = "creatorId=; path=/; max-age=0";
+    document.cookie = "creatorName=; path=/; max-age=0";
+    document.cookie = "creatorEmail=; path=/; max-age=0";
+
+    router.push("/login");
   };
 
   if (loading) {
@@ -506,6 +552,28 @@ export default function CreatorSettingsPage() {
               <Lock className="mr-2 h-4 w-4" />
             )}
             Change Password
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Sign Out Section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base text-destructive">
+            <LogOut className="h-5 w-5" />
+            Sign Out
+          </CardTitle>
+          <CardDescription>
+            Sign out of your account on this device
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={handleSignOut}
+            variant="destructive"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
           </Button>
         </CardContent>
       </Card>

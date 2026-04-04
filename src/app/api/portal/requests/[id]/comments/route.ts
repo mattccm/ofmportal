@@ -119,22 +119,34 @@ export async function POST(
     // Option 2: Store creator comments with metadata
     // For now, let's use a different approach - store in a JSON field or use the message with metadata
 
-    // Find or create a system user for creator messages
+    // Find or create a system user for this specific creator's messages
+    // Use creator-specific email to show the right name on team member side
+    const creatorSystemEmail = `creator-${creator.id}@${request.agencyId}.internal`;
     let systemUser = await db.user.findFirst({
       where: {
-        email: `creator-system@${request.agencyId}.internal`,
+        email: creatorSystemEmail,
       },
     });
 
     if (!systemUser) {
-      // Create a system user for creator comments for this agency
+      // Create a system user for this creator's comments
       systemUser = await db.user.create({
         data: {
-          email: `creator-system@${request.agencyId}.internal`,
+          email: creatorSystemEmail,
           password: "", // No password - system account
-          name: "Creator Messages",
+          name: creator.name, // Use the actual creator's name
+          avatar: creator.avatar, // Copy their avatar too
           agencyId: request.agencyId,
           role: "MEMBER",
+        },
+      });
+    } else if (systemUser.name !== creator.name || systemUser.avatar !== creator.avatar) {
+      // Update the name/avatar if creator has changed their profile
+      systemUser = await db.user.update({
+        where: { id: systemUser.id },
+        data: {
+          name: creator.name,
+          avatar: creator.avatar,
         },
       });
     }

@@ -454,7 +454,7 @@ export function FileDropzone({
                 {isDragging ? "Drop files here" : "Drag files or click to upload"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                Images, videos, audio up to {formatFileSize(maxFileSize)}
+                Images, videos, audio{maxFileSize < MAX_FILE_SIZE && ` up to ${formatFileSize(maxFileSize)}`}
               </p>
             </div>
 
@@ -553,9 +553,9 @@ export function FileDropzone({
                   )}
                 </>
               ) : fullPageDrop ? (
-                "Drag files anywhere on the page, paste from clipboard, or click to browse. We support images, videos, and audio up to 5GB each."
+                `Drag files anywhere on the page, paste from clipboard, or click to browse. We support images, videos, and audio${maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
               ) : (
-                "Drag and drop your files here, paste from clipboard, or click to browse. We support images, videos, and audio up to 5GB each."
+                `Drag and drop your files here, paste from clipboard, or click to browse. We support images, videos, and audio${maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
               )}
             </p>
           </div>
@@ -613,11 +613,14 @@ export function FileDropzone({
             )}
           </div>
 
-          {/* Max size note */}
-          <p className="text-xs text-muted-foreground mt-4">
-            Maximum file size: {formatFileSize(maxFileSize)}
-            {fullPageDrop && " • Drop anywhere on the page"}
-          </p>
+          {/* Max size note - only show if there's a specific limit */}
+          {(maxFileSize < MAX_FILE_SIZE || fullPageDrop) && (
+            <p className="text-xs text-muted-foreground mt-4">
+              {maxFileSize < MAX_FILE_SIZE && `Maximum file size: ${formatFileSize(maxFileSize)}`}
+              {maxFileSize < MAX_FILE_SIZE && fullPageDrop && " • "}
+              {fullPageDrop && "Drop anywhere on the page"}
+            </p>
+          )}
         </div>
       </div>
     </>

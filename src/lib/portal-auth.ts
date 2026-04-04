@@ -10,6 +10,7 @@ export interface AuthenticatedCreator {
   agencyId: string;
   name: string;
   email: string;
+  avatar?: string | null;
 }
 
 export type AuthResult =
@@ -53,6 +54,7 @@ export async function validateCreatorSession(
       agencyId: true,
       name: true,
       email: true,
+      avatar: true,
     },
   });
 

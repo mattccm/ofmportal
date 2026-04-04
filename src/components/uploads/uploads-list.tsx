@@ -30,7 +30,6 @@ import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
 import { ShareButton } from "@/components/share/share-dialog";
-import Image from "next/image";
 
 interface Upload {
   id: string;
@@ -43,11 +42,18 @@ interface Upload {
   status: string;
   uploadedAt: Date | null;
   createdAt: Date;
+  fieldId?: string | null;
+}
+
+interface FieldInfo {
+  id: string;
+  label: string;
 }
 
 interface UploadsListProps {
   uploads: Upload[];
   requestId: string;
+  fields?: FieldInfo[];
 }
 
 function getFileIcon(mimeType: string) {
@@ -116,16 +122,14 @@ function UploadThumbnail({ upload }: { upload: Upload }) {
     );
   }
 
-  // Show thumbnail
+  // Show thumbnail - using regular img tag for R2 public URLs (cross-origin)
   return (
     <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-      <Image
+      <img
         src={thumbnailUrl}
         alt={upload.originalName}
-        fill
-        className="object-cover"
-        sizes="48px"
-        unoptimized // R2 URLs don't need Next.js image optimization
+        className="absolute inset-0 w-full h-full object-cover"
+        onError={() => setError(true)}
       />
       {isVideo && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -149,7 +153,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function UploadsList({ uploads, requestId }: UploadsListProps) {
+export function UploadsList({ uploads, requestId, fields }: UploadsListProps) {
   const [selectedUploads, setSelectedUploads] = useState<Set<string>>(new Set());
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -157,6 +161,42 @@ export function UploadsList({ uploads, requestId }: UploadsListProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewFiles, setPreviewFiles] = useState<PreviewFile[]>([]);
+
+  // Group uploads by field
+  const groupedUploads = useMemo(() => {
+    if (!fields || fields.length === 0) {
+      return [{ field: null, uploads }];
+    }
+
+    const groups: { field: FieldInfo | null; uploads: Upload[] }[] = [];
+    const fieldMap = new Map(fields.map(f => [f.id, f]));
+
+    // Group by field
+    const byField = new Map<string | null, Upload[]>();
+    for (const upload of uploads) {
+      const key = upload.fieldId || null;
+      if (!byField.has(key)) {
+        byField.set(key, []);
+      }
+      byField.get(key)!.push(upload);
+    }
+
+    // Add field groups in order
+    for (const field of fields) {
+      const fieldUploads = byField.get(field.id);
+      if (fieldUploads && fieldUploads.length > 0) {
+        groups.push({ field, uploads: fieldUploads });
+      }
+    }
+
+    // Add ungrouped uploads
+    const ungrouped = byField.get(null);
+    if (ungrouped && ungrouped.length > 0) {
+      groups.push({ field: null, uploads: ungrouped });
+    }
+
+    return groups;
+  }, [uploads, fields]);
 
   const toggleUpload = (id: string) => {
     const newSelected = new Set(selectedUploads);
@@ -334,93 +374,112 @@ export function UploadsList({ uploads, requestId }: UploadsListProps) {
         </div>
       )}
 
-      {/* Uploads List */}
-      <div className="space-y-2">
-        {uploads.map((upload) => (
-          <div
-            key={upload.id}
-            className="flex items-center gap-4 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            {upload.status === "PENDING" && (
-              <Checkbox
-                checked={selectedUploads.has(upload.id)}
-                onCheckedChange={() => toggleUpload(upload.id)}
-              />
+      {/* Uploads List - Grouped by Field */}
+      <div className="space-y-6">
+        {groupedUploads.map((group, groupIndex) => (
+          <div key={group.field?.id || "ungrouped"} className="space-y-2">
+            {/* Field Section Header */}
+            {(fields && fields.length > 0) && (
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {group.field?.label || "Other Uploads"}
+                </h4>
+                <Badge variant="secondary" className="text-xs">
+                  {group.uploads.length} file{group.uploads.length !== 1 ? "s" : ""}
+                </Badge>
+              </div>
             )}
 
-            <UploadThumbnail upload={upload} />
+            {/* Uploads in this group */}
+            <div className="space-y-2">
+              {group.uploads.map((upload) => (
+                <div
+                  key={upload.id}
+                  className="flex items-center gap-4 p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  {upload.status === "PENDING" && (
+                    <Checkbox
+                      checked={selectedUploads.has(upload.id)}
+                      onCheckedChange={() => toggleUpload(upload.id)}
+                    />
+                  )}
 
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{upload.originalName}</p>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>{formatFileSize(Number(upload.fileSize))}</span>
-                <span>·</span>
-                <span>
-                  {upload.uploadedAt
-                    ? format(upload.uploadedAt, "MMM d, h:mm a")
-                    : "Uploading..."}
-                </span>
-              </div>
-            </div>
+                  <UploadThumbnail upload={upload} />
 
-            <div className="flex items-center gap-2">
-              {getStatusBadge(upload.status)}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{upload.originalName}</p>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <span>{formatFileSize(Number(upload.fileSize))}</span>
+                      <span>·</span>
+                      <span>
+                        {upload.uploadedAt
+                          ? format(upload.uploadedAt, "MMM d, h:mm a")
+                          : "Uploading..."}
+                      </span>
+                    </div>
+                  </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handlePreview(upload, uploads.indexOf(upload))}
-                title="Preview"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(upload.status)}
 
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDownload(upload)}
-                title="Download"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handlePreview(upload, uploads.indexOf(upload))}
+                      title="Preview"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
 
-              {upload.status === "APPROVED" && (
-                <ShareButton
-                  resourceType="UPLOAD"
-                  resourceId={upload.id}
-                  resourceTitle={upload.originalName}
-                  variant="ghost"
-                  size="icon-sm"
-                />
-              )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDownload(upload)}
+                      title="Download"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
 
-              {upload.status === "PENDING" && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-green-600"
-                    onClick={() => handleApprove([upload.id])}
-                    disabled={!!processingAction}
-                    title="Approve"
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-600"
-                    onClick={() => {
-                      setSelectedUploads(new Set([upload.id]));
-                      setRejectDialogOpen(true);
-                    }}
-                    disabled={!!processingAction}
-                    title="Reject"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
+                    {upload.status === "APPROVED" && (
+                      <ShareButton
+                        resourceType="UPLOAD"
+                        resourceId={upload.id}
+                        resourceTitle={upload.originalName}
+                        variant="ghost"
+                        size="icon-sm"
+                      />
+                    )}
+
+                    {upload.status === "PENDING" && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-green-600"
+                          onClick={() => handleApprove([upload.id])}
+                          disabled={!!processingAction}
+                          title="Approve"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-600"
+                          onClick={() => {
+                            setSelectedUploads(new Set([upload.id]));
+                            setRejectDialogOpen(true);
+                          }}
+                          disabled={!!processingAction}
+                          title="Reject"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}

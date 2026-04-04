@@ -75,6 +75,7 @@ interface UploadItem {
   status: string;
   uploadedAt: Date | null;
   createdAt: Date;
+  fieldId?: string | null;
   [key: string]: unknown;
 }
 
@@ -421,52 +422,15 @@ export function RequestDetailClient({
             </Card>
           )}
 
-          {/* Requirements */}
-          {requirements && Object.keys(requirements).filter(k => !k.startsWith('_')).length > 0 && (
+          {/* Non-file fields (text, number, etc.) */}
+          {fields && fields.filter(f => f.type !== "file").length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Requirements</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {requirements.quantity && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Quantity</p>
-                      <p className="font-medium">{requirements.quantity}</p>
-                    </div>
-                  )}
-                  {requirements.format && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Format</p>
-                      <p className="font-medium">{requirements.format}</p>
-                    </div>
-                  )}
-                  {requirements.resolution && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Resolution</p>
-                      <p className="font-medium">{requirements.resolution}</p>
-                    </div>
-                  )}
-                </div>
-                {requirements.notes && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm text-muted-foreground">Additional Notes</p>
-                    <p className="mt-1 whitespace-pre-wrap">{requirements.notes}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Custom Fields */}
-          {fields && fields.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Custom Fields</CardTitle>
+                <CardTitle className="text-lg">Details</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {fields.map((field, index) => (
+                  {fields.filter(f => f.type !== "file").map((field, index) => (
                     <div key={index} className="flex justify-between">
                       <p className="text-sm text-muted-foreground">{field.label}</p>
                       <p className="font-medium">{field.value || "—"}</p>
@@ -477,25 +441,58 @@ export function RequestDetailClient({
             </Card>
           )}
 
-          {/* Uploads */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Upload className="h-5 w-5" />
-                    Uploads
-                  </CardTitle>
-                  <CardDescription>
-                    {request.uploads.length} file{request.uploads.length !== 1 ? "s" : ""} uploaded
-                  </CardDescription>
+          {/* File fields with their uploads */}
+          {fields && fields.filter(f => f.type === "file").map((field) => {
+            const fieldUploads = request.uploads.filter(u => u.fieldId === field.id);
+            return (
+              <Card key={field.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Upload className="h-5 w-5" />
+                        {field.label}
+                      </CardTitle>
+                      <CardDescription>
+                        {fieldUploads.length} file{fieldUploads.length !== 1 ? "s" : ""} uploaded
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <UploadsList
+                    uploads={fieldUploads}
+                    requestId={request.id}
+                  />
+                </CardContent>
+              </Card>
+            );
+          })}
+
+          {/* Ungrouped uploads (uploads without a fieldId) */}
+          {request.uploads.filter(u => !u.fieldId).length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Upload className="h-5 w-5" />
+                      Other Uploads
+                    </CardTitle>
+                    <CardDescription>
+                      {request.uploads.filter(u => !u.fieldId).length} file{request.uploads.filter(u => !u.fieldId).length !== 1 ? "s" : ""} uploaded
+                    </CardDescription>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <UploadsList uploads={request.uploads} requestId={request.id} />
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <UploadsList
+                  uploads={request.uploads.filter(u => !u.fieldId)}
+                  requestId={request.id}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Comments */}
           <Card>

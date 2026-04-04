@@ -235,7 +235,9 @@ function FieldUploadSection({
   const [redacting, setRedacting] = React.useState(false);
   const uploadCount = uploads.length;
   const hasMinFiles = field.minFiles ? uploadCount >= field.minFiles : uploadCount > 0;
-  const hasUploads = uploadCount > 0 && queue.length === 0;
+  // Check if there are any pending/uploading items (not just any items in queue)
+  const hasActiveQueueItems = queue.some(q => q.status === "pending" || q.status === "uploading" || q.status === "paused");
+  const hasUploads = uploadCount > 0 && !hasActiveQueueItems;
 
   // Determine field state based on submission status
   const submissionStatus = fieldSubmission?.status || "PENDING";
@@ -409,10 +411,10 @@ function FieldUploadSection({
         />
       )}
 
-      {/* Upload queue */}
-      {queue.length > 0 && (
+      {/* Upload queue - only show if there are active (non-completed) items */}
+      {hasActiveQueueItems && (
         <UploadQueue
-          queue={queue}
+          queue={queue.filter(q => q.status !== "completed")}
           onPause={onPause}
           onResume={onResume}
           onRetry={onRetry}
