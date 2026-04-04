@@ -231,3 +231,41 @@ export function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
+
+// Check if R2 public domain is configured
+export const hasPublicDomain = Boolean(process.env.R2_PUBLIC_DOMAIN);
+
+/**
+ * Get a public URL for a file stored in R2.
+ * This serves files directly from Cloudflare's CDN with ZERO egress through Vercel.
+ *
+ * Requires R2_PUBLIC_DOMAIN to be set (e.g., "files.yourdomain.com")
+ * Set this up in Cloudflare Dashboard > R2 > Your Bucket > Settings > Custom Domains
+ */
+export function getPublicFileUrl(key: string): string | null {
+  const publicDomain = process.env.R2_PUBLIC_DOMAIN;
+  if (!publicDomain) {
+    return null;
+  }
+  // Ensure proper URL encoding for special characters in filenames
+  const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+  return `https://${publicDomain}/${encodedKey}`;
+}
+
+/**
+ * Get the best URL for serving a file - prefers public URL if available,
+ * falls back to presigned URL.
+ *
+ * Public URL = zero Vercel bandwidth (served from Cloudflare CDN)
+ * Presigned URL = still direct to R2, but requires signing overhead
+ */
+export async function getFileUrl(key: string, filename?: string): Promise<string> {
+  // Try public URL first (zero bandwidth cost)
+  const publicUrl = getPublicFileUrl(key);
+  if (publicUrl) {
+    return publicUrl;
+  }
+
+  // Fall back to presigned URL
+  return getDownloadPresignedUrl(key, filename);
+}

@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl } from "@/lib/storage";
-import archiver from "archiver";
-import { Readable } from "stream";
+import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
 
 export async function GET(
   req: NextRequest,
@@ -31,7 +37,7 @@ export async function GET(
           },
         },
         creator: {
-          select: { name: true },
+          select: { name: true, email: true },
         },
       },
     });
@@ -47,64 +53,42 @@ export async function GET(
       );
     }
 
-    // Create a ZIP archive
-    const archive = archiver("zip", {
-      zlib: { level: 5 }, // Compression level
-    });
+    // Generate download URLs for each file (NO bandwidth through Vercel!)
+    const downloadFiles = await Promise.all(
+      request.uploads.map(async (upload) => {
+        // Try public URL first (zero bandwidth cost)
+        let url = getPublicFileUrl(upload.storageKey);
 
-    // Convert archive to a readable stream
-    const chunks: Buffer[] = [];
-
-    archive.on("data", (chunk: Buffer) => {
-      chunks.push(chunk);
-    });
-
-    const archivePromise = new Promise<Buffer>((resolve, reject) => {
-      archive.on("end", () => {
-        resolve(Buffer.concat(chunks));
-      });
-      archive.on("error", reject);
-    });
-
-    // Add each file to the archive
-    for (const upload of request.uploads) {
-      try {
-        const url = await getDownloadPresignedUrl(upload.storageKey);
-        const response = await fetch(url);
-
-        if (response.ok && response.body) {
-          // Convert web ReadableStream to Node.js Readable
-          const reader = response.body.getReader();
-          const nodeStream = new Readable({
-            async read() {
-              const { done, value } = await reader.read();
-              if (done) {
-                this.push(null);
-              } else {
-                this.push(Buffer.from(value));
-              }
-            },
-          });
-
-          archive.append(nodeStream, { name: upload.originalName });
+        // Fall back to presigned URL if no public domain configured
+        if (!url) {
+          url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName);
         }
-      } catch (error) {
-        console.error(`Failed to add file ${upload.originalName}:`, error);
-      }
-    }
 
-    // Finalize the archive
-    archive.finalize();
+        return {
+          id: upload.id,
+          url,
+          fileName: upload.originalName,
+          fileType: upload.fileType,
+          fileSize: Number(upload.fileSize),
+          fileSizeFormatted: formatBytes(Number(upload.fileSize)),
+        };
+      })
+    );
 
-    // Wait for archive to complete
-    const zipBuffer = await archivePromise;
-
-    // Return the ZIP file
-    return new NextResponse(new Uint8Array(zipBuffer), {
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${request.creator.name}_${request.title.replace(/[^a-z0-9]/gi, "_")}.zip"`,
+    // Return URLs - client handles the downloads directly from R2
+    // This uses ZERO Vercel bandwidth for file transfer
+    return NextResponse.json({
+      success: true,
+      message: "Download URLs generated. Files will download directly from storage.",
+      request: {
+        id: request.id,
+        title: request.title,
+        creator: request.creator,
       },
+      files: downloadFiles,
+      totalFiles: downloadFiles.length,
+      totalSize: downloadFiles.reduce((acc, f) => acc + f.fileSize, 0),
+      totalSizeFormatted: formatBytes(downloadFiles.reduce((acc, f) => acc + f.fileSize, 0)),
     });
   } catch (error) {
     console.error("Error creating download:", error);
