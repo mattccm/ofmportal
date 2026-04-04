@@ -177,16 +177,24 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
         return;
       }
 
-      toast.info(`Downloading ${files.length} file(s)...`);
+      const toastId = toast.loading(`Preparing ${files.length} file(s)...`);
 
       // Create ZIP client-side (files fetched directly from R2 - no Vercel bandwidth)
-      const zipBlob = await createZipFromUrls(files);
+      const zipBlob = await createZipFromUrls(files, (progress) => {
+        if (progress.phase === "fetching") {
+          toast.loading(`Downloading ${progress.current}/${progress.total}: ${progress.fileName}`, { id: toastId });
+        } else if (progress.phase === "zipping") {
+          toast.loading("Creating ZIP archive...", { id: toastId });
+        }
+      });
+
       const filename = `${request.title.replace(/[^a-z0-9]/gi, "_")}_${request.id}.zip`;
       downloadBlob(zipBlob, filename);
 
-      toast.success("Download complete");
+      toast.success(`Downloaded ${files.length} file(s)`, { id: toastId });
     } catch (error) {
       console.error("Download error:", error);
+      toast.dismiss(); // Clear loading toast
       toast.error(error instanceof Error ? error.message : "Failed to download files");
     } finally {
       setLoading(false);
