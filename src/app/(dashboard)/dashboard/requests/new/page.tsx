@@ -905,6 +905,15 @@ function NewRequestForm() {
         creatorIds = selectedGroup.members.map((m) => m.id);
       }
 
+      // Include template-level richContent (example images, videos, links)
+      // Exclude the description since it's already merged into request description
+      const templateRichContent = selectedTemplate?.richContent ? {
+        exampleText: selectedTemplate.richContent.exampleText,
+        exampleImages: selectedTemplate.richContent.exampleImages,
+        exampleVideoUrl: selectedTemplate.richContent.exampleVideoUrl,
+        referenceLinks: selectedTemplate.richContent.referenceLinks,
+      } : undefined;
+
       const requests = creatorIds.map((creatorId) => ({
         creatorId,
         templateId: formData.templateId || undefined,
@@ -914,6 +923,7 @@ function NewRequestForm() {
         urgency: formData.urgency,
         requirements,
         fields: customFields,
+        richContent: templateRichContent,
         saveAsDraft,
         sendNotification: saveAsDraft ? false : formData.sendNotification,
       }));

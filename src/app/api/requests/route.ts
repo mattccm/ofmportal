@@ -23,6 +23,20 @@ const createRequestSchema = z.object({
   description: z.string().optional(),
   dueDate: z.string().optional(),
   urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
+  // Template-level rich content (examples, videos, links)
+  richContent: z.object({
+    description: z.string().optional(),
+    exampleText: z.string().optional(),
+    exampleImages: z.array(z.object({
+      url: z.string(),
+      caption: z.string().optional(),
+    })).optional(),
+    exampleVideoUrl: z.string().optional(),
+    referenceLinks: z.array(z.object({
+      label: z.string(),
+      url: z.string(),
+    })).optional(),
+  }).optional(),
   requirements: z.object({
     quantity: z.string().optional(),
     format: z.string().optional(),
@@ -196,6 +210,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Create the request
+    // Store template-level richContent in requirements._richContent
+    const requirements = {
+      ...(validatedData.requirements || {}),
+      ...(validatedData.richContent ? { _richContent: validatedData.richContent } : {}),
+    };
+
     const contentRequest = await db.contentRequest.create({
       data: {
         agencyId: session.user.agencyId,
@@ -205,7 +225,7 @@ export async function POST(req: NextRequest) {
         description: validatedData.description || null,
         dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
         urgency: validatedData.urgency,
-        requirements: validatedData.requirements || {},
+        requirements,
         fields: validatedData.fields || [],
         status: validatedData.saveAsDraft ? "DRAFT" : "PENDING",
       },

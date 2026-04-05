@@ -66,7 +66,14 @@ interface Request {
   description: string | null;
   dueDate: string | null;
   status: string;
-  requirements: Record<string, string>;
+  requirements: Record<string, unknown> & {
+    _richContent?: {
+      exampleText?: string;
+      exampleImages?: { url: string; caption?: string }[];
+      exampleVideoUrl?: string;
+      referenceLinks?: { label: string; url: string }[];
+    };
+  };
   fields: RequestField[];
   fieldSubmissions?: Record<string, FieldSubmission>;
 }
@@ -169,6 +176,7 @@ export default function CreatorRequestDetailPage({
 
   // UI state - must be at top level before any conditionals
   const [showDetails, setShowDetails] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
 
   const {
     queue: uploadQueue,
@@ -560,12 +568,35 @@ export default function CreatorRequestDetailPage({
           </Badge>
         </div>
 
-        {/* Description */}
-        {request.description && (
-          <HtmlContent
-            html={request.description}
-            className="text-muted-foreground leading-relaxed"
-          />
+        {/* Description/Instructions - Collapsible */}
+        {(request.description || request.requirements?._richContent) && (
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowInstructions(!showInstructions)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showInstructions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {showInstructions ? "Hide instructions" : "Show instructions"}
+            </button>
+            {showInstructions && (
+              <div className="space-y-3">
+                {request.description && (
+                  <HtmlContent
+                    html={request.description}
+                    className="text-muted-foreground leading-relaxed"
+                  />
+                )}
+                {/* Template-level examples (images, videos, links) */}
+                {request.requirements?._richContent && (
+                  <FieldExamplesDisplay
+                    richContent={request.requirements._richContent}
+                    fieldLabel="Request"
+                    variant="card"
+                  />
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Revision notice */}
