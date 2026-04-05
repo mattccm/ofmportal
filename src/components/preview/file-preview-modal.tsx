@@ -133,8 +133,11 @@ export function FilePreviewModal({
     setIsLoading(true);
   }, [files.length]);
 
-  // Swipe gesture handlers for mobile
+  // Swipe gesture handlers for mobile - only activate for single touch outside of zoomed images
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Don't handle multi-touch (pinch-to-zoom) - let ImageViewer handle it
+    if (e.touches.length > 1) return;
+
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
     swipeDirectionRef.current = null;
@@ -142,6 +145,15 @@ export function FilePreviewModal({
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    // Don't interfere with multi-touch gestures
+    if (e.touches.length > 1) {
+      touchStartRef.current = null;
+      swipeDirectionRef.current = null;
+      setIsSwiping(false);
+      setSwipeOffset({ x: 0, y: 0 });
+      return;
+    }
+
     if (!touchStartRef.current) return;
 
     const touch = e.touches[0];
@@ -287,8 +299,9 @@ export function FilePreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[100vw] max-h-[100dvh] w-screen h-[100dvh] p-0 border-0 bg-black/95 gap-0 pb-safe overflow-hidden"
+        className="max-w-[100vw] max-h-[100dvh] w-screen h-[100dvh] p-0 border-0 bg-black/95 gap-0 pb-safe pt-safe overflow-hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
+        hideCloseButton
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -309,18 +322,18 @@ export function FilePreviewModal({
         </VisuallyHidden.Root>
 
         {/* Top toolbar */}
-        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-white">
+        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 pt-safe bg-gradient-to-b from-black/70 to-transparent">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-white min-w-0">
               {getFileIcon(currentFile.fileType)}
-              <span className="font-medium truncate max-w-[300px]">
+              <span className="font-medium truncate max-w-[120px] sm:max-w-[300px] text-sm sm:text-base">
                 {currentFile.originalName}
               </span>
             </div>
             {currentFile.status && getStatusBadge(currentFile.status)}
             {hasMultipleFiles && (
-              <span className="text-white/60 text-sm">
-                {currentIndex + 1} of {files.length}
+              <span className="text-white/60 text-xs sm:text-sm shrink-0">
+                {currentIndex + 1}/{files.length}
               </span>
             )}
           </div>

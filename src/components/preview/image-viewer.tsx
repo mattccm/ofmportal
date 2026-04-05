@@ -28,6 +28,10 @@ export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
+  // Pinch-to-zoom state
+  const lastTouchDistanceRef = useRef<number | null>(null);
+  const lastTouchCenterRef = useRef<{ x: number; y: number } | null>(null);
+
   const MIN_SCALE = 0.5;
   const MAX_SCALE = 5;
   const ZOOM_STEP = 0.25;
@@ -94,16 +98,46 @@ export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
     setIsDragging(false);
   }, []);
 
-  // Touch support for mobile
+  // Helper to get distance between two touches
+  const getTouchDistance = (touches: React.TouchList) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Helper to get center point between two touches
+  const getTouchCenter = (touches: React.TouchList) => {
+    if (touches.length < 2) return { x: touches[0].clientX, y: touches[0].clientY };
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    };
+  };
+
+  // Touch support for mobile with pinch-to-zoom
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if (scale > 1 && e.touches.length === 1) {
-        const touch = e.touches[0];
-        setIsDragging(true);
-        setDragStart({
-          x: touch.clientX - position.x,
-          y: touch.clientY - position.y,
-        });
+      // Stop propagation to prevent parent swipe handlers from interfering
+      e.stopPropagation();
+
+      if (e.touches.length === 2) {
+        // Pinch-to-zoom start
+        lastTouchDistanceRef.current = getTouchDistance(e.touches);
+        lastTouchCenterRef.current = getTouchCenter(e.touches);
+        setIsDragging(false);
+      } else if (e.touches.length === 1) {
+        // Single touch - pan if zoomed
+        if (scale > 1) {
+          const touch = e.touches[0];
+          setIsDragging(true);
+          setDragStart({
+            x: touch.clientX - position.x,
+            y: touch.clientY - position.y,
+          });
+        }
+        lastTouchDistanceRef.current = null;
+        lastTouchCenterRef.current = null;
       }
     },
     [scale, position]
@@ -111,7 +145,25 @@ export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      if (isDragging && e.touches.length === 1) {
+      // Stop propagation to prevent parent swipe handlers
+      e.stopPropagation();
+
+      if (e.touches.length === 2 && lastTouchDistanceRef.current !== null) {
+        // Pinch-to-zoom
+        const newDistance = getTouchDistance(e.touches);
+        const scaleFactor = newDistance / lastTouchDistanceRef.current;
+
+        setScale((prev) => {
+          const newScale = Math.min(Math.max(prev * scaleFactor, MIN_SCALE), MAX_SCALE);
+          return newScale;
+        });
+
+        lastTouchDistanceRef.current = newDistance;
+
+        // Prevent default to stop page scroll/zoom
+        e.preventDefault();
+      } else if (isDragging && e.touches.length === 1) {
+        // Pan when zoomed
         const touch = e.touches[0];
         setPosition({
           x: touch.clientX - dragStart.x,
@@ -122,8 +174,11 @@ export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
     [isDragging, dragStart]
   );
 
-  const handleTouchEnd = useCallback(() => {
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
     setIsDragging(false);
+    lastTouchDistanceRef.current = null;
+    lastTouchCenterRef.current = null;
   }, []);
 
   // Keyboard shortcuts
