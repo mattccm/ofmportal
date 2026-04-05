@@ -15,7 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FilePreviewModal, type PreviewFile } from "@/components/preview";
 import type { TemplateField } from "@/lib/template-types";
+
+// Note: Dialog imports kept for VideoPlayer component
 
 // Sanitize HTML to prevent XSS while keeping formatting
 function sanitizeHtml(html: string): string {
@@ -76,46 +79,6 @@ function getVideoEmbedUrl(url: string): { type: "youtube" | "vimeo" | "direct"; 
 }
 
 // ============================================
-// IMAGE LIGHTBOX COMPONENT
-// ============================================
-
-function ImageLightbox({
-  src,
-  alt,
-  caption,
-  open,
-  onOpenChange,
-}: {
-  src: string;
-  alt: string;
-  caption?: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden">
-        <DialogHeader className="sr-only">
-          <DialogTitle>{alt}</DialogTitle>
-        </DialogHeader>
-        <div className="relative">
-          <img
-            src={src}
-            alt={alt}
-            className="w-full h-auto max-h-[80vh] object-contain"
-          />
-          {caption && (
-            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-3 text-sm">
-              {caption}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ============================================
 // VIDEO PLAYER COMPONENT
 // ============================================
 
@@ -172,7 +135,8 @@ export function FieldExamplesDisplay({
   variant = "inline",
 }: FieldExamplesDisplayProps) {
   const [expanded, setExpanded] = React.useState(defaultExpanded);
-  const [lightboxImage, setLightboxImage] = React.useState<{ url: string; caption?: string } | null>(null);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewIndex, setPreviewIndex] = React.useState(0);
   const [showVideoPlayer, setShowVideoPlayer] = React.useState(false);
 
   // Combine legacy single image with new array format
@@ -194,6 +158,23 @@ export function FieldExamplesDisplay({
 
     return images;
   }, [richContent?.exampleImages, richContent?.exampleImageUrl]);
+
+  // Convert to PreviewFile format for FilePreviewModal
+  const previewFiles: PreviewFile[] = React.useMemo(() =>
+    allExampleImages.map((img, index) => ({
+      id: `example-${index}`,
+      url: img.url,
+      fileName: img.caption || `Example ${index + 1}`,
+      originalName: img.caption || `Example ${index + 1}`,
+      fileType: "image/jpeg",
+      fileSize: 0,
+    }))
+  , [allExampleImages]);
+
+  const handleImageClick = (index: number) => {
+    setPreviewIndex(index);
+    setPreviewOpen(true);
+  };
 
   // Check if there's any content to display
   const hasContent = richContent?.description ||
@@ -256,7 +237,7 @@ export function FieldExamplesDisplay({
                 {allExampleImages.map((img, index) => (
                   <button
                     key={index}
-                    onClick={() => setLightboxImage(img)}
+                    onClick={() => handleImageClick(index)}
                     className="group relative overflow-hidden rounded-lg border-2 border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
                   >
                     <img
@@ -320,16 +301,13 @@ export function FieldExamplesDisplay({
         </div>
         )}
 
-        {/* Lightbox - always rendered to handle clicks */}
-        {lightboxImage && (
-          <ImageLightbox
-            src={lightboxImage.url}
-            alt={lightboxImage.caption || `Example for ${fieldLabel || "field"}`}
-            caption={lightboxImage.caption}
-            open={!!lightboxImage}
-            onOpenChange={(open) => !open && setLightboxImage(null)}
-          />
-        )}
+        {/* Preview Modal with swipe support */}
+        <FilePreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          files={previewFiles}
+          initialIndex={previewIndex}
+        />
 
         {richContent?.exampleVideoUrl && (
           <VideoPlayer
@@ -386,7 +364,7 @@ export function FieldExamplesDisplay({
                 {allExampleImages.map((img, index) => (
                   <button
                     key={index}
-                    onClick={() => setLightboxImage(img)}
+                    onClick={() => handleImageClick(index)}
                     className="group relative overflow-hidden rounded-lg border border-border/50 hover:border-primary/50 transition-colors"
                   >
                     <img
@@ -437,16 +415,13 @@ export function FieldExamplesDisplay({
         </div>
       )}
 
-      {/* Lightbox */}
-      {lightboxImage && (
-        <ImageLightbox
-          src={lightboxImage.url}
-          alt={lightboxImage.caption || `Example for ${fieldLabel || "field"}`}
-          caption={lightboxImage.caption}
-          open={!!lightboxImage}
-          onOpenChange={(open) => !open && setLightboxImage(null)}
-        />
-      )}
+      {/* Preview Modal with swipe support */}
+      <FilePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        files={previewFiles}
+        initialIndex={previewIndex}
+      />
 
       {richContent?.exampleVideoUrl && (
         <VideoPlayer

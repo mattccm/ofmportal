@@ -5,6 +5,20 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { invalidateCache } from "@/lib/cache";
 
+const richContentSchema = z.object({
+  description: z.string().optional(),
+  exampleText: z.string().optional(),
+  exampleImages: z.array(z.object({
+    url: z.string(),
+    caption: z.string().optional(),
+  })).optional(),
+  exampleVideoUrl: z.string().optional(),
+  referenceLinks: z.array(z.object({
+    label: z.string(),
+    url: z.string(),
+  })).optional(),
+}).optional();
+
 const updateRequestSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
@@ -24,29 +38,25 @@ const updateRequestSchema = z.object({
   fields: z.array(z.object({
     id: z.string(),
     label: z.string(),
-    value: z.string(),
+    value: z.string().optional().default(""),
     type: z.string(),
-    required: z.boolean(),
+    required: z.boolean().optional().default(false),
     helpText: z.string().optional(),
-    richContent: z.object({
-      description: z.string().optional(),
-      exampleText: z.string().optional(),
-      exampleImages: z.array(z.object({
-        url: z.string(),
-        caption: z.string().optional(),
-      })).optional(),
-      exampleVideoUrl: z.string().optional(),
-      referenceLinks: z.array(z.object({
-        label: z.string(),
-        url: z.string(),
-      })).optional(),
-    }).optional(),
+    richContent: richContentSchema,
     acceptedFileTypes: z.array(z.string()).optional(),
     maxFileSize: z.number().optional(),
     maxFiles: z.number().optional(),
     minFiles: z.number().optional(),
+    enforceFileTypes: z.boolean().optional(),
+    enforceMaxFileSize: z.boolean().optional(),
+    enforceFileCount: z.boolean().optional(),
+    options: z.array(z.object({
+      label: z.string(),
+      value: z.string(),
+    })).optional(),
   })).optional(),
   requirements: z.record(z.string(), z.unknown()).optional(),
+  richContent: richContentSchema,
 });
 
 export async function GET(
@@ -193,6 +203,15 @@ export async function PATCH(
 
     if (validatedData.requirements !== undefined) {
       updateData.requirements = validatedData.requirements;
+    }
+
+    // Handle richContent - store in requirements._richContent
+    if (validatedData.richContent !== undefined) {
+      const currentRequirements = (existingRequest.requirements as Record<string, unknown>) || {};
+      updateData.requirements = {
+        ...currentRequirements,
+        _richContent: validatedData.richContent,
+      };
     }
 
     // Update the request

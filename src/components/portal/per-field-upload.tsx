@@ -431,10 +431,10 @@ function FieldUploadSection({
         <FileDropzone
           onFilesSelected={onFilesSelected}
           acceptedTypes={field.acceptedFileTypes}
-          maxFileSize={field.maxFileSize}
+          maxFileSize={field.enforceMaxFileSize ? field.maxFileSize : undefined}
           maxFiles={field.maxFiles}
           compact={uploads.length > 0}
-          showMaxFileSize={field.enforceMaxFileSize !== false}
+          showMaxFileSize={!!field.enforceMaxFileSize}
         />
       )}
 

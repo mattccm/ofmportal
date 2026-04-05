@@ -20,9 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Select,
@@ -36,30 +34,17 @@ import { Avatar } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { FieldEditor, RichContentEditor } from "@/components/templates/field-editor";
+import {
+  TemplateField as FullTemplateField,
+  createEmptyField,
+  duplicateField,
+  RichContent,
+} from "@/lib/template-types";
 
 // ============================================
 // TYPES
 // ============================================
-
-interface TemplateField {
-  id: string;
-  label: string;
-  value: string;
-  type: string;
-  required: boolean;
-  helpText?: string;
-  richContent?: {
-    description?: string;
-    exampleText?: string;
-    exampleImages?: { url: string; caption?: string }[];
-    exampleVideoUrl?: string;
-    referenceLinks?: { label: string; url: string }[];
-  };
-  acceptedFileTypes?: string[];
-  maxFileSize?: number;
-  maxFiles?: number;
-  minFiles?: number;
-}
 
 interface Creator {
   id: string;
@@ -77,8 +62,8 @@ interface Request {
   urgency: string;
   dueDate: Date | null;
   createdAt: Date;
-  requirements: Record<string, string> | null;
-  fields: TemplateField[] | null;
+  requirements: (Record<string, string> & { _richContent?: RichContent }) | null;
+  fields: FullTemplateField[] | null;
   creator: Creator;
   template: {
     id: string;
@@ -107,11 +92,15 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
   );
   const [urgency, setUrgency] = React.useState(request.urgency);
   const [status, setStatus] = React.useState(request.status);
-  const [fields, setFields] = React.useState<TemplateField[]>(request.fields || []);
+  const [fields, setFields] = React.useState<FullTemplateField[]>(request.fields || []);
+  const [requestRichContent, setRequestRichContent] = React.useState<RichContent>(
+    request.requirements?._richContent || {}
+  );
 
   // UI state
   const [isSaving, setIsSaving] = React.useState(false);
   const [hasChanges, setHasChanges] = React.useState(false);
+  const [expandedFields, setExpandedFields] = React.useState<Record<string, boolean>>({});
 
   // Track changes
   React.useEffect(() => {
@@ -121,30 +110,43 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
       dueDate !== (request.dueDate ? format(new Date(request.dueDate), "yyyy-MM-dd") : "") ||
       urgency !== request.urgency ||
       status !== request.status ||
-      JSON.stringify(fields) !== JSON.stringify(request.fields || []);
+      JSON.stringify(fields) !== JSON.stringify(request.fields || []) ||
+      JSON.stringify(requestRichContent) !== JSON.stringify(request.requirements?._richContent || {});
     setHasChanges(hasFormChanges);
-  }, [title, description, dueDate, urgency, status, fields, request]);
+  }, [title, description, dueDate, urgency, status, fields, requestRichContent, request]);
 
   // Field operations
   const addCustomField = () => {
-    setFields([
-      ...fields,
-      {
-        id: `field-${Date.now()}`,
-        label: "",
-        value: "",
-        type: "text",
-        required: false,
-      },
-    ]);
+    const newField = createEmptyField("text");
+    setFields([...fields, newField]);
+    setExpandedFields({ ...expandedFields, [newField.id]: true });
   };
 
   const removeField = (id: string) => {
     setFields(fields.filter((f) => f.id !== id));
+    const newExpanded = { ...expandedFields };
+    delete newExpanded[id];
+    setExpandedFields(newExpanded);
   };
 
-  const updateField = (id: string, updates: Partial<TemplateField>) => {
-    setFields(fields.map((f) => (f.id === id ? { ...f, ...updates } : f)));
+  const handleDuplicateField = (id: string) => {
+    const field = fields.find((f) => f.id === id);
+    if (field) {
+      const newField = duplicateField(field);
+      const index = fields.findIndex((f) => f.id === id);
+      const newFields = [...fields];
+      newFields.splice(index + 1, 0, newField);
+      setFields(newFields);
+      setExpandedFields({ ...expandedFields, [newField.id]: true });
+    }
+  };
+
+  const updateField = (updatedField: FullTemplateField) => {
+    setFields(fields.map((f) => (f.id === updatedField.id ? updatedField : f)));
+  };
+
+  const toggleFieldExpanded = (id: string) => {
+    setExpandedFields({ ...expandedFields, [id]: !expandedFields[id] });
   };
 
   // Save
@@ -167,6 +169,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
           urgency,
           status,
           fields,
+          richContent: requestRichContent,
         }),
       });
 
@@ -356,6 +359,27 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
         </CardContent>
       </Card>
 
+      {/* Request-level Examples/Instructions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Request Examples & References
+          </CardTitle>
+          <CardDescription>
+            Add example images, videos, and reference links to help the creator understand what you need
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RichContentEditor
+            richContent={requestRichContent}
+            onChange={(rc) => setRequestRichContent(rc || {})}
+            title="Request Examples"
+            description="Add examples and references that apply to the entire request"
+          />
+        </CardContent>
+      </Card>
+
       {/* Fields Section */}
       <Card>
         <CardHeader>
@@ -367,7 +391,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
                 <Badge variant="secondary">{fields.length}</Badge>
               </CardTitle>
               <CardDescription>
-                Define what information and files you need from the creator
+                Define what information and files you need from the creator. Click a field to expand and add examples.
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={addCustomField}>
@@ -384,101 +408,18 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
               <p className="text-sm">Click &quot;Add Field&quot; to add fields for this request.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {fields.map((field, index) => (
-                <div
+            <div className="space-y-3">
+              {fields.map((field) => (
+                <FieldEditor
                   key={field.id}
-                  className="p-4 border rounded-lg space-y-4 bg-muted/30"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="font-medium">#{index + 1}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {field.type}
-                      </Badge>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => removeField(field.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Field Label</Label>
-                      <Input
-                        placeholder="e.g., Photo Caption, Content Theme"
-                        value={field.label}
-                        onChange={(e) => updateField(field.id, { label: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Field Type</Label>
-                      <Select
-                        value={field.type}
-                        onValueChange={(v) => updateField(field.id, { type: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Text</SelectItem>
-                          <SelectItem value="textarea">Long Text</SelectItem>
-                          <SelectItem value="number">Number</SelectItem>
-                          <SelectItem value="date">Date</SelectItem>
-                          <SelectItem value="select">Dropdown</SelectItem>
-                          <SelectItem value="checkbox">Checkbox</SelectItem>
-                          <SelectItem value="file">File Upload</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {field.type !== "file" && (
-                    <div className="space-y-2">
-                      <Label>Default Value (Optional)</Label>
-                      <Input
-                        placeholder="Pre-fill value for creator"
-                        value={field.value}
-                        onChange={(e) => updateField(field.id, { value: e.target.value })}
-                      />
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Help Text / Instructions</Label>
-                    <Textarea
-                      placeholder="Instructions for the creator about this field..."
-                      value={field.helpText || ""}
-                      onChange={(e) => updateField(field.id, { helpText: e.target.value })}
-                      rows={2}
-                      className="text-sm"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`required-${field.id}`}
-                      checked={field.required}
-                      onCheckedChange={(checked) =>
-                        updateField(field.id, { required: !!checked })
-                      }
-                    />
-                    <Label htmlFor={`required-${field.id}`} className="text-sm cursor-pointer">
-                      Required field
-                    </Label>
-                  </div>
-
-                  {field.richContent && (
-                    <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded">
-                      This field has examples/references from the template
-                    </div>
-                  )}
-                </div>
+                  field={field}
+                  allFields={fields}
+                  onChange={updateField}
+                  onDelete={() => removeField(field.id)}
+                  onDuplicate={() => handleDuplicateField(field.id)}
+                  isExpanded={!!expandedFields[field.id]}
+                  onToggleExpand={() => toggleFieldExpanded(field.id)}
+                />
               ))}
             </div>
           )}

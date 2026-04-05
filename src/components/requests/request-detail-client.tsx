@@ -122,6 +122,15 @@ interface WatcherItem {
   createdAt: string;
 }
 
+interface RichContentData {
+  description?: string;
+  exampleText?: string;
+  exampleImageUrl?: string;
+  exampleImages?: { url: string; caption?: string }[];
+  exampleVideoUrl?: string;
+  referenceLinks?: { label: string; url: string }[];
+}
+
 interface Request {
   id: string;
   title: string;
@@ -132,7 +141,7 @@ interface Request {
   createdAt: Date;
   submittedAt: Date | null;
   reviewedAt: Date | null;
-  requirements: Record<string, string> | null;
+  requirements: (Record<string, string> & { _richContent?: RichContentData }) | null;
   fields: TemplateField[] | null;
   creator: Creator;
   template: {
@@ -486,6 +495,15 @@ export function RequestDetailClient({
                 <HtmlContent html={request.description} />
               </CardContent>
             </Card>
+          )}
+
+          {/* Request/Template-level Examples */}
+          {request.requirements?._richContent && (
+            <FieldExamplesDisplay
+              richContent={request.requirements._richContent}
+              fieldLabel="Request"
+              variant="card"
+            />
           )}
 
           {/* Non-file fields (text, number, etc.) */}
