@@ -22,6 +22,7 @@ import {
 import type { QueuedFile } from "@/hooks/use-file-upload";
 import type { TemplateField } from "@/lib/template-types";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
+import { FilePreviewModal, type PreviewFile } from "@/components/preview";
 
 interface UploadedFile {
   id: string;
@@ -233,6 +234,8 @@ function FieldUploadSection({
 }) {
   const [submitting, setSubmitting] = React.useState(false);
   const [redacting, setRedacting] = React.useState(false);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewIndex, setPreviewIndex] = React.useState(0);
   const uploadCount = uploads.length;
   const hasMinFiles = field.minFiles ? uploadCount >= field.minFiles : uploadCount > 0;
   // Check if there are any pending/uploading items (not just any items in queue)
@@ -249,6 +252,24 @@ function FieldUploadSection({
   const canRedactField = canUpload && (isSubmitted || needsRevision) && !isApproved;
   const canDeleteUploads = canUpload && !isSubmitted && !isApproved;
   const canUploadMore = canUpload && !isSubmitted && !isApproved;
+
+  // Convert uploads to preview files
+  const previewFiles: PreviewFile[] = uploads.map(upload => ({
+    id: upload.id,
+    url: upload.thumbnailUrl || "",
+    fileName: upload.fileName,
+    originalName: upload.originalName,
+    fileType: upload.fileType,
+    fileSize: upload.fileSize,
+  }));
+
+  const handlePreview = (uploadId: string) => {
+    const index = uploads.findIndex(u => u.id === uploadId);
+    if (index !== -1) {
+      setPreviewIndex(index);
+      setPreviewOpen(true);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!onFieldSubmit) return;
@@ -441,6 +462,7 @@ function FieldUploadSection({
               key={upload.id}
               upload={upload}
               primaryColor={primaryColor}
+              onPreview={() => handlePreview(upload.id)}
               onDelete={canDeleteUploads && onDeleteUpload ? () => onDeleteUpload(upload.id) : undefined}
             />
           ))}
@@ -453,6 +475,14 @@ function FieldUploadSection({
           Waiting for review. You can redact your submission if you need to make changes.
         </p>
       )}
+
+      {/* Preview Modal */}
+      <FilePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        files={previewFiles}
+        initialIndex={previewIndex}
+      />
     </div>
   );
 }

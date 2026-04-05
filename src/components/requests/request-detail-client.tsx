@@ -632,17 +632,18 @@ export function RequestDetailClient({
                     email: request.creator.email,
                     image: request.creator.avatar,
                   }}
+                  className="shrink-0"
                 />
-                <div>
+                <div className="min-w-0 flex-1">
                   <Link
                     href={`/dashboard/creators/${request.creator.id}`}
-                    className="font-medium hover:underline"
+                    className="font-medium hover:underline block truncate"
                   >
                     {request.creator.name}
                   </Link>
                   <CopyableEmail
                     text={request.creator.email}
-                    maxWidth="200px"
+                    maxWidth="100%"
                     className="text-sm"
                     onCopySuccess={() => toast.success("Email copied to clipboard")}
                   />

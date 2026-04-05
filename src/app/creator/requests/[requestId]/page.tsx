@@ -678,12 +678,7 @@ export default function CreatorRequestDetailPage({
       {/* Fallback: Standard upload UI when no file fields defined */}
       {canUpload && !hasFileFields && (
         <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Upload Content</h2>
-            <p className="text-sm text-muted-foreground">
-              Drag and drop files or tap to select. We support images, videos, and audio up to 5GB.
-            </p>
-          </div>
+          <h2 className="text-lg font-semibold">Upload Content</h2>
 
           {duplicateAlertResult && (
             <DuplicateAlert

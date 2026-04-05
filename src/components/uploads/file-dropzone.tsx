@@ -102,6 +102,27 @@ export function FileDropzone({
   const showVideos = acceptedTypes.some(t => t.startsWith("video") || t === "*/*");
   const showAudio = acceptedTypes.some(t => t.startsWith("audio") || t === "*/*");
 
+  // Check if a file type matches the accepted types for this field
+  const isFileTypeAccepted = useCallback((mimeType: string): boolean => {
+    // First check if it's a globally allowed type
+    if (!isAllowedFileType(mimeType)) return false;
+
+    // If using default ALLOWED_TYPES, accept all allowed types
+    if (acceptedTypes === ALLOWED_TYPES) return true;
+
+    // Check if mimeType matches any of the accepted patterns
+    return acceptedTypes.some(accepted => {
+      if (accepted === "*/*") return true;
+      if (accepted === mimeType) return true;
+      // Handle wildcard patterns like "image/*"
+      if (accepted.endsWith("/*")) {
+        const category = accepted.replace("/*", "");
+        return mimeType.startsWith(category + "/");
+      }
+      return false;
+    });
+  }, [acceptedTypes]);
+
   // Generate file type description text
   const getFileTypeDescription = () => {
     const types: string[] = [];
@@ -126,10 +147,10 @@ export function FileDropzone({
         if (item.kind === "file") {
           const file = item.getAsFile();
           if (file) {
-            if (isAllowedFileType(file.type) && file.size <= maxFileSize) {
+            if (isFileTypeAccepted(file.type) && file.size <= maxFileSize) {
               validCount++;
               totalSize += file.size;
-            } else if (!isAllowedFileType(file.type)) {
+            } else if (!isFileTypeAccepted(file.type)) {
               const ext = file.name.split(".").pop() || file.type;
               if (!invalidTypes.includes(ext)) {
                 invalidTypes.push(ext);
@@ -146,7 +167,7 @@ export function FileDropzone({
         totalSize,
       };
     },
-    [maxFileSize]
+    [maxFileSize, isFileTypeAccepted]
   );
 
   // Full-page drag handlers
@@ -191,7 +212,7 @@ export function FileDropzone({
 
       if (e.dataTransfer?.files.length) {
         const validFiles = Array.from(e.dataTransfer.files).filter(
-          (file) => isAllowedFileType(file.type) && file.size <= maxFileSize
+          (file) => isFileTypeAccepted(file.type) && file.size <= maxFileSize
         );
         if (validFiles.length > 0) {
           onFilesSelected(validFiles);
@@ -224,7 +245,7 @@ export function FileDropzone({
       for (const item of Array.from(items)) {
         if (item.kind === "file") {
           const file = item.getAsFile();
-          if (file && isAllowedFileType(file.type) && file.size <= maxFileSize) {
+          if (file && isFileTypeAccepted(file.type) && file.size <= maxFileSize) {
             files.push(file);
           }
         }
@@ -238,7 +259,7 @@ export function FileDropzone({
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [disabled, onFilesSelected, maxFileSize]);
+  }, [disabled, onFilesSelected, maxFileSize, isFileTypeAccepted]);
 
   // Local dropzone drag handlers
   const handleDragEnter = useCallback(
@@ -296,14 +317,14 @@ export function FileDropzone({
       const files = e.dataTransfer.files;
       if (files.length > 0) {
         const validFiles = Array.from(files).filter(
-          (file) => isAllowedFileType(file.type) && file.size <= maxFileSize
+          (file) => isFileTypeAccepted(file.type) && file.size <= maxFileSize
         );
         if (validFiles.length > 0) {
           onFilesSelected(validFiles);
         }
       }
     },
-    [disabled, onFilesSelected, maxFileSize]
+    [disabled, onFilesSelected, maxFileSize, isFileTypeAccepted]
   );
 
   const handleFileSelect = useCallback(
@@ -330,7 +351,7 @@ export function FileDropzone({
           if (type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/")) {
             const blob = await item.getType(type);
             const file = new File([blob], `pasted-${Date.now()}.${type.split("/")[1]}`, { type });
-            if (isAllowedFileType(file.type) && file.size <= maxFileSize) {
+            if (isFileTypeAccepted(file.type) && file.size <= maxFileSize) {
               files.push(file);
             }
           }
@@ -343,7 +364,7 @@ export function FileDropzone({
     } catch {
       // Clipboard API not available or permission denied - silently fail
     }
-  }, [onFilesSelected, maxFileSize]);
+  }, [onFilesSelected, maxFileSize, isFileTypeAccepted]);
 
   // Render full-page overlay
   const renderFullPageOverlay = () => {

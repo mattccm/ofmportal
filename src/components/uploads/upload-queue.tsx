@@ -413,8 +413,8 @@ export function UploadQueue({
           </div>
         </div>
 
-        {/* Total progress bar */}
-        {isUploading && isExpanded && (
+        {/* Total progress bar - only show when we have meaningful size data */}
+        {isUploading && isExpanded && totalSize > 0 && (
           <div className="space-y-2 pt-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">

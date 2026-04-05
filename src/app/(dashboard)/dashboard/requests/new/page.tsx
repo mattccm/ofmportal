@@ -38,6 +38,7 @@ import { TemplateSelector } from "@/components/requests/template-selector";
 import { TemplatePreviewCard } from "@/components/templates/template-preview-card";
 import { expandQuantityFields, type Template as FullTemplate, type TemplateField } from "@/lib/template-types";
 import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
+import { RichContentEditor } from "@/components/templates/field-editor";
 
 // ============================================
 // TYPES
@@ -1398,10 +1399,15 @@ function NewRequestForm() {
                           </Label>
                         </div>
 
-                        {field.richContent && (field.richContent.exampleImages?.length || field.richContent.exampleVideoUrl || field.richContent.referenceLinks?.length) && (
-                          <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded">
-                            This field has examples/references from the template
-                          </div>
+                        {field.type === "file" && (
+                          <RichContentEditor
+                            richContent={field.richContent}
+                            onChange={(richContent) =>
+                              updateCustomField(field.id, { richContent })
+                            }
+                            title="Examples & References"
+                            description="Add example images, videos, or reference links to help the creator understand what you're looking for"
+                          />
                         )}
                       </div>
                     ))}

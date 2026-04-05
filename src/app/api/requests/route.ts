@@ -35,6 +35,26 @@ const createRequestSchema = z.object({
     value: z.string(),
     type: z.string(),
     required: z.boolean(),
+    helpText: z.string().optional(),
+    // File field specific options
+    acceptedFileTypes: z.array(z.string()).optional(),
+    maxFileSize: z.number().optional(),
+    maxFiles: z.number().optional(),
+    minFiles: z.number().optional(),
+    // Rich content for examples/references
+    richContent: z.object({
+      description: z.string().optional(),
+      exampleText: z.string().optional(),
+      exampleImages: z.array(z.object({
+        url: z.string(),
+        caption: z.string().optional(),
+      })).optional(),
+      exampleVideoUrl: z.string().optional(),
+      referenceLinks: z.array(z.object({
+        label: z.string(),
+        url: z.string(),
+      })).optional(),
+    }).optional(),
   })).optional(),
   sendNotification: z.boolean().default(true),
   saveAsDraft: z.boolean().default(false),
