@@ -51,6 +51,7 @@ import {
 } from "@/components/providers/creator-context-provider";
 import { HtmlContent } from "@/components/ui/html-content";
 import { RequestEditor } from "@/components/requests/request-editor";
+import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 
 interface Creator {
   id: string;
@@ -66,6 +67,15 @@ interface TemplateField {
   value: string;
   type: string;
   required: boolean;
+  helpText?: string;
+  richContent?: {
+    description?: string;
+    exampleText?: string;
+    exampleImageUrl?: string;
+    exampleImages?: { url: string; caption?: string }[];
+    exampleVideoUrl?: string;
+    referenceLinks?: { label: string; url: string }[];
+  };
 }
 
 interface UploadItem {
@@ -512,7 +522,15 @@ export function RequestDetailClient({
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  {/* Show examples/instructions if available */}
+                  {field.richContent && (
+                    <FieldExamplesDisplay
+                      richContent={field.richContent}
+                      fieldLabel={field.label}
+                      variant="card"
+                    />
+                  )}
                   <UploadsList
                     uploads={fieldUploads}
                     requestId={request.id}
