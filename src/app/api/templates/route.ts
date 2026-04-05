@@ -187,10 +187,23 @@ export async function GET(req: NextRequest) {
         fields = [];
       }
 
+      // Parse richContent JSON
+      let richContent = undefined;
+      try {
+        if (typeof t.richContent === "string") {
+          richContent = JSON.parse(t.richContent);
+        } else if (t.richContent && typeof t.richContent === "object") {
+          richContent = t.richContent;
+        }
+      } catch {
+        richContent = undefined;
+      }
+
       return {
         id: t.id,
         name: t.name,
         description: t.description,
+        richContent,
         categoryId: t.categoryId,
         category: t.category,
         fields,

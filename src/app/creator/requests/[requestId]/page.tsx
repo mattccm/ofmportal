@@ -569,23 +569,21 @@ export default function CreatorRequestDetailPage({
         </div>
 
         {/* Description/Instructions - Collapsible */}
-        {(request.description || request.requirements?._richContent) && (
-          <div className="space-y-2">
+        {request.description && (
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
             <button
               onClick={() => setShowInstructions(!showInstructions)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors w-full"
             >
               {showInstructions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              {showInstructions ? "Hide instructions" : "Show instructions"}
+              <span>{showInstructions ? "Hide Instructions" : "Show Instructions"}</span>
             </button>
             {showInstructions && (
-              <div className="space-y-3">
-                {request.description && (
-                  <HtmlContent
-                    html={request.description}
-                    className="text-muted-foreground leading-relaxed"
-                  />
-                )}
+              <div className="space-y-3 pt-2 border-t">
+                <HtmlContent
+                  html={request.description}
+                  className="text-muted-foreground leading-relaxed"
+                />
                 {/* Template-level examples (images, videos, links) */}
                 {request.requirements?._richContent && (
                   <FieldExamplesDisplay

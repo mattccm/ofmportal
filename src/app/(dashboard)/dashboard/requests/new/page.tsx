@@ -1128,7 +1128,16 @@ function NewRequestForm() {
         )}
 
         {currentStep === "details" && (
-          <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in-50 slide-in-from-right-10 duration-300">
+          <form
+            onSubmit={handleSubmit}
+            onKeyDown={(e) => {
+              // Prevent Enter key from submitting form in input fields
+              if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+                e.preventDefault();
+              }
+            }}
+            className="space-y-6 animate-in fade-in-50 slide-in-from-right-10 duration-300"
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               {selectedTemplate && (
                 <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/10">

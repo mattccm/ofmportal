@@ -14,6 +14,7 @@ interface CreatorMessage {
   id: string;
   message: string;
   createdAt: string;
+  isRead: boolean;
   request: {
     id: string;
     title: string;
@@ -125,9 +126,21 @@ export default function CreatorMessagesPage() {
             {total} message{total !== 1 ? "s" : ""} from creators
           </p>
           {messages.map((msg) => (
-            <Card key={msg.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={msg.id}
+              className={cn(
+                "hover:shadow-md transition-shadow",
+                !msg.isRead && "border-l-4 border-l-primary bg-primary/5"
+              )}
+            >
               <CardContent className="p-4">
                 <div className="flex gap-3">
+                  {/* Unread indicator dot */}
+                  {!msg.isRead && (
+                    <div className="flex-shrink-0 mt-2">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                    </div>
+                  )}
                   <Avatar
                     size="md"
                     user={

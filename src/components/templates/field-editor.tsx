@@ -964,6 +964,20 @@ export function RichContentEditor({ richContent, onChange, title, description }:
 
       {expanded && (
         <div className="space-y-4 pt-2">
+          {/* Description / Instructions */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Instructions / Description</Label>
+            <Textarea
+              value={richContent?.description || ""}
+              onChange={(e) => updateRichContent({ description: e.target.value })}
+              placeholder="Add detailed instructions or description for this field..."
+              className="min-h-[80px] resize-y"
+            />
+            <p className="text-xs text-muted-foreground">
+              Provide additional context or guidelines for creators filling out this field.
+            </p>
+          </div>
+
           {/* Example Images - Upload Only (Bulk) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">

@@ -73,7 +73,12 @@ export async function GET(req: NextRequest) {
     const [comments, total] = await Promise.all([
       db.comment.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          message: true,
+          createdAt: true,
+          mentions: true,
+          readBy: true,
           request: {
             select: {
               id: true,
@@ -116,10 +121,15 @@ export async function GET(req: NextRequest) {
         // Invalid JSON
       }
 
+      // Check if current user has read this comment
+      const readBy = (comment.readBy as Array<{ userId: string; readAt: string }>) || [];
+      const isRead = readBy.some((r) => r.userId === userId);
+
       return {
         id: comment.id,
         message: comment.message,
         createdAt: comment.createdAt.toISOString(),
+        isRead,
         request: comment.request
           ? {
               id: comment.request.id,
