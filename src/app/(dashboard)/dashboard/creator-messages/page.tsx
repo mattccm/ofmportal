@@ -82,10 +82,10 @@ export default function CreatorMessagesPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <MessageSquare className="h-6 w-6 text-primary" />
-            Creator Messages
+            Creator Comments
           </h1>
           <p className="text-muted-foreground">
-            Messages from creators on content requests
+            Comments from creators on content requests
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchMessages}>

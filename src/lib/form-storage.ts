@@ -61,6 +61,27 @@ function generateChecksum(data: unknown): string {
 }
 
 /**
+ * Recursively sort object keys for stable comparison
+ * This ensures objects with the same content but different key ordering
+ * will produce the same JSON string
+ */
+function sortObjectKeys(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(sortObjectKeys);
+  }
+  if (typeof obj === "object") {
+    const sorted: Record<string, unknown> = {};
+    const keys = Object.keys(obj as Record<string, unknown>).sort();
+    for (const key of keys) {
+      sorted[key] = sortObjectKeys((obj as Record<string, unknown>)[key]);
+    }
+    return sorted;
+  }
+  return obj;
+}
+
+/**
  * Check if localStorage is available
  */
 export function isStorageAvailable(): boolean {
@@ -242,20 +263,27 @@ export function detectConflict<T>(
     return { hasConflict: false, savedData: null };
   }
 
-  const currentChecksum = generateChecksum(currentData);
-  const savedChecksum = savedData.metadata.checksum;
-
-  // If checksums match, no conflict
-  if (currentChecksum === savedChecksum) {
-    return { hasConflict: false, savedData };
+  // Check if saved data is empty - if so, no point in offering recovery
+  const isSavedEmpty = isEmptyFormData(savedData.data);
+  if (isSavedEmpty) {
+    return { hasConflict: false, savedData: null };
   }
 
   // Check if current data is "empty" (all defaults or initial state)
   const isCurrentEmpty = isEmptyFormData(currentData);
 
-  // If current data is empty and we have saved data, offer to restore
+  // If current data is empty and we have meaningful saved data, offer to restore
   if (isCurrentEmpty) {
     return { hasConflict: true, savedData };
+  }
+
+  // Both have data - compare using a more stable method (deep equality check)
+  // instead of checksums which can differ due to object key ordering
+  const currentStr = JSON.stringify(sortObjectKeys(currentData));
+  const savedStr = JSON.stringify(sortObjectKeys(savedData.data));
+
+  if (currentStr === savedStr) {
+    return { hasConflict: false, savedData };
   }
 
   // Both have data but different - true conflict

@@ -41,6 +41,8 @@ export interface FileDropzoneProps {
   acceptedTypes?: string[];
   /** Custom max file size in bytes (defaults to MAX_FILE_SIZE) */
   maxFileSize?: number;
+  /** Whether to show the max file size limit in UI (defaults to true) */
+  showMaxFileSize?: boolean;
 }
 
 interface DragPreviewInfo {
@@ -88,6 +90,7 @@ export function FileDropzone({
   showPasteButton = true,
   acceptedTypes = ALLOWED_TYPES,
   maxFileSize = MAX_FILE_SIZE,
+  showMaxFileSize = true,
 }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isFullPageDragging, setIsFullPageDragging] = useState(false);
@@ -498,7 +501,7 @@ export function FileDropzone({
                 {isDragging ? "Drop files here" : "Drag files or click to upload"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {getFileTypeDescription().charAt(0).toUpperCase() + getFileTypeDescription().slice(1)}{maxFileSize < MAX_FILE_SIZE && ` up to ${formatFileSize(maxFileSize)}`}
+                {getFileTypeDescription().charAt(0).toUpperCase() + getFileTypeDescription().slice(1)}{showMaxFileSize && maxFileSize < MAX_FILE_SIZE && ` up to ${formatFileSize(maxFileSize)}`}
               </p>
             </div>
 
@@ -597,9 +600,9 @@ export function FileDropzone({
                   )}
                 </>
               ) : fullPageDrop ? (
-                `Drag files anywhere on the page, paste from clipboard, or click to browse. We support ${getFileTypeDescription()}${maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
+                `Drag files anywhere on the page, paste from clipboard, or click to browse. We support ${getFileTypeDescription()}${showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
               ) : (
-                `Drag and drop your files here, paste from clipboard, or click to browse. We support ${getFileTypeDescription()}${maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
+                `Drag and drop your files here, paste from clipboard, or click to browse. We support ${getFileTypeDescription()}${showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
               )}
             </p>
           </div>
@@ -663,11 +666,11 @@ export function FileDropzone({
             )}
           </div>
 
-          {/* Max size note - only show if there's a specific limit */}
-          {(maxFileSize < MAX_FILE_SIZE || fullPageDrop) && (
+          {/* Max size note - only show if there's a specific limit and showMaxFileSize is true */}
+          {((showMaxFileSize && maxFileSize < MAX_FILE_SIZE) || fullPageDrop) && (
             <p className="text-xs text-muted-foreground mt-4">
-              {maxFileSize < MAX_FILE_SIZE && `Maximum file size: ${formatFileSize(maxFileSize)}`}
-              {maxFileSize < MAX_FILE_SIZE && fullPageDrop && " • "}
+              {showMaxFileSize && maxFileSize < MAX_FILE_SIZE && `Maximum file size: ${formatFileSize(maxFileSize)}`}
+              {showMaxFileSize && maxFileSize < MAX_FILE_SIZE && fullPageDrop && " • "}
               {fullPageDrop && "Drop anywhere on the page"}
             </p>
           )}

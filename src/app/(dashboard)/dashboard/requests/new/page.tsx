@@ -39,6 +39,7 @@ import { TemplatePreviewCard } from "@/components/templates/template-preview-car
 import { expandQuantityFields, type Template as FullTemplate, type TemplateField } from "@/lib/template-types";
 import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { RichContentEditor } from "@/components/templates/field-editor";
+import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 
 // ============================================
 // TYPES
@@ -1171,6 +1172,16 @@ function NewRequestForm() {
               )}
             </div>
 
+            {/* Template-level instructions & examples */}
+            {selectedTemplate?.richContent && (
+              <FieldExamplesDisplay
+                richContent={selectedTemplate.richContent}
+                fieldLabel={selectedTemplate.name}
+                variant="card"
+                defaultExpanded={true}
+              />
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Request Details</CardTitle>
@@ -1498,7 +1509,7 @@ function NewRequestForm() {
                   Save as Draft
                 </Button>
                 <Button
-                  type="submit"
+                  type="button"
                   onClick={(e) => handleSubmit(e as unknown as React.FormEvent, false)}
                   disabled={loading}
                   className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"

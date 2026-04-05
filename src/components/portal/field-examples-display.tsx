@@ -9,11 +9,9 @@ import {
   FileText,
   Quote,
   Info,
-  X,
   Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -104,14 +102,6 @@ function ImageLightbox({
           <DialogTitle>{alt}</DialogTitle>
         </DialogHeader>
         <div className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70 text-white"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
           <img
             src={src}
             alt={alt}
@@ -152,14 +142,6 @@ function VideoPlayer({
           <DialogTitle>Example Video</DialogTitle>
         </DialogHeader>
         <div className="relative aspect-video">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70 text-white"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
           {videoInfo.type === "direct" ? (
             <video
               src={videoInfo.embedUrl}
@@ -227,36 +209,48 @@ export function FieldExamplesDisplay({
     return null;
   }
 
-  // Card variant - more prominent display like ContentSnare
+  // Card variant - more prominent display
   if (variant === "card") {
     return (
-      <div className={cn("rounded-xl border bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800", className)}>
-        {/* Header */}
-        <div className="flex items-center gap-3 p-4 border-b border-amber-200/50 dark:border-amber-800/50">
-          <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
-            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div className="flex-1">
-            <h4 className="font-medium text-amber-900 dark:text-amber-100">Instructions & Examples</h4>
-            {fieldLabel && (
-              <p className="text-xs text-amber-700 dark:text-amber-300">For: {fieldLabel}</p>
+      <div className={cn("rounded-xl border bg-slate-50/50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700", className)}>
+        {/* Header - clickable to expand/collapse */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-3 p-4 w-full text-left border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors"
+        >
+          <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+            {expanded ? (
+              <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-slate-600 dark:text-slate-400" />
             )}
           </div>
-        </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-slate-900 dark:text-slate-100">Instructions & Examples</h4>
+            {fieldLabel && !expanded && (
+              <p className="text-xs text-slate-600 dark:text-slate-400">Click to expand</p>
+            )}
+            {fieldLabel && expanded && (
+              <p className="text-xs text-slate-600 dark:text-slate-400">For: {fieldLabel}</p>
+            )}
+          </div>
+          <Info className="h-4 w-4 text-slate-400 shrink-0" />
+        </button>
 
-        {/* Content */}
+        {/* Content - only show when expanded */}
+        {expanded && (
         <div className="p-4 space-y-4">
           {/* Description - Render HTML from WYSIWYG editor */}
           {richContent?.description && (
             <div
-              className="prose prose-sm dark:prose-invert max-w-none prose-p:text-amber-800 dark:prose-p:text-amber-200 prose-strong:text-amber-900 dark:prose-strong:text-amber-100"
+              className="prose prose-sm dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(richContent.description) }}
             />
           )}
 
           {/* Example Text */}
           {richContent?.exampleText && (
-            <blockquote className="border-l-4 border-amber-400 pl-4 py-2 text-sm text-amber-800 dark:text-amber-200 italic bg-amber-100/50 dark:bg-amber-900/30 rounded-r-lg">
+            <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 py-2 text-sm text-slate-700 dark:text-slate-300 italic bg-slate-100/50 dark:bg-slate-800/50 rounded-r-lg">
               {richContent.exampleText}
             </blockquote>
           )}
@@ -264,13 +258,13 @@ export function FieldExamplesDisplay({
           {/* Example Images */}
           {allExampleImages.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-amber-700 dark:text-amber-300 uppercase tracking-wide">Examples</p>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">Examples</p>
               <div className="flex flex-wrap gap-3">
                 {allExampleImages.map((img, index) => (
                   <button
                     key={index}
                     onClick={() => setLightboxImage(img)}
-                    className="group relative overflow-hidden rounded-lg border-2 border-amber-200 dark:border-amber-700 hover:border-amber-400 dark:hover:border-amber-500 transition-colors"
+                    className="group relative overflow-hidden rounded-lg border-2 border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
                   >
                     <img
                       src={img.url}
@@ -298,14 +292,14 @@ export function FieldExamplesDisplay({
           {richContent?.exampleVideoUrl && (
             <button
               onClick={() => setShowVideoPlayer(true)}
-              className="flex items-center gap-3 p-3 rounded-lg bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors w-full"
+              className="flex items-center gap-3 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors w-full"
             >
-              <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center">
                 <Play className="h-5 w-5 text-white" />
               </div>
               <div className="text-left">
-                <p className="font-medium text-amber-900 dark:text-amber-100 text-sm">Watch Example Video</p>
-                <p className="text-xs text-amber-700 dark:text-amber-300">Click to play</p>
+                <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">Watch Example Video</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400">Click to play</p>
               </div>
             </button>
           )}
@@ -313,7 +307,7 @@ export function FieldExamplesDisplay({
           {/* Reference Links */}
           {richContent?.referenceLinks && richContent.referenceLinks.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-amber-700 dark:text-amber-300 uppercase tracking-wide">Reference Links</p>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">Reference Links</p>
               <div className="flex flex-wrap gap-2">
                 {richContent.referenceLinks.map((link, index) => (
                   <a
@@ -321,7 +315,7 @@ export function FieldExamplesDisplay({
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 text-sm hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     {link.label || "View Link"}
@@ -331,8 +325,9 @@ export function FieldExamplesDisplay({
             </div>
           )}
         </div>
+        )}
 
-        {/* Lightbox */}
+        {/* Lightbox - always rendered to handle clicks */}
         {lightboxImage && (
           <ImageLightbox
             src={lightboxImage.url}
@@ -393,26 +388,29 @@ export function FieldExamplesDisplay({
 
           {/* Example Images */}
           {allExampleImages.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {allExampleImages.map((img, index) => (
-                <button
-                  key={index}
-                  onClick={() => setLightboxImage(img)}
-                  className="group relative overflow-hidden rounded-lg border border-border/50 hover:border-primary/50 transition-colors"
-                >
-                  <img
-                    src={img.url}
-                    alt={img.caption || `Example ${index + 1}`}
-                    className="h-16 w-auto max-w-[100px] object-cover"
-                    onError={(e) => {
-                      e.currentTarget.parentElement!.style.display = "none";
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                    <ImageIcon className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </button>
-              ))}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Example Images</p>
+              <div className="flex flex-wrap gap-2">
+                {allExampleImages.map((img, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setLightboxImage(img)}
+                    className="group relative overflow-hidden rounded-lg border border-border/50 hover:border-primary/50 transition-colors"
+                  >
+                    <img
+                      src={img.url}
+                      alt={img.caption || `Example ${index + 1}`}
+                      className="h-16 w-auto max-w-[100px] object-cover"
+                      onError={(e) => {
+                        e.currentTarget.parentElement!.style.display = "none";
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                      <ImageIcon className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

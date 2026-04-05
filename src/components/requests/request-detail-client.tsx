@@ -250,19 +250,9 @@ export function RequestDetailClient({
     router.refresh();
   }, [router, request.id]);
 
-  // If in edit mode, render the request editor
-  if (isEditMode) {
-    return (
-      <RequestEditor
-        request={request as unknown as Parameters<typeof RequestEditor>[0]["request"]}
-        onSave={handleExitEditMode}
-        onCancel={handleExitEditMode}
-      />
-    );
-  }
-
-  // Mark comments as read when viewing this request
+  // Mark comments as read when viewing this request (skip in edit mode)
   useEffect(() => {
+    if (isEditMode) return;
     fetch("/api/comments/read", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -270,7 +260,7 @@ export function RequestDetailClient({
     }).catch(() => {
       // Silently fail - not critical
     });
-  }, [initialRequest.id]);
+  }, [initialRequest.id, isEditMode]);
 
   // Use currentUserId if available, fall back to currentUser.id
   const userId = currentUserId || currentUser.id;
@@ -305,8 +295,9 @@ export function RequestDetailClient({
     }));
   }, []);
 
-  // Fetch clone history on mount
+  // Fetch clone history on mount (skip in edit mode)
   useEffect(() => {
+    if (isEditMode) return;
     async function fetchCloneHistory() {
       try {
         const response = await fetch(`/api/requests/${request.id}/clone`);
@@ -322,7 +313,19 @@ export function RequestDetailClient({
     }
 
     fetchCloneHistory();
-  }, [request.id]);
+  }, [request.id, isEditMode]);
+
+  // If in edit mode, render the request editor
+  // NOTE: This early return MUST come after all hooks to satisfy React's rules of hooks
+  if (isEditMode) {
+    return (
+      <RequestEditor
+        request={request as unknown as Parameters<typeof RequestEditor>[0]["request"]}
+        onSave={handleExitEditMode}
+        onCancel={handleExitEditMode}
+      />
+    );
+  }
 
   const handleCloneSuccess = (clonedRequestIds: string[]) => {
     toast.success(`Successfully created ${clonedRequestIds.length} cloned request(s)`);

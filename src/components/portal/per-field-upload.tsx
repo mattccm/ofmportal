@@ -46,6 +46,10 @@ interface FileField {
   maxFileSize?: number;
   helpText?: string;
   richContent?: TemplateField["richContent"];
+  // Enforcement flags
+  enforceFileTypes?: boolean;
+  enforceMaxFileSize?: boolean;
+  enforceFileCount?: boolean;
 }
 
 interface FieldSubmission {
@@ -331,10 +335,10 @@ function FieldUploadSection({
             </h3>
             <p className="text-sm text-muted-foreground">
               {field.helpText || "Drag and drop or click to upload"}
-              {field.minFiles && field.minFiles > 1 && (
+              {field.enforceFileCount !== false && field.minFiles && field.minFiles > 1 && (
                 <span className="ml-1">(min {field.minFiles})</span>
               )}
-              {field.maxFiles && (
+              {field.enforceFileCount !== false && field.maxFiles && (
                 <span className="ml-1">(max {field.maxFiles})</span>
               )}
             </p>
@@ -430,6 +434,7 @@ function FieldUploadSection({
           maxFileSize={field.maxFileSize}
           maxFiles={field.maxFiles}
           compact={uploads.length > 0}
+          showMaxFileSize={field.enforceMaxFileSize !== false}
         />
       )}
 
