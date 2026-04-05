@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { format, isPast, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { stripHtml } from "@/components/ui/html-content";
 
 type RequestStatus =
   | "PENDING"
@@ -451,7 +452,7 @@ export default function CreatorDashboardPage() {
                           </div>
                           {request.description && (
                             <p className="text-sm text-muted-foreground line-clamp-1">
-                              {request.description}
+                              {stripHtml(request.description)}
                             </p>
                           )}
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">

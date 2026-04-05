@@ -1129,10 +1129,13 @@ function NewRequestForm() {
 
         {currentStep === "details" && (
           <form
-            onSubmit={handleSubmit}
+            onSubmit={(e) => {
+              // ALWAYS prevent default form submission - all submissions should go through button clicks
+              e.preventDefault();
+            }}
             onKeyDown={(e) => {
-              // Prevent Enter key from submitting form in input fields
-              if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+              // Prevent Enter key from triggering any form submission
+              if (e.key === "Enter" && (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement)) {
                 e.preventDefault();
               }
             }}
@@ -1192,13 +1195,21 @@ function NewRequestForm() {
             </div>
 
             {/* Template-level instructions & examples */}
-            {selectedTemplate?.richContent && (
-              <FieldExamplesDisplay
-                richContent={selectedTemplate.richContent}
-                fieldLabel={selectedTemplate.name}
-                variant="card"
-                defaultExpanded={true}
-              />
+            {selectedTemplate && (
+              <>
+                {selectedTemplate.richContent && Object.keys(selectedTemplate.richContent).length > 0 ? (
+                  <FieldExamplesDisplay
+                    richContent={selectedTemplate.richContent}
+                    fieldLabel={selectedTemplate.name}
+                    variant="card"
+                    defaultExpanded={true}
+                  />
+                ) : (
+                  <div className="text-xs text-muted-foreground p-3 rounded border border-dashed">
+                    No template examples available. Add examples in the template editor.
+                  </div>
+                )}
+              </>
             )}
 
             <Card>
