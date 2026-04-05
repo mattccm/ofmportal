@@ -6,9 +6,6 @@ import {
   ChevronRight,
   Image as ImageIcon,
   ExternalLink,
-  FileText,
-  Quote,
-  Info,
   Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -226,15 +223,11 @@ export function FieldExamplesDisplay({
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-slate-900 dark:text-slate-100">Instructions & Examples</h4>
-            {fieldLabel && !expanded && (
+            <h4 className="font-medium text-slate-900 dark:text-slate-100">Examples</h4>
+            {!expanded && (
               <p className="text-xs text-slate-600 dark:text-slate-400">Click to expand</p>
             )}
-            {fieldLabel && expanded && (
-              <p className="text-xs text-slate-600 dark:text-slate-400">For: {fieldLabel}</p>
-            )}
           </div>
-          <Info className="h-4 w-4 text-slate-400 shrink-0" />
         </button>
 
         {/* Content - only show when expanded */}
@@ -362,9 +355,8 @@ export function FieldExamplesDisplay({
         ) : (
           <ChevronRight className="h-3.5 w-3.5" />
         )}
-        <Info className="h-3.5 w-3.5" />
         <span className="font-medium">
-          {expanded ? "Hide" : "View"} Instructions & Examples
+          {expanded ? "Hide" : "View"} Examples
         </span>
       </button>
 

@@ -335,10 +335,10 @@ function FieldUploadSection({
             </h3>
             <p className="text-sm text-muted-foreground">
               {field.helpText || "Drag and drop or click to upload"}
-              {field.enforceFileCount !== false && field.minFiles && field.minFiles > 1 && (
+              {field.enforceFileCount && field.minFiles && field.minFiles > 1 && (
                 <span className="ml-1">(min {field.minFiles})</span>
               )}
-              {field.enforceFileCount !== false && field.maxFiles && (
+              {field.enforceFileCount && field.maxFiles && (
                 <span className="ml-1">(max {field.maxFiles})</span>
               )}
             </p>

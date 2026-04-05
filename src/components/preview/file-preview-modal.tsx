@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -96,6 +96,13 @@ export function FilePreviewModal({
   const [copiedLink, setCopiedLink] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Swipe gesture state
+  const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0 });
+  const [isDismissing, setIsDismissing] = useState(false);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const swipeDirectionRef = useRef<"horizontal" | "vertical" | null>(null);
+
   const currentFile = files[currentIndex];
   const hasMultipleFiles = files.length > 1;
 
@@ -104,6 +111,9 @@ export function FilePreviewModal({
     if (open) {
       setCurrentIndex(initialIndex);
       setIsLoading(true);
+      setSwipeOffset({ x: 0, y: 0 });
+      setIsDismissing(false);
+      setIsSwiping(false);
     }
   }, [open, initialIndex]);
 
@@ -122,6 +132,69 @@ export function FilePreviewModal({
     setCurrentIndex((prev) => (prev < files.length - 1 ? prev + 1 : 0));
     setIsLoading(true);
   }, [files.length]);
+
+  // Swipe gesture handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    swipeDirectionRef.current = null;
+    setIsSwiping(true);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+
+    // Determine swipe direction if not yet set
+    if (!swipeDirectionRef.current && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
+      swipeDirectionRef.current = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
+    }
+
+    // Apply appropriate offset based on direction
+    if (swipeDirectionRef.current === "vertical" && deltaY > 0) {
+      // Only allow downward swipe for dismiss (positive Y)
+      setSwipeOffset({ x: 0, y: deltaY });
+    } else if (swipeDirectionRef.current === "horizontal" && hasMultipleFiles) {
+      setSwipeOffset({ x: deltaX, y: 0 });
+    }
+  }, [hasMultipleFiles]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!touchStartRef.current) {
+      setIsSwiping(false);
+      return;
+    }
+
+    const { x: offsetX, y: offsetY } = swipeOffset;
+    const elapsed = Date.now() - touchStartRef.current.time;
+    const velocityX = Math.abs(offsetX) / elapsed;
+    const velocityY = Math.abs(offsetY) / elapsed;
+
+    // Dismiss threshold: swipe down > 100px or fast swipe > 0.5 velocity
+    if (swipeDirectionRef.current === "vertical" && offsetY > 0 && (offsetY > 100 || velocityY > 0.5)) {
+      setIsDismissing(true);
+      setTimeout(() => onOpenChange(false), 150);
+      return;
+    }
+
+    // Horizontal navigation threshold: > 50px or fast swipe > 0.3 velocity
+    if (swipeDirectionRef.current === "horizontal" && hasMultipleFiles) {
+      if (offsetX < -50 || (velocityX > 0.3 && offsetX < 0)) {
+        goToNext();
+      } else if (offsetX > 50 || (velocityX > 0.3 && offsetX > 0)) {
+        goToPrevious();
+      }
+    }
+
+    // Reset
+    setSwipeOffset({ x: 0, y: 0 });
+    touchStartRef.current = null;
+    swipeDirectionRef.current = null;
+    setIsSwiping(false);
+  }, [swipeOffset, hasMultipleFiles, goToNext, goToPrevious, onOpenChange]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -214,8 +287,22 @@ export function FilePreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[100vw] max-h-[100dvh] w-screen h-[100dvh] p-0 border-0 bg-black/95 gap-0 pb-safe"
+        className="max-w-[100vw] max-h-[100dvh] w-screen h-[100dvh] p-0 border-0 bg-black/95 gap-0 pb-safe overflow-hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          transform: isDismissing
+            ? `translateY(100%)`
+            : swipeOffset.y > 0
+            ? `translateY(${swipeOffset.y}px)`
+            : swipeOffset.x !== 0
+            ? `translateX(${swipeOffset.x}px)`
+            : undefined,
+          opacity: swipeOffset.y > 0 ? Math.max(0.3, 1 - swipeOffset.y / 300) : 1,
+          transition: isSwiping ? "none" : "transform 0.2s ease-out, opacity 0.2s ease-out",
+        }}
       >
         <VisuallyHidden.Root>
           <DialogTitle>File Preview: {currentFile.originalName}</DialogTitle>
