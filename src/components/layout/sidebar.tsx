@@ -31,6 +31,7 @@ import {
   LayoutTemplate,
   BarChart3,
   MessageSquare,
+  MessageCircle,
   Search,
   Command,
   Download,
@@ -51,7 +52,7 @@ const navigation = [
   { name: "Uploads", href: "/dashboard/uploads", icon: Upload },
   { name: "Templates", href: "/dashboard/templates", icon: LayoutTemplate },
   { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
-  { name: "Creator Comments", href: "/dashboard/creator-messages", icon: MessageSquare, showBadge: true },
+  { name: "Comments", href: "/dashboard/creator-messages", icon: MessageCircle, showBadge: true },
 ];
 
 const toolsNavigation = [

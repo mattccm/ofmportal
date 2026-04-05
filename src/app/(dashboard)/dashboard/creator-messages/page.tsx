@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { MessageSquare, ArrowRight, Inbox, RefreshCw } from "lucide-react";
+import { MessageCircle, ArrowRight, Inbox, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -64,6 +64,17 @@ export default function CreatorMessagesPage() {
         const data: MessagesResponse = await res.json();
         setMessages(data.messages);
         setTotal(data.total);
+
+        // Mark all comments as read when viewing the page
+        if (data.unreadCount > 0) {
+          fetch("/api/creator-messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markAllRead: true }),
+          }).catch(() => {
+            // Silently fail - not critical
+          });
+        }
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -81,8 +92,8 @@ export default function CreatorMessagesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-primary" />
-            Creator Comments
+            <MessageCircle className="h-6 w-6 text-primary" />
+            Comments
           </h1>
           <p className="text-muted-foreground">
             Comments from creators on content requests

@@ -15,7 +15,8 @@ export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
       const response = await fetch("/api/creator-messages?limit=1");
       if (response.ok) {
         const data = await response.json();
-        setCount(data.total || 0);
+        // Use unreadCount for the badge (unread comments only)
+        setCount(data.unreadCount || 0);
       }
     } catch (error) {
       console.error("Failed to fetch creator messages count:", error);
