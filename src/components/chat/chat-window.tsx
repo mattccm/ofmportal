@@ -240,12 +240,22 @@ export function ChatWindow({
                 showStatus={true}
                 status={isOnline ? "online" : "offline"}
               />
+            ) : conversation.participants.length > 0 ? (
+              <Avatar
+                size="md"
+                user={{
+                  name: conversation.participants[0]?.user?.name || displayName,
+                  email: conversation.participants[0]?.user?.email || "",
+                  image: conversation.participants[0]?.user?.avatar,
+                }}
+              />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-violet-500/20">
-                <span className="text-lg font-semibold text-primary">
-                  {displayName[0]?.toUpperCase()}
-                </span>
-              </div>
+              <Avatar
+                size="md"
+                user={{
+                  name: displayName,
+                }}
+              />
             )}
 
             <div>

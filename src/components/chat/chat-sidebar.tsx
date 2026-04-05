@@ -192,12 +192,22 @@ function ConversationItem({
             showStatus={true}
             status={isOnline ? "online" : "offline"}
           />
+        ) : conversation.participants.length > 0 ? (
+          <Avatar
+            size="md"
+            user={{
+              name: conversation.participants[0]?.user?.name || displayName,
+              email: conversation.participants[0]?.user?.email || "",
+              image: conversation.participants[0]?.user?.avatar,
+            }}
+          />
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-violet-500/20">
-            {ConversationIcon && (
-              <ConversationIcon className="h-5 w-5 text-primary" />
-            )}
-          </div>
+          <Avatar
+            size="md"
+            user={{
+              name: displayName,
+            }}
+          />
         )}
       </div>
 
