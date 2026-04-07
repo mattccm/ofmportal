@@ -316,6 +316,7 @@ export function getDeadlinePresets(): Array<{ label: string; value: Date; descri
 export function sortByPriorityAndDeadline<
   T extends { urgency?: string; dueDate?: string | null }
 >(items: T[]): T[] {
+  if (!items || !Array.isArray(items)) return [];
   return [...items].sort((a, b) => {
     // First sort by overdue status
     const aOverdue = isDeadlineOverdue(a.dueDate || null);
@@ -363,6 +364,8 @@ export function groupByPriority<T extends { urgency?: string }>(
     NORMAL: [],
     LOW: [],
   };
+
+  if (!items || !Array.isArray(items)) return groups;
 
   items.forEach((item) => {
     const priority = (item.urgency as Priority) || "NORMAL";

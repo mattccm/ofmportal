@@ -319,6 +319,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
 
   // Filter requests
   const filteredRequests = useMemo(() => {
+    if (!requests || !Array.isArray(requests)) return [];
     let filtered = [...requests];
 
     // Tab filter
