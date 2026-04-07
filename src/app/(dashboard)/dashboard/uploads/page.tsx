@@ -74,11 +74,25 @@ async function getUploads(agencyId: string, searchParams: Awaited<PageProps["sea
     }
   }
 
-  // Get uploads with pagination
+  // Get uploads with pagination - optimized query (removed comments, reviewedBy, template nesting)
   const [uploads, total] = await Promise.all([
     db.upload.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        fileName: true,
+        originalName: true,
+        fileType: true,
+        fileSize: true,
+        storageKey: true,
+        thumbnailKey: true,
+        uploadStatus: true,
+        status: true,
+        reviewNote: true,
+        rating: true,
+        uploadedAt: true,
+        createdAt: true,
+        tags: true,
         creator: {
           select: {
             id: true,
@@ -91,33 +105,6 @@ async function getUploads(agencyId: string, searchParams: Awaited<PageProps["sea
           select: {
             id: true,
             title: true,
-            templateId: true,
-            template: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-        reviewedBy: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-          },
-        },
-        comments: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
           },
         },
       },
@@ -171,35 +158,28 @@ async function getTemplates(agencyId: string) {
 }
 
 async function getStats(agencyId: string) {
-  const [total, pending, approved, rejected] = await Promise.all([
-    db.upload.count({
-      where: {
-        request: { agencyId },
-        uploadStatus: "COMPLETED",
-      },
-    }),
-    db.upload.count({
-      where: {
-        request: { agencyId },
-        uploadStatus: "COMPLETED",
-        status: "PENDING",
-      },
-    }),
-    db.upload.count({
-      where: {
-        request: { agencyId },
-        uploadStatus: "COMPLETED",
-        status: "APPROVED",
-      },
-    }),
-    db.upload.count({
-      where: {
-        request: { agencyId },
-        uploadStatus: "COMPLETED",
-        status: "REJECTED",
-      },
-    }),
-  ]);
+  // Use groupBy to get all status counts in a single query instead of 4 separate counts
+  const statusCounts = await db.upload.groupBy({
+    by: ["status"],
+    where: {
+      request: { agencyId },
+      uploadStatus: "COMPLETED",
+    },
+    _count: true,
+  });
+
+  // Convert to the expected format
+  let total = 0;
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+
+  for (const item of statusCounts) {
+    total += item._count;
+    if (item.status === "PENDING") pending = item._count;
+    else if (item.status === "APPROVED") approved = item._count;
+    else if (item.status === "REJECTED") rejected = item._count;
+  }
 
   return { total, pending, approved, rejected };
 }
