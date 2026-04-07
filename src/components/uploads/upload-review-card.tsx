@@ -497,19 +497,21 @@ export function UploadReviewCard({
               </div>
             )}
 
-            {/* Delete Button - Always available */}
-            <div className="flex gap-2 pt-2 border-t">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="flex-1 gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            </div>
           </CardContent>
+
+          {/* Delete Button - Small icon in corner */}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute bottom-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteDialogOpen(true);
+            }}
+            title="Delete upload"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </Card>
 
         {/* Enhanced Preview Modal */}
@@ -875,7 +877,7 @@ export function UploadReviewCard({
           <Button
             variant="ghost"
             size="icon"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10"
             onClick={() => setDeleteDialogOpen(true)}
             title="Delete"
           >
