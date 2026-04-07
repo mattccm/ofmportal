@@ -329,6 +329,7 @@ export function WidgetGrid({
 
   // Widget definition map for quick lookup
   const widgetMap = React.useMemo(() => {
+    if (!widgets || !Array.isArray(widgets)) return new Map();
     return new Map(widgets.map((w) => [w.type, w]));
   }, [widgets]);
 
@@ -341,6 +342,7 @@ export function WidgetGrid({
 
   // Initialize layout if empty
   useEffect(() => {
+    if (!widgets || !Array.isArray(widgets)) return;
     if (initialLayout.length === 0 && widgets.length > 0) {
       // Default layout - add first few widgets
       const defaultLayout: WidgetConfig[] = widgets.slice(0, 4).map((w, index) => ({
@@ -449,6 +451,10 @@ export function WidgetGrid({
 
   // Reset layout
   const handleResetLayout = useCallback(() => {
+    if (!widgets || !Array.isArray(widgets) || widgets.length === 0) {
+      toast.error("Unable to reset layout");
+      return;
+    }
     const defaultLayout: WidgetConfig[] = widgets.slice(0, 4).map((w, index) => ({
       id: `${w.type}-${Date.now()}-${index}`,
       type: w.type,

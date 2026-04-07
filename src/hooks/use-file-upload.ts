@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { ALLOWED_TYPES, MAX_FILE_SIZE, isAllowedFileType } from "@/lib/file-utils";
+import { extractVideoThumbnail, isVideoFile } from "@/lib/video-thumbnail";
 
 export type UploadStatus = "pending" | "uploading" | "paused" | "completed" | "error" | "cancelled";
 
@@ -54,6 +55,47 @@ export interface UseFileUploadReturn {
   pendingCount: number;
   completedCount: number;
   errorCount: number;
+}
+
+// Helper function to generate and upload video thumbnail (runs async, non-blocking)
+async function generateAndUploadThumbnail(
+  file: File,
+  uploadId: string,
+  headers: Record<string, string>,
+  token: string | null
+): Promise<void> {
+  try {
+    // Extract thumbnail from video
+    const thumbnailBlob = await extractVideoThumbnail(file);
+
+    if (!thumbnailBlob) {
+      console.log("[Thumbnail] Could not extract thumbnail from video");
+      return;
+    }
+
+    // Create form data for thumbnail upload
+    const formData = new FormData();
+    formData.append("thumbnail", thumbnailBlob, "thumbnail.jpg");
+
+    // Upload thumbnail
+    const response = await fetch(`/api/uploads/${uploadId}/thumbnail/upload`, {
+      method: "POST",
+      headers: {
+        "x-creator-token": token || "",
+        ...headers,
+      },
+      body: formData,
+    });
+
+    if (response.ok) {
+      console.log("[Thumbnail] Video thumbnail uploaded successfully");
+    } else {
+      console.warn("[Thumbnail] Failed to upload video thumbnail:", await response.text());
+    }
+  } catch (error) {
+    // Non-critical - don't fail the upload if thumbnail generation fails
+    console.warn("[Thumbnail] Error generating/uploading video thumbnail:", error);
+  }
 }
 
 export function useFileUpload({
@@ -325,6 +367,11 @@ export function useFileUpload({
       );
 
       toast.success(`${queuedFile.file.name} uploaded successfully`);
+
+      // Generate and upload thumbnail for videos (async, non-blocking)
+      if (isVideoFile(queuedFile.file) && uploadId) {
+        generateAndUploadThumbnail(queuedFile.file, uploadId, headers, token);
+      }
 
       // Get updated file info
       const completedFile = { ...queuedFile, status: "completed" as UploadStatus, uploadId };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +113,7 @@ export function UploadsPageClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const [uploads, setUploads] = useState(initialUploads);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -199,7 +200,7 @@ export function UploadsPageClient({
     fetchTags();
   }, []);
 
-  // Update URL with new params
+  // Update URL with new params (wrapped in transition for loading state)
   const updateSearchParams = useCallback(
     (updates: Partial<Filters>) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -217,7 +218,9 @@ export function UploadsPageClient({
         params.delete("page");
       }
 
-      router.push(`${pathname}?${params.toString()}`);
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
     },
     [router, pathname, searchParams]
   );
@@ -232,7 +235,9 @@ export function UploadsPageClient({
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", page.toString());
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   // Handle view toggle
@@ -459,14 +464,19 @@ export function UploadsPageClient({
         <Card
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            filters.status === "pending" && "ring-2 ring-amber-500"
+            filters.status === "pending" && "ring-2 ring-amber-500",
+            isPending && filters.status === "pending" && "opacity-70"
           )}
           onClick={() => handleFilterChange("status", "pending")}
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-2">
-                <Clock className="h-5 w-5 text-amber-600" />
+                {isPending && filters.status === "pending" ? (
+                  <Loader2 className="h-5 w-5 text-amber-600 animate-spin" />
+                ) : (
+                  <Clock className="h-5 w-5 text-amber-600" />
+                )}
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.pending}</p>
@@ -479,14 +489,19 @@ export function UploadsPageClient({
         <Card
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            filters.status === "approved" && "ring-2 ring-emerald-500"
+            filters.status === "approved" && "ring-2 ring-emerald-500",
+            isPending && filters.status === "approved" && "opacity-70"
           )}
           onClick={() => handleFilterChange("status", "approved")}
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-emerald-100 dark:bg-emerald-900/30 p-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                {isPending && filters.status === "approved" ? (
+                  <Loader2 className="h-5 w-5 text-emerald-600 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                )}
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.approved}</p>
@@ -499,14 +514,19 @@ export function UploadsPageClient({
         <Card
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            filters.status === "rejected" && "ring-2 ring-red-500"
+            filters.status === "rejected" && "ring-2 ring-red-500",
+            isPending && filters.status === "rejected" && "opacity-70"
           )}
           onClick={() => handleFilterChange("status", "rejected")}
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-red-100 dark:bg-red-900/30 p-2">
-                <XCircle className="h-5 w-5 text-red-600" />
+                {isPending && filters.status === "rejected" ? (
+                  <Loader2 className="h-5 w-5 text-red-600 animate-spin" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-600" />
+                )}
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.rejected}</p>
@@ -751,44 +771,62 @@ export function UploadsPageClient({
       )}
 
       {/* Uploads Grid/List */}
-      {filteredUploads.length === 0 ? (
-        <NoUploads
-          isFiltered={filters.status !== "all" || !!filters.creator || !!filters.templateId || selectedTagIds.length > 0}
-          onClearFilters={() => {
-            setFilters(prev => ({ ...prev, status: "all", creator: "", templateId: "" }));
-            setSelectedTagIds([]);
-            updateSearchParams({ status: "all", creator: "", templateId: "" });
-          }}
-          context={filters.status === "pending" ? "pending" : filters.status === "approved" ? "approved" : filters.status === "rejected" ? "rejected" : "all"}
-          withCard={false}
-        />
-      ) : filters.view === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredUploads.map((upload) => (
-            <UploadReviewCard
-              key={upload.id}
-              upload={upload}
-              isSelected={selectedIds.has(upload.id)}
-              onSelect={handleSelect}
-              onReviewComplete={refreshData}
-              viewMode="grid"
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filteredUploads.map((upload) => (
-            <UploadReviewCard
-              key={upload.id}
-              upload={upload}
-              isSelected={selectedIds.has(upload.id)}
-              onSelect={handleSelect}
-              onReviewComplete={refreshData}
-              viewMode="list"
-            />
-          ))}
-        </div>
-      )}
+      <div className="relative">
+        {/* Loading overlay when filters are changing */}
+        {isPending && (
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-lg min-h-[200px]">
+            <div className="flex items-center gap-3 bg-background/90 px-4 py-3 rounded-lg shadow-lg border">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="text-sm font-medium">Loading uploads...</span>
+            </div>
+          </div>
+        )}
+
+        {filteredUploads.length === 0 && !isPending ? (
+          <NoUploads
+            isFiltered={filters.status !== "all" || !!filters.creator || !!filters.templateId || selectedTagIds.length > 0}
+            onClearFilters={() => {
+              setFilters(prev => ({ ...prev, status: "all", creator: "", templateId: "" }));
+              setSelectedTagIds([]);
+              updateSearchParams({ status: "all", creator: "", templateId: "" });
+            }}
+            context={filters.status === "pending" ? "pending" : filters.status === "approved" ? "approved" : filters.status === "rejected" ? "rejected" : "all"}
+            withCard={false}
+          />
+        ) : filters.view === "grid" ? (
+          <div className={cn(
+            "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4",
+            isPending && "opacity-50 pointer-events-none"
+          )}>
+            {filteredUploads.map((upload) => (
+              <UploadReviewCard
+                key={upload.id}
+                upload={upload}
+                isSelected={selectedIds.has(upload.id)}
+                onSelect={handleSelect}
+                onReviewComplete={refreshData}
+                viewMode="grid"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className={cn(
+            "space-y-2",
+            isPending && "opacity-50 pointer-events-none"
+          )}>
+            {filteredUploads.map((upload) => (
+              <UploadReviewCard
+                key={upload.id}
+                upload={upload}
+                isSelected={selectedIds.has(upload.id)}
+                onSelect={handleSelect}
+                onReviewComplete={refreshData}
+                viewMode="list"
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Infinite Scroll Sentinel */}
       <div ref={sentinelRef} className="h-1 w-full" aria-hidden="true" />
