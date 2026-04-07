@@ -34,6 +34,7 @@ import {
   HardDrive,
   User,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -83,6 +84,7 @@ interface UploadReviewCardProps {
   onSelect?: (id: string, selected: boolean) => void;
   onReviewComplete?: () => void;
   onFavoriteToggle?: (isFavorited: boolean) => void;
+  onDelete?: () => void;
   viewMode?: "grid" | "list";
 }
 
@@ -165,16 +167,19 @@ export function UploadReviewCard({
   onSelect,
   onReviewComplete,
   onFavoriteToggle,
+  onDelete,
   viewMode = "grid",
 }: UploadReviewCardProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [rating, setRating] = useState(upload.rating || 0);
   const [reviewNotes, setReviewNotes] = useState(upload.reviewNote || "");
   const [rejectReason, setRejectReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(upload.thumbnailUrl || null);
   const [thumbnailLoading, setThumbnailLoading] = useState(false);
@@ -301,6 +306,29 @@ export function UploadReviewCard({
       toast.error("Failed to reject upload");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/uploads/${upload.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete upload");
+      }
+
+      toast.success("Upload deleted permanently");
+      setDeleteDialogOpen(false);
+      onDelete?.();
+      onReviewComplete?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete upload");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -468,6 +496,19 @@ export function UploadReviewCard({
                 </Button>
               </div>
             )}
+
+            {/* Delete Button - Always available */}
+            <div className="flex gap-2 pt-2 border-t">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="flex-1 gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -627,6 +668,61 @@ export function UploadReviewCard({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <div className="rounded-full bg-red-100 p-1.5">
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </div>
+                Delete Upload Permanently
+              </DialogTitle>
+              <DialogDescription>
+                This will permanently delete the file from storage. This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* File preview mini */}
+              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                <div className="shrink-0 rounded-lg bg-muted p-2">
+                  {getFileIcon(upload.fileType)}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{upload.originalName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(fileSize)} - Uploaded by {upload.creator.name}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="gap-1.5"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Delete Permanently
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
@@ -776,6 +872,15 @@ export function UploadReviewCard({
               </Button>
             </>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setDeleteDialogOpen(true)}
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -915,6 +1020,58 @@ export function UploadReviewCard({
                 <X className="h-4 w-4" />
               )}
               Reject Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="rounded-full bg-red-100 p-1.5">
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </div>
+              Delete Upload Permanently
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete the file from storage. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+              <div className="shrink-0 rounded-lg bg-muted p-2">
+                {getFileIcon(upload.fileType)}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-sm truncate">{upload.originalName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatFileSize(fileSize)} - Uploaded by {upload.creator.name}
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="gap-1.5"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Delete Permanently
             </Button>
           </DialogFooter>
         </DialogContent>

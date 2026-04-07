@@ -81,7 +81,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
-    action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder" | null;
+    action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder" | "delete" | null;
   }>({ open: false, action: null });
 
   const isDraft = request.status === "DRAFT";
@@ -93,10 +93,25 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
   const canSendReminder = ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(request.status);
   const canShare = isCompleted && request.uploads.length > 0;
 
-  const handleAction = async (action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder") => {
+  const handleAction = async (action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder" | "delete") => {
     setLoading(true);
     try {
-      if (action === "archive" || action === "sendReminder") {
+      if (action === "delete") {
+        // Delete request permanently
+        const response = await fetch(`/api/requests/${request.id}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to delete request");
+        }
+
+        toast.success("Request deleted permanently");
+        // Navigate back to requests list since the request no longer exists
+        window.location.href = "/dashboard/requests";
+        return;
+      } else if (action === "archive" || action === "sendReminder") {
         // Use bulk API for these actions
         const bulkAction = action === "archive" ? "archive" : "sendReminders";
         const response = await fetch("/api/requests/bulk", {
@@ -386,6 +401,16 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                 Cancel Request
               </DropdownMenuItem>
             )}
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              onClick={() => setConfirmDialog({ open: true, action: "delete" })}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Permanently
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -407,7 +432,9 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                     ? "Publish Request"
                     : confirmDialog.action === "sendReminder"
                       ? "Send Reminder"
-                      : ""
+                      : confirmDialog.action === "delete"
+                        ? "Delete Request Permanently"
+                        : ""
         }
         description={
           confirmDialog.action === "submit"
@@ -422,9 +449,11 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                     ? "This will publish the draft and send the request to the creator."
                     : confirmDialog.action === "sendReminder"
                       ? "This will send a reminder notification to the creator about this request."
-                      : ""
+                      : confirmDialog.action === "delete"
+                        ? "This will permanently delete the request and all associated uploads. This action cannot be undone."
+                        : ""
         }
-        variant={confirmDialog.action === "cancel" ? "destructive" : "default"}
+        variant={confirmDialog.action === "cancel" || confirmDialog.action === "delete" ? "destructive" : "default"}
         confirmLabel="Confirm"
         loading={loading}
         onConfirm={() => { if (confirmDialog.action) handleAction(confirmDialog.action); }}
