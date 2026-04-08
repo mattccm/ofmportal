@@ -94,6 +94,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
   const canShare = isCompleted && request.uploads.length > 0;
 
   const handleAction = async (action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder" | "delete") => {
+    if (loading) return;
     setLoading(true);
     try {
       if (action === "delete") {
@@ -217,6 +218,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
   };
 
   const handleQuickAction = async (action: string, data?: Record<string, unknown>) => {
+    if (loading) return;
     setLoading(true);
     try {
       const response = await fetch("/api/requests/bulk", {

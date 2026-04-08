@@ -528,6 +528,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
       toast.error("No requests selected");
       return;
     }
+    if (loading) return;
 
     setLoading(true);
     try {
@@ -569,6 +570,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
   };
 
   const handleQuickAction = async (requestId: string, action: string, data?: Record<string, unknown>) => {
+    if (loading) return;
     setLoading(true);
     try {
       const response = await fetch("/api/requests/bulk", {
@@ -603,6 +605,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
 
   // Delete a single request
   const handleDeleteRequest = async (requestId: string) => {
+    if (loading) return;
     setLoading(true);
     try {
       const response = await fetch(`/api/requests/${requestId}`, {
@@ -1573,7 +1576,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                                 </DropdownMenuItem>
                                 {request.status === "SUBMITTED" && (
                                   <DropdownMenuItem asChild>
-                                    <Link href={`/dashboard/requests/${request.id}/review`}>
+                                    <Link href={`/dashboard/requests/${request.id}`}>
                                       Review Uploads
                                     </Link>
                                   </DropdownMenuItem>
