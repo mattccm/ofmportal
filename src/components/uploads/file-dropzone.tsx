@@ -547,13 +547,14 @@ export function FileDropzone({
       {renderFullPageOverlay()}
       <div
         className={cn(
-          "relative rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden",
+          "relative rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden cursor-pointer",
           isDragging || dropTargetHighlight
             ? "border-primary bg-primary/5 scale-[1.01]"
             : "border-border/60 hover:border-primary/50 hover:bg-accent/30",
           disabled && "opacity-50 pointer-events-none",
           className
         )}
+        onClick={() => !disabled && fileInputRef.current?.click()}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -600,9 +601,9 @@ export function FileDropzone({
                   )}
                 </>
               ) : fullPageDrop ? (
-                `Drag files anywhere on the page, paste from clipboard, or click to browse. We support ${getFileTypeDescription()}${showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
+                `Drag files anywhere on the page or click to browse. We support ${getFileTypeDescription()}${showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
               ) : (
-                `Drag and drop your files here, paste from clipboard, or click to browse. We support ${getFileTypeDescription()}${showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
+                `Drag and drop your files here or click to browse. We support ${getFileTypeDescription()}${showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
               )}
             </p>
           </div>
@@ -635,35 +636,30 @@ export function FileDropzone({
             )}
           </div>
 
-          {/* Buttons */}
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={acceptedTypes.join(",")}
+            onChange={handleFileSelect}
+            className="hidden"
+            disabled={disabled}
+          />
+
+          {/* Button */}
           <div className="flex items-center justify-center gap-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={acceptedTypes.join(",")}
-              onChange={handleFileSelect}
-              className="hidden"
-              disabled={disabled}
-            />
             <Button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
               disabled={disabled}
               className="btn-gradient px-8"
             >
               <Upload className="mr-2 h-4 w-4" />
               Select Files
             </Button>
-            {showPasteButton && (
-              <Button
-                variant="outline"
-                onClick={handlePasteFromClipboard}
-                disabled={disabled}
-              >
-                <Clipboard className="mr-2 h-4 w-4" />
-                Paste
-              </Button>
-            )}
           </div>
 
           {/* Max size note - only show if there's a specific limit and showMaxFileSize is true */}

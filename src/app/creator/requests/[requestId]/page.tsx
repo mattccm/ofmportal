@@ -9,7 +9,7 @@ import { FieldExamplesDisplay } from "@/components/portal/field-examples-display
 import { PerFieldUpload } from "@/components/portal/per-field-upload";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { useBranding } from "@/components/providers/branding-provider";
-import type { TemplateField } from "@/lib/template-types";
+import type { TemplateField, RichContent } from "@/lib/template-types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,12 +67,7 @@ interface Request {
   dueDate: string | null;
   status: string;
   requirements: Record<string, unknown> & {
-    _richContent?: {
-      exampleText?: string;
-      exampleImages?: { url: string; caption?: string }[];
-      exampleVideoUrl?: string;
-      referenceLinks?: { label: string; url: string }[];
-    };
+    _richContent?: RichContent;
   };
   fields: RequestField[];
   fieldSubmissions?: Record<string, FieldSubmission>;
@@ -569,33 +564,44 @@ export default function CreatorRequestDetailPage({
         </div>
 
         {/* Description/Instructions - Collapsible */}
-        {request.description && (
-          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-            <button
-              onClick={() => setShowInstructions(!showInstructions)}
-              className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors w-full"
-            >
-              {showInstructions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              <span>{showInstructions ? "Hide Instructions" : "Show Instructions"}</span>
-            </button>
-            {showInstructions && (
-              <div className="space-y-3 pt-2 border-t">
-                <HtmlContent
-                  html={request.description}
-                  className="text-muted-foreground leading-relaxed"
-                />
-                {/* Template-level examples (images, videos, links) */}
-                {request.requirements?._richContent && (
-                  <FieldExamplesDisplay
-                    richContent={request.requirements._richContent}
-                    fieldLabel="Request"
-                    variant="card"
+        {request.description && (() => {
+          const rc = request.requirements?._richContent;
+          const instructionsLabel = rc?.instructionsLabel || "Instructions";
+          const canToggle = rc?.showInstructionsToggle !== false;
+          return (
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+              {canToggle ? (
+                <button
+                  onClick={() => setShowInstructions(!showInstructions)}
+                  className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors w-full"
+                >
+                  {showInstructions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <span>{showInstructions ? `Hide ${instructionsLabel}` : `Show ${instructionsLabel}`}</span>
+                </button>
+              ) : (
+                instructionsLabel && (
+                  <p className="text-sm font-medium">{instructionsLabel}</p>
+                )
+              )}
+              {(showInstructions || !canToggle) && (
+                <div className={`space-y-3 ${canToggle ? "pt-2 border-t" : ""}`}>
+                  <HtmlContent
+                    html={request.description}
+                    className="text-muted-foreground leading-relaxed"
                   />
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                  {/* Template-level examples (images, videos, links) */}
+                  {rc && (
+                    <FieldExamplesDisplay
+                      richContent={rc}
+                      fieldLabel="Request"
+                      variant="card"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Revision notice */}
         {request.status === "NEEDS_REVISION" && (

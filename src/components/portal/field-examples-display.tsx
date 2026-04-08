@@ -78,6 +78,100 @@ function getVideoEmbedUrl(url: string): { type: "youtube" | "vimeo" | "direct"; 
   return null;
 }
 
+/**
+ * Get a thumbnail URL for a video. For YouTube/Vimeo, uses their thumbnail APIs.
+ * For direct videos, returns null (we'll use a video element to generate one).
+ */
+function getVideoThumbnailUrl(url: string): string | null {
+  if (!url) return null;
+
+  // YouTube - use high-quality thumbnail
+  const youtubeMatch = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  if (youtubeMatch) {
+    return `https://img.youtube.com/vi/${youtubeMatch[1]}/hqdefault.jpg`;
+  }
+
+  // Vimeo - we can't get thumbnail without API call, so return null
+  return null;
+}
+
+// ============================================
+// VIDEO THUMBNAIL COMPONENT
+// ============================================
+
+function VideoThumbnail({ url, onClick }: { url: string; onClick: () => void }) {
+  const [thumbnailSrc, setThumbnailSrc] = React.useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  React.useEffect(() => {
+    // First try platform-specific thumbnails
+    const platformThumb = getVideoThumbnailUrl(url);
+    if (platformThumb) {
+      setThumbnailSrc(platformThumb);
+      return;
+    }
+
+    // For direct videos, capture a frame using a hidden video element
+    const videoInfo = getVideoEmbedUrl(url);
+    if (videoInfo?.type === "direct") {
+      const video = document.createElement("video");
+      video.crossOrigin = "anonymous";
+      video.preload = "metadata";
+      video.muted = true;
+      video.src = videoInfo.embedUrl;
+
+      video.addEventListener("loadeddata", () => {
+        video.currentTime = 1; // seek to 1 second
+      });
+
+      video.addEventListener("seeked", () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(video, 0, 0);
+            setThumbnailSrc(canvas.toDataURL("image/jpeg", 0.7));
+          }
+        } catch {
+          // CORS or other error - leave as null
+        }
+      });
+
+      return () => {
+        video.src = "";
+      };
+    }
+  }, [url]);
+
+  return (
+    <button
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-lg border-2 border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
+    >
+      {thumbnailSrc ? (
+        <img
+          src={thumbnailSrc}
+          alt="Video example"
+          className="h-20 w-auto max-w-[140px] object-cover"
+        />
+      ) : (
+        <div className="h-20 w-[120px] bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+          <Play className="h-6 w-6 text-slate-500" />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
+          <Play className="h-4 w-4 text-white fill-white" />
+        </div>
+      </div>
+    </button>
+  );
+}
+
 // ============================================
 // VIDEO PLAYER COMPONENT
 // ============================================
@@ -97,7 +191,7 @@ function VideoPlayer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden">
+      <DialogContent className="max-w-4xl w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-lg">
         <DialogHeader className="sr-only">
           <DialogTitle>Example Video</DialogTitle>
         </DialogHeader>
@@ -187,32 +281,41 @@ export function FieldExamplesDisplay({
     return null;
   }
 
+  const examplesLabel = richContent?.examplesLabel || "Examples";
+  const canToggleExamples = richContent?.showExamplesToggle !== false;
+
   // Card variant - more prominent display
   if (variant === "card") {
     return (
       <div className={cn("rounded-xl border bg-slate-50/50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700", className)}>
         {/* Header - clickable to expand/collapse */}
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-3 p-4 w-full text-left border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors"
-        >
-          <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-            {expanded ? (
-              <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-            )}
+        {canToggleExamples ? (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-3 p-4 w-full text-left border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors"
+          >
+            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+              {expanded ? (
+                <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-medium text-slate-900 dark:text-slate-100">{examplesLabel}</h4>
+              {!expanded && (
+                <p className="text-xs text-slate-600 dark:text-slate-400">Click to expand</p>
+              )}
+            </div>
+          </button>
+        ) : examplesLabel ? (
+          <div className="p-4 border-b border-slate-200/50 dark:border-slate-700/50">
+            <h4 className="font-medium text-slate-900 dark:text-slate-100">{examplesLabel}</h4>
           </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-slate-900 dark:text-slate-100">Examples</h4>
-            {!expanded && (
-              <p className="text-xs text-slate-600 dark:text-slate-400">Click to expand</p>
-            )}
-          </div>
-        </button>
+        ) : null}
 
-        {/* Content - only show when expanded */}
-        {expanded && (
+        {/* Content - show when expanded or when toggle is disabled */}
+        {(expanded || !canToggleExamples) && (
         <div className="p-4 space-y-4">
           {/* Description - Render HTML from WYSIWYG editor */}
           {richContent?.description && (
@@ -232,7 +335,7 @@ export function FieldExamplesDisplay({
           {/* Example Images */}
           {allExampleImages.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">Examples</p>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">{examplesLabel}</p>
               <div className="flex flex-wrap gap-3">
                 {allExampleImages.map((img, index) => (
                   <button
@@ -264,18 +367,17 @@ export function FieldExamplesDisplay({
 
           {/* Example Video */}
           {richContent?.exampleVideoUrl && (
-            <button
-              onClick={() => setShowVideoPlayer(true)}
-              className="flex items-center gap-3 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors w-full"
-            >
-              <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center">
-                <Play className="h-5 w-5 text-white" />
+            <div className="space-y-2">
+              {allExampleImages.length === 0 && (
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">Video</p>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <VideoThumbnail
+                  url={richContent.exampleVideoUrl}
+                  onClick={() => setShowVideoPlayer(true)}
+                />
               </div>
-              <div className="text-left">
-                <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">Watch Example Video</p>
-                <p className="text-xs text-slate-600 dark:text-slate-400">Click to play</p>
-              </div>
-            </button>
+            </div>
           )}
 
           {/* Reference Links */}
@@ -324,22 +426,26 @@ export function FieldExamplesDisplay({
   return (
     <div className={cn("space-y-2", className)}>
       {/* Expand/Collapse Toggle */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {expanded ? (
-          <ChevronDown className="h-3.5 w-3.5" />
-        ) : (
-          <ChevronRight className="h-3.5 w-3.5" />
-        )}
-        <span className="font-medium">
-          {expanded ? "Hide" : "View"} Examples
-        </span>
-      </button>
+      {canToggleExamples ? (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {expanded ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
+          <span className="font-medium">
+            {expanded ? "Hide" : "View"} {examplesLabel}
+          </span>
+        </button>
+      ) : examplesLabel ? (
+        <p className="text-xs font-medium text-muted-foreground">{examplesLabel}</p>
+      ) : null}
 
       {/* Content */}
-      {expanded && (
+      {(expanded || !canToggleExamples) && (
         <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border/50 ml-5 animate-in slide-in-from-top-1 duration-150">
           {/* Description - Render HTML from WYSIWYG editor */}
           {richContent?.description && (
@@ -359,7 +465,7 @@ export function FieldExamplesDisplay({
           {/* Example Images */}
           {allExampleImages.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Example Images</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{examplesLabel}</p>
               <div className="flex flex-wrap gap-2">
                 {allExampleImages.map((img, index) => (
                   <button
@@ -386,13 +492,12 @@ export function FieldExamplesDisplay({
 
           {/* Example Video */}
           {richContent?.exampleVideoUrl && (
-            <button
-              onClick={() => setShowVideoPlayer(true)}
-              className="flex items-center gap-2 text-xs text-primary hover:underline"
-            >
-              <Play className="h-3.5 w-3.5" />
-              Watch Example Video
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <VideoThumbnail
+                url={richContent.exampleVideoUrl}
+                onClick={() => setShowVideoPlayer(true)}
+              />
+            </div>
           )}
 
           {/* Reference Links */}

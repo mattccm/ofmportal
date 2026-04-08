@@ -1214,6 +1214,55 @@ export function RichContentEditor({ richContent, onChange, title, description }:
               </p>
             )}
           </div>
+
+          {/* Display Customization */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Display Settings</Label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Instructions Label</Label>
+                <Input
+                  value={richContent?.instructionsLabel || ""}
+                  onChange={(e) => updateRichContent({ instructionsLabel: e.target.value })}
+                  placeholder="Instructions"
+                  className="h-8 text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Blank uses default. e.g. &quot;Brief&quot;, &quot;Info&quot;
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Examples Label</Label>
+                <Input
+                  value={richContent?.examplesLabel || ""}
+                  onChange={(e) => updateRichContent({ examplesLabel: e.target.value })}
+                  placeholder="Examples"
+                  className="h-8 text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Blank uses default. e.g. &quot;Reference&quot;, &quot;Inspiration&quot;
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Show instructions toggle for creators</Label>
+                <Switch
+                  checked={richContent?.showInstructionsToggle !== false}
+                  onCheckedChange={(checked) => updateRichContent({ showInstructionsToggle: checked })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Show examples toggle for creators</Label>
+                <Switch
+                  checked={richContent?.showExamplesToggle !== false}
+                  onCheckedChange={(checked) => updateRichContent({ showExamplesToggle: checked })}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -29,6 +29,12 @@ export interface RichContent {
   referenceLinks?: { label: string; url: string }[]; // Reference links
   // Legacy single image support (deprecated, use exampleImages array)
   exampleImageUrl?: string;
+
+  // Display customization
+  instructionsLabel?: string; // Custom label for instructions section (e.g., "Instructions", "Info", "Brief")
+  examplesLabel?: string; // Custom label for examples section (e.g., "Examples", "Reference", "Inspiration")
+  showInstructionsToggle?: boolean; // Whether to show the expand/collapse toggle for instructions (default: true)
+  showExamplesToggle?: boolean; // Whether to show the expand/collapse toggle for examples (default: true)
 }
 
 export interface ValidationRule {
@@ -60,15 +66,7 @@ export interface TemplateField {
   quantityLabel?: string; // Optional custom label: "pieces", "items", "sets"
 
   // Rich content for field instructions/examples
-  richContent?: {
-    description?: string; // Detailed description/instructions (supports markdown)
-    exampleText?: string; // Text example of what's expected
-    exampleImages?: { url: string; caption?: string }[]; // Multiple example images with optional captions
-    exampleVideoUrl?: string; // URL to example video (YouTube, Vimeo, or direct)
-    referenceLinks?: { label: string; url: string }[]; // Reference links
-    // Legacy single image support (deprecated, use exampleImages array)
-    exampleImageUrl?: string;
-  };
+  richContent?: RichContent;
 
   // File-specific options (all optional - undefined means no restriction)
   acceptedFileTypes?: string[]; // undefined = accept all types

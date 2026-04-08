@@ -322,7 +322,7 @@ export function FilePreviewModal({
         </VisuallyHidden.Root>
 
         {/* Top toolbar */}
-        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 pt-safe bg-gradient-to-b from-black/70 to-transparent">
+        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent" style={{ paddingTop: "max(1rem, env(safe-area-inset-top, 1rem))", paddingRight: "max(1rem, env(safe-area-inset-right, 0px))" }}>
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <div className="flex items-center gap-2 text-white min-w-0">
               {getFileIcon(currentFile.fileType)}
