@@ -31,6 +31,7 @@ import {
   Download,
   Bell,
   Archive,
+  ArchiveRestore,
   FileEdit,
   Copy,
   Link2,
@@ -89,7 +90,8 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
   const canSubmit = request.status === "IN_PROGRESS" && request.uploads.length > 0;
   const canApprove = request.status === "SUBMITTED" || request.status === "UNDER_REVIEW";
   const canCancel = request.status !== "CANCELLED" && request.status !== "APPROVED" && request.status !== "ARCHIVED";
-  const canArchive = request.status !== "ARCHIVED" && request.status !== "DRAFT";
+  const isArchived = request.status === "ARCHIVED";
+  const canArchive = !isArchived && request.status !== "DRAFT";
   const canSendReminder = ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(request.status);
   const canShare = isCompleted && request.uploads.length > 0;
 
@@ -248,6 +250,21 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
   return (
     <>
       <div className="flex gap-2 flex-wrap">
+        {/* Restore from Archive button */}
+        {isArchived && (
+          <Button
+            onClick={() => handleQuickAction("changeStatus", { status: "PENDING" })}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ArchiveRestore className="mr-2 h-4 w-4" />
+            )}
+            Restore from Archive
+          </Button>
+        )}
+
         {/* Publish Draft button */}
         {isDraft && (
           <Button
@@ -385,14 +402,22 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
 
             <DropdownMenuSeparator />
 
-            {canArchive && (
+            {isArchived ? (
+              <DropdownMenuItem
+                onClick={() => handleQuickAction("changeStatus", { status: "PENDING" })}
+                className="text-blue-600 dark:text-blue-400"
+              >
+                <ArchiveRestore className="mr-2 h-4 w-4" />
+                Restore from Archive
+              </DropdownMenuItem>
+            ) : canArchive ? (
               <DropdownMenuItem
                 onClick={() => setConfirmDialog({ open: true, action: "archive" })}
               >
                 <Archive className="mr-2 h-4 w-4" />
                 Archive Request
               </DropdownMenuItem>
-            )}
+            ) : null}
 
             {canCancel && (
               <DropdownMenuItem

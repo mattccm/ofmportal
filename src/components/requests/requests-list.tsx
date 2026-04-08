@@ -30,6 +30,7 @@ import {
   MessageSquare,
   AlertTriangle,
   Archive,
+  ArchiveRestore,
   Trash2,
   Bell,
   CheckCircle,
@@ -1322,12 +1323,22 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                                     Mark as Complete
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem
-                                  onClick={() => handleQuickAction(request.id, "archive")}
-                                >
-                                  <Archive className="mr-2 h-4 w-4" />
-                                  Archive
-                                </DropdownMenuItem>
+                                {request.status === "ARCHIVED" ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleQuickAction(request.id, "changeStatus", { status: "PENDING" })}
+                                    className="text-blue-600 dark:text-blue-400"
+                                  >
+                                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                                    Restore from Archive
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleQuickAction(request.id, "archive")}
+                                  >
+                                    <Archive className="mr-2 h-4 w-4" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => setDeleteDialog({ open: true, requestId: request.id, requestTitle: request.title })}
@@ -1600,12 +1611,22 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                                   </DropdownMenuSubContent>
                                 </DropdownMenuSub>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleQuickAction(request.id, "archive")}
-                                >
-                                  <Archive className="mr-2 h-4 w-4" />
-                                  Archive
-                                </DropdownMenuItem>
+                                {request.status === "ARCHIVED" ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleQuickAction(request.id, "changeStatus", { status: "PENDING" })}
+                                    className="text-blue-600 dark:text-blue-400"
+                                  >
+                                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                                    Restore from Archive
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleQuickAction(request.id, "archive")}
+                                  >
+                                    <Archive className="mr-2 h-4 w-4" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => setDeleteDialog({ open: true, requestId: request.id, requestTitle: request.title })}

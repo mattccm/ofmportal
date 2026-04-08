@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const requests = await db.contentRequest.findMany({
       where: {
         creatorId: creator.id,
-        status: { not: "CANCELLED" },
+        status: { notIn: ["CANCELLED", "ARCHIVED"] },
       },
       orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
       include: {

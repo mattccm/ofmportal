@@ -15,11 +15,12 @@ export async function GET(
     }
     const creator = authResult.creator;
 
-    // Get request
+    // Get request (exclude archived/cancelled from creator view)
     const request = await db.contentRequest.findFirst({
       where: {
         id,
         creatorId: creator.id,
+        status: { notIn: ["CANCELLED", "ARCHIVED"] },
       },
     });
 
