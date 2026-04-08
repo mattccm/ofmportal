@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { widgetFetch } from "@/lib/fetch-with-timeout";
 import {
   Activity,
   ChevronRight,
@@ -18,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
+import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -86,31 +85,10 @@ function getActivityColor(type: string) {
 // ============================================
 
 export function ActivityFeedWidget({ config, size }: WidgetProps) {
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await widgetFetch("/api/dashboard/widgets?widget=activity-feed");
-      if (!response.ok) throw new Error("Failed to fetch data");
-      const data = await response.json();
-      setActivities(data.activities || []);
-    } catch (err) {
-      const message = err instanceof Error && err.name === "FetchTimeoutError"
-        ? "Request timed out"
-        : "Failed to load activity feed";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Use batched widget data from context (single API call for all widgets)
+  const { data, isLoading, error, refresh } = useWidgetData();
+  const widgetData = data["activity-feed"] as { activities: ActivityItem[] } | undefined;
+  const activities = widgetData?.activities || [];
 
   const displayCount = size === "small" ? 5 : size === "medium" ? 8 : 12;
 
@@ -120,14 +98,14 @@ export function ActivityFeedWidget({ config, size }: WidgetProps) {
       icon={<Activity className="h-5 w-5 text-primary" />}
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={refresh}
       actions={
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
-            onClick={fetchData}
+            onClick={refresh}
             title="Refresh"
           >
             <RefreshCw className="h-3.5 w-3.5" />

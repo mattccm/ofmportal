@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { widgetFetch } from "@/lib/fetch-with-timeout";
 import {
   BarChart3,
   Users,
@@ -17,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
+import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -81,31 +80,10 @@ function TrendIndicator({ value }: { value: number }) {
 // ============================================
 
 export function QuickStatsWidget({ config, size }: WidgetProps) {
-  const [stats, setStats] = useState<QuickStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await widgetFetch("/api/dashboard/widgets?widget=quick-stats");
-      if (!response.ok) throw new Error("Failed to fetch data");
-      const data = await response.json();
-      setStats(data.stats);
-    } catch (err) {
-      const message = err instanceof Error && err.name === "FetchTimeoutError"
-        ? "Request timed out"
-        : "Failed to load stats";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Use batched widget data from context (single API call for all widgets)
+  const { data, isLoading, error, refresh } = useWidgetData();
+  const widgetData = data["quick-stats"] as { stats: QuickStats } | undefined;
+  const stats = widgetData?.stats || null;
 
   const statItems: StatItem[] = stats
     ? [
@@ -166,7 +144,7 @@ export function QuickStatsWidget({ config, size }: WidgetProps) {
       icon={<BarChart3 className="h-5 w-5 text-primary" />}
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={refresh}
       actions={
         <Button variant="ghost" size="sm" asChild className="text-xs text-primary h-7">
           <Link href="/dashboard/analytics">

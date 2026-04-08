@@ -27,20 +27,19 @@ export async function GET(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    // Track view - update view tracking fields
-    // Using raw update to handle schema that may not have these fields yet
+    // Track view - update and return in single query (saves 1 DB round trip)
     const now = new Date();
     let viewTracking = null;
 
     try {
-      // Check if viewedAt field exists by trying to access it
       const requestAny = request as Record<string, unknown>;
       const hasViewTracking = "viewedAt" in requestAny;
 
       if (hasViewTracking) {
         const isFirstView = !requestAny.viewedAt;
 
-        await db.contentRequest.update({
+        // Single update that returns the updated record - no need for separate fetch
+        const updatedRequest = await db.contentRequest.update({
           where: { id },
           data: {
             viewedByCreator: true,
@@ -50,34 +49,61 @@ export async function GET(
               increment: 1,
             },
           } as Record<string, unknown>,
-        });
+          select: {
+            viewedAt: true,
+            viewedByCreator: true,
+            viewCount: true,
+            lastViewedAt: true,
+          },
+        }) as Record<string, unknown>;
 
-        // Get updated request with view data
-        const updatedRequest = await db.contentRequest.findFirst({
-          where: { id },
-        }) as Record<string, unknown> | null;
-
-        viewTracking = updatedRequest ? {
+        viewTracking = {
           viewedAt: updatedRequest.viewedAt,
           viewedByCreator: updatedRequest.viewedByCreator,
           viewCount: updatedRequest.viewCount,
           lastViewedAt: updatedRequest.lastViewedAt,
           isFirstView,
-        } : null;
+        };
       }
     } catch (viewError) {
       // View tracking fields may not exist in schema yet, continue without tracking
       console.log("View tracking not available:", viewError);
     }
 
-    // Get uploads
-    const uploads = await db.upload.findMany({
-      where: {
-        requestId: id,
-        uploadStatus: "COMPLETED",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // Get uploads with pagination
+    const url = new URL(req.url);
+    const uploadsLimit = Math.min(parseInt(url.searchParams.get("uploadsLimit") || "100"), 200);
+    const commentsLimit = Math.min(parseInt(url.searchParams.get("commentsLimit") || "100"), 200);
+
+    const [uploads, uploadsTotal] = await Promise.all([
+      db.upload.findMany({
+        where: {
+          requestId: id,
+          uploadStatus: "COMPLETED",
+        },
+        orderBy: { createdAt: "desc" },
+        take: uploadsLimit,
+        select: {
+          id: true,
+          fileName: true,
+          originalName: true,
+          fileType: true,
+          fileSize: true,
+          status: true,
+          uploadStatus: true,
+          storageKey: true,
+          thumbnailUrl: true,
+          thumbnailKey: true,
+          fieldId: true,
+        },
+      }),
+      db.upload.count({
+        where: {
+          requestId: id,
+          uploadStatus: "COMPLETED",
+        },
+      }),
+    ]);
 
     // Convert BigInt to number and generate URLs for previews
     const serializedUploads = await Promise.all(
@@ -128,24 +154,33 @@ export async function GET(
       })
     );
 
-    // Get comments (non-internal only)
-    const comments = await db.comment.findMany({
-      where: {
-        requestId: id,
-        isInternal: false,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            email: true,
+    // Get comments (non-internal only) with pagination
+    const [comments, commentsTotal] = await Promise.all([
+      db.comment.findMany({
+        where: {
+          requestId: id,
+          isInternal: false,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              email: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "asc" },
-    });
+        orderBy: { createdAt: "asc" },
+        take: commentsLimit,
+      }),
+      db.comment.count({
+        where: {
+          requestId: id,
+          isInternal: false,
+        },
+      }),
+    ]);
 
     // Transform comments for the frontend
     const transformedComments = comments.map((comment) => {
@@ -181,6 +216,14 @@ export async function GET(
       request,
       uploads: serializedUploads,
       comments: transformedComments,
+      pagination: {
+        uploadsTotal,
+        uploadsLimit,
+        hasMoreUploads: uploadsTotal > uploadsLimit,
+        commentsTotal,
+        commentsLimit,
+        hasMoreComments: commentsTotal > commentsLimit,
+      },
       ...(viewTracking && { viewTracking }),
     });
   } catch (error) {

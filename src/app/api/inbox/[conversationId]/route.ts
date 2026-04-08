@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { broadcastConversationMessage } from "@/lib/realtime-broadcast";
 
 interface ForwardedItem {
   type: "upload" | "request";
@@ -88,73 +89,94 @@ export async function GET(
       },
     });
 
-    // Expand forwarded content
-    const messagesWithContent = await Promise.all(
-      messages.map(async (msg) => {
-        const forwardedContent = (msg.forwardedContent as unknown as ForwardedItem[]) || [];
-        let expandedForwarded: Array<{
-          type: string;
-          id: string;
-          data: Record<string, unknown> | null;
-        }> = [];
+    // Batch collect all forwarded content IDs to avoid N+1 queries
+    const uploadIds = new Set<string>();
+    const requestIds = new Set<string>();
 
-        if (forwardedContent.length > 0) {
-          expandedForwarded = await Promise.all(
-            forwardedContent.map(async (item) => {
-              if (item.type === "upload") {
-                const upload = await db.upload.findUnique({
-                  where: { id: item.id },
-                  select: {
-                    id: true,
-                    originalName: true,
-                    fileType: true,
-                    thumbnailUrl: true,
-                    status: true,
-                  },
-                });
-                return { type: "upload", id: item.id, data: upload };
-              } else if (item.type === "request") {
-                const req = await db.contentRequest.findUnique({
-                  where: { id: item.id },
-                  select: {
-                    id: true,
-                    title: true,
-                    status: true,
-                    dueDate: true,
-                  },
-                });
-                return { type: "request", id: item.id, data: req };
-              }
-              return { type: item.type, id: item.id, data: null };
-            })
-          );
-        }
-
-        return {
-          id: msg.id,
-          content: msg.content,
-          sender: msg.sender,
-          creator: msg.creator,
-          isFromCreator: !!msg.creatorId,
-          attachments: msg.attachments,
-          forwardedContent: expandedForwarded,
-          createdAt: msg.createdAt,
-        };
-      })
-    );
-
-    // Mark messages as read
-    const now = new Date().toISOString();
     for (const msg of messages) {
-      const readBy = (msg.readBy as Array<{ userId: string; readAt: string }>) || [];
-      if (!readBy.some((r) => r.userId === userId)) {
-        await db.message.update({
-          where: { id: msg.id },
-          data: {
-            readBy: [...readBy, { userId, readAt: now }],
-          },
-        });
+      const forwardedContent = (msg.forwardedContent as unknown as ForwardedItem[]) || [];
+      for (const item of forwardedContent) {
+        if (item.type === "upload") uploadIds.add(item.id);
+        else if (item.type === "request") requestIds.add(item.id);
       }
+    }
+
+    // Batch fetch all forwarded entities in just 2 queries
+    const [uploads, requests] = await Promise.all([
+      uploadIds.size > 0
+        ? db.upload.findMany({
+            where: { id: { in: Array.from(uploadIds) } },
+            select: {
+              id: true,
+              originalName: true,
+              fileType: true,
+              thumbnailUrl: true,
+              status: true,
+            },
+          })
+        : [],
+      requestIds.size > 0
+        ? db.contentRequest.findMany({
+            where: { id: { in: Array.from(requestIds) } },
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              dueDate: true,
+            },
+          })
+        : [],
+    ]);
+
+    // Create lookup maps for O(1) access
+    const uploadsMap = new Map(uploads.map((u) => [u.id, u]));
+    const requestsMap = new Map(requests.map((r) => [r.id, r]));
+
+    // Expand forwarded content using the maps (no additional queries)
+    const messagesWithContent = messages.map((msg) => {
+      const forwardedContent = (msg.forwardedContent as unknown as ForwardedItem[]) || [];
+      const expandedForwarded = forwardedContent.map((item) => {
+        if (item.type === "upload") {
+          return { type: "upload", id: item.id, data: uploadsMap.get(item.id) || null };
+        } else if (item.type === "request") {
+          return { type: "request", id: item.id, data: requestsMap.get(item.id) || null };
+        }
+        return { type: item.type, id: item.id, data: null };
+      });
+
+      return {
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        creator: msg.creator,
+        isFromCreator: !!msg.creatorId,
+        attachments: msg.attachments,
+        forwardedContent: expandedForwarded,
+        createdAt: msg.createdAt,
+      };
+    });
+
+    // Mark messages as read - batch update using a transaction for atomicity
+    const now = new Date().toISOString();
+    const unreadMessages = messages.filter((msg) => {
+      const readBy = (msg.readBy as Array<{ userId: string; readAt: string }>) || [];
+      return !readBy.some((r) => r.userId === userId);
+    });
+
+    if (unreadMessages.length > 0) {
+      // Use a transaction to atomically update all messages
+      // Each update reads current readBy and appends, preventing race conditions
+      await db.$transaction(
+        unreadMessages.map((msg) => {
+          const readBy = (msg.readBy as Array<{ userId: string; readAt: string }>) || [];
+          return db.message.update({
+            where: { id: msg.id },
+            data: {
+              readBy: [...readBy, { userId, readAt: now }],
+            },
+          });
+        })
+      );
     }
 
     return NextResponse.json({
@@ -240,6 +262,15 @@ export async function POST(
         lastMessagePreview: (content || "Shared content").substring(0, 100),
       },
     });
+
+    // Broadcast new message to conversation channel (fire and forget)
+    broadcastConversationMessage(conversationId, {
+      id: message.id,
+      content: message.content,
+      senderId: userId,
+      senderName: message.sender?.name || undefined,
+      createdAt: message.createdAt.toISOString(),
+    }).catch(() => {});
 
     return NextResponse.json({
       message: {

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { invalidateCache } from "@/lib/cache";
+import { broadcastRequestUpdate, broadcastAgencyNotification } from "@/lib/realtime-broadcast";
 
 const richContentSchema = z.object({
   description: z.string().optional(),
@@ -71,56 +72,76 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const contentRequest = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            avatar: true,
+    // Parse pagination params for uploads/comments
+    const url = new URL(req.url);
+    const uploadsLimit = Math.min(parseInt(url.searchParams.get("uploadsLimit") || "50"), 100);
+    const commentsLimit = Math.min(parseInt(url.searchParams.get("commentsLimit") || "50"), 100);
+
+    // Use separate queries for counts to enable proper pagination
+    const [contentRequest, uploadsCount, commentsCount] = await Promise.all([
+      db.contentRequest.findFirst({
+        where: {
+          id,
+          agencyId: session.user.agencyId,
+        },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              avatar: true,
+            },
           },
-        },
-        template: {
-          select: {
-            id: true,
-            name: true,
+          template: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        uploads: {
-          orderBy: { createdAt: "desc" },
-        },
-        comments: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
+          uploads: {
+            orderBy: { createdAt: "desc" },
+            take: uploadsLimit,
+          },
+          comments: {
+            orderBy: { createdAt: "desc" },
+            take: commentsLimit,
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      db.upload.count({ where: { requestId: id } }),
+      db.comment.count({ where: { requestId: id } }),
+    ]);
 
     if (!contentRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    // Serialize BigInt values
+    // Serialize BigInt values and include pagination info
     const serializedRequest = {
       ...contentRequest,
       uploads: contentRequest.uploads.map((upload) => ({
         ...upload,
         fileSize: upload.fileSize.toString(),
       })),
+      pagination: {
+        uploadsTotal: uploadsCount,
+        uploadsLimit,
+        commentsTotal: commentsCount,
+        commentsLimit,
+        hasMoreUploads: uploadsCount > uploadsLimit,
+        hasMoreComments: commentsCount > commentsLimit,
+      },
     };
 
     return NextResponse.json(serializedRequest);
@@ -252,6 +273,22 @@ export async function PATCH(
     // Invalidate cache
     invalidateCache.request(id, session.user.agencyId);
 
+    // Broadcast real-time update (fire and forget)
+    if (validatedData.status) {
+      broadcastRequestUpdate(id, {
+        type: "status_change",
+        data: { requestId: id, newStatus: validatedData.status, title: updatedRequest.title },
+      }).catch(() => {});
+      broadcastAgencyNotification(session.user.agencyId, {
+        type: "request_updated",
+        title: "Request Updated",
+        message: `"${updatedRequest.title}" status changed to ${validatedData.status}`,
+        entityType: "ContentRequest",
+        entityId: id,
+        link: `/dashboard/requests/${id}`,
+      }).catch(() => {});
+    }
+
     return NextResponse.json(updatedRequest);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -313,6 +350,15 @@ export async function DELETE(
 
     // Invalidate cache
     invalidateCache.request(id, session.user.agencyId);
+
+    // Broadcast deletion (fire and forget)
+    broadcastAgencyNotification(session.user.agencyId, {
+      type: "request_deleted",
+      title: "Request Deleted",
+      message: `"${existingRequest.title}" has been deleted`,
+      entityType: "ContentRequest",
+      entityId: id,
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

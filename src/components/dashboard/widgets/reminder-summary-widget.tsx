@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { format, formatDistanceToNow } from "date-fns";
-import { widgetFetch } from "@/lib/fetch-with-timeout";
 import {
   Bell,
   ChevronRight,
@@ -17,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
+import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -83,32 +83,10 @@ function getTypeConfig(type: string) {
 // ============================================
 
 export function ReminderSummaryWidget({ config, size }: WidgetProps) {
-  const [data, setData] = useState<ReminderSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use batched widget data from context (single API call for all widgets)
+  const { data: allWidgetData, isLoading, error, refresh } = useWidgetData();
+  const summaryData = allWidgetData["reminder-summary"] as ReminderSummary | undefined;
   const [sendingId, setSendingId] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await widgetFetch("/api/dashboard/widgets?widget=reminder-summary");
-      if (!response.ok) throw new Error("Failed to fetch data");
-      const responseData = await response.json();
-      setData(responseData);
-    } catch (err) {
-      const message = err instanceof Error && err.name === "FetchTimeoutError"
-        ? "Request timed out"
-        : "Failed to load reminders";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const handleSendNow = async (reminderId: string) => {
     setSendingId(reminderId);
@@ -121,7 +99,7 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
 
       if (response.ok) {
         toast.success("Reminder sent successfully");
-        fetchData();
+        refresh();
       } else {
         throw new Error("Failed to send reminder");
       }
@@ -140,7 +118,7 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
       icon={<Bell className="h-5 w-5 text-amber-500" />}
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={refresh}
       actions={
         <Button variant="ghost" size="sm" asChild className="text-xs text-primary h-7">
           <Link href="/dashboard/reminders">
@@ -150,7 +128,7 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
         </Button>
       }
     >
-      {data && (
+      {summaryData && (
         <>
           {/* Summary Stats */}
           <div className="flex items-center gap-4 mb-4 pb-3 border-b">
@@ -159,7 +137,7 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
                 <Clock className="h-4 w-4 text-amber-600" />
               </div>
               <div>
-                <p className="text-lg font-bold">{data.pending}</p>
+                <p className="text-lg font-bold">{summaryData.pending}</p>
                 <p className="text-[10px] text-muted-foreground">Scheduled</p>
               </div>
             </div>
@@ -168,17 +146,17 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
                 <CheckCircle className="h-4 w-4 text-emerald-600" />
               </div>
               <div>
-                <p className="text-lg font-bold">{data.sentToday}</p>
+                <p className="text-lg font-bold">{summaryData.sentToday}</p>
                 <p className="text-[10px] text-muted-foreground">Sent today</p>
               </div>
             </div>
-            {data.failed > 0 && (
+            {summaryData.failed > 0 && (
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-red-600">{data.failed}</p>
+                  <p className="text-lg font-bold text-red-600">{summaryData.failed}</p>
                   <p className="text-[10px] text-muted-foreground">Failed</p>
                 </div>
               </div>
@@ -186,13 +164,13 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
           </div>
 
           {/* Pending Reminders List */}
-          {data.reminders.length === 0 ? (
+          {summaryData.reminders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-4 text-center">
               <p className="text-sm text-muted-foreground">No pending reminders</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {data.reminders.slice(0, displayCount).map((reminder) => {
+              {summaryData.reminders.slice(0, displayCount).map((reminder) => {
                 const typeConfig = getTypeConfig(reminder.type);
 
                 return (
@@ -250,13 +228,13 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
                 );
               })}
 
-              {data.reminders.length > displayCount && (
+              {summaryData.reminders.length > displayCount && (
                 <div className="pt-1 text-center">
                   <Link
                     href="/dashboard/reminders"
                     className="text-xs text-primary hover:underline"
                   >
-                    +{data.reminders.length - displayCount} more reminders
+                    +{summaryData.reminders.length - displayCount} more reminders
                   </Link>
                 </div>
               )}

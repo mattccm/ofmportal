@@ -49,6 +49,11 @@ export async function GET(request: NextRequest) {
       return await getWidgetLayout(userId);
     }
 
+    // Special case: fetch all widget data in one request to reduce connection usage
+    if (widget === "all") {
+      return await getAllWidgetData(agencyId);
+    }
+
     // Fetch data for specific widget
     switch (widget) {
       case "pending-requests":
@@ -70,8 +75,14 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error("Dashboard widgets API error:", error);
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     return NextResponse.json(
-      { error: "Failed to fetch widget data" },
+      { error: "Failed to fetch widget data", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
@@ -191,18 +202,20 @@ async function getRecentUploads(agencyId: string) {
   });
 
   return NextResponse.json({
-    uploads: uploads.map((u) => ({
-      id: u.id,
-      fileName: u.fileName,
-      originalName: u.originalName,
-      fileType: u.fileType,
-      fileSize: Number(u.fileSize),
-      thumbnailUrl: u.thumbnailUrl,
-      status: u.status,
-      uploadedAt: u.uploadedAt?.toISOString() || u.createdAt.toISOString(),
-      creator: u.creator,
-      request: u.request,
-    })),
+    uploads: uploads
+      .filter((u) => u.creator && u.request) // Filter out orphaned records
+      .map((u) => ({
+        id: u.id,
+        fileName: u.fileName,
+        originalName: u.originalName,
+        fileType: u.fileType,
+        fileSize: Number(u.fileSize),
+        thumbnailUrl: u.thumbnailUrl,
+        status: u.status,
+        uploadedAt: u.uploadedAt?.toISOString() || u.createdAt.toISOString(),
+        creator: u.creator,
+        request: u.request,
+      })),
   });
 }
 
@@ -573,5 +586,425 @@ async function getReminderSummary(agencyId: string) {
           creator: r.request.creator,
         },
       })),
+  });
+}
+
+// ============================================
+// BATCHED WIDGET DATA - Fetches all widgets in one request
+// This significantly reduces database connection usage
+// ============================================
+
+async function getAllWidgetData(agencyId: string) {
+  const now = new Date();
+  const since = subDays(now, 7);
+  const weekFromNow = addDays(now, 7);
+  const twoWeeksFromNow = addDays(now, 14);
+  const lastWeek = subDays(now, 7);
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
+  const startOfToday = startOfDay(now);
+  const endOfToday = endOfDay(now);
+
+  // Execute all queries in parallel within a single connection context
+  const [
+    // Quick stats
+    activeCreators,
+    pendingRequests,
+    awaitingReview,
+    dueThisWeek,
+    overdueItems,
+    prevActiveCreators,
+    prevPendingRequests,
+    prevAwaitingReview,
+    // Recent uploads
+    recentUploads,
+    // Upcoming deadlines
+    upcomingRequests,
+    // Pending requests
+    pendingRequestsList,
+    // Creators with stats
+    creatorsWithStats,
+    // Activity data
+    activityUploads,
+    activityComments,
+    newCreators,
+    activityReviews,
+    // Reminder summary
+    pendingReminders,
+    pendingReminderCount,
+    sentTodayCount,
+    failedReminderCount,
+  ] = await Promise.all([
+    // Quick stats queries
+    db.creator.count({ where: { agencyId, inviteStatus: "ACCEPTED" } }),
+    db.contentRequest.count({
+      where: { agencyId, status: { in: ["PENDING", "IN_PROGRESS"] } },
+    }),
+    db.upload.count({
+      where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
+    }),
+    db.contentRequest.count({
+      where: {
+        agencyId,
+        status: { notIn: ["APPROVED", "CANCELLED"] },
+        dueDate: { gte: startOfDay(now), lte: endOfDay(weekFromNow) },
+      },
+    }),
+    db.contentRequest.count({
+      where: {
+        agencyId,
+        status: { notIn: ["APPROVED", "CANCELLED"] },
+        dueDate: { lt: startOfDay(now) },
+      },
+    }),
+    db.creator.count({
+      where: { agencyId, inviteStatus: "ACCEPTED", createdAt: { lt: lastWeek } },
+    }),
+    db.contentRequest.count({
+      where: { agencyId, status: { in: ["PENDING", "IN_PROGRESS"] }, createdAt: { lt: lastWeek } },
+    }),
+    db.upload.count({
+      where: {
+        request: { agencyId },
+        status: "PENDING",
+        uploadStatus: "COMPLETED",
+        createdAt: { lt: lastWeek },
+      },
+    }),
+    // Recent uploads
+    db.upload.findMany({
+      where: { request: { agencyId }, uploadStatus: "COMPLETED" },
+      orderBy: { uploadedAt: "desc" },
+      take: 15,
+      include: {
+        creator: { select: { id: true, name: true, avatar: true } },
+        request: { select: { id: true, title: true } },
+      },
+    }),
+    // Upcoming deadlines
+    db.contentRequest.findMany({
+      where: {
+        agencyId,
+        status: { notIn: ["APPROVED", "CANCELLED", "ARCHIVED"] },
+        dueDate: { lte: endOfDay(twoWeeksFromNow) },
+      },
+      orderBy: { dueDate: "asc" },
+      take: 15,
+      include: {
+        creator: { select: { id: true, name: true, avatar: true } },
+      },
+    }),
+    // Pending requests
+    db.contentRequest.findMany({
+      where: {
+        agencyId,
+        status: { in: ["PENDING", "IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW", "NEEDS_REVISION"] },
+      },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+      take: 15,
+      include: {
+        creator: { select: { id: true, name: true, avatar: true } },
+        _count: { select: { uploads: true } },
+      },
+    }),
+    // Top creators
+    db.creator.findMany({
+      where: { agencyId, inviteStatus: "ACCEPTED" },
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        uploads: {
+          where: { uploadedAt: { gte: monthStart, lte: monthEnd } },
+          select: { status: true },
+        },
+        requests: {
+          where: { createdAt: { gte: monthStart, lte: monthEnd } },
+          select: {
+            createdAt: true,
+            uploads: {
+              orderBy: { uploadedAt: "asc" },
+              take: 1,
+              select: { uploadedAt: true },
+            },
+          },
+        },
+      },
+    }),
+    // Activity feed - uploads
+    db.upload.findMany({
+      where: { request: { agencyId }, uploadedAt: { gte: since } },
+      orderBy: { uploadedAt: "desc" },
+      take: 10,
+      include: {
+        creator: { select: { id: true, name: true, avatar: true } },
+        request: { select: { id: true, title: true } },
+      },
+    }),
+    // Activity feed - comments
+    db.comment.findMany({
+      where: { request: { agencyId }, createdAt: { gte: since }, isInternal: false },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      include: {
+        user: { select: { id: true, name: true, avatar: true } },
+        request: { select: { id: true, title: true } },
+      },
+    }),
+    // Activity feed - new creators
+    db.creator.findMany({
+      where: { agencyId, inviteStatus: "ACCEPTED", lastLoginAt: { gte: since } },
+      orderBy: { lastLoginAt: "desc" },
+      take: 5,
+      select: { id: true, name: true, avatar: true, lastLoginAt: true },
+    }),
+    // Activity feed - reviews
+    db.upload.findMany({
+      where: {
+        request: { agencyId },
+        status: { in: ["APPROVED", "REJECTED"] },
+        updatedAt: { gte: since },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+      include: {
+        reviewedBy: { select: { id: true, name: true, avatar: true } },
+        request: { select: { id: true, title: true } },
+      },
+    }),
+    // Reminder summary
+    db.reminder.findMany({
+      where: { request: { agencyId }, status: "PENDING" },
+      orderBy: { scheduledAt: "asc" },
+      take: 10,
+      include: {
+        request: {
+          select: {
+            id: true,
+            title: true,
+            creator: { select: { id: true, name: true } },
+          },
+        },
+      },
+    }),
+    db.reminder.count({ where: { request: { agencyId }, status: "PENDING" } }),
+    db.reminder.count({
+      where: {
+        request: { agencyId },
+        status: "SENT",
+        sentAt: { gte: startOfToday, lte: endOfToday },
+      },
+    }),
+    db.reminder.count({
+      where: {
+        request: { agencyId },
+        status: "FAILED",
+        createdAt: { gte: subDays(now, 7) },
+      },
+    }),
+  ]);
+
+  // Process quick stats
+  const calcTrend = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
+
+  const quickStats = {
+    stats: {
+      activeCreators,
+      pendingRequests,
+      awaitingReview,
+      dueThisWeek,
+      overdueItems,
+      trends: {
+        activeCreators: calcTrend(activeCreators, prevActiveCreators),
+        pendingRequests: calcTrend(pendingRequests, prevPendingRequests),
+        awaitingReview: calcTrend(awaitingReview, prevAwaitingReview),
+      },
+    },
+  };
+
+  // Process recent uploads
+  const uploads = {
+    uploads: recentUploads
+      .filter((u) => u.creator && u.request)
+      .map((u) => ({
+        id: u.id,
+        fileName: u.fileName,
+        originalName: u.originalName,
+        fileType: u.fileType,
+        fileSize: Number(u.fileSize),
+        thumbnailUrl: u.thumbnailUrl,
+        status: u.status,
+        uploadedAt: u.uploadedAt?.toISOString() || u.createdAt.toISOString(),
+        creator: u.creator,
+        request: u.request,
+      })),
+  };
+
+  // Process upcoming deadlines
+  const deadlines = {
+    deadlines: upcomingRequests
+      .filter((r) => r.dueDate)
+      .map((r) => ({
+        id: r.id,
+        title: r.title,
+        status: r.status,
+        dueDate: r.dueDate!.toISOString(),
+        creator: r.creator,
+      })),
+  };
+
+  // Process pending requests
+  const requests = {
+    requests: pendingRequestsList.map((r) => ({
+      id: r.id,
+      title: r.title,
+      status: r.status,
+      dueDate: r.dueDate?.toISOString() || null,
+      createdAt: r.createdAt.toISOString(),
+      creator: r.creator,
+      uploadCount: r._count.uploads,
+    })),
+  };
+
+  // Process top creators
+  const performances = creatorsWithStats.map((creator) => {
+    const uploadsThisMonth = creator.uploads.length;
+    const approvedUploads = creator.uploads.filter((u) => u.status === "APPROVED").length;
+    const reviewedUploads = creator.uploads.filter(
+      (u) => u.status === "APPROVED" || u.status === "REJECTED"
+    ).length;
+    const approvalRate =
+      reviewedUploads > 0 ? Math.round((approvedUploads / reviewedUploads) * 100) : 0;
+
+    let totalResponseHours = 0;
+    let responseCount = 0;
+    for (const request of creator.requests) {
+      if (request.uploads[0]?.uploadedAt) {
+        totalResponseHours += differenceInHours(request.uploads[0].uploadedAt, request.createdAt);
+        responseCount++;
+      }
+    }
+    const avgResponseTimeHours = responseCount > 0 ? Math.round(totalResponseHours / responseCount) : 0;
+
+    return {
+      id: creator.id,
+      name: creator.name,
+      avatar: creator.avatar,
+      uploadsThisMonth,
+      approvalRate,
+      avgResponseTimeHours,
+      rank: 0,
+    };
+  });
+
+  performances.sort((a, b) => b.uploadsThisMonth - a.uploadsThisMonth);
+  performances.forEach((p, index) => {
+    p.rank = index + 1;
+  });
+
+  const topCreators = { creators: performances.slice(0, 10) };
+
+  // Process activity feed
+  const activities: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    timestamp: string;
+    avatar?: string | null;
+    userName: string;
+    link?: string;
+  }> = [];
+
+  for (const upload of activityUploads) {
+    if (!upload.creator || !upload.request) continue;
+    activities.push({
+      id: `upload-${upload.id}`,
+      type: "upload",
+      title: "New upload",
+      description: `${upload.creator.name} uploaded "${upload.originalName}"`,
+      timestamp: (upload.uploadedAt || upload.createdAt).toISOString(),
+      avatar: upload.creator.avatar,
+      userName: upload.creator.name,
+      link: `/dashboard/requests/${upload.request.id}`,
+    });
+  }
+
+  for (const comment of activityComments) {
+    activities.push({
+      id: `comment-${comment.id}`,
+      type: "comment",
+      title: "New comment",
+      description: `${comment.user.name} commented on "${comment.request?.title}"`,
+      timestamp: comment.createdAt.toISOString(),
+      avatar: comment.user.avatar,
+      userName: comment.user.name,
+      link: comment.request ? `/dashboard/requests/${comment.request.id}` : undefined,
+    });
+  }
+
+  for (const creator of newCreators) {
+    activities.push({
+      id: `creator-${creator.id}`,
+      type: "creator_signup",
+      title: "Creator joined",
+      description: `${creator.name} completed portal setup`,
+      timestamp: (creator.lastLoginAt || new Date()).toISOString(),
+      avatar: creator.avatar,
+      userName: creator.name,
+      link: `/dashboard/creators/${creator.id}`,
+    });
+  }
+
+  for (const upload of activityReviews) {
+    if (upload.reviewedBy && upload.request) {
+      activities.push({
+        id: `review-${upload.id}`,
+        type: upload.status === "APPROVED" ? "approval" : "rejection",
+        title: upload.status === "APPROVED" ? "Upload approved" : "Upload rejected",
+        description: `${upload.reviewedBy.name} ${upload.status === "APPROVED" ? "approved" : "rejected"} "${upload.originalName}"`,
+        timestamp: upload.updatedAt.toISOString(),
+        avatar: upload.reviewedBy.avatar,
+        userName: upload.reviewedBy.name,
+        link: `/dashboard/requests/${upload.request.id}`,
+      });
+    }
+  }
+
+  activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const activityFeed = { activities: activities.slice(0, 15) };
+
+  // Process reminder summary
+  const reminderSummary = {
+    pending: pendingReminderCount,
+    sentToday: sentTodayCount,
+    failed: failedReminderCount,
+    reminders: pendingReminders
+      .filter((r) => r.request)
+      .map((r) => ({
+        id: r.id,
+        type: r.type,
+        channel: r.channel,
+        scheduledAt: r.scheduledAt.toISOString(),
+        status: r.status,
+        request: {
+          id: r.request.id,
+          title: r.request.title,
+          creator: r.request.creator,
+        },
+      })),
+  };
+
+  return NextResponse.json({
+    "quick-stats": quickStats,
+    "recent-uploads": uploads,
+    "upcoming-deadlines": deadlines,
+    "pending-requests": requests,
+    "top-creators": topCreators,
+    "activity-feed": activityFeed,
+    "reminder-summary": reminderSummary,
   });
 }

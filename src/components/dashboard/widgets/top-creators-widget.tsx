@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Trophy, ChevronRight, Upload, CheckCircle, Clock, Medal, Users } from "lucide-react";
-import { widgetFetch } from "@/lib/fetch-with-timeout";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
+import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -38,31 +37,10 @@ const RANK_CONFIG = [
 // ============================================
 
 export function TopCreatorsWidget({ config, size }: WidgetProps) {
-  const [creators, setCreators] = useState<CreatorStats[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await widgetFetch("/api/dashboard/widgets?widget=top-creators");
-      if (!response.ok) throw new Error("Failed to fetch data");
-      const data = await response.json();
-      setCreators(data.creators || []);
-    } catch (err) {
-      const message = err instanceof Error && err.name === "FetchTimeoutError"
-        ? "Request timed out"
-        : "Failed to load creator stats";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Use batched widget data from context (single API call for all widgets)
+  const { data, isLoading, error, refresh } = useWidgetData();
+  const widgetData = data["top-creators"] as { creators: CreatorStats[] } | undefined;
+  const creators = widgetData?.creators || [];
 
   const displayCount = size === "small" ? 3 : size === "medium" ? 5 : 8;
 
@@ -72,7 +50,7 @@ export function TopCreatorsWidget({ config, size }: WidgetProps) {
       icon={<Trophy className="h-5 w-5 text-amber-500" />}
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={refresh}
       actions={
         <Button variant="ghost" size="sm" asChild className="text-xs text-primary h-7">
           <Link href="/dashboard/analytics">

@@ -346,12 +346,36 @@ async function getCreatorPerformance(agencyId: string): Promise<CreatorPerforman
   const monthStart = startOfMonth(new Date());
   const monthEnd = endOfMonth(new Date());
 
-  // Optimized: Single query with aggregation instead of N+1 queries
-  // Get creators with their upload counts in a single query
-  const creatorsWithStats = await db.creator.findMany({
+  // Step 1: Get creators with upload counts using _count (very efficient)
+  const creatorsWithCounts = await db.creator.findMany({
     where: {
       agencyId,
       inviteStatus: "ACCEPTED",
+    },
+    select: {
+      id: true,
+      name: true,
+      avatar: true,
+      _count: {
+        select: {
+          uploads: {
+            where: { uploadedAt: { gte: monthStart, lte: monthEnd } },
+          },
+        },
+      },
+    },
+    orderBy: {
+      uploads: { _count: "desc" },
+    },
+    take: 10, // Only fetch top 10 candidates (we return top 5)
+  });
+
+  // Step 2: For top candidates only, fetch detailed stats
+  const topCreatorIds = creatorsWithCounts.map(c => c.id);
+
+  const creatorsWithStats = await db.creator.findMany({
+    where: {
+      id: { in: topCreatorIds },
     },
     select: {
       id: true,
@@ -366,6 +390,7 @@ async function getCreatorPerformance(agencyId: string): Promise<CreatorPerforman
           status: true,
           uploadedAt: true,
         },
+        take: 100, // Limit uploads per creator
       },
       requests: {
         where: {
@@ -379,6 +404,7 @@ async function getCreatorPerformance(agencyId: string): Promise<CreatorPerforman
             select: { uploadedAt: true },
           },
         },
+        take: 50, // Limit requests per creator
       },
     },
   });
@@ -445,6 +471,11 @@ export async function GET() {
     }
 
     const agencyId = session.user.agencyId;
+
+    // NOTE: Server-side caching removed intentionally for this content management platform
+    // Dashboard data needs to be fresh - uploads, approvals, and activity change frequently
+    // The query optimizations (limits, batching) provide sufficient performance improvement
+    // Client-side caching via React Query handles repeated requests within a session
 
     // Fetch all dashboard data in parallel
     const [activityFeed, quickStats, upcomingDeadlines, creatorPerformance] =

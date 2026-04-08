@@ -14,11 +14,13 @@ import {
   chunkArray,
   DEFAULT_REJECT_TEMPLATES,
 } from "@/lib/bulk-operations";
+import { deleteFile } from "@/lib/storage";
+import { broadcastAgencyNotification, broadcastRequestUpdate } from "@/lib/realtime-broadcast";
 
 // Enhanced schema supporting both simple and advanced bulk review
 const bulkReviewSchema = z.object({
   uploadIds: z.array(z.string()).min(1, "At least one upload ID is required"),
-  action: z.enum(["approve", "reject"]),
+  action: z.enum(["approve", "reject", "delete"]),
   rating: z.number().min(0).max(5).optional(),
   notes: z.string().optional(),
   rejectTemplateId: z.string().optional(), // Quick reject template
@@ -69,15 +71,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Verify all uploads belong to agency and are pending
+    // For delete action, we can delete any upload regardless of status (except we might want to preserve approved ones)
+    // For approve/reject, we only allow pending uploads
+    const whereClause = action === "delete"
+      ? {
+          id: { in: uploadIds },
+          request: {
+            agencyId: session.user.agencyId,
+          },
+        }
+      : {
+          id: { in: uploadIds },
+          status: "PENDING" as const,
+          request: {
+            agencyId: session.user.agencyId,
+          },
+        };
+
     const uploads = await db.upload.findMany({
-      where: {
-        id: { in: uploadIds },
-        status: "PENDING",
-        request: {
-          agencyId: session.user.agencyId,
-        },
-      },
+      where: whereClause,
       include: {
         creator: true,
         request: true,
@@ -86,9 +98,71 @@ export async function POST(req: NextRequest) {
 
     if (uploads.length === 0) {
       return NextResponse.json(
-        { error: "No valid pending uploads found" },
+        { error: action === "delete" ? "No valid uploads found" : "No valid pending uploads found" },
         { status: 404 }
       );
+    }
+
+    // Handle delete action separately
+    if (action === "delete") {
+      // Delete files from storage
+      const storageErrors: string[] = [];
+      for (const upload of uploads) {
+        try {
+          await deleteFile(upload.storageKey);
+          if (upload.thumbnailKey) {
+            await deleteFile(upload.thumbnailKey);
+          }
+        } catch (storageError) {
+          console.error(`Failed to delete file from storage: ${upload.storageKey}`, storageError);
+          storageErrors.push(upload.originalName);
+        }
+      }
+
+      // Delete from database
+      await db.upload.deleteMany({
+        where: {
+          id: { in: uploads.map((u) => u.id) },
+        },
+      });
+
+      // Log activity
+      await db.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: "upload.bulk_deleted",
+          entityType: "Upload",
+          entityId: operationId,
+          metadata: {
+            operationId,
+            count: uploads.length,
+            uploadIds: uploads.map((u) => u.id),
+            storageErrors: storageErrors.length > 0 ? storageErrors : undefined,
+          },
+        },
+      });
+
+      // Broadcast deletion to affected requests (fire and forget)
+      const affectedRequestIds = Array.from(new Set(uploads.map((u) => u.requestId)));
+      for (const reqId of affectedRequestIds) {
+        broadcastRequestUpdate(reqId, {
+          type: "upload_status",
+          data: { action: "deleted", count: uploads.filter((u) => u.requestId === reqId).length },
+        }).catch(() => {});
+      }
+      broadcastAgencyNotification(session.user.agencyId, {
+        type: "uploads_deleted",
+        title: "Uploads Deleted",
+        message: `${uploads.length} upload(s) permanently deleted`,
+        entityType: "Upload",
+      }).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        operationId,
+        deleted: uploads.length,
+        storageErrors: storageErrors.length > 0 ? storageErrors : undefined,
+      });
     }
 
     const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
@@ -141,39 +215,49 @@ export async function POST(req: NextRequest) {
       notificationGroups.get(key)!.uploads.push(upload.originalName);
     }
 
-    // Process each group for notifications
-    const affectedRequestIds = new Set(uploads.map((u) => u.requestId));
+    // Process request status updates in batch
+    const affectedRequestIds = Array.from(new Set(uploads.map((u) => u.requestId)));
 
-    for (const requestId of affectedRequestIds) {
-      if (action === "approve") {
-        // Check if all uploads for this request are now approved
-        const pendingUploads = await db.upload.count({
-          where: {
-            requestId,
-            status: { not: "APPROVED" },
-          },
-        });
+    if (action === "approve") {
+      // Batch fetch pending upload counts for all affected requests
+      const pendingCounts = await db.upload.groupBy({
+        by: ["requestId"],
+        where: {
+          requestId: { in: affectedRequestIds },
+          status: { not: "APPROVED" },
+        },
+        _count: { id: true },
+      });
 
-        if (pendingUploads === 0) {
-          // All uploads approved - update request status
-          await db.contentRequest.update({
-            where: { id: requestId },
-            data: {
-              status: "APPROVED",
-              reviewedAt: new Date(),
-              reviewedBy: session.user.id,
-            },
-          });
-        }
-      } else {
-        // Update request status to needs revision
-        await db.contentRequest.update({
-          where: { id: requestId },
+      // Create a map of requestId -> pending count
+      const pendingCountMap = new Map(
+        pendingCounts.map((p) => [p.requestId, p._count.id])
+      );
+
+      // Find requests with zero pending uploads (fully approved)
+      const fullyApprovedRequestIds = affectedRequestIds.filter(
+        (id) => !pendingCountMap.has(id) || pendingCountMap.get(id) === 0
+      );
+
+      // Batch update all fully approved requests
+      if (fullyApprovedRequestIds.length > 0) {
+        await db.contentRequest.updateMany({
+          where: { id: { in: fullyApprovedRequestIds } },
           data: {
-            status: "NEEDS_REVISION",
+            status: "APPROVED",
+            reviewedAt: new Date(),
+            reviewedBy: session.user.id,
           },
         });
       }
+    } else {
+      // Batch update all affected requests to needs revision
+      await db.contentRequest.updateMany({
+        where: { id: { in: affectedRequestIds } },
+        data: {
+          status: "NEEDS_REVISION",
+        },
+      });
     }
 
     // Send notifications to each creator
@@ -284,14 +368,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Wait for all notifications (don't block response)
-    Promise.allSettled(notificationPromises).catch(console.error);
+    // Send notifications in background - allSettled never rejects, so no .catch needed
+    // Await to ensure notifications are sent before the serverless function exits
+    const notificationResults = await Promise.allSettled(notificationPromises);
+    const failedNotifications = notificationResults.filter((r) => r.status === "rejected").length;
+    if (failedNotifications > 0) {
+      console.error(`[Bulk Review] ${failedNotifications} notification(s) failed to send`);
+    }
+
+    // Broadcast upload status changes to affected requests (fire and forget)
+    for (const reqId of affectedRequestIds) {
+      broadcastRequestUpdate(reqId, {
+        type: "upload_status",
+        data: { action, count: uploads.filter((u) => u.requestId === reqId).length },
+      }).catch(() => {});
+    }
+    broadcastAgencyNotification(session.user.agencyId, {
+      type: `uploads_${action}d`,
+      title: `Uploads ${action === "approve" ? "Approved" : "Rejected"}`,
+      message: `${uploads.length} upload(s) ${action}d`,
+      entityType: "Upload",
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
       operationId,
       [action === "approve" ? "approved" : "rejected"]: uploads.length,
-      affectedRequests: affectedRequestIds.size,
+      affectedRequests: affectedRequestIds.length,
       notificationsSent: notificationGroups.size,
       canUndo: true,
       undoExpiresAt: undoExpiresAt.toISOString(),

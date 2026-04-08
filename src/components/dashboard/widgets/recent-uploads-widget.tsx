@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useContext } from "react";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
-import { widgetFetch } from "@/lib/fetch-with-timeout";
 import { Upload, ChevronRight, Image, Video, FileText, File, CheckCircle, XCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
+import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -81,31 +80,10 @@ function formatFileSize(bytes: number): string {
 // ============================================
 
 export function RecentUploadsWidget({ config, size }: WidgetProps) {
-  const [uploads, setUploads] = useState<RecentUpload[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await widgetFetch("/api/dashboard/widgets?widget=recent-uploads");
-      if (!response.ok) throw new Error("Failed to fetch data");
-      const data = await response.json();
-      setUploads(data.uploads || []);
-    } catch (err) {
-      const message = err instanceof Error && err.name === "FetchTimeoutError"
-        ? "Request timed out"
-        : "Failed to load recent uploads";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Use batched widget data from context (single API call for all widgets)
+  const { data, isLoading, error, refresh } = useWidgetData();
+  const widgetData = data["recent-uploads"] as { uploads: RecentUpload[] } | undefined;
+  const uploads = widgetData?.uploads || [];
 
   const displayCount = size === "small" ? 4 : size === "medium" ? 6 : 10;
   const showThumbnails = size !== "small";
@@ -116,7 +94,7 @@ export function RecentUploadsWidget({ config, size }: WidgetProps) {
       icon={<Upload className="h-5 w-5 text-emerald-500" />}
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={refresh}
       helpKey="dashboard.recent-uploads"
       actions={
         <Button variant="ghost" size="sm" asChild className="text-xs text-primary h-7">

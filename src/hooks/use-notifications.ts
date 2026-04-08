@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { NotificationItemData } from "@/components/notifications";
+import { useSupabaseRealtime } from "./use-supabase-realtime";
+import { channelNames, isRealtimeAvailable, type RealtimePayload } from "@/lib/supabase";
+import { deduplicatedFetch } from "@/lib/cache";
 
 // ============================================
 // TYPES
@@ -49,10 +52,10 @@ export function useNotifications(
   options: UseNotificationsOptions = {}
 ): UseNotificationsReturn {
   const {
-    pollInterval = 30000,
+    pollInterval = 300000, // 5 minutes - reduced from 30s to save database egress
     limit = 20,
     unreadOnly = false,
-    enablePolling = true,
+    enablePolling = false, // Disabled by default - enable only when needed
   } = options;
 
   const [notifications, setNotifications] = useState<NotificationItemData[]>([]);
@@ -235,39 +238,109 @@ export function useNotifications(
 }
 
 // ============================================
-// SIMPLE UNREAD COUNT HOOK
+// SIMPLE UNREAD COUNT HOOK (with Realtime support)
 // ============================================
 
-export function useUnreadNotificationCount(pollInterval: number = 30000): number {
+/**
+ * Get unread notification count with automatic updates via Supabase Realtime
+ * Falls back to polling if Realtime is not configured
+ */
+export function useUnreadNotificationCount(
+  userId?: string,
+  pollInterval: number = 300000 // 5 minutes fallback
+): number {
   const [count, setCount] = useState(0);
+  const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchCount = async () => {
-      try {
-        const response = await fetch("/api/notifications/unread-count");
-        if (response.ok) {
-          const data = await response.json();
-          if (isMounted) {
-            setCount(data.count);
-          }
-        }
-      } catch {
-        // Silently fail
+  const fetchCount = useCallback(async () => {
+    try {
+      // Use deduplicated fetch to prevent multiple simultaneous requests
+      // when multiple components mount at the same time
+      const data = await deduplicatedFetch<{ count: number }>(
+        "/api/notifications/unread-count"
+      );
+      if (isMountedRef.current) {
+        setCount(data.count);
       }
-    };
+    } catch {
+      // Silently fail
+    }
+  }, []);
 
+  // Handle real-time notification updates
+  const handleRealtimeNotification = useCallback((payload: RealtimePayload) => {
+    if (payload.type === "notification") {
+      // Increment count for new notifications
+      setCount((prev) => prev + 1);
+    }
+  }, []);
+
+  // Use Realtime if available, otherwise fall back to polling
+  const { isConnected, isPolling } = useSupabaseRealtime({
+    channelName: userId ? channelNames.userNotifications(userId) : "",
+    onMessage: handleRealtimeNotification,
+    enabled: !!userId && isRealtimeAvailable(),
+    fallbackPoll: fetchCount,
+    fallbackInterval: pollInterval,
+  });
+
+  // Initial fetch
+  useEffect(() => {
+    isMountedRef.current = true;
     fetchCount();
-    const interval = setInterval(fetchCount, pollInterval);
 
     return () => {
-      isMounted = false;
-      clearInterval(interval);
+      isMountedRef.current = false;
     };
-  }, [pollInterval]);
+  }, [fetchCount]);
+
+  // If Realtime is connected but we don't have userId, still poll
+  useEffect(() => {
+    if (!userId || isConnected) return;
+
+    const interval = setInterval(fetchCount, pollInterval);
+    return () => clearInterval(interval);
+  }, [userId, isConnected, fetchCount, pollInterval]);
 
   return count;
+}
+
+// ============================================
+// ENHANCED NOTIFICATIONS HOOK WITH REALTIME
+// ============================================
+
+/**
+ * Enhanced version that uses Supabase Realtime for instant updates
+ * Falls back to polling if Realtime is not configured
+ */
+export function useNotificationsWithRealtime(
+  userId: string | undefined,
+  options: UseNotificationsOptions = {}
+): UseNotificationsReturn & { isRealtimeConnected: boolean } {
+  const baseHook = useNotifications(options);
+
+  // Handle real-time notification updates
+  const handleRealtimeNotification = useCallback(
+    (payload: RealtimePayload) => {
+      if (payload.type === "notification") {
+        // Refresh the full list when a new notification arrives
+        baseHook.refresh();
+      }
+    },
+    [baseHook.refresh]
+  );
+
+  // Connect to Realtime channel
+  const { isConnected } = useSupabaseRealtime({
+    channelName: userId ? channelNames.userNotifications(userId) : "",
+    onMessage: handleRealtimeNotification,
+    enabled: !!userId && isRealtimeAvailable(),
+  });
+
+  return {
+    ...baseHook,
+    isRealtimeConnected: isConnected,
+  };
 }
 
 export default useNotifications;

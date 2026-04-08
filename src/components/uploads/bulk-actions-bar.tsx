@@ -31,6 +31,7 @@ import {
   AlertTriangle,
   FileText,
   Archive,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ interface BulkActionsBarProps {
   onBulkApprove: () => void;
   onBulkReject: (reason: string) => void;
   onBulkDownload: () => void;
+  onBulkDelete?: () => void;
   onExportCsv: () => void;
   isProcessing?: boolean;
   className?: string;
@@ -58,6 +60,7 @@ export function BulkActionsBar({
   onBulkApprove,
   onBulkReject,
   onBulkDownload,
+  onBulkDelete,
   onExportCsv,
   isProcessing = false,
   className,
@@ -65,6 +68,7 @@ export function BulkActionsBar({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const selectedCount = selectedIds.size;
   const allSelected = selectedCount === totalCount && totalCount > 0;
@@ -83,6 +87,13 @@ export function BulkActionsBar({
   const handleBulkApprove = () => {
     onBulkApprove();
     setApproveDialogOpen(false);
+  };
+
+  const handleBulkDelete = () => {
+    if (onBulkDelete) {
+      onBulkDelete();
+      setDeleteDialogOpen(false);
+    }
   };
 
   return (
@@ -164,6 +175,19 @@ export function BulkActionsBar({
                 <X className="h-4 w-4" />
                 Reject
               </Button>
+
+              {onBulkDelete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={isProcessing}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              )}
 
               <div className="w-px h-6 bg-border mx-1" />
             </>
@@ -324,6 +348,60 @@ export function BulkActionsBar({
                 <X className="h-4 w-4" />
               )}
               Reject All
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="rounded-full bg-red-100 p-1.5">
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </div>
+              Delete {selectedCount} Upload{selectedCount !== 1 ? "s" : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete {selectedCount} selected upload
+              {selectedCount !== 1 ? "s" : ""}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
+            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium text-red-800 dark:text-red-200">
+                {selectedCount} upload{selectedCount !== 1 ? "s" : ""} will be
+                permanently deleted
+              </p>
+              <p className="text-red-600 dark:text-red-400 mt-0.5">
+                Files will be removed from storage and cannot be recovered
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="gap-1.5"
+              onClick={handleBulkDelete}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Delete All
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -297,3 +297,64 @@ export const queryKeys = {
     unreadCount: ["notifications", "unreadCount"] as const,
   },
 };
+
+// ============================================
+// REQUEST DEDUPLICATION (CLIENT-SIDE)
+// ============================================
+
+/**
+ * In-flight request deduplication
+ * Prevents multiple simultaneous requests to the same endpoint
+ * Used to avoid duplicate API calls when multiple components mount at once
+ */
+const inFlightRequests = new Map<string, Promise<unknown>>();
+
+/**
+ * Deduplicated fetch - if a request to the same URL is already in flight,
+ * return the same promise instead of making a new request.
+ *
+ * This is especially useful for:
+ * - Multiple components calling the same API on mount
+ * - Notification counts being requested by multiple hooks
+ * - Dashboard data requested by multiple widgets
+ *
+ * @example
+ * // Instead of: fetch("/api/notifications/unread-count")
+ * // Use: deduplicatedFetch("/api/notifications/unread-count")
+ */
+export async function deduplicatedFetch<T>(
+  url: string,
+  options?: RequestInit
+): Promise<T> {
+  // Create a cache key from URL and method
+  const method = options?.method || "GET";
+  const cacheKey = `${method}:${url}`;
+
+  // If request is already in flight, return the same promise
+  const inFlight = inFlightRequests.get(cacheKey);
+  if (inFlight) {
+    return inFlight as Promise<T>;
+  }
+
+  // Create new request promise
+  const requestPromise = (async () => {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.json();
+    } finally {
+      // Remove from in-flight map after a short delay
+      // (allows multiple components mounting in the same tick to dedupe)
+      setTimeout(() => {
+        inFlightRequests.delete(cacheKey);
+      }, 100);
+    }
+  })();
+
+  // Store in in-flight map
+  inFlightRequests.set(cacheKey, requestPromise);
+
+  return requestPromise as Promise<T>;
+}

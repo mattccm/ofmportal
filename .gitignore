@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local uploads (dev only)
 /uploads
+
+# Windows nul device artifact
+nul

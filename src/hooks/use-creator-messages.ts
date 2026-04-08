@@ -27,8 +27,8 @@ export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
   useEffect(() => {
     refresh();
 
-    // Poll every 60 seconds
-    const interval = setInterval(refresh, 60000);
+    // Poll every 5 minutes (reduced from 60s to save database egress)
+    const interval = setInterval(refresh, 300000);
     return () => clearInterval(interval);
   }, [refresh]);
 

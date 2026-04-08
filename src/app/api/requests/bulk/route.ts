@@ -7,6 +7,7 @@ import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
 import { format } from "date-fns";
 import { invalidateCache } from "@/lib/cache";
+import { broadcastAgencyNotification } from "@/lib/realtime-broadcast";
 
 const bulkActionSchema = z.object({
   action: z.enum([
@@ -343,6 +344,14 @@ export async function POST(req: NextRequest) {
 
     // Invalidate cache after bulk operations
     invalidateCache.agency(session.user.agencyId);
+
+    // Broadcast bulk action to agency (fire and forget)
+    broadcastAgencyNotification(session.user.agencyId, {
+      type: `bulk_${validatedData.action}`,
+      title: "Bulk Action Completed",
+      message: `${result.affected} request(s) updated via bulk ${validatedData.action}`,
+      entityType: "ContentRequest",
+    }).catch(() => {});
 
     return NextResponse.json(result);
   } catch (error) {

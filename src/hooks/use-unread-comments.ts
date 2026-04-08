@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { deduplicatedFetch } from "@/lib/cache";
 
 interface UnreadCounts {
   total: number;
@@ -23,7 +24,7 @@ interface UseUnreadCommentsReturn {
 }
 
 export function useUnreadComments(
-  pollInterval: number = 30000
+  pollInterval: number = 300000 // 5 minutes - reduced from 30s to save database egress
 ): UseUnreadCommentsReturn {
   const [counts, setCounts] = useState<UnreadCounts>({ total: 0, byRequest: {} });
   const [isLoading, setIsLoading] = useState(true);
@@ -31,15 +32,15 @@ export function useUnreadComments(
 
   const fetchCounts = useCallback(async () => {
     try {
-      const response = await fetch("/api/comments/unread?groupBy=request");
-      if (response.ok) {
-        const data = await response.json();
-        if (isMountedRef.current) {
-          setCounts({
-            total: data.total || 0,
-            byRequest: data.byRequest || {},
-          });
-        }
+      // Use deduplicated fetch to prevent multiple simultaneous requests
+      const data = await deduplicatedFetch<{ total: number; byRequest: Record<string, number> }>(
+        "/api/comments/unread?groupBy=request"
+      );
+      if (isMountedRef.current) {
+        setCounts({
+          total: data.total || 0,
+          byRequest: data.byRequest || {},
+        });
       }
     } catch (error) {
       console.error("[useUnreadComments] Error fetching counts:", error);

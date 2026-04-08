@@ -283,8 +283,8 @@ export function useRecentActivity(
 ): UseRecentActivityReturn {
   const {
     limit = 20,
-    pollInterval = 30000,
-    enablePolling = true,
+    pollInterval = 300000, // 5 minutes - reduced from 30s to save database egress
+    enablePolling = false, // Disabled by default - enable only when needed
     types,
     includeTeamActivities = true,
   } = options;
@@ -523,7 +523,7 @@ export function useRecentActivity(
 // SIMPLE UNREAD COUNT HOOK
 // ============================================
 
-export function useUnreadActivityCount(pollInterval: number = 30000): number {
+export function useUnreadActivityCount(pollInterval: number = 300000): number { // 5 minutes default
   const [count, setCount] = useState(0);
 
   useEffect(() => {

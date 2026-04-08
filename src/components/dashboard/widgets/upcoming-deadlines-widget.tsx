@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { format, differenceInDays, isToday, isTomorrow } from "date-fns";
-import { widgetFetch } from "@/lib/fetch-with-timeout";
 import { Calendar, ChevronRight, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
+import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -90,31 +89,10 @@ function getUrgencyConfig(dueDate: Date) {
 // ============================================
 
 export function UpcomingDeadlinesWidget({ config, size }: WidgetProps) {
-  const [deadlines, setDeadlines] = useState<UpcomingDeadline[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await widgetFetch("/api/dashboard/widgets?widget=upcoming-deadlines");
-      if (!response.ok) throw new Error("Failed to fetch data");
-      const data = await response.json();
-      setDeadlines(data.deadlines || []);
-    } catch (err) {
-      const message = err instanceof Error && err.name === "FetchTimeoutError"
-        ? "Request timed out"
-        : "Failed to load deadlines";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Use batched widget data from context (single API call for all widgets)
+  const { data, isLoading, error, refresh } = useWidgetData();
+  const widgetData = data["upcoming-deadlines"] as { deadlines: UpcomingDeadline[] } | undefined;
+  const deadlines = widgetData?.deadlines || [];
 
   const displayCount = size === "small" ? 4 : size === "medium" ? 6 : 10;
 
@@ -136,7 +114,7 @@ export function UpcomingDeadlinesWidget({ config, size }: WidgetProps) {
       icon={<Calendar className="h-5 w-5 text-blue-500" />}
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={refresh}
       helpKey="dashboard.upcoming-deadlines"
       actions={
         <Button variant="ghost" size="sm" asChild className="text-xs text-primary h-7">

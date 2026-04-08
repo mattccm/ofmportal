@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { widgetFetch } from "@/lib/fetch-with-timeout";
 import { FileText, ChevronRight, Clock, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
+import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -49,31 +48,10 @@ function getStatusConfig(status: string) {
 // ============================================
 
 export function PendingRequestsWidget({ config, size }: WidgetProps) {
-  const [requests, setRequests] = useState<PendingRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await widgetFetch("/api/dashboard/widgets?widget=pending-requests");
-      if (!response.ok) throw new Error("Failed to fetch data");
-      const data = await response.json();
-      setRequests(data.requests || []);
-    } catch (err) {
-      const message = err instanceof Error && err.name === "FetchTimeoutError"
-        ? "Request timed out"
-        : "Failed to load pending requests";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Use batched widget data from context (single API call for all widgets)
+  const { data, isLoading, error, refresh } = useWidgetData();
+  const widgetData = data["pending-requests"] as { requests: PendingRequest[] } | undefined;
+  const requests = widgetData?.requests || [];
 
   const displayCount = size === "small" ? 3 : size === "medium" ? 5 : 8;
 
@@ -83,7 +61,7 @@ export function PendingRequestsWidget({ config, size }: WidgetProps) {
       icon={<Clock className="h-5 w-5 text-amber-500" />}
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={refresh}
       helpKey="dashboard.pending-requests"
       actions={
         <Button variant="ghost" size="sm" asChild className="text-xs text-primary h-7">

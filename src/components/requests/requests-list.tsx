@@ -294,6 +294,11 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
     open: boolean;
     request: ContentRequest | null;
   }>({ open: false, request: null });
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    requestId: string | null;
+    requestTitle: string;
+  }>({ open: false, requestId: null, requestTitle: "" });
 
   // Advanced filter state
   const [advancedFilter, setAdvancedFilter] = useState<FilterGroup>(createEmptyFilterGroup());
@@ -596,6 +601,31 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
     }
   };
 
+  // Delete a single request
+  const handleDeleteRequest = async (requestId: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete request");
+      }
+
+      toast.success("Request deleted permanently");
+      setDeleteDialog({ open: false, requestId: null, requestTitle: "" });
+
+      // Remove from local state
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveFilter = () => {
     if (!newFilterName.trim()) {
       toast.error("Please enter a filter name");
@@ -679,14 +709,14 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
   }, [filteredRequests]);
 
   // Calculate counts for suggestions
-  const pendingCount = useMemo(() =>
-    requests.filter((r) => ["PENDING", "IN_PROGRESS"].includes(r.status)).length,
-    [requests]
-  );
-  const overdueCount = useMemo(() =>
-    requests.filter((r) => r.dueDate && isPast(new Date(r.dueDate)) && !["APPROVED", "ARCHIVED"].includes(r.status)).length,
-    [requests]
-  );
+  const pendingCount = useMemo(() => {
+    if (!requests || !Array.isArray(requests)) return 0;
+    return requests.filter((r) => ["PENDING", "IN_PROGRESS"].includes(r.status)).length;
+  }, [requests]);
+  const overdueCount = useMemo(() => {
+    if (!requests || !Array.isArray(requests)) return 0;
+    return requests.filter((r) => r.dueDate && isPast(new Date(r.dueDate)) && !["APPROVED", "ARCHIVED"].includes(r.status)).length;
+  }, [requests]);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -1295,6 +1325,14 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                                   <Archive className="mr-2 h-4 w-4" />
                                   Archive
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeleteDialog({ open: true, requestId: request.id, requestTitle: request.title })}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1565,6 +1603,14 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                                   <Archive className="mr-2 h-4 w-4" />
                                   Archive
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeleteDialog({ open: true, requestId: request.id, requestTitle: request.title })}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1682,6 +1728,42 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open) =>
+          setDeleteDialog({ ...deleteDialog, open })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Request</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete &quot;{deleteDialog.requestTitle}&quot;? This action cannot be undone and will also delete all associated uploads and comments.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setDeleteDialog({ open: false, requestId: null, requestTitle: "" })
+              }
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteDialog.requestId && handleDeleteRequest(deleteDialog.requestId)}
+              disabled={loading}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Bulk Status Dialog */}
       <BulkStatusDialog

@@ -306,9 +306,10 @@ export const READ_RECEIPT_CONSTANTS = {
   // How long to wait before marking as read (to avoid accidental reads)
   READ_DELAY_MS: 1000,
   // How long to show typing indicator after last keystroke
-  TYPING_TIMEOUT_MS: 3000,
-  // Polling interval for real-time updates
-  POLL_INTERVAL_MS: 2000,
+  TYPING_TIMEOUT_MS: 5000,
+  // Polling interval for real-time updates (increased from 2s to 30s to reduce DB load)
+  // NOTE: For real-time feel, use Supabase Realtime instead of polling
+  POLL_INTERVAL_MS: 30000,
   // Debounce time for typing indicator updates
   TYPING_DEBOUNCE_MS: 500,
   // Maximum time to track a view session

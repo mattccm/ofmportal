@@ -337,6 +337,34 @@ export function UploadsPageClient({
     setBulkDownloadDialogOpen(true);
   };
 
+  // Bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const response = await fetch("/api/uploads/bulk-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uploadIds: Array.from(selectedIds),
+          action: "delete",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to delete uploads");
+
+      const data = await response.json();
+      toast.success(`${data.deleted} upload(s) deleted successfully`);
+      setSelectedIds(new Set());
+      refreshData();
+    } catch {
+      toast.error("Failed to delete uploads");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Export CSV
   const handleExportCsv = async () => {
     toast.info("Generating CSV...");
@@ -372,7 +400,8 @@ export function UploadsPageClient({
     }
   };
 
-  const pendingCount = uploads.filter((u) => u.status === "PENDING").length;
+  const safeUploads = uploads && Array.isArray(uploads) ? uploads : [];
+  const pendingCount = safeUploads.filter((u) => u.status === "PENDING").length;
 
   // Handle bulk tag operation
   const handleBulkTagApply = async (action: BulkTagAction, tagIds: string[]) => {
@@ -411,7 +440,7 @@ export function UploadsPageClient({
 
   // Filter uploads by selected tags (client-side filtering)
   const filteredUploads = selectedTagIds.length > 0
-    ? uploads.filter((upload) => {
+    ? safeUploads.filter((upload) => {
         const uploadTagIds = (upload.tags || []).map((t) => t.id);
         if (tagFilterMode === "any") {
           return selectedTagIds.some((id) => uploadTagIds.includes(id));
@@ -419,7 +448,7 @@ export function UploadsPageClient({
           return selectedTagIds.every((id) => uploadTagIds.includes(id));
         }
       })
-    : uploads;
+    : safeUploads;
 
   return (
     <div className="space-y-6">
@@ -557,6 +586,7 @@ export function UploadsPageClient({
         onBulkApprove={handleBulkApprove}
         onBulkReject={handleBulkReject}
         onBulkDownload={handleBulkDownload}
+        onBulkDelete={handleBulkDelete}
         onExportCsv={handleExportCsv}
         isProcessing={isProcessing}
       />

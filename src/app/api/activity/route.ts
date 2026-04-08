@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+import { cache, cacheKeys, cacheTTL } from "@/lib/cache";
 
 // Activity types for filtering
 export const ACTIVITY_TYPES = {
@@ -33,148 +35,89 @@ export async function GET(req: NextRequest) {
     const dateTo = url.searchParams.get("dateTo");
     const search = url.searchParams.get("search");
 
-    // Build filters
-    const whereConditions: Record<string, unknown> = {};
-
-    // Get all entity IDs belonging to the agency
-    const [uploads, requests, creators] = await Promise.all([
-      db.upload.findMany({
-        where: { request: { agencyId: session.user.agencyId } },
-        select: { id: true },
-      }),
-      db.contentRequest.findMany({
-        where: { agencyId: session.user.agencyId },
-        select: { id: true },
-      }),
-      db.creator.findMany({
-        where: { agencyId: session.user.agencyId },
-        select: { id: true },
-      }),
-    ]);
-
-    const uploadIds = uploads.map((u) => u.id);
-    const requestIds = requests.map((r) => r.id);
-    const creatorIds = creators.map((c) => c.id);
-
-    // Only show activity for entities belonging to this agency
-    const entityFilters: Record<string, unknown>[] = [
-      { entityType: "Upload", entityId: { in: uploadIds } },
-      { entityType: "ContentRequest", entityId: { in: requestIds } },
-      { entityType: "Creator", entityId: { in: creatorIds } },
-    ];
-
-    whereConditions.OR = entityFilters;
-
-    // Filter by activity type
-    if (type) {
-      let actionFilters: string[] = [];
-      switch (type) {
-        case "upload":
-          actionFilters = [
-            "upload.created",
-            "upload.completed",
-            "upload.approved",
-            "upload.rejected",
-            "upload.reviewed",
-          ];
-          break;
-        case "comment":
-          actionFilters = [
-            "comment.created",
-            "comment.updated",
-            "comment.deleted",
-          ];
-          break;
-        case "status_change":
-          actionFilters = [
-            "request.status_changed",
-            "request.approved",
-            "request.rejected",
-            "request.submitted",
-            "upload.approved",
-            "upload.rejected",
-          ];
-          break;
-        case "request":
-          actionFilters = [
-            "request.created",
-            "request.updated",
-            "request.submitted",
-            "request.approved",
-            "request.rejected",
-            "request.revision_requested",
-            "request.status_changed",
-          ];
-          break;
-        case "reminder":
-          actionFilters = [
-            "reminder.sent",
-            "reminder.scheduled",
-            "reminder.escalation",
-          ];
-          break;
-      }
-      if (actionFilters.length > 0) {
-        whereConditions.action = { in: actionFilters };
-      }
-    }
-
-    // Filter by user
-    if (userId) {
-      whereConditions.userId = userId;
-    }
-
-    // Filter by entity
-    if (entityId && entityType) {
-      whereConditions.entityId = entityId;
-      whereConditions.entityType = entityType;
-    }
-
-    // Filter by date range
-    if (dateFrom || dateTo) {
-      whereConditions.createdAt = {};
-      if (dateFrom) {
-        (whereConditions.createdAt as Record<string, unknown>).gte = new Date(dateFrom);
-      }
-      if (dateTo) {
-        const endDate = new Date(dateTo);
-        endDate.setHours(23, 59, 59, 999);
-        (whereConditions.createdAt as Record<string, unknown>).lte = endDate;
-      }
-    }
-
+    const agencyId = session.user.agencyId;
     const skip = (page - 1) * pageSize;
 
-    // Fetch activities
-    const [activities, total] = await Promise.all([
-      db.activityLog.findMany({
-        where: whereConditions,
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: pageSize,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              email: true,
-            },
-          },
-        },
-      }),
-      db.activityLog.count({
-        where: whereConditions,
-      }),
-    ]);
+    // Use raw SQL with EXISTS subqueries for efficient agency filtering
+    // This avoids fetching all entity IDs upfront - the database handles the filtering
+    const activitiesRaw = await db.$queryRaw<Array<{
+      id: string;
+      userId: string | null;
+      action: string;
+      entityType: string;
+      entityId: string;
+      metadata: Prisma.JsonValue;
+      createdAt: Date;
+      userName: string | null;
+      userAvatar: string | null;
+      userEmail: string | null;
+    }>>(
+      Prisma.sql`
+        SELECT
+          a.id, a."userId", a.action, a."entityType", a."entityId", a.metadata, a."createdAt",
+          u.name as "userName", u.avatar as "userAvatar", u.email as "userEmail"
+        FROM "ActivityLog" a
+        LEFT JOIN "User" u ON a."userId" = u.id
+        WHERE (
+          (a."entityType" = 'Upload' AND EXISTS (
+            SELECT 1 FROM "Upload" up
+            JOIN "ContentRequest" cr ON up."requestId" = cr.id
+            WHERE up.id = a."entityId" AND cr."agencyId" = ${agencyId}
+          ))
+          OR (a."entityType" = 'ContentRequest' AND EXISTS (
+            SELECT 1 FROM "ContentRequest" cr
+            WHERE cr.id = a."entityId" AND cr."agencyId" = ${agencyId}
+          ))
+          OR (a."entityType" = 'Creator' AND EXISTS (
+            SELECT 1 FROM "Creator" c
+            WHERE c.id = a."entityId" AND c."agencyId" = ${agencyId}
+          ))
+        )
+        ${type ? getTypeFilter(type) : Prisma.empty}
+        ${userId ? Prisma.sql`AND a."userId" = ${userId}` : Prisma.empty}
+        ${entityId && entityType ? Prisma.sql`AND a."entityId" = ${entityId} AND a."entityType" = ${entityType}` : Prisma.empty}
+        ${dateFrom ? Prisma.sql`AND a."createdAt" >= ${new Date(dateFrom)}` : Prisma.empty}
+        ${dateTo ? Prisma.sql`AND a."createdAt" <= ${(() => { const d = new Date(dateTo); d.setHours(23, 59, 59, 999); return d; })()}` : Prisma.empty}
+        ORDER BY a."createdAt" DESC
+        LIMIT ${pageSize}
+        OFFSET ${skip}
+      `
+    );
 
-    // Batch fetch all entity details to avoid N+1 queries
-    // Group activities by entity type
-    const activityUploadIds = activities.filter(a => a.entityType === "Upload").map(a => a.entityId);
-    const activityRequestIds = activities.filter(a => a.entityType === "ContentRequest").map(a => a.entityId);
-    const activityCreatorIds = activities.filter(a => a.entityType === "Creator").map(a => a.entityId);
+    // Get total count with same filters
+    const countResult = await db.$queryRaw<Array<{ count: bigint }>>(
+      Prisma.sql`
+        SELECT COUNT(*) as count
+        FROM "ActivityLog" a
+        WHERE (
+          (a."entityType" = 'Upload' AND EXISTS (
+            SELECT 1 FROM "Upload" up
+            JOIN "ContentRequest" cr ON up."requestId" = cr.id
+            WHERE up.id = a."entityId" AND cr."agencyId" = ${agencyId}
+          ))
+          OR (a."entityType" = 'ContentRequest' AND EXISTS (
+            SELECT 1 FROM "ContentRequest" cr
+            WHERE cr.id = a."entityId" AND cr."agencyId" = ${agencyId}
+          ))
+          OR (a."entityType" = 'Creator' AND EXISTS (
+            SELECT 1 FROM "Creator" c
+            WHERE c.id = a."entityId" AND c."agencyId" = ${agencyId}
+          ))
+        )
+        ${type ? getTypeFilter(type) : Prisma.empty}
+        ${userId ? Prisma.sql`AND a."userId" = ${userId}` : Prisma.empty}
+        ${entityId && entityType ? Prisma.sql`AND a."entityId" = ${entityId} AND a."entityType" = ${entityType}` : Prisma.empty}
+        ${dateFrom ? Prisma.sql`AND a."createdAt" >= ${new Date(dateFrom)}` : Prisma.empty}
+        ${dateTo ? Prisma.sql`AND a."createdAt" <= ${(() => { const d = new Date(dateTo); d.setHours(23, 59, 59, 999); return d; })()}` : Prisma.empty}
+      `
+    );
+    const total = Number(countResult[0]?.count || 0);
 
-    // Batch fetch all related entities in 3 queries instead of N queries
+    // Batch fetch entity details for the paginated results only (max pageSize records)
+    const activityUploadIds = activitiesRaw.filter(a => a.entityType === "Upload").map(a => a.entityId);
+    const activityRequestIds = activitiesRaw.filter(a => a.entityType === "ContentRequest").map(a => a.entityId);
+    const activityCreatorIds = activitiesRaw.filter(a => a.entityType === "Creator").map(a => a.entityId);
+
     const [uploadsData, requestsData, creatorsData] = await Promise.all([
       activityUploadIds.length > 0 ? db.upload.findMany({
         where: { id: { in: activityUploadIds } },
@@ -208,13 +151,13 @@ export async function GET(req: NextRequest) {
       }) : [],
     ]);
 
-    // Create lookup maps for O(1) access
+    // Create lookup maps
     const uploadsMap = new Map(uploadsData.map(u => [u.id, u]));
     const requestsMap = new Map(requestsData.map(r => [r.id, r]));
     const creatorsMap = new Map(creatorsData.map(c => [c.id, c]));
 
-    // Format activities with details from lookup maps (no additional queries)
-    const formattedActivities = activities.map((activity) => {
+    // Format activities
+    const formattedActivities = activitiesRaw.map((activity) => {
       const metadata = (activity.metadata as Record<string, unknown>) || {};
       let entityDetails: Record<string, unknown> = {};
 
@@ -256,19 +199,17 @@ export async function GET(req: NextRequest) {
           }
         }
       } catch (err) {
-        // If entity lookup fails, continue with empty details
         console.warn(`Failed to get entity details for ${activity.entityType}:${activity.entityId}`, err);
       }
 
-      // Build description
       const description = getActivityDescription(activity.action, { ...metadata, ...entityDetails });
 
-      // If search query provided, filter by description/metadata
+      // Search filtering
       if (search) {
         const searchLower = search.toLowerCase();
         const searchableText = [
           description,
-          activity.user?.name,
+          activity.userName,
           entityDetails.creatorName as string | undefined,
           entityDetails.requestTitle as string | undefined,
           entityDetails.uploadName as string | undefined,
@@ -285,7 +226,12 @@ export async function GET(req: NextRequest) {
         entityType: activity.entityType,
         entityId: activity.entityId,
         timestamp: activity.createdAt,
-        user: activity.user,
+        user: activity.userId ? {
+          id: activity.userId,
+          name: activity.userName,
+          avatar: activity.userAvatar,
+          email: activity.userEmail,
+        } : null,
         metadata: { ...metadata, ...entityDetails },
         description,
         icon: getActivityIcon(activity.action),
@@ -294,15 +240,22 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // Filter out null results from search
     const filteredActivities = formattedActivities.filter(Boolean);
 
-    // Get unique users for filter dropdown
-    const users = await db.user.findMany({
-      where: { agencyId: session.user.agencyId },
-      select: { id: true, name: true, avatar: true },
-      orderBy: { name: "asc" },
-    });
+    // Get unique users for filter dropdown (cached for 5 minutes - rarely changes)
+    const usersCacheKey = `${cacheKeys.agencyCreators(agencyId)}:activity-users`;
+    const users = await cache.getOrSet(
+      usersCacheKey,
+      async () => {
+        return db.user.findMany({
+          where: { agencyId },
+          select: { id: true, name: true, avatar: true },
+          orderBy: { name: "asc" },
+          take: 100,
+        });
+      },
+      { ttl: cacheTTL.LONG } // 5 minutes - team members rarely change
+    );
 
     return NextResponse.json({
       activities: filteredActivities,
@@ -327,24 +280,34 @@ export async function GET(req: NextRequest) {
   }
 }
 
+function getTypeFilter(type: string): Prisma.Sql {
+  const typeFilters: Record<string, string[]> = {
+    upload: ["upload.created", "upload.completed", "upload.approved", "upload.rejected", "upload.reviewed"],
+    comment: ["comment.created", "comment.updated", "comment.deleted"],
+    status_change: ["request.status_changed", "request.approved", "request.rejected", "request.submitted", "upload.approved", "upload.rejected"],
+    request: ["request.created", "request.updated", "request.submitted", "request.approved", "request.rejected", "request.revision_requested", "request.status_changed"],
+    reminder: ["reminder.sent", "reminder.scheduled", "reminder.escalation"],
+  };
+
+  const actions = typeFilters[type];
+  if (!actions || actions.length === 0) return Prisma.empty;
+
+  return Prisma.sql`AND a.action IN (${Prisma.join(actions)})`;
+}
+
 function getActivityDescription(
   action: string,
   metadata: Record<string, unknown>
 ): string {
   const descriptions: Record<string, string | ((m: Record<string, unknown>) => string)> = {
-    // Upload activities
     "upload.created": (m) => `Started uploading "${m.uploadName || m.fileName || "file"}"`,
     "upload.completed": (m) => `Completed upload "${m.uploadName || m.fileName || "file"}"`,
     "upload.approved": (m) => `Approved upload "${m.uploadName || m.fileName || "file"}"`,
     "upload.rejected": (m) => `Rejected upload "${m.uploadName || m.fileName || "file"}"`,
     "upload.reviewed": (m) => `Reviewed upload "${m.uploadName || m.fileName || "file"}"`,
-
-    // Comment activities
     "comment.created": (m) => `Added a comment${m.requestTitle ? ` on "${m.requestTitle}"` : ""}`,
     "comment.updated": "Updated a comment",
     "comment.deleted": "Deleted a comment",
-
-    // Request activities
     "request.created": (m) => `Created request "${m.requestTitle || m.title || "Untitled"}"`,
     "request.updated": (m) => `Updated request "${m.requestTitle || m.title || "Untitled"}"`,
     "request.submitted": (m) => `Submitted content for "${m.requestTitle || m.title || "request"}"`,
@@ -352,13 +315,9 @@ function getActivityDescription(
     "request.rejected": (m) => `Rejected request "${m.requestTitle || m.title || "Untitled"}"`,
     "request.revision_requested": (m) => `Requested revision on "${m.requestTitle || m.title || "request"}"`,
     "request.status_changed": (m) => `Changed status of "${m.requestTitle || m.title || "request"}" to ${m.newStatus || m.requestStatus || "new status"}`,
-
-    // Reminder activities
     "reminder.sent": (m) => `Sent reminder to ${m.creatorName || "creator"}`,
     "reminder.scheduled": (m) => `Scheduled reminder for ${m.creatorName || "creator"}`,
     "reminder.escalation": (m) => `Escalation reminder sent for "${m.requestTitle || "request"}"`,
-
-    // Creator activities
     "creator.invited": (m) => `Invited ${m.creatorName || "creator"} to the platform`,
     "creator.login": (m) => `${m.creatorName || "Creator"} logged into the portal`,
     "creator.portal_accessed": (m) => `${m.creatorName || "Creator"} accessed the portal`,
@@ -369,32 +328,21 @@ function getActivityDescription(
   };
 
   const desc = descriptions[action];
-  if (typeof desc === "function") {
-    return desc(metadata);
-  }
-  if (typeof desc === "string") {
-    return desc;
-  }
-
-  // Fallback: convert action to readable text
+  if (typeof desc === "function") return desc(metadata);
+  if (typeof desc === "string") return desc;
   return action.replace(/\./g, " ").replace(/_/g, " ");
 }
 
 function getActivityIcon(action: string): string {
   const icons: Record<string, string> = {
-    // Upload
     "upload.created": "upload",
     "upload.completed": "upload-check",
     "upload.approved": "check-circle",
     "upload.rejected": "x-circle",
     "upload.reviewed": "eye",
-
-    // Comment
     "comment.created": "message-square",
     "comment.updated": "edit",
     "comment.deleted": "trash",
-
-    // Request
     "request.created": "file-plus",
     "request.updated": "file-edit",
     "request.submitted": "send",
@@ -402,13 +350,9 @@ function getActivityIcon(action: string): string {
     "request.rejected": "x-circle",
     "request.revision_requested": "alert-circle",
     "request.status_changed": "refresh-cw",
-
-    // Reminder
     "reminder.sent": "bell",
     "reminder.scheduled": "clock",
     "reminder.escalation": "alert-triangle",
-
-    // Creator
     "creator.invited": "user-plus",
     "creator.login": "log-in",
     "creator.portal_accessed": "external-link",
@@ -417,32 +361,17 @@ function getActivityIcon(action: string): string {
     "creator.note_updated": "edit-3",
     "creator.note_deleted": "trash-2",
   };
-
   return icons[action] || "activity";
 }
 
 function getActivityColor(action: string): string {
-  if (action.includes("approved") || action.includes("completed") || action.includes("check")) {
-    return "emerald";
-  }
-  if (action.includes("rejected") || action.includes("revision") || action.includes("deleted")) {
-    return "red";
-  }
-  if (action.includes("upload")) {
-    return "violet";
-  }
-  if (action.includes("request") || action.includes("created")) {
-    return "blue";
-  }
-  if (action.includes("comment") || action.includes("message") || action.includes("note")) {
-    return "amber";
-  }
-  if (action.includes("reminder") || action.includes("bell") || action.includes("escalation")) {
-    return "orange";
-  }
-  if (action.includes("login") || action.includes("portal") || action.includes("invited")) {
-    return "indigo";
-  }
+  if (action.includes("approved") || action.includes("completed")) return "emerald";
+  if (action.includes("rejected") || action.includes("revision") || action.includes("deleted")) return "red";
+  if (action.includes("upload")) return "violet";
+  if (action.includes("request") || action.includes("created")) return "blue";
+  if (action.includes("comment") || action.includes("message") || action.includes("note")) return "amber";
+  if (action.includes("reminder") || action.includes("escalation")) return "orange";
+  if (action.includes("login") || action.includes("portal") || action.includes("invited")) return "indigo";
   return "gray";
 }
 
