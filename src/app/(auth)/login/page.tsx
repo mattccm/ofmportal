@@ -13,14 +13,12 @@ import {
   createRememberToken,
   isIOSPWA,
   attemptAutoLogin,
-  isIndexedDBAvailable,
   getRememberToken,
   hasIndicatorCookie,
   hasSignedOutFlag,
   clearSignedOutFlag,
   storeCreatorSession,
   getCreatorSession,
-  hasCreatorSessionIndicator,
 } from "@/lib/remember-token";
 
 function LoginForm() {
@@ -86,7 +84,6 @@ function LoginForm() {
 
       // Check if user intentionally signed out - don't auto-login
       if (hasSignedOutFlag()) {
-        console.log("[Login] User signed out intentionally, skipping auto-login");
         sendLoginDebug("login-skip-signed-out", { reason: "signed-out-flag" });
         return;
       }
@@ -94,7 +91,6 @@ function LoginForm() {
       // Quick check: if no indicator cookie, likely no token
       // This is a fast synchronous check before doing async storage checks
       if (!hasIndicatorCookie() && !isPWAMode) {
-        console.log("[Login] No indicator cookie and not in PWA mode, skipping auto-login");
         sendLoginDebug("login-skip-no-indicator", { reason: "no-indicator-not-pwa" });
         return;
       }
@@ -103,7 +99,6 @@ function LoginForm() {
       // This handles creators returning to the PWA
       const creatorSession = await getCreatorSession();
       if (creatorSession) {
-        console.log("[Login] Found creator session in IndexedDB, restoring...");
         sendLoginDebug("login-creator-restore", {
           email: creatorSession.email,
           creatorId: creatorSession.creatorId,
@@ -137,12 +132,10 @@ function LoginForm() {
       // SECOND: Check for team member remember token
       const storedToken = await getRememberToken();
       if (!storedToken) {
-        console.log("[Login] No remember token found in any storage");
         sendLoginDebug("login-no-remember-token", { reason: "no-remember-token" });
         return;
       }
 
-      console.log("[Login] Found remember token, attempting auto-login");
       autoLoginAttempted.current = true;
       setAutoLoginInProgress(true);
 
@@ -150,16 +143,14 @@ function LoginForm() {
         const result = await attemptAutoLogin();
 
         if (result) {
-          console.log("[Login] Auto-login validated, creating session");
           const signInResult = await signIn("credentials", {
             redirect: false,
             email: result.user.email,
-            password: "__REMEMBER_TOKEN_VALIDATED__",
+            rememberNonce: result.nonce,
             rememberUserId: result.user.id,
           });
 
           if (signInResult?.ok) {
-            console.log("[Login] Session created, redirecting to:", callbackUrl);
             router.push(callbackUrl);
             router.refresh();
             return;
@@ -212,7 +203,6 @@ function LoginForm() {
         if (staySignedIn) {
           try {
             await createRememberToken();
-            console.log("Remember token created successfully");
           } catch (err) {
             console.error("Failed to create remember token:", err);
             // Non-blocking - continue with login even if token creation fails
@@ -229,9 +219,6 @@ function LoginForm() {
         setLoading(false);
         return;
       }
-
-      // Log team login failure for debugging
-      console.log("Team member login result:", result);
 
       // Team login failed, try creator login
       try {
@@ -304,7 +291,6 @@ function LoginForm() {
         }
 
         // Creator login also failed
-        console.log("Creator login failed:", creatorData.error);
         setError(creatorData.error || "Invalid email or password");
         setLoading(false);
       } catch (fetchError) {
@@ -313,7 +299,7 @@ function LoginForm() {
         setLoading(false);
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Couldn't sign you in. Check your details and try again.");
       setLoading(false);
     }
   };

@@ -25,15 +25,12 @@ interface StoredToken {
   storedAt: string;
 }
 
-// ============================================
 // localStorage helpers (backup storage)
-// ============================================
 
 function storeInLocalStorage(data: StoredToken): void {
   try {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(LS_KEY, JSON.stringify(data));
-      console.log("[RememberToken] Stored in localStorage");
     }
   } catch (error) {
     console.warn("[RememberToken] localStorage store failed:", error);
@@ -70,17 +67,15 @@ function clearLocalStorage(): void {
   }
 }
 
-// ============================================
 // Cookie helpers (indicator that we have a token)
-// ============================================
 
 function setIndicatorCookie(expiresAt: string): void {
   try {
     if (typeof document !== "undefined") {
       const expires = new Date(expiresAt).toUTCString();
       // Non-HttpOnly cookie that JS can read to know we have a remember token
-      document.cookie = `${COOKIE_NAME}=1; path=/; expires=${expires}; SameSite=Lax`;
-      console.log("[RememberToken] Set indicator cookie");
+      const secure = window.location.protocol === "https:" ? "; Secure" : "";
+      document.cookie = `${COOKIE_NAME}=1; path=/; expires=${expires}; SameSite=Lax${secure}`;
     }
   } catch (error) {
     console.warn("[RememberToken] Cookie set failed:", error);
@@ -112,10 +107,8 @@ function clearIndicatorCookie(): void {
   }
 }
 
-// ============================================
 // Sign-out flag (prevents auto-login after intentional sign-out)
 // Uses sessionStorage so it persists until tab is closed
-// ============================================
 
 const SIGNOUT_FLAG_KEY = "ccm-signed-out";
 
@@ -127,7 +120,6 @@ export function setSignedOutFlag(): void {
   try {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.setItem(SIGNOUT_FLAG_KEY, "true");
-      console.log("[RememberToken] Set signed-out flag");
     }
   } catch (error) {
     console.warn("[RememberToken] Failed to set signed-out flag:", error);
@@ -155,7 +147,6 @@ export function clearSignedOutFlag(): void {
   try {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.removeItem(SIGNOUT_FLAG_KEY);
-      console.log("[RememberToken] Cleared signed-out flag");
     }
   } catch (error) {
     console.warn("[RememberToken] Failed to clear signed-out flag:", error);
@@ -215,7 +206,6 @@ export async function storeRememberToken(
     await new Promise<void>((resolve, reject) => {
       const request = store.put(data, TOKEN_KEY);
       request.onsuccess = () => {
-        console.log("[RememberToken] Token stored in IndexedDB");
         indexedDBSuccess = true;
         resolve();
       };
@@ -241,8 +231,6 @@ export async function storeRememberToken(
       throw new Error("Failed to store token in any storage mechanism");
     }
   }
-
-  console.log("[RememberToken] Token stored successfully in all mechanisms");
 }
 
 /**
@@ -268,12 +256,10 @@ export async function getRememberToken(): Promise<StoredToken | null> {
 
         // Check if token is expired
         if (new Date(data.expiresAt) < new Date()) {
-          console.log("[RememberToken] IndexedDB token expired");
           resolve(null);
           return;
         }
 
-        console.log("[RememberToken] Found valid token in IndexedDB");
         resolve(data);
       };
       request.onerror = () => {
@@ -292,14 +278,12 @@ export async function getRememberToken(): Promise<StoredToken | null> {
   // 2. Fall back to localStorage
   const lsData = getFromLocalStorage();
   if (lsData) {
-    console.log("[RememberToken] Found valid token in localStorage");
     return lsData;
   }
 
   // 3. Check if indicator cookie exists but we have no token
   // This means storage was cleared - clean up the cookie
   if (hasIndicatorCookie()) {
-    console.log("[RememberToken] Indicator cookie exists but no token found, cleaning up");
     clearIndicatorCookie();
   }
 
@@ -322,7 +306,6 @@ export async function clearRememberToken(): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const request = store.delete(TOKEN_KEY);
       request.onsuccess = () => {
-        console.log("[RememberToken] Cleared from IndexedDB");
         resolve();
       };
       request.onerror = () => {
@@ -336,13 +319,9 @@ export async function clearRememberToken(): Promise<void> {
 
   // 2. Clear localStorage
   clearLocalStorage();
-  console.log("[RememberToken] Cleared from localStorage");
 
   // 3. Clear indicator cookie
   clearIndicatorCookie();
-  console.log("[RememberToken] Cleared indicator cookie");
-
-  console.log("[RememberToken] Token cleared from all mechanisms");
 }
 
 /**
@@ -371,11 +350,11 @@ export async function attemptAutoLogin(): Promise<{
     agencyName: string;
     twoFactorEnabled: boolean;
   };
+  nonce: string;
   newToken: string;
   expiresAt: string;
 } | null> {
   if (!isIndexedDBAvailable()) {
-    console.log("[RememberToken] IndexedDB not available");
     return null;
   }
 
@@ -383,11 +362,8 @@ export async function attemptAutoLogin(): Promise<{
     const storedData = await getRememberToken();
 
     if (!storedData) {
-      console.log("[RememberToken] No stored token found");
       return null;
     }
-
-    console.log("[RememberToken] Attempting auto-login with stored token");
 
     // Send token to server for validation
     const response = await fetch("/api/auth/remember", {
@@ -403,14 +379,13 @@ export async function attemptAutoLogin(): Promise<{
       if (data.clearToken) {
         await clearRememberToken();
       }
-      console.log("[RememberToken] Auto-login failed:", data.error);
+      console.error("[RememberToken] Auto-login failed:", data.error);
       return null;
     }
 
     // Store the new rotated token
     await storeRememberToken(data.newToken, data.expiresAt, storedData.deviceName);
 
-    console.log("[RememberToken] Auto-login successful");
     return data;
   } catch (error) {
     console.error("[RememberToken] Auto-login error:", error);
@@ -423,7 +398,6 @@ export async function attemptAutoLogin(): Promise<{
  */
 export async function createRememberToken(): Promise<boolean> {
   if (!isIndexedDBAvailable()) {
-    console.log("[RememberToken] IndexedDB not available");
     return false;
   }
 
@@ -441,7 +415,6 @@ export async function createRememberToken(): Promise<boolean> {
     const data = await response.json();
     await storeRememberToken(data.token, data.expiresAt, data.deviceName);
 
-    console.log("[RememberToken] Token created and stored");
     return true;
   } catch (error) {
     console.error("[RememberToken] Error creating token:", error);
@@ -462,10 +435,8 @@ export function isIOSPWA(): boolean {
   );
 }
 
-// ============================================
 // Creator Token Storage (for creator portal)
 // Uses IndexedDB for PWA persistence
-// ============================================
 
 const CREATOR_TOKEN_KEY = "creator-session";
 const CREATOR_LS_KEY = "ccm-creator-session";
@@ -490,8 +461,6 @@ export async function storeCreatorSession(session: {
   email: string;
   avatar?: string;
 }): Promise<void> {
-  console.log("[CreatorSession] storeCreatorSession called for:", session.email);
-
   const data: CreatorSession = {
     ...session,
     storedAt: new Date().toISOString(),
@@ -506,7 +475,6 @@ export async function storeCreatorSession(session: {
     await new Promise<void>((resolve, reject) => {
       const request = store.put(data, CREATOR_TOKEN_KEY);
       request.onsuccess = () => {
-        console.log("[CreatorSession] Stored in IndexedDB");
         resolve();
       };
       request.onerror = () => {
@@ -522,7 +490,6 @@ export async function storeCreatorSession(session: {
   try {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(CREATOR_LS_KEY, JSON.stringify(data));
-      console.log("[CreatorSession] Stored in localStorage");
     }
   } catch (error) {
     console.warn("[CreatorSession] localStorage store failed:", error);
@@ -533,7 +500,6 @@ export async function storeCreatorSession(session: {
     if (typeof document !== "undefined") {
       const maxAge = 30 * 24 * 60 * 60; // 30 days
       document.cookie = `${CREATOR_COOKIE_NAME}=1; path=/; max-age=${maxAge}; SameSite=Lax`;
-      console.log("[CreatorSession] Set indicator cookie");
     }
   } catch (error) {
     console.warn("[CreatorSession] Cookie set failed:", error);
@@ -558,13 +524,9 @@ export function hasCreatorSessionIndicator(): boolean {
  * Retrieve creator session from IndexedDB or localStorage
  */
 export async function getCreatorSession(): Promise<CreatorSession | null> {
-  console.log("[CreatorSession] getCreatorSession called, checking all storage...");
-
   // 1. Try IndexedDB first
   try {
-    console.log("[CreatorSession] Opening IndexedDB...");
     const db = await openDatabase();
-    console.log("[CreatorSession] IndexedDB opened successfully");
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
 
@@ -573,15 +535,8 @@ export async function getCreatorSession(): Promise<CreatorSession | null> {
       request.onsuccess = () => {
         const data = request.result as CreatorSession | undefined;
         if (data) {
-          console.log("[CreatorSession] Found in IndexedDB:", {
-            creatorId: data.creatorId,
-            email: data.email,
-            storedAt: data.storedAt,
-            tokenPreview: data.token?.substring(0, 20) + "...",
-          });
           resolve(data);
         } else {
-          console.log("[CreatorSession] NOT found in IndexedDB (key:", CREATOR_TOKEN_KEY, ")");
           resolve(null);
         }
       };
@@ -602,10 +557,8 @@ export async function getCreatorSession(): Promise<CreatorSession | null> {
   try {
     if (typeof localStorage !== "undefined") {
       const stored = localStorage.getItem(CREATOR_LS_KEY);
-      console.log("[CreatorSession] localStorage backup key (" + CREATOR_LS_KEY + "):", stored ? "EXISTS" : "NULL");
       if (stored) {
         const data = JSON.parse(stored) as CreatorSession;
-        console.log("[CreatorSession] Found in localStorage backup");
         return data;
       }
     }
@@ -613,7 +566,6 @@ export async function getCreatorSession(): Promise<CreatorSession | null> {
     console.warn("[CreatorSession] localStorage error:", error);
   }
 
-  console.log("[CreatorSession] No session found in any storage");
   return null;
 }
 
@@ -630,7 +582,6 @@ export async function clearCreatorSession(): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const request = store.delete(CREATOR_TOKEN_KEY);
       request.onsuccess = () => {
-        console.log("[CreatorSession] Cleared from IndexedDB");
         resolve();
       };
       request.onerror = () => {
@@ -645,7 +596,6 @@ export async function clearCreatorSession(): Promise<void> {
   try {
     if (typeof localStorage !== "undefined") {
       localStorage.removeItem(CREATOR_LS_KEY);
-      console.log("[CreatorSession] Cleared from localStorage");
     }
   } catch (error) {
     console.warn("[CreatorSession] localStorage clear failed:", error);
@@ -655,7 +605,6 @@ export async function clearCreatorSession(): Promise<void> {
   try {
     if (typeof document !== "undefined") {
       document.cookie = `${CREATOR_COOKIE_NAME}=; path=/; max-age=0`;
-      console.log("[CreatorSession] Cleared indicator cookie");
     }
   } catch (error) {
     console.warn("[CreatorSession] Cookie clear failed:", error);

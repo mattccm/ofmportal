@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth";
 import { z } from "zod";
 import { randomBytes } from "crypto";
-import { rateLimit, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
+import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     // Rate limit by IP address
     const clientIp = getClientIp(req.headers);
-    const rateLimitResult = rateLimit(`login:${clientIp}`, RATE_LIMITS.login);
+    const rateLimitResult = await rateLimitAsync(`login:${clientIp}`, RATE_LIMITS.login);
 
     if (!rateLimitResult.success) {
       return NextResponse.json(
@@ -40,6 +40,23 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { email, password } = loginSchema.parse(body);
+
+    // Rate limit by email too (prevents distributed brute force)
+    const emailRateLimitResult = await rateLimitAsync(`login:email:${email.toLowerCase()}`, RATE_LIMITS.login);
+    if (!emailRateLimitResult.success) {
+      return NextResponse.json(
+        {
+          error: "Too many login attempts for this account. Please try again later.",
+          retryAfter: emailRateLimitResult.retryAfter,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(emailRateLimitResult.retryAfter),
+          },
+        }
+      );
+    }
 
     // Find creator with ACCEPTED status
     const creator = await db.creator.findFirst({

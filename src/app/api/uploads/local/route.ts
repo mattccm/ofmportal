@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import { isAllowedFileType, isAllowedFileExtension, MAX_FILE_SIZE } from "@/lib/storage";
 
 // Local file upload handler for development when S3/R2 is not configured
 // This endpoint receives files directly and stores them locally
@@ -68,6 +69,29 @@ export async function POST(req: NextRequest) {
     if (!requestId) {
       return NextResponse.json(
         { error: "Request ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "File size exceeds 5GB limit" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file type
+    if (!isAllowedFileType(file.type)) {
+      return NextResponse.json(
+        { error: "File type not allowed" },
+        { status: 400 }
+      );
+    }
+
+    if (!isAllowedFileExtension(file.name)) {
+      return NextResponse.json(
+        { error: "File extension not allowed" },
         { status: 400 }
       );
     }

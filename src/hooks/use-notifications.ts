@@ -6,9 +6,7 @@ import { useSupabaseRealtime } from "./use-supabase-realtime";
 import { channelNames, isRealtimeAvailable, type RealtimePayload } from "@/lib/supabase";
 import { deduplicatedFetch } from "@/lib/cache";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface UseNotificationsOptions {
   /** Poll interval in milliseconds. Default: 30000 (30 seconds) */
@@ -44,9 +42,7 @@ interface UseNotificationsReturn {
   markAllAsRead: () => Promise<void>;
 }
 
-// ============================================
 // HOOK IMPLEMENTATION
-// ============================================
 
 export function useNotifications(
   options: UseNotificationsOptions = {}
@@ -64,19 +60,17 @@ export function useNotifications(
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
 
+  const offsetRef = useRef(0);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
 
-  // ============================================
   // FETCH FUNCTIONS
-  // ============================================
 
   const fetchNotifications = useCallback(
     async (reset: boolean = false) => {
       try {
-        const currentOffset = reset ? 0 : offset;
+        const currentOffset = reset ? 0 : offsetRef.current;
         const params = new URLSearchParams({
           limit: limit.toString(),
           offset: currentOffset.toString(),
@@ -102,10 +96,10 @@ export function useNotifications(
 
         if (reset) {
           setNotifications(newNotifications);
-          setOffset(limit);
+          offsetRef.current = limit;
         } else {
           setNotifications((prev) => [...prev, ...newNotifications]);
-          setOffset((prev) => prev + limit);
+          offsetRef.current += limit;
         }
 
         setTotal(data.total);
@@ -121,7 +115,7 @@ export function useNotifications(
         }
       }
     },
-    [limit, offset, unreadOnly]
+    [limit, unreadOnly]
   );
 
   const fetchUnreadCount = useCallback(async () => {
@@ -138,9 +132,7 @@ export function useNotifications(
     }
   }, []);
 
-  // ============================================
   // ACTIONS
-  // ============================================
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -193,20 +185,20 @@ export function useNotifications(
     }
   }, []);
 
-  // ============================================
   // EFFECTS
-  // ============================================
 
   // Initial fetch
   useEffect(() => {
     isMountedRef.current = true;
-    fetchNotifications(true);
-    fetchUnreadCount();
+    queueMicrotask(() => {
+      fetchNotifications(true);
+      fetchUnreadCount();
+    });
 
     return () => {
       isMountedRef.current = false;
     };
-  }, []);
+  }, [fetchNotifications, fetchUnreadCount]);
 
   // Polling
   useEffect(() => {
@@ -237,9 +229,7 @@ export function useNotifications(
   };
 }
 
-// ============================================
 // SIMPLE UNREAD COUNT HOOK (with Realtime support)
-// ============================================
 
 /**
  * Get unread notification count with automatic updates via Supabase Realtime
@@ -276,7 +266,7 @@ export function useUnreadNotificationCount(
   }, []);
 
   // Use Realtime if available, otherwise fall back to polling
-  const { isConnected, isPolling } = useSupabaseRealtime({
+  const { isConnected } = useSupabaseRealtime({
     channelName: userId ? channelNames.userNotifications(userId) : "",
     onMessage: handleRealtimeNotification,
     enabled: !!userId && isRealtimeAvailable(),
@@ -287,7 +277,7 @@ export function useUnreadNotificationCount(
   // Initial fetch
   useEffect(() => {
     isMountedRef.current = true;
-    fetchCount();
+    queueMicrotask(fetchCount);
 
     return () => {
       isMountedRef.current = false;
@@ -305,9 +295,7 @@ export function useUnreadNotificationCount(
   return count;
 }
 
-// ============================================
 // ENHANCED NOTIFICATIONS HOOK WITH REALTIME
-// ============================================
 
 /**
  * Enhanced version that uses Supabase Realtime for instant updates
@@ -318,16 +306,17 @@ export function useNotificationsWithRealtime(
   options: UseNotificationsOptions = {}
 ): UseNotificationsReturn & { isRealtimeConnected: boolean } {
   const baseHook = useNotifications(options);
+  const { refresh } = baseHook;
 
   // Handle real-time notification updates
   const handleRealtimeNotification = useCallback(
     (payload: RealtimePayload) => {
       if (payload.type === "notification") {
         // Refresh the full list when a new notification arrives
-        baseHook.refresh();
+        refresh();
       }
     },
-    [baseHook.refresh]
+    [refresh]
   );
 
   // Connect to Realtime channel

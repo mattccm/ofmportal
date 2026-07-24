@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentApprovedEmail } from "@/lib/email";
 import { sendContentApprovedSms } from "@/lib/sms";
+import { dispatchWebhookEvent } from "@/lib/webhooks";
 
 const approveSchema = z.object({
   uploadIds: z.array(z.string()).min(1),
@@ -37,34 +38,83 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    // Update uploads
-    await db.upload.updateMany({
-      where: {
-        id: { in: uploadIds },
-        requestId,
-      },
-      data: {
-        status: "APPROVED",
-      },
-    });
-
-    // Check if all uploads are now approved
-    const pendingUploads = await db.upload.count({
-      where: {
-        requestId,
-        status: { not: "APPROVED" },
-      },
-    });
-
-    if (pendingUploads === 0) {
-      // All approved - update request status
-      await db.contentRequest.update({
-        where: { id: requestId },
-        data: {
-          status: "APPROVED",
-          reviewedAt: new Date(),
-          reviewedBy: session.user.id,
+    // Update uploads and decide the request transition atomically so
+    // concurrent approvals can't double-fire request.approved
+    const { approvedIds, requestApproved } = await db.$transaction(async (tx) => {
+      // Only transition uploads not already approved (idempotent)
+      const toApprove = await tx.upload.findMany({
+        where: {
+          id: { in: uploadIds },
+          requestId,
+          status: { not: "APPROVED" },
         },
+        select: { id: true },
+      });
+      let approvedIds = toApprove.map((u) => u.id);
+
+      if (approvedIds.length > 0) {
+        const updateResult = await tx.upload.updateMany({
+          where: {
+            id: { in: approvedIds },
+            status: { not: "APPROVED" },
+          },
+          data: {
+            status: "APPROVED",
+          },
+        });
+        if (updateResult.count === 0) {
+          approvedIds = [];
+        }
+      }
+
+      // All approved when nothing is still awaiting review
+      // (REJECTED uploads don't block approval)
+      const pendingUploads = await tx.upload.count({
+        where: {
+          requestId,
+          status: "PENDING",
+        },
+      });
+
+      let requestApproved = false;
+      if (pendingUploads === 0) {
+        const requestTransition = await tx.contentRequest.updateMany({
+          where: {
+            id: requestId,
+            status: { not: "APPROVED" },
+          },
+          data: {
+            status: "APPROVED",
+            reviewedAt: new Date(),
+            reviewedBy: session.user.id,
+          },
+        });
+        requestApproved = requestTransition.count > 0;
+      }
+
+      return { approvedIds, requestApproved };
+    });
+
+    // Fire webhook for approved uploads
+    if (approvedIds.length > 0) {
+      dispatchWebhookEvent(session.user.agencyId, "upload.approved", {
+        uploadIds: approvedIds,
+        requestId,
+        requestTitle: request.title,
+        creatorId: request.creatorId,
+        creatorName: request.creator.name,
+        approvedBy: session.user.id,
+      });
+    }
+
+    if (requestApproved) {
+      // Fire webhook for fully approved request
+      dispatchWebhookEvent(session.user.agencyId, "request.approved", {
+        requestId,
+        requestTitle: request.title,
+        creatorId: request.creatorId,
+        creatorName: request.creator.name,
+        approvedBy: session.user.id,
       });
 
       // Notify creator
@@ -92,18 +142,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: session.user.id,
-        action: "upload.approved",
-        entityType: "Upload",
-        entityId: uploadIds.join(","),
-        metadata: {
-          count: uploadIds.length,
-          requestId,
+    if (approvedIds.length > 0) {
+      await db.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: "upload.approved",
+          entityType: "Upload",
+          entityId: approvedIds.join(","),
+          metadata: {
+            count: approvedIds.length,
+            requestId,
+          },
         },
-      },
-    });
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -17,13 +17,18 @@ function parseConnectionUrl(url: string) {
   const sslmode = searchParams.get("sslmode");
   const pgbouncer = searchParams.get("pgbouncer") === "true";
 
+  // Supabase's pooler presents a cert that won't verify against public CAs
+  // unless its root CA is provided, so verification defaults off. Set
+  // PGSSL_REJECT_UNAUTHORIZED=true (with a CA available) to enforce it.
+  const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === "true";
+
   return {
     host: parsed.hostname,
     port: parseInt(parsed.port || "5432", 10),
     database: parsed.pathname.slice(1), // Remove leading /
     user: parsed.username,
     password: decodeURIComponent(parsed.password || ""),
-    ssl: sslmode === "require" ? { rejectUnauthorized: false } : undefined,
+    ssl: sslmode === "require" ? { rejectUnauthorized } : undefined,
     // If using pgbouncer/Supavisor, we need transaction mode support
     pgbouncer,
   };

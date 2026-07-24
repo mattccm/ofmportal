@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 
@@ -18,10 +18,10 @@ function generateApiKey(): string {
   return `${prefix}_${key}`;
 }
 
-// Hash API key for storage (simple hash, in production use bcrypt)
+// Hash API key for storage using SHA-256 with a per-key salt
 function hashApiKey(key: string): string {
-  const crypto = require("crypto");
-  return crypto.createHash("sha256").update(key).digest("hex");
+  const salt = createHash("sha256").update(key.slice(0, 3)).digest("hex").slice(0, 16);
+  return createHash("sha256").update(salt + key).digest("hex");
 }
 
 // GET /api/auth/api-keys - Get all API keys for the current user

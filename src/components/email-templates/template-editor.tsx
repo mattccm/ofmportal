@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import DOMPurify from "isomorphic-dompurify";
 import { toast } from "sonner";
 import {
   Save,
@@ -115,7 +116,7 @@ export function TemplateEditor({
         textContent: textContent || null,
       });
       setHasChanges(false);
-      toast.success("Template saved successfully");
+      toast.success("Template saved");
     } catch {
       toast.error("Failed to save template");
     }
@@ -202,7 +203,12 @@ export function TemplateEditor({
   // Get rendered preview
   const sampleData = getSampleData(template.type);
   const previewSubject = renderTemplate(subject, sampleData);
-  const previewHtml = renderTemplate(htmlContent, sampleData);
+  // Sanitize for preview: keep inline styles (needed for email layout) but strip scripts/handlers
+  const previewHtml = DOMPurify.sanitize(renderTemplate(htmlContent, sampleData), {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ["style", "form", "input", "button"],
+    ALLOW_DATA_ATTR: false,
+  });
 
   return (
     <div className="space-y-6">
@@ -350,7 +356,7 @@ export function TemplateEditor({
                     className="font-mono text-sm min-h-[400px] resize-y"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    The plain text version is used by email clients that don't
+                    The plain text version is used by email clients that don&apos;t
                     support HTML.
                   </p>
                 </TabsContent>

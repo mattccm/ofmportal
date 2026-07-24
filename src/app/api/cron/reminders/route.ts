@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runReminderCron } from "@/lib/reminders";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 // This endpoint should be called by a cron job service
 // For Vercel, add this to vercel.json:
@@ -12,10 +13,7 @@ import { runReminderCron } from "@/lib/reminders";
 
 export async function GET(req: NextRequest) {
   // Verify cron secret for security
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!verifyCronAuth(req.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

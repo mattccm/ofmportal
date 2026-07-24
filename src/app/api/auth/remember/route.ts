@@ -2,25 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 // Token configuration
 const TOKEN_EXPIRY_DAYS = 90;
-const TOKEN_BYTES = 32;
+const TOKEN_ID_BYTES = 16;
+const TOKEN_SECRET_BYTES = 32;
+// Short-lived, single-use nonce that bridges a validated remember token to a session
+const NONCE_BYTES = 32;
+const NONCE_EXPIRY_MS = 2 * 60 * 1000;
 
-/**
- * Generate a cryptographically secure token
- */
-function generateToken(): string {
-  return crypto.randomBytes(TOKEN_BYTES).toString("base64url");
+interface MintedToken {
+  token: string;
+  tokenId: string;
+  tokenHash: string;
 }
 
 /**
- * Hash a token for secure storage
+ * Mint a remember token as `${tokenId}.${secret}`.
+ * tokenId is stored in the clear for indexed lookup; only the secret is hashed.
  */
-async function hashToken(token: string): Promise<string> {
-  return bcrypt.hash(token, 10);
+async function mintToken(): Promise<MintedToken> {
+  const tokenId = crypto.randomBytes(TOKEN_ID_BYTES).toString("base64url");
+  const secret = crypto.randomBytes(TOKEN_SECRET_BYTES).toString("base64url");
+  const tokenHash = await bcrypt.hash(secret, 10);
+  return { token: `${tokenId}.${secret}`, tokenId, tokenHash };
+}
+
+/**
+ * Split a raw token into its lookup id and secret halves.
+ */
+function parseToken(token: string): { tokenId: string; secret: string } | null {
+  const dot = token.indexOf(".");
+  if (dot <= 0 || dot === token.length - 1) return null;
+  return { tokenId: token.slice(0, dot), secret: token.slice(dot + 1) };
+}
+
+/**
+ * SHA-256 hex digest (used for high-entropy single-use nonces).
+ */
+function sha256(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 /**
@@ -93,8 +117,7 @@ export async function POST(request: NextRequest) {
     const { deviceName, deviceType } = parseUserAgent(userAgent);
 
     // Generate new token
-    const token = generateToken();
-    const tokenHash = await hashToken(token);
+    const { token, tokenId, tokenHash } = await mintToken();
 
     // Calculate expiry
     const expiresAt = new Date();
@@ -113,6 +136,7 @@ export async function POST(request: NextRequest) {
     await db.rememberToken.create({
       data: {
         userId: session.user.id,
+        tokenId,
         tokenHash,
         deviceName,
         deviceType,
@@ -146,6 +170,15 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
+    const ip = getClientIp(request.headers);
+    const limit = await rateLimitAsync(`remember:${ip}`, RATE_LIMITS.login);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfter ?? 60) } }
+      );
+    }
+
     const body = await request.json();
     const { token } = body;
 
@@ -161,9 +194,20 @@ export async function PUT(request: NextRequest) {
       request.headers.get("x-real-ip") ||
       "unknown";
 
-    // Find all non-expired tokens for potential match
-    const validTokens = await db.rememberToken.findMany({
+    const invalid = NextResponse.json(
+      { error: "Invalid or expired token", clearToken: true },
+      { status: 401 }
+    );
+
+    // Indexed lookup by the public token id, then verify the secret half only.
+    const parsed = parseToken(token);
+    if (!parsed) {
+      return invalid;
+    }
+
+    const matchedToken = await db.rememberToken.findFirst({
       where: {
+        tokenId: parsed.tokenId,
         expiresAt: { gt: new Date() },
       },
       include: {
@@ -188,22 +232,13 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    // Check each token (bcrypt compare is intentionally slow)
-    let matchedToken = null;
-    for (const storedToken of validTokens) {
-      const isMatch = await bcrypt.compare(token, storedToken.tokenHash);
-      if (isMatch) {
-        matchedToken = storedToken;
-        break;
-      }
+    if (!matchedToken) {
+      return invalid;
     }
 
-    if (!matchedToken) {
-      // Token not found or expired - clear it from client
-      return NextResponse.json(
-        { error: "Invalid or expired token", clearToken: true },
-        { status: 401 }
-      );
+    const secretValid = await bcrypt.compare(parsed.secret, matchedToken.tokenHash);
+    if (!secretValid) {
+      return invalid;
     }
 
     const user = matchedToken.user;
@@ -214,8 +249,7 @@ export async function PUT(request: NextRequest) {
     });
 
     // Generate new rotated token
-    const newToken = generateToken();
-    const newTokenHash = await hashToken(newToken);
+    const { token: newToken, tokenId: newTokenId, tokenHash: newTokenHash } = await mintToken();
     const { deviceName, deviceType } = parseUserAgent(userAgent);
 
     const newExpiresAt = new Date();
@@ -224,6 +258,7 @@ export async function PUT(request: NextRequest) {
     await db.rememberToken.create({
       data: {
         userId: user.id,
+        tokenId: newTokenId,
         tokenHash: newTokenHash,
         deviceName,
         deviceType,
@@ -235,7 +270,18 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    // Return user data for session creation + new token
+    // Issue a single-use nonce bound to this user for the credentials sign-in.
+    // Only the hash is stored; the raw nonce is returned to the client once.
+    const nonce = crypto.randomBytes(NONCE_BYTES).toString("base64url");
+    await db.rememberAuthNonce.create({
+      data: {
+        tokenHash: sha256(nonce),
+        userId: user.id,
+        expiresAt: new Date(Date.now() + NONCE_EXPIRY_MS),
+      },
+    });
+
+    // Return user data for session creation + new token + auth nonce
     return NextResponse.json({
       user: {
         id: user.id,
@@ -247,6 +293,7 @@ export async function PUT(request: NextRequest) {
         agencyName: user.agency?.name || "",
         twoFactorEnabled: user.twoFactorEnabled,
       },
+      nonce,
       newToken,
       expiresAt: newExpiresAt.toISOString(),
     });

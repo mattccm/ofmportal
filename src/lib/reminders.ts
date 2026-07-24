@@ -21,10 +21,7 @@ export async function processReminders() {
   const endOfDay = addDays(today, 1);
 
   // First, process any auto-resume for paused creators
-  const resumedCount = await processAutoResumeReminders();
-  if (resumedCount > 0) {
-    console.log(`Auto-resumed reminders for ${resumedCount} creators`);
-  }
+  await processAutoResumeReminders();
 
   // Process auto-generated scheduled reminders first
   await processScheduledReminders(today, endOfDay);
@@ -81,9 +78,8 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
         },
       },
     },
+    take: 200, // Bounded per run to stay within function timeout
   });
-
-  console.log(`Processing ${scheduledReminders.length} individual scheduled reminders`);
 
   for (const reminder of scheduledReminders) {
     const { request } = reminder;
@@ -105,8 +101,6 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
     );
 
     if (!sendCheck.shouldSend) {
-      console.log(`Skipping reminder ${reminder.id}: ${sendCheck.reason}`);
-
       // If it's quiet hours, reschedule for after quiet hours end
       if (sendCheck.reason?.includes("quiet hours")) {
         const quietHours = await getQuietHoursConfig(request.agencyId, request.creatorId);
@@ -116,7 +110,6 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
           where: { id: reminder.id },
           data: { scheduledAt: adjustedAt },
         });
-        console.log(`Rescheduled reminder ${reminder.id} to ${adjustedAt.toISOString()}`);
       }
       continue;
     }
@@ -124,6 +117,14 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
     const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
     const dueDate = request.dueDate ? format(request.dueDate, "MMMM d, yyyy") : "Not set";
     const daysUntilDue = request.dueDate ? differenceInDays(request.dueDate, today) : 0;
+
+    // Claim (mark SENT) before sending to minimize the double-send window across
+    // overlapping runs; true idempotency would need a dedicated claim state
+    const claim = await db.reminder.updateMany({
+      where: { id: reminder.id, status: "PENDING" },
+      data: { status: "SENT", sentAt: new Date() },
+    });
+    if (claim.count === 0) continue;
 
     try {
       if (reminder.channel === "EMAIL") {
@@ -144,11 +145,6 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
           portalLink,
         });
       }
-
-      await db.reminder.update({
-        where: { id: reminder.id },
-        data: { status: "SENT", sentAt: new Date() },
-      });
 
       // Log the sent reminder
       await db.activityLog.create({
@@ -171,6 +167,7 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
         where: { id: reminder.id },
         data: {
           status: "FAILED",
+          sentAt: null,
           error: error instanceof Error ? error.message : "Unknown error",
         },
       });
@@ -184,6 +181,7 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
       dueDate: { lt: today },
     },
     select: { id: true },
+    take: 200, // Bounded per run to stay within function timeout
   });
 
   for (const request of overdueRequests) {
@@ -210,13 +208,19 @@ async function processBatchedReminder(
   );
 
   if (!sendCheck.shouldSend) {
-    console.log(`Skipping batched reminder for ${batch.creatorName}: ${sendCheck.reason}`);
     return;
   }
 
   // Create a batched reminder record
   const batchedReminderId = await createBatchedReminder(batch);
   if (!batchedReminderId) return;
+
+  // Claim (mark SENT) before sending to minimize the double-send window
+  const claim = await db.reminder.updateMany({
+    where: { id: batchedReminderId, status: "PENDING" },
+    data: { status: "SENT", sentAt: new Date() },
+  });
+  if (claim.count === 0) return;
 
   const portalLink = `${process.env.APP_URL}/portal/${batch.creatorId}`;
 
@@ -242,11 +246,6 @@ async function processBatchedReminder(
       });
     }
 
-    await db.reminder.update({
-      where: { id: batchedReminderId },
-      data: { status: "SENT", sentAt: new Date() },
-    });
-
     // Log the batched reminder
     await db.activityLog.create({
       data: {
@@ -262,16 +261,13 @@ async function processBatchedReminder(
         },
       },
     });
-
-    console.log(
-      `Sent batched reminder to ${batch.creatorName} for ${batch.requests.length} requests`
-    );
   } catch (error) {
     console.error(`Failed to send batched reminder for ${batch.creatorName}:`, error);
     await db.reminder.update({
       where: { id: batchedReminderId },
       data: {
         status: "FAILED",
+        sentAt: null,
         error: error instanceof Error ? error.message : "Unknown error",
       },
     });
@@ -321,6 +317,7 @@ async function processLegacyReminders(today: Date) {
           },
         },
       },
+      take: 200, // Bounded per run to stay within function timeout
     });
 
     for (const request of requests) {
@@ -363,6 +360,7 @@ async function processLegacyReminders(today: Date) {
 
       // Send email reminder
       if (defaultConfig.sendEmail) {
+        // Created as SENT before sending to minimize the double-send window
         const reminder = await db.reminder.create({
           data: {
             requestId: request.id,
@@ -370,6 +368,8 @@ async function processLegacyReminders(today: Date) {
             channel: "EMAIL",
             scheduledAt: new Date(),
             isAutoGenerated: false, // Mark as legacy
+            status: "SENT",
+            sentAt: new Date(),
           },
         });
 
@@ -382,17 +382,13 @@ async function processLegacyReminders(today: Date) {
             daysUntilDue,
             portalLink,
           });
-
-          await db.reminder.update({
-            where: { id: reminder.id },
-            data: { status: "SENT", sentAt: new Date() },
-          });
         } catch (error) {
           console.error("Failed to send reminder email:", error);
           await db.reminder.update({
             where: { id: reminder.id },
             data: {
               status: "FAILED",
+              sentAt: null,
               error: error instanceof Error ? error.message : "Unknown error",
             },
           });
@@ -406,6 +402,7 @@ async function processLegacyReminders(today: Date) {
         (request.creator.preferredContact === "SMS" ||
           request.creator.preferredContact === "BOTH")
       ) {
+        // Created as SENT before sending to minimize the double-send window
         const reminder = await db.reminder.create({
           data: {
             requestId: request.id,
@@ -413,6 +410,8 @@ async function processLegacyReminders(today: Date) {
             channel: "SMS",
             scheduledAt: new Date(),
             isAutoGenerated: false, // Mark as legacy
+            status: "SENT",
+            sentAt: new Date(),
           },
         });
 
@@ -424,17 +423,13 @@ async function processLegacyReminders(today: Date) {
             daysUntilDue,
             portalLink,
           });
-
-          await db.reminder.update({
-            where: { id: reminder.id },
-            data: { status: "SENT", sentAt: new Date() },
-          });
         } catch (error) {
           console.error("Failed to send reminder SMS:", error);
           await db.reminder.update({
             where: { id: reminder.id },
             data: {
               status: "FAILED",
+              sentAt: null,
               error: error instanceof Error ? error.message : "Unknown error",
             },
           });
@@ -446,11 +441,8 @@ async function processLegacyReminders(today: Date) {
 
 // Function to be called by a cron job (e.g., Vercel Cron)
 export async function runReminderCron() {
-  console.log("Running reminder cron job...");
-
   try {
     await processReminders();
-    console.log("Reminder cron job completed successfully");
     return { success: true };
   } catch (error) {
     console.error("Reminder cron job failed:", error);

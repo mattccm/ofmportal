@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { LOCAL_UPLOAD_DIR } from "@/lib/storage";
 
 // MIME type mapping
@@ -11,7 +14,7 @@ const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".gif": "image/gif",
   ".webp": "image/webp",
-  ".svg": "image/svg+xml",
+  // SVG intentionally excluded - can contain scripts
   ".mp4": "video/mp4",
   ".webm": "video/webm",
   ".mov": "video/quicktime",
@@ -25,6 +28,16 @@ const MIME_TYPES: Record<string, string> = {
 function getMimeType(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();
   return MIME_TYPES[ext] || "application/octet-stream";
+}
+
+// Media types that may be embedded in <img>/<video>/<audio> tags, where
+// callers (creator portal) cannot attach credentials to the request
+function isInlineMediaType(mimeType: string): boolean {
+  return (
+    mimeType.startsWith("image/") ||
+    mimeType.startsWith("video/") ||
+    mimeType.startsWith("audio/")
+  );
 }
 
 /**
@@ -51,18 +64,56 @@ export async function GET(
 
     // Validate path to prevent directory traversal
     const normalizedKey = path.normalize(storageKey);
-    if (normalizedKey.includes("..") || path.isAbsolute(normalizedKey)) {
+    if (normalizedKey.includes("..") || path.isAbsolute(normalizedKey) || /[<>:"|?*]/.test(normalizedKey)) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
     }
 
     // Construct full file path
     const filePath = path.join(LOCAL_UPLOAD_DIR, normalizedKey);
 
-    // Verify file is within upload directory
+    // Verify file is within upload directory (path separator boundary
+    // prevents sibling-directory prefix matches like "uploads-other")
     const resolvedPath = path.resolve(filePath);
     const resolvedUploadDir = path.resolve(LOCAL_UPLOAD_DIR);
-    if (!resolvedPath.startsWith(resolvedUploadDir)) {
+    if (!resolvedPath.startsWith(resolvedUploadDir + path.sep)) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+    }
+
+    const mimeType = getMimeType(filePath);
+
+    // Authenticate: staff session cookie, or creator portal token
+    // (header or query param), with creators restricted to their own files.
+    // Inline media (image/video/audio) is exempt because it is loaded via
+    // <img>/<video> tags that cannot carry credentials.
+    const session = await getServerSession(authOptions);
+    const isStaff = Boolean(session?.user?.agencyId);
+    let isAuthorized = isStaff;
+
+    if (!isAuthorized) {
+      const creatorToken =
+        req.headers.get("x-creator-token") ||
+        req.nextUrl.searchParams.get("token");
+
+      if (creatorToken) {
+        const creator = await db.creator.findFirst({
+          where: {
+            sessionToken: creatorToken,
+            inviteStatus: "ACCEPTED",
+            sessionExpiry: {
+              gt: new Date(),
+            },
+          },
+          select: { id: true },
+        });
+
+        // Keys are agencyId/creatorId/requestId/timestamp-name
+        const keySegments = normalizedKey.split(/[/\\]/);
+        isAuthorized = Boolean(creator && keySegments.includes(creator.id));
+      }
+    }
+
+    if (!isAuthorized && !isInlineMediaType(mimeType)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check if file exists
@@ -72,7 +123,6 @@ export async function GET(
 
     // Read file
     const fileBuffer = await readFile(filePath);
-    const mimeType = getMimeType(filePath);
 
     // Return file with appropriate headers
     return new NextResponse(fileBuffer, {

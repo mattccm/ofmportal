@@ -1,8 +1,10 @@
 import { db } from "./db";
+import {
+  broadcastNotification,
+  broadcastNotificationsToUser,
+} from "./realtime-broadcast";
 
-// ============================================
 // NOTIFICATION TYPES ENUM
-// ============================================
 
 export enum NotificationType {
   UPLOAD_SUBMITTED = "UPLOAD_SUBMITTED",
@@ -18,9 +20,7 @@ export enum NotificationType {
   SYSTEM = "SYSTEM",
 }
 
-// ============================================
 // NOTIFICATION INTERFACES
-// ============================================
 
 export interface NotificationMetadata {
   requestId?: string;
@@ -60,9 +60,7 @@ export interface NotificationResult {
   createdAt: Date;
 }
 
-// ============================================
 // NOTIFICATION SERVICE
-// ============================================
 
 /**
  * Create a new notification for a user
@@ -82,9 +80,18 @@ export async function createNotification({
       title,
       message,
       link: link || null,
-      // Store metadata as JSON in a separate field if needed
-      // For now, we'll encode it in the message or use a workaround
+      // Metadata could live in a dedicated field if we need it later
     },
+  });
+
+  // Push to the recipient's realtime channel so the bell updates instantly.
+  // Failures are swallowed inside the broadcast helper.
+  await broadcastNotification(userId, {
+    id: notification.id,
+    type,
+    title,
+    message,
+    link: link || undefined,
   });
 
   return {
@@ -109,16 +116,42 @@ export async function createBulkNotifications(
     })),
   });
 
+  // Broadcast to each recipient's realtime channel, batching multiple
+  // notifications for the same user into a single channel subscription.
+  const byUser = new Map<string, CreateNotificationParams[]>();
+  for (const n of notifications) {
+    const existing = byUser.get(n.userId);
+    if (existing) {
+      existing.push(n);
+    } else {
+      byUser.set(n.userId, [n]);
+    }
+  }
+
+  await Promise.all(
+    Array.from(byUser.entries()).map(([userId, items]) =>
+      broadcastNotificationsToUser(
+        userId,
+        items.map((n) => ({
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          link: n.link,
+        }))
+      )
+    )
+  );
+
   return result.count;
 }
 
 /**
  * Mark a single notification as read
  */
-export async function markAsRead(notificationId: string): Promise<boolean> {
+export async function markAsRead(notificationId: string, userId?: string): Promise<boolean> {
   try {
     await db.notification.update({
-      where: { id: notificationId },
+      where: { id: notificationId, ...(userId ? { userId } : {}) },
       data: { readAt: new Date() },
     });
     return true;
@@ -130,10 +163,10 @@ export async function markAsRead(notificationId: string): Promise<boolean> {
 /**
  * Mark a single notification as unread
  */
-export async function markAsUnread(notificationId: string): Promise<boolean> {
+export async function markAsUnread(notificationId: string, userId?: string): Promise<boolean> {
   try {
     await db.notification.update({
-      where: { id: notificationId },
+      where: { id: notificationId, ...(userId ? { userId } : {}) },
       data: { readAt: null },
     });
     return true;
@@ -146,11 +179,13 @@ export async function markAsUnread(notificationId: string): Promise<boolean> {
  * Mark multiple notifications as read
  */
 export async function markMultipleAsRead(
-  notificationIds: string[]
+  notificationIds: string[],
+  userId?: string
 ): Promise<number> {
   const result = await db.notification.updateMany({
     where: {
       id: { in: notificationIds },
+      ...(userId ? { userId } : {}),
     },
     data: { readAt: new Date() },
   });
@@ -162,11 +197,13 @@ export async function markMultipleAsRead(
  * Mark multiple notifications as unread
  */
 export async function markMultipleAsUnread(
-  notificationIds: string[]
+  notificationIds: string[],
+  userId?: string
 ): Promise<number> {
   const result = await db.notification.updateMany({
     where: {
       id: { in: notificationIds },
+      ...(userId ? { userId } : {}),
     },
     data: { readAt: null },
   });
@@ -298,9 +335,7 @@ export async function deleteOldNotifications(
   return result.count;
 }
 
-// ============================================
 // NOTIFICATION HELPER FUNCTIONS
-// ============================================
 
 /**
  * Get notification icon name based on type
@@ -379,9 +414,7 @@ export function getNotificationGradient(type: NotificationType): string {
   );
 }
 
-// ============================================
 // NOTIFICATION CREATION HELPERS
-// ============================================
 
 /**
  * Notify user when content is submitted for review
@@ -572,9 +605,7 @@ export async function notifyTeam(
   );
 }
 
-// ============================================
 // PREFERENCE-AWARE NOTIFICATION HELPERS
-// ============================================
 
 /**
  * Maps notification types to preference categories
@@ -605,9 +636,7 @@ export function getNotificationCategory(
   }
 }
 
-// ============================================
 // WATCHER NOTIFICATION HELPERS
-// ============================================
 
 /**
  * Watcher notification preference types

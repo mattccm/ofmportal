@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { fileExists } from "@/lib/storage";
+import { dispatchWebhookEvent } from "@/lib/webhooks";
 
 const completeUploadSchema = z.object({
   uploadId: z.string().min(1, "Upload ID is required"),
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       const creator = await db.creator.findFirst({
         where: {
           sessionToken: creatorToken,
+          inviteStatus: "ACCEPTED",
           sessionExpiry: {
             gt: new Date(),
           },
@@ -55,16 +57,13 @@ export async function POST(req: NextRequest) {
       });
 
       if (!creator) {
-        console.error("[UploadComplete] Creator not found or session expired for token:", creatorToken.substring(0, 20) + "...");
+        console.error("[UploadComplete] Creator not found or session expired");
         return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
       }
 
       if (creator.id !== upload.creatorId) {
         console.error("[UploadComplete] Creator mismatch - session creator:", creator.id, "upload creator:", upload.creatorId);
-        // Allow upload if request has no creator assigned yet or if creator matches request's creator
-        if (upload.request.creatorId && upload.request.creatorId !== creator.id) {
-          return NextResponse.json({ error: "Not authorized to complete this upload" }, { status: 401 });
-        }
+        return NextResponse.json({ error: "Not authorized to complete this upload" }, { status: 401 });
       }
     } else {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -79,50 +78,86 @@ export async function POST(req: NextRequest) {
       exists = await fileExists(upload.storageKey);
     }
 
-    // If still not found, log warning but proceed anyway (file may still be propagating)
     if (!exists) {
-      console.warn(`File verification failed for ${upload.storageKey}, proceeding with completion anyway`);
+      console.error(`[UploadComplete] File verification failed for ${upload.storageKey}`);
+      return NextResponse.json(
+        { error: "File not found in storage. Please retry the upload." },
+        { status: 400 }
+      );
     }
 
-    // Update upload status
-    const updatedUpload = await db.upload.update({
-      where: { id: uploadId },
+    // Update upload status (only if not already completed, so retries are idempotent)
+    const transition = await db.upload.updateMany({
+      where: {
+        id: uploadId,
+        uploadStatus: { not: "COMPLETED" },
+      },
       data: {
         uploadStatus: "COMPLETED",
         uploadProgress: 100,
         uploadedAt: new Date(),
       },
     });
+    const transitioned = transition.count > 0;
 
-    // Check if all uploads for this request are complete
-    // and update request status if needed
-    const pendingUploads = await db.upload.count({
-      where: {
-        requestId: upload.requestId,
-        uploadStatus: { not: "COMPLETED" },
-      },
+    const updatedUpload = await db.upload.findUnique({
+      where: { id: uploadId },
     });
 
-    if (pendingUploads === 0) {
-      // Check total uploads for this request
-      const totalUploads = await db.upload.count({
+    if (!updatedUpload) {
+      return NextResponse.json({ error: "Upload not found" }, { status: 404 });
+    }
+
+    if (transitioned) {
+      // Fire webhook events
+      dispatchWebhookEvent(upload.request.agencyId, "upload.completed", {
+        uploadId: updatedUpload.id,
+        fileName: updatedUpload.originalName,
+        fileSize: Number(updatedUpload.fileSize),
+        requestId: upload.requestId,
+        creatorId: upload.creatorId,
+        creatorName: upload.request.creator.name,
+      });
+
+      // Also fire creator.uploaded
+      dispatchWebhookEvent(upload.request.agencyId, "creator.uploaded", {
+        creatorId: upload.creatorId,
+        creatorName: upload.request.creator.name,
+        uploadId: updatedUpload.id,
+        fileName: updatedUpload.originalName,
+        requestId: upload.requestId,
+      });
+
+      // Check if all uploads for this request are complete
+      // and update request status if needed
+      const pendingUploads = await db.upload.count({
         where: {
           requestId: upload.requestId,
-          uploadStatus: "COMPLETED",
+          uploadStatus: { not: "COMPLETED" },
         },
       });
 
-      if (totalUploads > 0) {
-        // Update request status to IN_PROGRESS if it was PENDING
-        await db.contentRequest.updateMany({
+      if (pendingUploads === 0) {
+        // Check total uploads for this request
+        const totalUploads = await db.upload.count({
           where: {
-            id: upload.requestId,
-            status: "PENDING",
-          },
-          data: {
-            status: "IN_PROGRESS",
+            requestId: upload.requestId,
+            uploadStatus: "COMPLETED",
           },
         });
+
+        if (totalUploads > 0) {
+          // Update request status to IN_PROGRESS if it was PENDING
+          await db.contentRequest.updateMany({
+            where: {
+              id: upload.requestId,
+              status: "PENDING",
+            },
+            data: {
+              status: "IN_PROGRESS",
+            },
+          });
+        }
       }
     }
 

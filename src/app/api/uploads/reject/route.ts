@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendRevisionRequestEmail } from "@/lib/email";
 import { sendRevisionRequestSms } from "@/lib/sms";
+import { dispatchWebhookEvent } from "@/lib/webhooks";
 
 const rejectSchema = z.object({
   uploadIds: z.array(z.string()).min(1),
@@ -38,79 +39,115 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    // Update uploads
-    await db.upload.updateMany({
-      where: {
-        id: { in: uploadIds },
-        requestId,
-      },
-      data: {
-        status: "REJECTED",
-      },
-    });
-
-    // Add comment with rejection reason
-    await db.comment.create({
-      data: {
-        requestId,
-        userId: session.user.id,
-        message: `Uploads rejected: ${reason}`,
-        isInternal: false,
-      },
-    });
-
-    // Update request status
-    await db.contentRequest.update({
-      where: { id: requestId },
-      data: {
-        status: "NEEDS_REVISION",
-        reviewedAt: new Date(),
-        reviewedBy: session.user.id,
-      },
-    });
-
-    // Notify creator
-    const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${requestId}`;
-
-    try {
-      await sendRevisionRequestEmail({
-        to: request.creator.email,
-        creatorName: request.creator.name,
-        requestTitle: request.title,
-        feedback: reason,
-        portalLink,
+    // Update uploads and request status atomically so retries and
+    // concurrent rejections can't double-fire notifications
+    const rejectedIds = await db.$transaction(async (tx) => {
+      // Only transition uploads not already rejected (idempotent)
+      const toReject = await tx.upload.findMany({
+        where: {
+          id: { in: uploadIds },
+          requestId,
+          status: { not: "REJECTED" },
+        },
+        select: { id: true },
       });
+      let rejectedIds = toReject.map((u) => u.id);
 
-      if (
-        request.creator.phone &&
-        (request.creator.preferredContact === "SMS" ||
-          request.creator.preferredContact === "BOTH")
-      ) {
-        await sendRevisionRequestSms({
-          to: request.creator.phone,
-          creatorName: request.creator.name,
-          requestTitle: request.title,
-          portalLink,
+      if (rejectedIds.length > 0) {
+        const updateResult = await tx.upload.updateMany({
+          where: {
+            id: { in: rejectedIds },
+            status: { not: "REJECTED" },
+          },
+          data: {
+            status: "REJECTED",
+          },
+        });
+        if (updateResult.count === 0) {
+          rejectedIds = [];
+        }
+      }
+
+      if (rejectedIds.length > 0) {
+        // Add comment with rejection reason
+        await tx.comment.create({
+          data: {
+            requestId,
+            userId: session.user.id,
+            message: `Uploads rejected: ${reason}`,
+            isInternal: false,
+          },
+        });
+
+        // Update request status
+        await tx.contentRequest.update({
+          where: { id: requestId },
+          data: {
+            status: "NEEDS_REVISION",
+            reviewedAt: new Date(),
+            reviewedBy: session.user.id,
+          },
         });
       }
-    } catch (error) {
-      console.error("Failed to send rejection notification:", error);
-    }
 
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: session.user.id,
-        action: "upload.rejected",
-        entityType: "Upload",
-        entityId: uploadIds.join(","),
-        metadata: {
-          count: uploadIds.length,
-          requestId,
-          reason,
-        },
-      },
+      return rejectedIds;
     });
+
+    if (rejectedIds.length > 0) {
+      // Fire webhook for rejected uploads
+      dispatchWebhookEvent(session.user.agencyId, "upload.rejected", {
+        uploadIds: rejectedIds,
+        requestId,
+        requestTitle: request.title,
+        creatorId: request.creatorId,
+        creatorName: request.creator.name,
+        reason,
+        rejectedBy: session.user.id,
+      });
+
+      // Notify creator
+      const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${requestId}`;
+
+      try {
+        await sendRevisionRequestEmail({
+          to: request.creator.email,
+          creatorName: request.creator.name,
+          requestTitle: request.title,
+          feedback: reason,
+          portalLink,
+        });
+
+        if (
+          request.creator.phone &&
+          (request.creator.preferredContact === "SMS" ||
+            request.creator.preferredContact === "BOTH")
+        ) {
+          await sendRevisionRequestSms({
+            to: request.creator.phone,
+            creatorName: request.creator.name,
+            requestTitle: request.title,
+            portalLink,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to send rejection notification:", error);
+      }
+
+      // Log activity
+      await db.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: "upload.rejected",
+          entityType: "Upload",
+          entityId: rejectedIds.join(","),
+          metadata: {
+            count: rejectedIds.length,
+            requestId,
+            reason,
+          },
+        },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

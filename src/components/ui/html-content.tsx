@@ -1,17 +1,27 @@
 "use client";
 
+import DOMPurify from "isomorphic-dompurify";
 import { cn } from "@/lib/utils";
 
 /**
- * Sanitize HTML to prevent XSS while keeping formatting
+ * Sanitize HTML to prevent XSS while keeping formatting.
+ * Uses DOMPurify with an allowlist - only permitted tags and attributes are kept.
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
-  // Remove script tags and event handlers
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/on\w+="[^"]*"/gi, "")
-    .replace(/on\w+='[^']*'/gi, "");
+
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      "p", "br", "b", "i", "u", "em", "strong", "a", "ul", "ol", "li",
+      "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "code",
+      "span", "div", "img", "hr", "table", "thead", "tbody", "tr", "td", "th",
+      "sub", "sup", "small", "del", "s",
+    ],
+    ALLOWED_ATTR: ["href", "title", "target", "rel", "src", "alt", "width", "height", "class"],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    FORBID_ATTR: ["style"],
+    ALLOW_DATA_ATTR: false,
+  });
 }
 
 /**

@@ -9,7 +9,6 @@ import {
   getRememberToken,
   hasIndicatorCookie,
   hasSignedOutFlag,
-  clearSignedOutFlag,
 } from "@/lib/remember-token";
 
 interface AuthProviderProps {
@@ -64,25 +63,21 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
   const tryAutoLogin = useCallback(async (force = false) => {
     // Check if user intentionally signed out - don't auto-login in that case
     if (hasSignedOutFlag()) {
-      console.log("[AuthProvider] User signed out intentionally, skipping auto-login");
       return false;
     }
 
     // Prevent multiple simultaneous attempts
     if (isAttemptingAutoLogin) {
-      console.log("[AuthProvider] Auto-login already in progress");
       return false;
     }
 
     // Don't retry unless forced (e.g., on resume)
     if (autoLoginAttempted.current && !force) {
-      console.log("[AuthProvider] Auto-login already attempted");
       return false;
     }
 
     // Only attempt if IndexedDB is available
     if (!isIndexedDBAvailable()) {
-      console.log("[AuthProvider] IndexedDB not available");
       return false;
     }
 
@@ -90,31 +85,26 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
     autoLoginAttempted.current = true;
 
     try {
-      console.log("[AuthProvider] Attempting auto-login with remember token");
       const result = await attemptAutoLogin();
 
       if (result) {
-        console.log("[AuthProvider] Auto-login successful, signing in");
         // Use the credentials provider with a special "remember" flow
         // This creates a new session from the validated token
         const signInResult = await signIn("credentials", {
           redirect: false,
           email: result.user.email,
-          // Special marker that the remember token API has already validated
-          password: "__REMEMBER_TOKEN_VALIDATED__",
+          // Single-use nonce proving the remember token API validated the token
+          rememberNonce: result.nonce,
           rememberUserId: result.user.id,
         });
 
         if (signInResult?.ok) {
-          console.log("[AuthProvider] Session created from remember token");
           // Force a page refresh to ensure session is picked up everywhere
           window.location.reload();
           return true;
         } else {
           console.error("[AuthProvider] signIn failed:", signInResult?.error);
         }
-      } else {
-        console.log("[AuthProvider] No valid remember token found");
       }
     } catch (error) {
       console.error("[AuthProvider] Auto-login failed:", error);
@@ -127,8 +117,6 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
 
   // Handle iOS PWA resume - pageshow event fires when app is resumed
   const handlePageShow = useCallback(async (event: PageTransitionEvent) => {
-    console.log("[AuthProvider] pageshow event, persisted:", event.persisted);
-
     // event.persisted is true when page is restored from bfcache
     if (event.persisted) {
       // Reset the attempt flag to allow retry on resume
@@ -137,16 +125,13 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
       // Force session refresh when resuming from bfcache
       try {
         const session = await update();
-        console.log("[AuthProvider] Session refreshed on resume:", !!session);
 
         // If no session after refresh, try auto-login
         if (!session?.user) {
-          console.log("[AuthProvider] No session after resume, trying auto-login");
           await tryAutoLogin(true);
         }
       } catch {
         // Session update failed - try auto-login
-        console.log("[AuthProvider] Session refresh failed on page resume, trying auto-login");
         await tryAutoLogin(true);
       }
     }
@@ -155,25 +140,21 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
   // Handle visibility change - when app comes to foreground
   const handleVisibilityChange = useCallback(async () => {
     if (document.visibilityState === "visible") {
-      console.log("[AuthProvider] App became visible");
-
       // Delay to let iOS settle, then check session
       setTimeout(async () => {
         try {
           const session = await update();
-          console.log("[AuthProvider] Session on visibility:", !!session?.user);
 
           // If session was lost, try auto-login
           if (!session?.user && isIndexedDBAvailable()) {
             const hasToken = await getRememberToken();
             if (hasToken) {
-              console.log("[AuthProvider] Have token but no session, trying auto-login");
               autoLoginAttempted.current = false; // Reset to allow attempt
               await tryAutoLogin(true);
             }
           }
         } catch {
-          console.log("[AuthProvider] Session refresh failed on visibility change");
+          // Session refresh failed; nothing to do
         }
       }, 200);
     }
@@ -191,25 +172,16 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
       const hasCookieIndicator = hasIndicatorCookie();
       const isPWA = isStandaloneMode() || isIOSPWA();
 
-      console.log("[AuthProvider] Early check - PWA:", isPWA, "Cookie indicator:", hasCookieIndicator);
-
       // If not in PWA mode and no cookie indicator, skip
       if (!isPWA && !hasCookieIndicator) {
-        console.log("[AuthProvider] No PWA mode and no cookie indicator, skipping early check");
         return;
       }
 
       // If we have the cookie indicator, we likely have a token - check storage
+      // (getRememberToken also cleans up a stale indicator cookie)
       if (hasCookieIndicator || isPWA) {
-        console.log("[AuthProvider] Checking for remember token in storage");
-
         try {
-          const storedToken = await getRememberToken();
-          if (storedToken) {
-            console.log("[AuthProvider] Found remember token, will attempt auto-login if needed");
-          } else {
-            console.log("[AuthProvider] No token found in storage");
-          }
+          await getRememberToken();
         } catch (error) {
           console.error("[AuthProvider] Error checking token:", error);
         }
@@ -224,7 +196,6 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
 
     if (status === "authenticated") {
-      console.log("[AuthProvider] Session authenticated");
       autoLoginAttempted.current = false;
     }
   }, [status]);
@@ -236,15 +207,12 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
     // When we detect unauthenticated status, try auto-login
     // Do this for ANY device with a remember token, not just iOS PWA
     if (status === "unauthenticated" && !autoLoginAttempted.current) {
-      console.log("[AuthProvider] Status is unauthenticated, checking for remember token");
-
       // Small delay to ensure status is stable
       const timer = setTimeout(async () => {
         // Check if we have a remember token before attempting
         if (isIndexedDBAvailable()) {
           const hasToken = await getRememberToken();
           if (hasToken) {
-            console.log("[AuthProvider] Have remember token, attempting auto-login");
             tryAutoLogin();
           }
         }
@@ -262,8 +230,6 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
     const isPWA = isStandaloneMode() || isIOSPWA();
 
     if (isPWA) {
-      console.log("[AuthProvider] Setting up PWA event listeners");
-
       // Add event listeners for PWA
       window.addEventListener("pageshow", handlePageShow);
       document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -271,7 +237,7 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
       // Also refresh session on initial load if we're in standalone mode
       // This helps recover sessions after full app quit
       update().catch(() => {
-        console.log("[AuthProvider] Initial session refresh failed");
+        // Initial session refresh failed; ignore
       });
 
       return () => {

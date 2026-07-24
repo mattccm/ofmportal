@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useCallback, useRef, useState, useSyncExternalStore } from "react";
 import {
   subscribeToChannel,
   unsubscribeFromChannel,
@@ -10,9 +10,7 @@ import {
   broadcastToChannel,
 } from "@/lib/supabase";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface UseRealtimeOptions {
   /** Channel name to subscribe to */
@@ -36,9 +34,19 @@ interface UseRealtimeReturn {
   refresh: () => Promise<void>;
 }
 
-// ============================================
 // CORE REALTIME HOOK
-// ============================================
+
+function subscribeToMount() {
+  return () => {};
+}
+
+function getMountedSnapshot(): boolean {
+  return true;
+}
+
+function getServerMountedSnapshot(): boolean {
+  return false;
+}
 
 /**
  * Subscribe to Supabase Realtime channel with automatic fallback to polling
@@ -58,18 +66,19 @@ export function useSupabaseRealtime(options: UseRealtimeOptions): UseRealtimeRet
     fallbackInterval = 300000, // 5 minutes default
   } = options;
 
-  // Always start with false to avoid hydration mismatch
+  // Always report false during server render and hydration to avoid mismatch
   // (server doesn't know about Realtime availability)
-  const [isConnected, setIsConnected] = useState(false);
-  const [isPolling, setIsPolling] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useSyncExternalStore(
+    subscribeToMount,
+    getMountedSnapshot,
+    getServerMountedSnapshot
+  );
+  const realtimeAvailable = isMounted && enabled && isRealtimeAvailable();
+  const isConnected = realtimeAvailable;
+  const isPolling = isMounted && enabled && !realtimeAvailable && !!fallbackPoll;
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const onMessageRef = useRef(onMessage);
-
-  // Track when component is mounted (client-side only)
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // Keep callback ref updated
   useEffect(() => {
@@ -78,31 +87,18 @@ export function useSupabaseRealtime(options: UseRealtimeOptions): UseRealtimeRet
 
   // Setup subscription or fallback
   useEffect(() => {
-    // Only run on client after mount to avoid hydration issues
-    if (!enabled || !isMounted) return;
+    if (!enabled) return;
 
-    const realtimeAvailable = isRealtimeAvailable();
-
-    if (realtimeAvailable) {
+    if (isRealtimeAvailable()) {
       // Use Supabase Realtime
-      const channel = subscribeToChannel(channelName, (payload) => {
+      subscribeToChannel(channelName, (payload) => {
         onMessageRef.current(payload);
       });
 
-      if (channel) {
-        setIsConnected(true);
-        setIsPolling(false);
-      }
-
       return () => {
         unsubscribeFromChannel(channelName);
-        setIsConnected(false);
       };
     } else if (fallbackPoll) {
-      // Fallback to polling
-      setIsPolling(true);
-      setIsConnected(false);
-
       // Initial poll
       fallbackPoll();
 
@@ -114,10 +110,9 @@ export function useSupabaseRealtime(options: UseRealtimeOptions): UseRealtimeRet
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
         }
-        setIsPolling(false);
       };
     }
-  }, [channelName, enabled, isMounted, fallbackPoll, fallbackInterval]);
+  }, [channelName, enabled, fallbackPoll, fallbackInterval]);
 
   const refresh = useCallback(async () => {
     if (fallbackPoll) {
@@ -132,9 +127,7 @@ export function useSupabaseRealtime(options: UseRealtimeOptions): UseRealtimeRet
   };
 }
 
-// ============================================
 // SPECIALIZED HOOKS
-// ============================================
 
 /**
  * Subscribe to agency-wide notifications
@@ -267,11 +260,12 @@ export function useTypingIndicator(conversationId: string | undefined, userId: s
 
   // Cleanup timeouts on unmount
   useEffect(() => {
+    const timeouts = typingTimeoutRef.current;
     return () => {
-      for (const timeout of typingTimeoutRef.current.values()) {
+      for (const timeout of timeouts.values()) {
         clearTimeout(timeout);
       }
-      typingTimeoutRef.current.clear();
+      timeouts.clear();
     };
   }, []);
 

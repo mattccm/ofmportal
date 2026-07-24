@@ -4,10 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { notifyMention } from "@/lib/notifications";
+import { dispatchWebhookEvent } from "@/lib/webhooks";
 
-// ============================================
 // SCHEMAS
-// ============================================
 
 const createCommentSchema = z.object({
   requestId: z.string().optional(),
@@ -24,9 +23,7 @@ const updateCommentSchema = z.object({
   mentions: z.array(z.string()).default([]),
 });
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 /**
  * Extract mentioned user IDs from message
@@ -42,6 +39,23 @@ function extractMentions(message: string): string[] {
   }
 
   return [...new Set(mentions)]; // Remove duplicates
+}
+
+/**
+ * Keep only mentioned user IDs that belong to the sender's agency
+ */
+async function filterMentionsToAgency(
+  userIds: string[],
+  agencyId: string
+): Promise<string[]> {
+  if (userIds.length === 0) return [];
+
+  const users = await db.user.findMany({
+    where: { id: { in: userIds }, agencyId },
+    select: { id: true },
+  });
+
+  return users.map((u) => u.id);
 }
 
 /**
@@ -121,9 +135,7 @@ async function parseFormData(req: NextRequest) {
   return { data, attachments };
 }
 
-// ============================================
 // GET - Fetch comments for a request/upload
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -198,6 +210,7 @@ export async function GET(req: NextRequest) {
           : false,
       },
       orderBy: { createdAt: "desc" },
+      take: 200,
     });
 
     return NextResponse.json({ comments });
@@ -210,9 +223,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create a new comment
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -289,8 +300,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Extract mentions from message
-    const mentionedUserIds = extractMentions(validatedData.message);
+    // Extract mentions from message, keeping only users in the sender's agency
+    const mentionedUserIds = await filterMentionsToAgency(
+      extractMentions(validatedData.message),
+      session.user.agencyId
+    );
 
     // Create comment
     const comment = await db.comment.create({
@@ -310,6 +324,17 @@ export async function POST(req: NextRequest) {
           select: { id: true, name: true, avatar: true },
         },
       },
+    });
+
+    // Fire webhook for new comment
+    dispatchWebhookEvent(session.user.agencyId, "comment.created", {
+      commentId: comment.id,
+      message: comment.message,
+      requestId: comment.requestId,
+      uploadId: comment.uploadId,
+      isInternal: comment.isInternal,
+      authorId: session.user.id,
+      authorName: comment.user.name,
     });
 
     // Send mention notifications
@@ -341,15 +366,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // PATCH - Update a comment
-// ============================================
 
 export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session?.user?.agencyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -386,8 +409,11 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Extract mentions from new message
-    const mentionedUserIds = extractMentions(validatedData.message);
+    // Extract mentions from new message, keeping only users in the sender's agency
+    const mentionedUserIds = await filterMentionsToAgency(
+      extractMentions(validatedData.message),
+      session.user.agencyId
+    );
 
     // Merge attachments (keep existing, add new)
     const existingAttachments = (existingComment.attachments as { name: string; type: string; size: number; url: string }[]) || [];
@@ -444,9 +470,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Delete a comment
-// ============================================
 
 export async function DELETE(req: NextRequest) {
   try {

@@ -17,6 +17,16 @@ const FROM_EMAIL = process.env.EMAIL_FROM || "noreply@portal.of-m.com";
 const APP_NAME = process.env.APP_NAME || "CCM Creator Portal";
 const COMPANY_NAME = "Content Creation Management Pty Ltd";
 
+/** Escape HTML entities to prevent injection in email templates */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 interface SendEmailOptions {
   to: string;
   subject: string;
@@ -28,7 +38,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
   const client = getResendClient();
 
   if (!client) {
-    console.log("📧 [MOCK EMAIL] Would be sent:", {
+    console.log("[MOCK EMAIL] Would be sent:", {
       to,
       subject,
       preview: html.substring(0, 100) + "...",
@@ -52,6 +62,168 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
   }
 }
 
+// BULK EMAIL RENDERING PIPELINE
+// Shared by the immediate send path (api/email/send) and the
+// scheduled/queued path (api/cron/email-queue) so both render identically:
+// per-recipient variable substitution -> markdown-to-HTML -> template wrapper.
+
+/** Replace {{key}} placeholders with per-recipient values */
+function processVariables(
+  text: string,
+  variables: Record<string, string>
+): string {
+  let processed = text;
+
+  Object.entries(variables).forEach(([key, value]) => {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+    processed = processed.replace(regex, value || "");
+  });
+
+  return processed;
+}
+
+/** Convert markdown-like syntax to HTML (escapes HTML entities first) */
+function convertToHtml(text: string): string {
+  let html = text;
+
+  // Escape HTML entities
+  html = html.replace(/&/g, "&amp;");
+  html = html.replace(/</g, "&lt;");
+  html = html.replace(/>/g, "&gt;");
+
+  // Convert markdown-like syntax
+  // Bold: **text** or __text__
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__(.*?)__/g, "<strong>$1</strong>");
+
+  // Italic: *text* or _text_
+  html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+  html = html.replace(/_(.*?)_/g, "<em>$1</em>");
+
+  // Underline: <u>text</u> (already HTML)
+  html = html.replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/g, "<u>$1</u>");
+
+  // Code: `text`
+  html = html.replace(/`(.*?)`/g, "<code style=\"background: #f0f0f0; padding: 2px 6px; border-radius: 4px;\">$1</code>");
+
+  // Headers
+  html = html.replace(/^## (.*$)/gm, "<h2 style=\"font-size: 1.25em; font-weight: 600; margin: 1em 0 0.5em;\">$1</h2>");
+  html = html.replace(/^# (.*$)/gm, "<h1 style=\"font-size: 1.5em; font-weight: 700; margin: 1em 0 0.5em;\">$1</h1>");
+
+  // Blockquotes
+  html = html.replace(/^&gt; (.*$)/gm, "<blockquote style=\"border-left: 4px solid #ddd; margin: 1em 0; padding-left: 1em; color: #666;\">$1</blockquote>");
+
+  // Horizontal rule
+  html = html.replace(/^---$/gm, "<hr style=\"border: none; border-top: 1px solid #ddd; margin: 1.5em 0;\">");
+
+  // Links: [text](url)
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, "<a href=\"$2\" style=\"color: #667eea; text-decoration: none;\">$1</a>");
+
+  // Lists
+  html = html.replace(/^- (.*$)/gm, "<li style=\"margin-left: 1.5em;\">$1</li>");
+  html = html.replace(/^(\d+)\. (.*$)/gm, "<li style=\"margin-left: 1.5em;\">$2</li>");
+
+  // Wrap consecutive list items
+  html = html.replace(/(<li.*<\/li>\n?)+/g, (match) => `<ul style="margin: 0.5em 0;">${match}</ul>`);
+
+  // Convert newlines to paragraphs
+  const paragraphs = html.split(/\n\n+/);
+  html = paragraphs
+    .map((p) => {
+      // Don't wrap if it's already a block element
+      if (
+        p.startsWith("<h1") ||
+        p.startsWith("<h2") ||
+        p.startsWith("<ul") ||
+        p.startsWith("<ol") ||
+        p.startsWith("<blockquote") ||
+        p.startsWith("<hr")
+      ) {
+        return p;
+      }
+      return `<p style="margin: 0 0 1em 0;">${p.replace(/\n/g, "<br>")}</p>`;
+    })
+    .join("");
+
+  return html;
+}
+
+/** Wrap rendered content in the branded email template */
+function generateEmailHtml(content: string, agencyName: string): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 30px; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 20px;">${escapeHtml(agencyName)}</h1>
+        </div>
+        <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
+          ${content}
+        </div>
+        <div style="padding: 20px; text-align: center;">
+          <p style="color: #999; font-size: 12px; margin: 0;">
+            Sent via CCM
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+export interface BulkEmailVariableInput {
+  creatorName: string;
+  creatorEmail: string;
+  creatorPhone?: string | null;
+  agencyName: string;
+  portalLink: string;
+  senderName?: string | null;
+  senderEmail?: string | null;
+}
+
+/** Build the {{variable}} substitution map for a single recipient */
+export function buildBulkEmailVariables(
+  input: BulkEmailVariableInput
+): Record<string, string> {
+  return {
+    "creator.name": input.creatorName,
+    "creator.email": input.creatorEmail,
+    "creator.phone": input.creatorPhone || "",
+    "agency.name": input.agencyName,
+    "portal.link": input.portalLink,
+    "request.title": "", // Not available in bulk email
+    "request.dueDate": "",
+    "request.status": "",
+    "date.today": new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }),
+    "sender.name": input.senderName || "",
+    "sender.email": input.senderEmail || "",
+  };
+}
+
+/**
+ * Render a bulk email (subject + body) for one recipient: substitutes
+ * variables, converts the body markdown to HTML, and wraps it in the template.
+ */
+export function renderBulkEmail(
+  subject: string,
+  body: string,
+  variables: Record<string, string>,
+  agencyName: string
+): { subject: string; html: string; text: string } {
+  const processedSubject = processVariables(subject, variables);
+  const processedBody = processVariables(body, variables);
+  const html = generateEmailHtml(convertToHtml(processedBody), agencyName);
+
+  return { subject: processedSubject, html, text: processedBody };
+}
+
 // Email templates
 
 export async function sendCreatorInviteEmail({
@@ -66,6 +238,8 @@ export async function sendCreatorInviteEmail({
   inviteLink: string;
 }) {
   const subject = `${agencyName} has invited you to ${APP_NAME}`;
+  const safeCreatorName = escapeHtml(creatorName);
+  const safeAgencyName = escapeHtml(agencyName);
 
   const html = `
     <!DOCTYPE html>
@@ -73,7 +247,7 @@ export async function sendCreatorInviteEmail({
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
+        <title>${escapeHtml(subject)}</title>
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
@@ -81,9 +255,9 @@ export async function sendCreatorInviteEmail({
         </div>
 
         <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-          <p>Hi ${creatorName},</p>
+          <p>Hi ${safeCreatorName},</p>
 
-          <p><strong>${agencyName}</strong> has invited you to join their content portal. This is where you'll upload your content for review and approval.</p>
+          <p><strong>${safeAgencyName}</strong> has invited you to join their content portal. This is where you'll upload your content for review and approval.</p>
 
           <p>Click the button below to set up your account:</p>
 
@@ -149,13 +323,13 @@ export async function sendContentRequestEmail({
         <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
           <h2 style="margin: 0 0 20px 0; color: #333;">New Content Request</h2>
 
-          <p>Hi ${creatorName},</p>
+          <p>Hi ${escapeHtml(creatorName)},</p>
 
-          <p><strong>${agencyName}</strong> has a new content request for you:</p>
+          <p><strong>${escapeHtml(agencyName)}</strong> has a new content request for you:</p>
 
           <div style="background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="margin: 0 0 10px 0; color: #333;">${requestTitle}</h3>
-            <p style="margin: 0; color: #666;">Due: <strong>${dueDate}</strong></p>
+            <h3 style="margin: 0 0 10px 0; color: #333;">${escapeHtml(requestTitle)}</h3>
+            <p style="margin: 0; color: #666;">Due: <strong>${escapeHtml(dueDate)}</strong></p>
           </div>
 
           <div style="text-align: center; margin: 30px 0;">
@@ -209,17 +383,17 @@ export async function sendReminderEmail({
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: ${isOverdue ? "#fef2f2" : "#f8f9fa"}; padding: 20px; border-radius: 10px; border-left: 4px solid ${isOverdue ? "#ef4444" : "#667eea"};">
           <h2 style="margin: 0 0 20px 0; color: ${isOverdue ? "#dc2626" : "#333"};">
-            ${isOverdue ? "⚠️ Content Overdue" : "📅 Content Reminder"}
+            ${isOverdue ? "Content Overdue" : "Content Reminder"}
           </h2>
 
-          <p>Hi ${creatorName},</p>
+          <p>Hi ${escapeHtml(creatorName)},</p>
 
-          ${customMessage ? `<p>${customMessage}</p>` : ""}
+          ${customMessage ? `<p>${escapeHtml(customMessage)}</p>` : ""}
 
-          <p>This is a friendly reminder that your content for <strong>"${requestTitle}"</strong> is <strong>${urgencyText}</strong>.</p>
+          <p>This is a friendly reminder that your content for <strong>"${escapeHtml(requestTitle)}"</strong> is <strong>${urgencyText}</strong>.</p>
 
           <div style="background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <p style="margin: 0; color: #666;">Due date: <strong>${dueDate}</strong></p>
+            <p style="margin: 0; color: #666;">Due date: <strong>${escapeHtml(dueDate)}</strong></p>
           </div>
 
           <div style="text-align: center; margin: 30px 0;">
@@ -242,7 +416,7 @@ export async function sendContentApprovedEmail({
   creatorName: string;
   requestTitle: string;
 }) {
-  const subject = `Your content for "${requestTitle}" has been approved!`;
+  const subject = `Your content for "${requestTitle}" has been approved`;
 
   const html = `
     <!DOCTYPE html>
@@ -253,13 +427,13 @@ export async function sendContentApprovedEmail({
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: #f0fdf4; padding: 20px; border-radius: 10px; border-left: 4px solid #22c55e;">
-          <h2 style="margin: 0 0 20px 0; color: #16a34a;">✅ Content Approved!</h2>
+          <h2 style="margin: 0 0 20px 0; color: #16a34a;">Content Approved</h2>
 
-          <p>Hi ${creatorName},</p>
+          <p>Hi ${escapeHtml(creatorName)},</p>
 
-          <p>Great news! Your content for <strong>"${requestTitle}"</strong> has been approved.</p>
+          <p>Your content for <strong>"${escapeHtml(requestTitle)}"</strong> has been approved.</p>
 
-          <p>Thank you for your submission!</p>
+          <p>Thank you for your submission.</p>
         </div>
       </body>
     </html>
@@ -292,14 +466,14 @@ export async function sendRevisionRequestEmail({
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
-          <h2 style="margin: 0 0 20px 0; color: #b45309;">📝 Revision Requested</h2>
+          <h2 style="margin: 0 0 20px 0; color: #b45309;">Revision Requested</h2>
 
-          <p>Hi ${creatorName},</p>
+          <p>Hi ${escapeHtml(creatorName)},</p>
 
-          <p>We've reviewed your content for <strong>"${requestTitle}"</strong> and have some feedback:</p>
+          <p>We've reviewed your content for <strong>"${escapeHtml(requestTitle)}"</strong> and have some feedback:</p>
 
           <div style="background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <p style="margin: 0; white-space: pre-wrap;">${feedback}</p>
+            <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(feedback)}</p>
           </div>
 
           <p>Please make the necessary changes and resubmit.</p>
@@ -341,12 +515,12 @@ export async function sendNewRequestEmail({
         </div>
 
         <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-          <p>Hi ${creatorName},</p>
+          <p>Hi ${escapeHtml(creatorName)},</p>
 
           <p>You have a new content request waiting for you:</p>
 
           <div style="background: #f8f9fa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="margin: 0 0 10px 0; color: #333;">${requestTitle}</h3>
+            <h3 style="margin: 0 0 10px 0; color: #333;">${escapeHtml(requestTitle)}</h3>
             <p style="margin: 0; color: #666;">Click below to view details and upload your content.</p>
           </div>
 
@@ -400,7 +574,7 @@ export async function sendPasswordResetEmail({
         </div>
 
         <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-          <p>Hi ${creatorName},</p>
+          <p>Hi ${escapeHtml(creatorName)},</p>
 
           <p>We received a request to reset your password for ${APP_NAME}. Click the button below to set a new password:</p>
 
@@ -486,10 +660,10 @@ export async function sendBatchedReminderEmail({
 
       return `
         <div style="background: white; border: 1px solid #e5e5e5; border-left: 4px solid ${urgencyColor}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-          <h4 style="margin: 0 0 8px 0; color: #333;">${req.title}</h4>
+          <h4 style="margin: 0 0 8px 0; color: #333;">${escapeHtml(req.title)}</h4>
           <p style="margin: 0; font-size: 14px;">
             <span style="color: ${urgencyColor}; font-weight: 600;">${statusText}</span>
-            <span style="color: #666;"> - Due: ${req.dueDate}</span>
+            <span style="color: #666;"> - Due: ${escapeHtml(req.dueDate)}</span>
           </p>
         </div>
       `;
@@ -506,10 +680,10 @@ export async function sendBatchedReminderEmail({
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: ${overdueCount > 0 ? "#fef2f2" : "#f8f9fa"}; padding: 20px; border-radius: 10px; border-left: 4px solid ${overdueCount > 0 ? "#ef4444" : "#667eea"};">
           <h2 style="margin: 0 0 20px 0; color: ${overdueCount > 0 ? "#dc2626" : "#333"};">
-            ${overdueCount > 0 ? "⚠️" : "📋"} ${requests.length} Content Requests Pending
+            ${requests.length} Content Requests Pending
           </h2>
 
-          <p>Hi ${creatorName},</p>
+          <p>Hi ${escapeHtml(creatorName)},</p>
 
           <p>Here's a summary of your pending content requests:</p>
 

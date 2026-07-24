@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp = getClientIp(req.headers);
+    const rl = await rateLimitAsync(`reset-password:${clientIp}`, RATE_LIMITS.passwordReset);
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later.", retryAfter: rl.retryAfter },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter ?? 60) } }
+      );
+    }
+
     const { token, password, type } = await req.json();
 
     if (!token || !password) {
@@ -97,12 +107,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if token has expired (inviteSentAt stores the expiry time)
-    if (creator.inviteSentAt && new Date() > creator.inviteSentAt) {
-      return NextResponse.json(
-        { error: "Reset link has expired. Please request a new one." },
-        { status: 400 }
-      );
+    // Check if token has expired (24 hour window from when it was sent)
+    if (creator.inviteSentAt) {
+      const expiryTime = new Date(creator.inviteSentAt.getTime() + 24 * 60 * 60 * 1000);
+      if (new Date() > expiryTime) {
+        return NextResponse.json(
+          { error: "Reset link has expired. Please request a new one." },
+          { status: 400 }
+        );
+      }
     }
 
     // Update the creator's password and clear the reset token

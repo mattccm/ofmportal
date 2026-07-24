@@ -8,7 +8,7 @@ import {
   HeadBucketCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { existsSync, statSync, unlinkSync } from "fs";
+import { existsSync } from "fs";
 import path from "path";
 
 // Determine if we're using local MinIO or Cloudflare R2
@@ -94,23 +94,34 @@ export async function getUploadPresignedUrl(
   return { url, key };
 }
 
-// Generate presigned URL for download (1 hour expiry)
+// Generate presigned URL for download (15 minute expiry)
 export async function getDownloadPresignedUrl(key: string, filename?: string): Promise<string> {
   // Extract filename from key if not provided
   const downloadFilename = filename || key.split("/").pop() || "download";
 
+  // Strip quotes, backslashes, and control characters so the filename
+  // can't break out of the Content-Disposition header
+  const safeFilename =
+    Array.from(downloadFilename)
+      .filter((char) => {
+        const code = char.charCodeAt(0);
+        return code >= 32 && code !== 127 && char !== '"' && char !== "\\";
+      })
+      .join("") || "download";
+
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
-    ResponseContentDisposition: `attachment; filename="${downloadFilename}"`,
+    ResponseContentDisposition: `attachment; filename="${safeFilename}"`,
+    ResponseContentType: "application/octet-stream",
   });
 
   return getSignedUrl(s3Client, command, {
-    expiresIn: 3600, // 1 hour
+    expiresIn: 900, // 15 minutes
   });
 }
 
-// Generate presigned URL for viewing/preview (inline, 1 hour expiry)
+// Generate presigned URL for viewing/preview (inline, 15 minute expiry)
 export async function getViewPresignedUrl(key: string): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
@@ -118,7 +129,7 @@ export async function getViewPresignedUrl(key: string): Promise<string> {
   });
 
   return getSignedUrl(s3Client, command, {
-    expiresIn: 3600, // 1 hour
+    expiresIn: 900, // 15 minutes
   });
 }
 
@@ -214,6 +225,26 @@ export const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
 
 export function isAllowedFileType(mimeType: string): boolean {
   return ALLOWED_TYPES.includes(mimeType);
+}
+
+// Allowed file extensions (must match MIME types above)
+const ALLOWED_EXTENSIONS = new Set([
+  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif",
+  ".mp4", ".mov", ".avi", ".webm", ".mkv",
+  ".mp3", ".wav", ".aac", ".ogg",
+]);
+
+// Dangerous extensions that should never be uploaded
+const DANGEROUS_EXTENSIONS = new Set([
+  ".exe", ".bat", ".cmd", ".com", ".msi", ".dll", ".scr", ".pif",
+  ".sh", ".bash", ".ps1", ".vbs", ".js", ".jsx", ".ts", ".tsx",
+  ".php", ".py", ".rb", ".pl", ".html", ".htm", ".svg", ".xml",
+]);
+
+export function isAllowedFileExtension(filename: string): boolean {
+  const ext = filename.toLowerCase().replace(/.*(\.[^.]+)$/, "$1");
+  if (DANGEROUS_EXTENSIONS.has(ext)) return false;
+  return ALLOWED_EXTENSIONS.has(ext);
 }
 
 export function getFileCategory(mimeType: string): "image" | "video" | "audio" | "unknown" {

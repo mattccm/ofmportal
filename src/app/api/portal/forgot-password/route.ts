@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp = getClientIp(req.headers);
+    const ipLimit = await rateLimitAsync(`forgot-password:${clientIp}`, RATE_LIMITS.passwordReset);
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later.", retryAfter: ipLimit.retryAfter },
+        { status: 429, headers: { "Retry-After": String(ipLimit.retryAfter ?? 60) } }
+      );
+    }
+
     const { email } = await req.json();
 
     if (!email) {
@@ -15,6 +25,14 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    const emailLimit = await rateLimitAsync(`forgot-password:email:${normalizedEmail}`, RATE_LIMITS.passwordReset);
+    if (!emailLimit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later.", retryAfter: emailLimit.retryAfter },
+        { status: 429, headers: { "Retry-After": String(emailLimit.retryAfter ?? 60) } }
+      );
+    }
 
     // Try to find a team member (User) FIRST - they take priority
     const user = await db.user.findUnique({

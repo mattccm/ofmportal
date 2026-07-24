@@ -1,8 +1,28 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { db } from "./db";
+import { rateLimitAsync, RATE_LIMITS } from "./rate-limit";
 import * as OTPAuth from "otpauth";
+
+/**
+ * Consume a single-use remember-me nonce issued by PUT /api/auth/remember.
+ * Atomically marks it used (replay-safe) and returns the bound userId, or null.
+ */
+async function consumeRememberNonce(nonce: string): Promise<string | null> {
+  const tokenHash = crypto.createHash("sha256").update(nonce).digest("hex");
+  const marked = await db.rememberAuthNonce.updateMany({
+    where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
+    data: { usedAt: new Date() },
+  });
+  if (marked.count !== 1) return null;
+  const record = await db.rememberAuthNonce.findUnique({
+    where: { tokenHash },
+    select: { userId: true },
+  });
+  return record?.userId ?? null;
+}
 
 // Cookie configuration for iOS Safari PWA support
 const useSecureCookies = process.env.NODE_ENV === "production";
@@ -55,22 +75,25 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         totpCode: { label: "2FA Code", type: "text" },
+        rememberNonce: { label: "Remember Nonce", type: "text" },
         rememberUserId: { label: "Remember User ID", type: "text" },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password required");
+      async authorize(credentials, req) {
+        if (!credentials?.email) {
+          throw new Error("Email required");
         }
 
-        // Special case: Remember token auto-login
-        // The remember token API has already validated the token and verified the user
-        // We just need to fetch the user data and create a session
-        if (
-          credentials.password === "__REMEMBER_TOKEN_VALIDATED__" &&
-          credentials.rememberUserId
-        ) {
+        // Remember-me auto-login: a single-use nonce issued by PUT /api/auth/remember
+        // (only after a valid pre-validated remember token) stands in for the password.
+        // No 2FA re-prompt here: the remember token was minted after a full prior login.
+        if (credentials.rememberNonce && credentials.rememberUserId) {
+          const nonceUserId = await consumeRememberNonce(credentials.rememberNonce);
+          if (!nonceUserId || nonceUserId !== credentials.rememberUserId) {
+            throw new Error("Invalid remember token");
+          }
+
           const user = await db.user.findUnique({
-            where: { id: credentials.rememberUserId },
+            where: { id: nonceUserId },
             select: {
               id: true,
               email: true,
@@ -93,12 +116,10 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Invalid remember token");
           }
 
-          // Verify the email matches (extra security check)
+          // Verify the nonce-bound user matches the submitted email
           if (user.email.toLowerCase() !== credentials.email.toLowerCase()) {
             throw new Error("Invalid remember token");
           }
-
-          console.log(`[Auth] Remember token auto-login for user: ${user.email}`);
 
           return {
             id: user.id,
@@ -110,6 +131,24 @@ export const authOptions: NextAuthOptions = {
             agencyName: user.agency?.name || "",
             twoFactorEnabled: user.twoFactorEnabled,
           };
+        }
+
+        if (!credentials.password) {
+          throw new Error("Email and password required");
+        }
+
+        // Rate limit password logins by email + IP (Redis-backed when configured)
+        const headers = (req?.headers ?? {}) as Record<string, string | undefined>;
+        const ip =
+          headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+          headers["x-real-ip"] ||
+          "unknown";
+        const rl = await rateLimitAsync(
+          `login:${credentials.email.toLowerCase()}:${ip}`,
+          RATE_LIMITS.login
+        );
+        if (!rl.success) {
+          throw new Error("Too many login attempts. Please try again later.");
         }
 
         // Normal login flow

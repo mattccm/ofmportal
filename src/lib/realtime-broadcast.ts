@@ -17,7 +17,7 @@
  * ```
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, RealtimeChannel } from "@supabase/supabase-js";
 
 // Server-side Supabase client (uses service role key for broadcasting)
 let serverSupabase: ReturnType<typeof createClient> | null = null;
@@ -53,54 +53,123 @@ export function isBroadcastAvailable(): boolean {
   );
 }
 
-// ============================================
 // BROADCAST FUNCTIONS
-// ============================================
+
+const SUBSCRIBE_TIMEOUT_MS = 5000;
 
 interface BroadcastResult {
   success: boolean;
   error?: string;
 }
 
+interface BroadcastMessage {
+  event: string;
+  payload: Record<string, unknown>;
+}
+
 /**
- * Broadcast a notification to a specific user
+ * Wait until a channel is actually SUBSCRIBED before broadcasting.
+ * `channel.subscribe()` resolves to the channel, not the subscription status,
+ * so broadcasting immediately after it drops messages. The status callback is
+ * the only reliable signal that the socket is ready.
  */
-export async function broadcastNotification(
-  userId: string,
-  notification: {
-    id: string;
-    type: string;
-    title: string;
-    message: string;
-    link?: string;
-  }
+function waitForSubscribed(channel: RealtimeChannel): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("Realtime subscribe timed out")),
+      SUBSCRIBE_TIMEOUT_MS
+    );
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        clearTimeout(timer);
+        resolve();
+      } else if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT" ||
+        status === "CLOSED"
+      ) {
+        clearTimeout(timer);
+        reject(new Error(`Realtime subscribe failed: ${status}`));
+      }
+    });
+  });
+}
+
+/**
+ * Subscribe to a channel, wait for the subscription to be confirmed, send one
+ * or more broadcast messages over it, then tear the channel down. Batching lets
+ * callers avoid subscribing/unsubscribing a fresh channel per message.
+ */
+async function sendBroadcasts(
+  channelName: string,
+  messages: BroadcastMessage[]
 ): Promise<BroadcastResult> {
+  if (messages.length === 0) return { success: true };
+
   const supabase = getServerSupabase();
   if (!supabase) {
     return { success: false, error: "Supabase not configured" };
   }
 
+  const channel = supabase.channel(channelName);
   try {
-    const channel = supabase.channel(`user:${userId}:notifications`);
-    await channel.subscribe();
+    await waitForSubscribed(channel);
 
-    const result = await channel.send({
-      type: "broadcast",
-      event: "notification",
-      payload: {
-        type: "notification",
-        data: notification,
-        timestamp: new Date().toISOString(),
-        userId,
-      },
-    });
+    for (const message of messages) {
+      const result = await channel.send({
+        type: "broadcast",
+        event: message.event,
+        payload: message.payload,
+      });
+      if (result !== "ok") {
+        return { success: false, error: `Broadcast failed: ${result}` };
+      }
+    }
 
-    await channel.unsubscribe();
-    return { success: result === "ok" };
+    return { success: true };
   } catch (error) {
-    console.error("[Broadcast] Error sending notification:", error);
+    console.error(`[Broadcast] Error on channel ${channelName}:`, error);
     return { success: false, error: String(error) };
+  } finally {
+    await channel.unsubscribe().catch(() => {});
   }
+}
+
+interface NotificationBroadcast {
+  id?: string;
+  type: string;
+  title: string;
+  message: string;
+  link?: string;
+}
+
+/**
+ * Broadcast a single notification to a specific user's channel. This is the
+ * channel the notification bell subscribes to (`user:{id}:notifications`).
+ */
+export async function broadcastNotification(
+  userId: string,
+  notification: NotificationBroadcast
+): Promise<BroadcastResult> {
+  return broadcastNotificationsToUser(userId, [notification]);
+}
+
+/**
+ * Broadcast multiple notifications to a single user over one channel
+ * subscription (used when a bulk operation targets the same recipient).
+ */
+export async function broadcastNotificationsToUser(
+  userId: string,
+  notifications: NotificationBroadcast[]
+): Promise<BroadcastResult> {
+  const timestamp = new Date().toISOString();
+  return sendBroadcasts(
+    `user:${userId}:notifications`,
+    notifications.map((data) => ({
+      event: "notification",
+      payload: { type: "notification", data, timestamp, userId },
+    }))
+  );
 }
 
 /**
@@ -117,17 +186,8 @@ export async function broadcastAgencyNotification(
     link?: string;
   }
 ): Promise<BroadcastResult> {
-  const supabase = getServerSupabase();
-  if (!supabase) {
-    return { success: false, error: "Supabase not configured" };
-  }
-
-  try {
-    const channel = supabase.channel(`agency:${agencyId}:notifications`);
-    await channel.subscribe();
-
-    const result = await channel.send({
-      type: "broadcast",
+  return sendBroadcasts(`agency:${agencyId}:notifications`, [
+    {
       event: "notification",
       payload: {
         type: "notification",
@@ -135,14 +195,8 @@ export async function broadcastAgencyNotification(
         timestamp: new Date().toISOString(),
         agencyId,
       },
-    });
-
-    await channel.unsubscribe();
-    return { success: result === "ok" };
-  } catch (error) {
-    console.error("[Broadcast] Error sending agency notification:", error);
-    return { success: false, error: String(error) };
-  }
+    },
+  ]);
 }
 
 /**
@@ -155,31 +209,16 @@ export async function broadcastRequestUpdate(
     data: Record<string, unknown>;
   }
 ): Promise<BroadcastResult> {
-  const supabase = getServerSupabase();
-  if (!supabase) {
-    return { success: false, error: "Supabase not configured" };
-  }
-
-  try {
-    const channel = supabase.channel(`request:${requestId}`);
-    await channel.subscribe();
-
-    const result = await channel.send({
-      type: "broadcast",
+  return sendBroadcasts(`request:${requestId}`, [
+    {
       event: update.type,
       payload: {
         type: update.type,
         data: update.data,
         timestamp: new Date().toISOString(),
       },
-    });
-
-    await channel.unsubscribe();
-    return { success: result === "ok" };
-  } catch (error) {
-    console.error("[Broadcast] Error sending request update:", error);
-    return { success: false, error: String(error) };
-  }
+    },
+  ]);
 }
 
 /**
@@ -195,31 +234,43 @@ export async function broadcastConversationMessage(
     createdAt: string;
   }
 ): Promise<BroadcastResult> {
-  const supabase = getServerSupabase();
-  if (!supabase) {
-    return { success: false, error: "Supabase not configured" };
-  }
-
-  try {
-    const channel = supabase.channel(`conversation:${conversationId}`);
-    await channel.subscribe();
-
-    const result = await channel.send({
-      type: "broadcast",
+  return sendBroadcasts(`conversation:${conversationId}`, [
+    {
       event: "message",
       payload: {
         type: "message",
         data: message,
         timestamp: new Date().toISOString(),
       },
-    });
+    },
+  ]);
+}
 
-    await channel.unsubscribe();
-    return { success: result === "ok" };
-  } catch (error) {
-    console.error("[Broadcast] Error sending conversation message:", error);
-    return { success: false, error: String(error) };
+/**
+ * Broadcast a review-session annotation event (add / update / delete / clear)
+ * to every participant subscribed to the session's annotation channel. The
+ * payload mirrors the client-side `AnnotationEvent` shape (`{ action, annotation }`)
+ * so subscribers can apply it without caring whether it originated on the
+ * server (persisted mutation) or the client (live in-progress preview).
+ */
+export async function broadcastSessionAnnotation(
+  sessionId: string,
+  event: {
+    action: "add" | "update" | "delete" | "clear";
+    annotation: Record<string, unknown>;
   }
+): Promise<BroadcastResult> {
+  return sendBroadcasts(`review-session:${sessionId}:annotations`, [
+    {
+      event: "annotation",
+      payload: {
+        type: "annotation",
+        data: event,
+        timestamp: new Date().toISOString(),
+        sessionId,
+      },
+    },
+  ]);
 }
 
 /**
@@ -232,17 +283,8 @@ export async function broadcastCreatorUpdate(
     data: Record<string, unknown>;
   }
 ): Promise<BroadcastResult> {
-  const supabase = getServerSupabase();
-  if (!supabase) {
-    return { success: false, error: "Supabase not configured" };
-  }
-
-  try {
-    const channel = supabase.channel(`creator:${creatorId}:portal`);
-    await channel.subscribe();
-
-    const result = await channel.send({
-      type: "broadcast",
+  return sendBroadcasts(`creator:${creatorId}:portal`, [
+    {
       event: update.type,
       payload: {
         type: update.type,
@@ -250,12 +292,6 @@ export async function broadcastCreatorUpdate(
         timestamp: new Date().toISOString(),
         creatorId,
       },
-    });
-
-    await channel.unsubscribe();
-    return { success: result === "ok" };
-  } catch (error) {
-    console.error("[Broadcast] Error sending creator update:", error);
-    return { success: false, error: String(error) };
-  }
+    },
+  ]);
 }

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
+import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
+import { dispatchWebhookEvent } from "@/lib/webhooks";
 
 const setupSchema = z.object({
   token: z.string().min(1),
@@ -15,6 +17,15 @@ const setupSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp = getClientIp(req.headers);
+    const rl = await rateLimitAsync(`portal-setup:${clientIp}`, RATE_LIMITS.passwordReset);
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later.", retryAfter: rl.retryAfter },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter ?? 60) } }
+      );
+    }
+
     const body = await req.json();
     const { token, password } = setupSchema.parse(body);
 
@@ -32,6 +43,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Verify invite hasn't expired (7 day window)
+    if (creator.inviteSentAt) {
+      const daysSinceInvite = (Date.now() - creator.inviteSentAt.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceInvite > 7) {
+        return NextResponse.json(
+          { error: "Invite link has expired. Please ask your agency to resend the invitation." },
+          { status: 410 }
+        );
+      }
+    }
+
     // Hash password
     const hashedPassword = await hashPassword(password);
 
@@ -43,6 +65,13 @@ export async function POST(req: NextRequest) {
         inviteStatus: "ACCEPTED",
         inviteToken: null, // Clear the token
       },
+    });
+
+    // Fire webhook for creator joining
+    dispatchWebhookEvent(creator.agencyId, "creator.joined", {
+      creatorId: creator.id,
+      creatorName: creator.name,
+      creatorEmail: creator.email,
     });
 
     return NextResponse.json({
