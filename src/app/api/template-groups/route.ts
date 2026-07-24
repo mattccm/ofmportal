@@ -65,7 +65,9 @@ export async function GET(req: NextRequest) {
     // If templates are requested, fetch them for each group
     let groupsWithTemplates = groups.map((group) => ({
       ...group,
-      templateIds: JSON.parse((group.templateIds as string) || "[]"),
+      templateIds: Array.isArray(group.templateIds)
+        ? (group.templateIds as string[])
+        : [],
       templates: [] as Array<{
         id: string;
         name: string;
@@ -193,7 +195,7 @@ export async function POST(req: NextRequest) {
         platform: validatedData.platform,
         icon: validatedData.icon || null,
         color: validatedData.color || null,
-        templateIds: JSON.stringify(validatedData.templateIds),
+        templateIds: validatedData.templateIds,
         isDefault: validatedData.isDefault,
         sortOrder: newSortOrder,
       },

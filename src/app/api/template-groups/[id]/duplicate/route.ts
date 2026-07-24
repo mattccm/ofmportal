@@ -57,8 +57,10 @@ export async function POST(
       },
     });
 
-    // Parse template IDs for the response
-    const templateIds = JSON.parse((duplicatedGroup.templateIds as string) || "[]");
+    // Template IDs are stored as a JSON array column
+    const templateIds = Array.isArray(duplicatedGroup.templateIds)
+      ? (duplicatedGroup.templateIds as string[])
+      : [];
 
     // Fetch templates if there are any
     let templates: Array<{

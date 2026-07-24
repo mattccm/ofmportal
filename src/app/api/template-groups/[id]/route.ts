@@ -61,8 +61,10 @@ export async function GET(
       );
     }
 
-    // Parse template IDs
-    const templateIds = JSON.parse((group.templateIds as string) || "[]");
+    // Template IDs are stored as a JSON array column
+    const templateIds = Array.isArray(group.templateIds)
+      ? (group.templateIds as string[])
+      : [];
 
     // Fetch templates if there are any
     let templates: Array<{
@@ -188,7 +190,7 @@ export async function PATCH(
       updateData.color = validatedData.color;
     }
     if (validatedData.templateIds !== undefined) {
-      updateData.templateIds = JSON.stringify(validatedData.templateIds);
+      updateData.templateIds = validatedData.templateIds;
     }
     if (validatedData.isDefault !== undefined) {
       updateData.isDefault = validatedData.isDefault;
@@ -207,7 +209,9 @@ export async function PATCH(
       ...updatedGroup,
       templateIds: validatedData.templateIds !== undefined
         ? validatedData.templateIds
-        : JSON.parse((existingGroup.templateIds as string) || "[]"),
+        : Array.isArray(existingGroup.templateIds)
+          ? (existingGroup.templateIds as string[])
+          : [],
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

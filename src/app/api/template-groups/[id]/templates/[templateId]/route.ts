@@ -33,8 +33,10 @@ export async function DELETE(
       );
     }
 
-    // Parse existing template IDs
-    const existingIds = JSON.parse((group.templateIds as string) || "[]") as string[];
+    // Existing template IDs (stored as a JSON array column)
+    const existingIds = Array.isArray(group.templateIds)
+      ? (group.templateIds as string[])
+      : [];
 
     // Check if the template is in the group
     if (!existingIds.includes(templateId)) {
@@ -48,10 +50,10 @@ export async function DELETE(
     const newIds = existingIds.filter((id) => id !== templateId);
 
     // Update the group
-    const updatedGroup = await db.templateGroup.update({
+    await db.templateGroup.update({
       where: { id },
       data: {
-        templateIds: JSON.stringify(newIds),
+        templateIds: newIds,
       },
     });
 

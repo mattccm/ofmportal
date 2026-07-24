@@ -40,8 +40,10 @@ export async function GET(
       );
     }
 
-    // Parse template IDs
-    const templateIds = JSON.parse((group.templateIds as string) || "[]");
+    // Template IDs are stored as a JSON array column
+    const templateIds = Array.isArray(group.templateIds)
+      ? (group.templateIds as string[])
+      : [];
 
     if (templateIds.length === 0) {
       return NextResponse.json({ templates: [] });
@@ -145,15 +147,17 @@ export async function POST(
       );
     }
 
-    // Parse existing template IDs and add new ones (avoiding duplicates)
-    const existingIds = JSON.parse((group.templateIds as string) || "[]") as string[];
+    // Existing template IDs and add new ones (avoiding duplicates)
+    const existingIds = Array.isArray(group.templateIds)
+      ? (group.templateIds as string[])
+      : [];
     const newIds = [...new Set([...existingIds, ...validTemplateIds])];
 
     // Update the group
     const updatedGroup = await db.templateGroup.update({
       where: { id },
       data: {
-        templateIds: JSON.stringify(newIds),
+        templateIds: newIds,
       },
     });
 
@@ -272,7 +276,7 @@ export async function PUT(
     const updatedGroup = await db.templateGroup.update({
       where: { id },
       data: {
-        templateIds: JSON.stringify(templateIds),
+        templateIds: templateIds,
       },
     });
 

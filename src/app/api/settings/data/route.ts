@@ -44,18 +44,17 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case "storage": {
-        // Get storage statistics by file type
-        const uploads = await db.upload.findMany({
+        // Aggregate storage stats DB-side, grouped by file type, so we never
+        // load every upload row into memory just to sum sizes.
+        const groupedByType = await db.upload.groupBy({
+          by: ["fileType"],
           where: {
             request: {
               agencyId,
             },
           },
-          select: {
-            fileSize: true,
-            fileType: true,
-            uploadStatus: true,
-          },
+          _sum: { fileSize: true },
+          _count: { _all: true },
         });
 
         // Calculate breakdown by type
@@ -67,24 +66,21 @@ export async function GET(request: NextRequest) {
         };
 
         let totalUsed = BigInt(0);
-        let failedCount = 0;
 
-        for (const upload of uploads) {
-          const size = upload.fileSize;
+        for (const group of groupedByType) {
+          // fileSize is BigInt; _sum is null when no rows matched
+          const size = group._sum.fileSize ?? BigInt(0);
+          const count = group._count._all;
           totalUsed += size;
 
-          if (upload.uploadStatus === "FAILED") {
-            failedCount++;
-          }
-
           // Categorize by MIME type
-          const mimeType = upload.fileType.toLowerCase();
+          const mimeType = group.fileType.toLowerCase();
           if (mimeType.startsWith("video/")) {
             breakdown.videos.size += Number(size);
-            breakdown.videos.count++;
+            breakdown.videos.count += count;
           } else if (mimeType.startsWith("image/")) {
             breakdown.images.size += Number(size);
-            breakdown.images.count++;
+            breakdown.images.count += count;
           } else if (
             mimeType.startsWith("application/pdf") ||
             mimeType.startsWith("application/msword") ||
@@ -92,12 +88,20 @@ export async function GET(request: NextRequest) {
             mimeType.startsWith("text/")
           ) {
             breakdown.documents.size += Number(size);
-            breakdown.documents.count++;
+            breakdown.documents.count += count;
           } else {
             breakdown.other.size += Number(size);
-            breakdown.other.count++;
+            breakdown.other.count += count;
           }
         }
+
+        // Count failed uploads DB-side rather than iterating every row
+        const failedCount = await db.upload.count({
+          where: {
+            request: { agencyId },
+            uploadStatus: "FAILED",
+          },
+        });
 
         // Get agency settings for storage limit (default 100GB)
         const agency = await db.agency.findUnique({
@@ -391,8 +395,8 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Calculate total size
-        const allUploads = await db.upload.findMany({
+        // Calculate total size DB-side instead of loading every upload row
+        const sizeAggregate = await db.upload.aggregate({
           where: {
             request: {
               agencyId,
@@ -406,13 +410,11 @@ export async function POST(request: NextRequest) {
                 : undefined,
             },
           },
-          select: { fileSize: true },
+          _sum: { fileSize: true },
         });
 
-        const totalSize = allUploads.reduce(
-          (sum, upload) => sum + Number(upload.fileSize),
-          0
-        );
+        // fileSize is BigInt; convert to Number before returning to the client
+        const totalSize = Number(sizeAggregate._sum.fileSize ?? BigInt(0));
 
         const items = requests.map((req) => ({
           id: req.id,
