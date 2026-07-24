@@ -6,6 +6,7 @@ import { AnnouncementStack, type Announcement } from "./announcement-banner";
 interface AnnouncementsContextType {
   announcements: Announcement[];
   isLoading: boolean;
+  hasError: boolean;
   dismissAnnouncement: (id: string) => void;
   refreshAnnouncements: () => void;
 }
@@ -16,6 +17,7 @@ const AnnouncementsContext = React.createContext<AnnouncementsContextType | null
 const defaultAnnouncementsContext: AnnouncementsContextType = {
   announcements: [],
   isLoading: false,
+  hasError: false,
   dismissAnnouncement: () => {
     console.warn("useAnnouncements: AnnouncementsProvider not available");
   },
@@ -40,6 +42,7 @@ interface AnnouncementsProviderProps {
 export function AnnouncementsProvider({ children }: AnnouncementsProviderProps) {
   const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [hasError, setHasError] = React.useState(false);
 
   const fetchAnnouncements = React.useCallback(async () => {
     try {
@@ -47,9 +50,13 @@ export function AnnouncementsProvider({ children }: AnnouncementsProviderProps) 
       if (response.ok) {
         const data = await response.json();
         setAnnouncements(data.announcements || []);
+        setHasError(false);
+      } else {
+        setHasError(true);
       }
     } catch (error) {
       console.error("Error fetching announcements:", error);
+      setHasError(true);
     } finally {
       setIsLoading(false);
     }
@@ -84,10 +91,11 @@ export function AnnouncementsProvider({ children }: AnnouncementsProviderProps) 
     () => ({
       announcements,
       isLoading,
+      hasError,
       dismissAnnouncement,
       refreshAnnouncements: fetchAnnouncements,
     }),
-    [announcements, isLoading, dismissAnnouncement, fetchAnnouncements]
+    [announcements, isLoading, hasError, dismissAnnouncement, fetchAnnouncements]
   );
 
   return (

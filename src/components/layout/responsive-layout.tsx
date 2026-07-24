@@ -59,6 +59,20 @@ function ResponsiveLayoutComponent({
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
 
+  // The media-query hooks report `false` until the client has mounted, so the
+  // breakpoint isn't known on the first paint. Gate committing to a branch on a
+  // mounted flag and render a neutral placeholder until then, so children mount
+  // once into the correct (mobile/tablet/desktop) subtree instead of rendering
+  // desktop first and remounting into mobile after hydration.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="min-h-screen bg-background" aria-hidden="true" />;
+  }
+
   // Mobile layout
   if (isMobile) {
     return (

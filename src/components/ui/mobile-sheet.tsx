@@ -51,6 +51,9 @@ export function MobileSheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragStartY = useRef<number>(0);
   const dragCurrentY = useRef<number>(0);
+  const dragLastY = useRef<number>(0);
+  const dragLastTime = useRef<number>(0);
+  const dragVelocity = useRef<number>(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
 
@@ -65,6 +68,9 @@ export function MobileSheet({
     const touch = e.touches[0];
     dragStartY.current = touch.clientY;
     dragCurrentY.current = touch.clientY;
+    dragLastY.current = touch.clientY;
+    dragLastTime.current = e.timeStamp;
+    dragVelocity.current = 0;
     setIsDragging(true);
   }, [showHandle]);
 
@@ -73,6 +79,14 @@ export function MobileSheet({
 
     const touch = e.touches[0];
     const deltaY = touch.clientY - dragStartY.current;
+
+    // Track instantaneous velocity (px/ms) from the latest move segment
+    const dt = e.timeStamp - dragLastTime.current;
+    if (dt > 0) {
+      dragVelocity.current = (touch.clientY - dragLastY.current) / dt;
+    }
+    dragLastY.current = touch.clientY;
+    dragLastTime.current = e.timeStamp;
 
     // Only allow downward swipe
     if (deltaY > 0) {
@@ -86,13 +100,13 @@ export function MobileSheet({
     }
   }, [isDragging, showHandle]);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+  const handleTouchEnd = useCallback(() => {
     if (!isDragging || !showHandle) return;
 
     const deltaY = dragCurrentY.current - dragStartY.current;
-    const velocity = deltaY / (e.timeStamp - (e.timeStamp - 100)); // Approximate velocity
+    const velocity = dragVelocity.current; // px/ms, measured across the drag
 
-    // Dismiss if dragged past threshold or with high velocity
+    // Dismiss if dragged past threshold or with a fast downward flick
     if (deltaY > DISMISS_THRESHOLD || velocity > VELOCITY_THRESHOLD) {
       onOpenChange(false);
     }
@@ -102,6 +116,9 @@ export function MobileSheet({
     setDragOffset(0);
     dragStartY.current = 0;
     dragCurrentY.current = 0;
+    dragLastY.current = 0;
+    dragLastTime.current = 0;
+    dragVelocity.current = 0;
   }, [isDragging, showHandle, onOpenChange]);
 
   // Reset drag offset when sheet closes

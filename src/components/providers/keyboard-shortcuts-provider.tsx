@@ -130,7 +130,7 @@ export function KeyboardShortcutsProvider({
   // Build command palette items
   const commandItems: CommandItem[] = React.useMemo(() => {
     const navigationCommands = createNavigationCommands(router);
-    const actionCommands = createActionCommands({
+    const actionCommands = createActionCommands(router, {
       newRequest: () => router.push("/dashboard/requests/new"),
       openShortcutsHelp,
     });
@@ -154,14 +154,8 @@ export function KeyboardShortcutsProvider({
   // Build global shortcuts - now stable since we use refs for modal state
   const globalShortcuts: KeyboardShortcut[] = React.useMemo(
     () => [
-      // Command palette
-      {
-        id: "command-palette",
-        keys: ["Ctrl+K", "Cmd+K"],
-        callback: openCommandPalette,
-        description: "Open command palette",
-        category: "actions",
-      },
+      // NOTE: Cmd/Ctrl+K is owned by GlobalSearch (SearchProvider). The command
+      // palette intentionally has no keyboard binding here to avoid a conflict.
       // Shortcuts help - "?" key trigger
       {
         id: "shortcuts-help-question",
@@ -254,7 +248,6 @@ export function KeyboardShortcutsProvider({
     ],
     [
       router,
-      openCommandPalette,
       openShortcutsHelp,
       closeCommandPalette,
       closeShortcutsHelp,

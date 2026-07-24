@@ -429,10 +429,13 @@ export function createNavigationCommands(router: ReturnType<typeof useRouter>) {
   ];
 }
 
-export function createActionCommands(callbacks: {
-  newRequest?: () => void;
-  openShortcutsHelp?: () => void;
-}) {
+export function createActionCommands(
+  router: ReturnType<typeof useRouter>,
+  callbacks: {
+    newRequest?: () => void;
+    openShortcutsHelp?: () => void;
+  }
+) {
   return [
     {
       id: "new-request",
@@ -459,7 +462,7 @@ export function createActionCommands(callbacks: {
       label: "Settings",
       description: "Open application settings",
       icon: <Settings className="h-4 w-4" />,
-      action: () => {},
+      action: () => router.push("/dashboard/settings/profile"),
       category: "settings" as const,
       keywords: ["preferences", "config", "options"],
     },

@@ -55,10 +55,12 @@ function getStatusColor(status: string) {
 export default function CreatorMessagesPage() {
   const [messages, setMessages] = useState<CreatorMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [total, setTotal] = useState(0);
 
   const fetchMessages = async () => {
     setLoading(true);
+    setError(false);
     try {
       const res = await fetch("/api/creator-messages?limit=100");
       if (res.ok) {
@@ -76,9 +78,12 @@ export default function CreatorMessagesPage() {
             // Silently fail - not critical
           });
         }
+      } else {
+        setError(true);
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -110,6 +115,25 @@ export default function CreatorMessagesPage() {
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
         </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Inbox className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium">Couldn&apos;t load messages</h3>
+            <p className="text-muted-foreground mt-1">
+              Something went wrong while loading comments.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={fetchMessages}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       ) : messages.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">

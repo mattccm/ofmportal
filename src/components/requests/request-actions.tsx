@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -72,10 +73,12 @@ const STATUS_OPTIONS = [
 ];
 
 export function RequestActions({ request, onCloneClick, hideCloneButton = false }: RequestActionsProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
-    action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder" | "delete" | null;
+    action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder" | "delete" | "changeStatus" | null;
+    status?: string;
   }>({ open: false, action: null });
 
   const isDraft = request.status === "DRAFT";
@@ -164,7 +167,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
         );
       }
 
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `Failed to ${action}`);
     } finally {
@@ -232,11 +235,12 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
       }
 
       toast.success("Request updated");
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to perform action");
     } finally {
       setLoading(false);
+      setConfirmDialog({ open: false, action: null });
     }
   };
 
@@ -361,9 +365,21 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                 {STATUS_OPTIONS.map((status) => (
                   <DropdownMenuItem
                     key={status.value}
-                    onClick={() =>
-                      handleQuickAction("changeStatus", { status: status.value })
-                    }
+                    onClick={() => {
+                      // Terminal statuses are destructive - confirm before applying
+                      if (
+                        status.value === "CANCELLED" ||
+                        status.value === "ARCHIVED"
+                      ) {
+                        setConfirmDialog({
+                          open: true,
+                          action: "changeStatus",
+                          status: status.value,
+                        });
+                      } else {
+                        handleQuickAction("changeStatus", { status: status.value });
+                      }
+                    }}
                     disabled={request.status === status.value}
                   >
                     {status.label}
@@ -440,7 +456,11 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
         open={confirmDialog.open}
         onOpenChange={(open) => setConfirmDialog({ open, action: null })}
         title={
-          confirmDialog.action === "submit"
+          confirmDialog.action === "changeStatus"
+            ? confirmDialog.status === "ARCHIVED"
+              ? "Archive Request"
+              : "Cancel Request"
+            : confirmDialog.action === "submit"
             ? "Mark as Submitted"
             : confirmDialog.action === "approve"
               ? "Approve All Uploads"
@@ -457,7 +477,11 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                         : ""
         }
         description={
-          confirmDialog.action === "submit"
+          confirmDialog.action === "changeStatus"
+            ? confirmDialog.status === "ARCHIVED"
+              ? "This will archive the request. You can restore it later from the archived requests."
+              : "This will cancel the request. This action cannot be undone."
+            : confirmDialog.action === "submit"
             ? "This will mark the request as submitted and notify the team for review."
             : confirmDialog.action === "approve"
               ? "This will approve all uploads and mark the request as complete."
@@ -473,10 +497,25 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                         ? "This will permanently delete the request and all associated uploads. This action cannot be undone."
                         : ""
         }
-        variant={confirmDialog.action === "cancel" || confirmDialog.action === "delete" ? "destructive" : "default"}
+        variant={
+          confirmDialog.action === "cancel" ||
+          confirmDialog.action === "delete" ||
+          (confirmDialog.action === "changeStatus" &&
+            confirmDialog.status === "CANCELLED")
+            ? "destructive"
+            : "default"
+        }
         confirmLabel="Confirm"
         loading={loading}
-        onConfirm={() => { if (confirmDialog.action) handleAction(confirmDialog.action); }}
+        onConfirm={() => {
+          if (confirmDialog.action === "changeStatus") {
+            if (confirmDialog.status) {
+              handleQuickAction("changeStatus", { status: confirmDialog.status });
+            }
+          } else if (confirmDialog.action) {
+            handleAction(confirmDialog.action);
+          }
+        }}
         onCancel={() => setConfirmDialog({ open: false, action: null })}
       />
     </>

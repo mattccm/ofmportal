@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useId } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { X, Pin } from "lucide-react";
@@ -89,6 +89,7 @@ function TooltipArrow({ position, className }: TooltipArrowProps) {
 // TOOLTIP CONTENT COMPONENT
 
 interface TooltipContentProps {
+  id: string;
   content: React.ReactNode;
   position: TooltipPosition;
   targetRect: DOMRect;
@@ -103,6 +104,7 @@ interface TooltipContentProps {
 }
 
 function TooltipContent({
+  id,
   content,
   position,
   targetRect,
@@ -233,6 +235,7 @@ function TooltipContent({
   return createPortal(
     <div
       ref={tooltipRef}
+      id={id}
       role="tooltip"
       className={cn(
         "fixed z-[9999] pointer-events-auto",
@@ -313,6 +316,7 @@ export function TooltipEnhanced({
   const [isOpen, setIsOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const tooltipId = useId();
   const [triggerEl, setTriggerEl] = useState<HTMLElement | null>(null);
   const showTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -452,7 +456,7 @@ export function TooltipEnhanced({
         typedChildren.props.onClick?.(e);
         handleClick();
       }}
-      aria-describedby={isOpen ? "tooltip" : undefined}
+      aria-describedby={isOpen ? tooltipId : undefined}
     />
   );
 
@@ -461,6 +465,7 @@ export function TooltipEnhanced({
       {trigger}
       {isOpen && targetRect && (
         <TooltipContent
+          id={tooltipId}
           content={content}
           position={position}
           targetRect={targetRect}

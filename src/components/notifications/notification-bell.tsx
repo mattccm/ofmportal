@@ -39,6 +39,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItemData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isOpenRef = useRef(isOpen);
@@ -72,9 +73,13 @@ export function NotificationBell({ className }: NotificationBellProps) {
             readAt: n.readAt ? new Date(n.readAt) : null,
           }))
         );
+        setHasError(false);
+      } else {
+        setHasError(true);
       }
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
+      setHasError(true);
     } finally {
       setIsLoading(false);
     }
@@ -87,11 +92,12 @@ export function NotificationBell({ className }: NotificationBellProps) {
     fetchUnreadCount();
     fetchNotifications();
 
-    // Set up polling
+    // Set up polling. Read `isOpen` from a ref so the interval stays stable
+    // and isn't torn down/recreated every time the dropdown opens or closes.
     pollIntervalRef.current = setInterval(() => {
       fetchUnreadCount();
       // Only fetch full notifications if dropdown is open
-      if (isOpen) {
+      if (isOpenRef.current) {
         fetchNotifications();
       }
     }, POLL_INTERVAL);
@@ -101,7 +107,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [fetchUnreadCount, fetchNotifications, isOpen]);
+  }, [fetchUnreadCount, fetchNotifications]);
 
   // Fetch notifications when dropdown opens
   useEffect(() => {
@@ -297,6 +303,13 @@ export function NotificationBell({ className }: NotificationBellProps) {
               {[...Array(3)].map((_, i) => (
                 <NotificationItemSkeleton key={i} compact />
               ))}
+            </div>
+          ) : hasError && notifications.length === 0 ? (
+            // Error state - distinguishes a failed fetch from "no notifications"
+            <div className="py-8 px-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Couldn&apos;t load notifications
+              </p>
             </div>
           ) : notifications.length === 0 ? (
             // Empty state

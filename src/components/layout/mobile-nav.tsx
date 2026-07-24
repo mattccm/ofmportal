@@ -102,6 +102,44 @@ const triggerHaptic = (type: "light" | "medium" | "heavy" = "light") => {
   }
 };
 
+// Distance (px) from the left/right screen edge within which an edge-swipe
+// must start for swipe-to-navigate to activate.
+const SWIPE_EDGE_THRESHOLD = 24;
+
+// Determine whether a gesture starting on `target` should be excluded from
+// swipe-to-navigate. Ignores interactive elements and horizontally scrollable
+// containers so swiping tables/carousels/sliders or selecting text never
+// triggers a route change.
+const isSwipeBlocked = (target: EventTarget | null): boolean => {
+  if (!(target instanceof Element)) return false;
+
+  // Interactive / opt-out elements
+  if (
+    target.closest(
+      "input, textarea, select, a, button, [role='slider'], [data-no-swipe-nav]"
+    )
+  ) {
+    return true;
+  }
+
+  // Any horizontally scrollable ancestor
+  let el: Element | null = target;
+  while (el && el !== document.body) {
+    if (el instanceof HTMLElement) {
+      const overflowX = window.getComputedStyle(el).overflowX;
+      if (
+        (overflowX === "auto" || overflowX === "scroll") &&
+        el.scrollWidth > el.clientWidth
+      ) {
+        return true;
+      }
+    }
+    el = el.parentElement;
+  }
+
+  return false;
+};
+
 interface PullToRefreshIndicatorProps {
   pullProgress: number;
   isRefreshing: boolean;
@@ -184,7 +222,11 @@ export function MobileNav() {
   const [pullProgress, setPullProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [swipeHint, setSwipeHint] = useState<"left" | "right" | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartRef = useRef<{
+    x: number;
+    y: number;
+    swipeEligible: boolean;
+  } | null>(null);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
 
   const isAdmin = user?.role === "OWNER" || user?.role === "ADMIN";
@@ -224,7 +266,17 @@ export function MobileNav() {
   // Pull-to-refresh handler
   const handleTouchStart = useCallback((e: TouchEvent) => {
     const touch = e.touches[0];
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    // Swipe-to-navigate only activates for edge-swipes that don't start on an
+    // interactive or horizontally scrollable element.
+    const startedAtEdge =
+      touch.clientX <= SWIPE_EDGE_THRESHOLD ||
+      touch.clientX >= window.innerWidth - SWIPE_EDGE_THRESHOLD;
+    const swipeEligible = startedAtEdge && !isSwipeBlocked(e.target);
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      swipeEligible,
+    };
     scrollContainerRef.current = document.scrollingElement as HTMLElement;
   }, []);
 
@@ -239,7 +291,7 @@ export function MobileNav() {
       // Pull-to-refresh (vertical)
       const scrollTop = scrollContainerRef.current?.scrollTop || 0;
       if (scrollTop === 0 && deltaY > 0 && Math.abs(deltaY) > Math.abs(deltaX)) {
-        const progress = Math.min(deltaY / 150, 1);
+        const progress = Math.min(deltaY / 180, 1);
         setPullProgress(progress);
 
         if (progress >= 0.5) {
@@ -247,8 +299,12 @@ export function MobileNav() {
         }
       }
 
-      // Swipe navigation hints (horizontal)
-      if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Swipe navigation hints (horizontal) - only for eligible edge-swipes
+      if (
+        touchStartRef.current.swipeEligible &&
+        Math.abs(deltaX) > 50 &&
+        Math.abs(deltaX) > Math.abs(deltaY)
+      ) {
         const currentIndex = getCurrentNavIndex();
         if (deltaX > 0 && currentIndex > 0) {
           setSwipeHint("left");
@@ -273,14 +329,19 @@ export function MobileNav() {
         setIsRefreshing(true);
         triggerHaptic("medium");
 
-        // Simulate refresh - in real app, this would refresh data
+        // Refresh server data without a hard reload (preserves client state)
+        router.refresh();
         setTimeout(() => {
-          window.location.reload();
+          setIsRefreshing(false);
         }, 1000);
       }
 
-      // Handle swipe navigation
-      if (Math.abs(deltaX) > 100 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Handle swipe navigation - only for eligible edge-swipes
+      if (
+        touchStartRef.current.swipeEligible &&
+        Math.abs(deltaX) > 100 &&
+        Math.abs(deltaX) > Math.abs(deltaY)
+      ) {
         const currentIndex = getCurrentNavIndex();
         if (deltaX > 0 && currentIndex > 0) {
           // Swipe right - go to previous
