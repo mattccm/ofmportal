@@ -2,8 +2,9 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  // Self-contained server build for containerized (Railway) deploys
-  output: "standalone",
+  // Self-contained server build for containerized (Railway/Docker) deploys.
+  // Skipped on Vercel, which manages its own build output.
+  output: process.env.VERCEL ? undefined : "standalone",
   // Pin the tracing root to this project (a stray parent lockfile can otherwise
   // make Next misdetect the workspace root and nest the standalone output).
   outputFileTracingRoot: __dirname,
