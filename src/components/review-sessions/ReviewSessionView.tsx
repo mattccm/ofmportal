@@ -19,8 +19,6 @@ import {
   Circle,
   ChevronLeft,
   ChevronRight,
-  Play,
-  Pause,
   StopCircle,
   LogOut,
   Maximize2,
@@ -33,7 +31,6 @@ import {
   Clock,
   Users,
   Pencil,
-  Mic,
   History,
   WifiOff,
   RefreshCw,
@@ -47,7 +44,17 @@ import { AutoAdvanceTimer } from "./AutoAdvanceTimer";
 import { ConflictHighlight } from "./ConflictHighlight";
 import { AnnotationCanvas } from "./AnnotationCanvas";
 import { SessionHistoryViewer } from "./SessionHistoryViewer";
-import { SessionAnnotation } from "@/types/review-session";
+import {
+  SessionAnnotation,
+  AnnotationData,
+  AnnotationEvent,
+} from "@/types/review-session";
+import {
+  subscribeToChannel,
+  unsubscribeFromChannel,
+  broadcastToChannel,
+  RealtimePayload,
+} from "@/lib/supabase";
 import {
   ReviewSessionViewProps,
   SessionState,
@@ -61,6 +68,44 @@ import {
   SessionEndedEvent,
   SessionSummary as SessionSummaryType,
 } from "@/types/review-session";
+
+// Channel that carries live annotation events (in-progress previews + committed
+// mutations) for a review session. The server broadcasts committed events here
+// from the annotations API route; clients broadcast in-progress previews here.
+const annotationChannel = (sessionId: string) =>
+  `review-session:${sessionId}:annotations`;
+
+// Merge an incoming annotation event into a local annotations array.
+function applyAnnotationEvent(
+  list: SessionAnnotation[],
+  event: AnnotationEvent
+): SessionAnnotation[] {
+  switch (event.action) {
+    case "add":
+    case "update": {
+      const annotation = event.annotation;
+      if (!annotation || !annotation.id) return list;
+      const index = list.findIndex((a) => a.id === annotation.id);
+      if (index >= 0) {
+        const next = [...list];
+        next[index] = annotation;
+        return next;
+      }
+      return [...list, annotation];
+    }
+    case "delete": {
+      const id = event.annotation?.id;
+      if (!id) return list;
+      return list.filter((a) => a.id !== id);
+    }
+    case "clear": {
+      const uploadId = event.annotation?.uploadId;
+      return uploadId ? list.filter((a) => a.uploadId !== uploadId) : [];
+    }
+    default:
+      return list;
+  }
+}
 
 export function ReviewSessionView({
   sessionId,
@@ -448,7 +493,9 @@ export function ReviewSessionView({
     }
   };
 
-  const addAnnotation = async (annotation: Omit<SessionAnnotation, "id" | "createdAt">) => {
+  const addAnnotation = async (
+    annotation: Omit<SessionAnnotation, "id" | "createdAt">
+  ): Promise<SessionAnnotation | null> => {
     try {
       const response = await fetch(`/api/review-sessions/${sessionId}/annotations`, {
         method: "POST",
@@ -462,12 +509,55 @@ export function ReviewSessionView({
 
       if (response.ok) {
         const data = await response.json();
-        setAnnotations((prev) => [...prev, data.annotation]);
+        const saved = data.annotation as SessionAnnotation;
+        setAnnotations((prev) =>
+          prev.some((a) => a.id === saved.id) ? prev : [...prev, saved]
+        );
+        return saved;
       }
     } catch (err) {
       console.error("Failed to add annotation:", err);
     }
+    return null;
   };
+
+  const updateAnnotation = async (annotationId: string, data: AnnotationData) => {
+    try {
+      const response = await fetch(`/api/review-sessions/${sessionId}/annotations`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+          "x-agency-id": "agency_demo",
+        },
+        body: JSON.stringify({ annotationId, data }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAnnotations((prev) =>
+          prev.map((a) => (a.id === annotationId ? result.annotation : a))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to update annotation:", err);
+    }
+  };
+
+  // Broadcast a live annotation event (in-progress preview or committed change)
+  // to the other participants. Committed changes are also broadcast server-side
+  // from the API route; subscribers dedupe by annotation id.
+  const broadcastAnnotation = useCallback(
+    (event: AnnotationEvent) => {
+      void broadcastToChannel(annotationChannel(sessionId), {
+        type: "message",
+        data: event,
+        timestamp: new Date().toISOString(),
+        userId,
+      });
+    },
+    [sessionId, userId]
+  );
 
   const deleteAnnotation = async (annotationId: string) => {
     try {
@@ -562,6 +652,19 @@ export function ReviewSessionView({
       loadAnnotations();
     }
   }, [state?.currentUpload?.id, showAnnotations]);
+
+  // Subscribe to live annotation events from other participants and merge them
+  // into local state (which flows down to the AnnotationCanvas via props).
+  useEffect(() => {
+    if (!showAnnotations) return;
+    const channel = annotationChannel(sessionId);
+    subscribeToChannel(channel, (payload: RealtimePayload) => {
+      const event = payload.data as AnnotationEvent | undefined;
+      if (!event || !event.action) return;
+      setAnnotations((prev) => applyAnnotationEvent(prev, event));
+    });
+    return () => unsubscribeFromChannel(channel);
+  }, [sessionId, showAnnotations]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -825,9 +928,10 @@ export function ReviewSessionView({
                         imageUrl={currentUpload.storageUrl || currentUpload.thumbnailUrl || undefined}
                         annotations={annotations}
                         onAnnotationAdd={addAnnotation}
-                        onAnnotationUpdate={() => {}}
+                        onAnnotationUpdate={updateAnnotation}
                         onAnnotationDelete={deleteAnnotation}
                         onAnnotationClear={clearAnnotations}
+                        onAnnotationBroadcast={broadcastAnnotation}
                         userId={userId}
                         disabled={session.status !== "ACTIVE"}
                       />
@@ -941,7 +1045,7 @@ export function ReviewSessionView({
           <AlertDialogHeader>
             <AlertDialogTitle>End Review Session?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will end the session for all participants. You've reviewed{" "}
+              This will end the session for all participants. You&apos;ve reviewed{" "}
               {progress.reviewedCount} of {progress.totalItems} items. A summary
               will be generated.
             </AlertDialogDescription>
@@ -961,7 +1065,7 @@ export function ReviewSessionView({
           <AlertDialogHeader>
             <AlertDialogTitle>Leave Session?</AlertDialogTitle>
             <AlertDialogDescription>
-              You can rejoin the session later if it's still active. Your votes
+              You can rejoin the session later if it&apos;s still active. Your votes
               will be preserved.
             </AlertDialogDescription>
           </AlertDialogHeader>

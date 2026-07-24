@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { validateCreatorSession } from "@/lib/portal-auth";
 
 const updateProfileSchema = z.object({
@@ -9,6 +10,8 @@ const updateProfileSchema = z.object({
   timezone: z.string().optional(),
   avatar: z.string().optional(),
   bio: z.string().optional(),
+  emailNotifications: z.boolean().optional(),
+  smsNotifications: z.boolean().optional(),
 });
 
 // GET - Get creator profile
@@ -39,7 +42,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Creator not found" }, { status: 404 });
     }
 
-    return NextResponse.json(creator);
+    // Surface notification prefs (stored in contentPreferences JSON) as booleans
+    const prefs =
+      (creator.contentPreferences as Record<string, unknown>) || {};
+    const notifications =
+      (prefs.notifications as Record<string, unknown>) || {};
+
+    return NextResponse.json({
+      ...creator,
+      emailNotifications: notifications.email !== false,
+      smsNotifications: notifications.sms === true,
+    });
   } catch (error) {
     console.error("Error fetching creator profile:", error);
     return NextResponse.json(
@@ -60,6 +73,36 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const updates = updateProfileSchema.parse(body);
 
+    // Notification preferences are stored in the contentPreferences JSON field
+    // (consistent with the communication-preferences API). Merge with existing.
+    let contentPreferencesUpdate: Prisma.InputJsonValue | undefined;
+    if (
+      updates.emailNotifications !== undefined ||
+      updates.smsNotifications !== undefined
+    ) {
+      const existing = await db.creator.findUnique({
+        where: { id: authResult.creator.id },
+        select: { contentPreferences: true },
+      });
+      const prefs =
+        (existing?.contentPreferences as Record<string, unknown>) || {};
+      const currentNotifications =
+        (prefs.notifications as Record<string, unknown>) || {};
+
+      contentPreferencesUpdate = {
+        ...prefs,
+        notifications: {
+          ...currentNotifications,
+          ...(updates.emailNotifications !== undefined && {
+            email: updates.emailNotifications,
+          }),
+          ...(updates.smsNotifications !== undefined && {
+            sms: updates.smsNotifications,
+          }),
+        },
+      } as Prisma.InputJsonValue;
+    }
+
     // Update creator profile
     const updatedCreator = await db.creator.update({
       where: { id: authResult.creator.id },
@@ -68,6 +111,9 @@ export async function PUT(req: NextRequest) {
         ...(updates.phone !== undefined && { phone: updates.phone }),
         ...(updates.timezone && { timezone: updates.timezone }),
         ...(updates.avatar !== undefined && { avatar: updates.avatar }),
+        ...(contentPreferencesUpdate !== undefined && {
+          contentPreferences: contentPreferencesUpdate,
+        }),
       },
       select: {
         id: true,

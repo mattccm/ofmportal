@@ -40,9 +40,9 @@ import {
   Moon,
   Monitor,
   Repeat,
+  Eye,
 } from "lucide-react";
 import { useTheme } from "@/components/theme/theme-provider";
-import { useUnreadMentions } from "@/hooks/use-mentions";
 import { useCreatorMessagesCount } from "@/hooks/use-creator-messages";
 
 const navigation = [
@@ -67,6 +67,13 @@ const adminNavigation = [
   { name: "Team", href: "/dashboard/team", icon: UserCog },
   { name: "Settings", href: "/dashboard/settings/profile", icon: Settings },
 ];
+
+// Oversight - management feature gated to elevated roles (owner/admin/manager)
+const oversightNav = {
+  name: "Oversight",
+  href: "/dashboard/oversight",
+  icon: Eye,
+};
 
 // Memoized nav item component to prevent re-renders
 const NavItem = React.memo(function NavItem({
@@ -119,10 +126,18 @@ function SidebarComponent() {
   const { count: creatorMessagesCount } = useCreatorMessagesCount();
 
   const isAdmin = user?.role === "OWNER" || user?.role === "ADMIN";
+  const canViewOversight =
+    user?.role === "OWNER" ||
+    user?.role === "ADMIN" ||
+    user?.role === "MANAGER";
 
   // Memoize active state calculations
   const activeStates = React.useMemo(() => {
     const states: Record<string, boolean> = {};
+
+    states[oversightNav.href] =
+      pathname === oversightNav.href ||
+      pathname.startsWith(oversightNav.href + "/");
 
     navigation.forEach((item) => {
       states[item.href] = item.href === "/dashboard"
@@ -177,7 +192,7 @@ function SidebarComponent() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin" data-tour="sidebar-nav">
         <div className="mb-2 px-3">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
             Main Menu
@@ -207,6 +222,12 @@ function SidebarComponent() {
             isActive={activeStates[item.href]}
           />
         ))}
+        {canViewOversight && (
+          <NavItem
+            item={oversightNav}
+            isActive={activeStates[oversightNav.href]}
+          />
+        )}
 
         {/* Admin Section */}
         {isAdmin && (

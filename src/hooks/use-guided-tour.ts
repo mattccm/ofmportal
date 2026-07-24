@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface TourStep {
   /** Unique identifier for the step */
@@ -92,9 +90,7 @@ export interface UseGuidedTourReturn {
   isTargetVisible: boolean;
 }
 
-// ============================================
 // LOCAL STORAGE HELPERS
-// ============================================
 
 const STORAGE_PREFIX = "guided_tour_";
 
@@ -143,9 +139,7 @@ function clearTourCompletion(tourId: string): void {
   }
 }
 
-// ============================================
 // MAIN HOOK
-// ============================================
 
 export function useGuidedTour(config: TourConfig): UseGuidedTourReturn {
   const {
@@ -158,7 +152,6 @@ export function useGuidedTour(config: TourConfig): UseGuidedTourReturn {
     onSkip,
     onStepChange,
     enableKeyboardNav = true,
-    spotlightPadding = 8,
   } = config;
 
   // State
@@ -186,9 +179,7 @@ export function useGuidedTour(config: TourConfig): UseGuidedTourReturn {
     return Math.round(((currentStepIndex + 1) / totalSteps) * 100);
   }, [currentStepIndex, totalSteps]);
 
-  // ============================================
   // TARGET ELEMENT TRACKING
-  // ============================================
 
   const updateTargetRect = useCallback(() => {
     if (!currentStep) {
@@ -253,7 +244,7 @@ export function useGuidedTour(config: TourConfig): UseGuidedTourReturn {
       waitForIntervalRef.current = setInterval(checkCondition, 100);
       checkCondition(); // Check immediately
     } else {
-      updateTargetRect();
+      queueMicrotask(updateTargetRect);
     }
 
     // Set up resize observer
@@ -294,70 +285,7 @@ export function useGuidedTour(config: TourConfig): UseGuidedTourReturn {
     };
   }, [isActive, currentStep, currentStepIndex, updateTargetRect, onStepChange]);
 
-  // ============================================
-  // KEYBOARD NAVIGATION
-  // ============================================
-
-  useEffect(() => {
-    if (!isActive || !enableKeyboardNav) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case "Escape":
-          skipTour();
-          break;
-        case "ArrowRight":
-        case "Enter":
-          if (currentStepIndex < totalSteps - 1) {
-            nextStep();
-          } else {
-            completeTour();
-          }
-          break;
-        case "ArrowLeft":
-          if (currentStepIndex > 0) {
-            prevStep();
-          }
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isActive, enableKeyboardNav, currentStepIndex, totalSteps]);
-
-  // ============================================
-  // INITIALIZATION
-  // ============================================
-
-  useEffect(() => {
-    // Check completion status on mount
-    if (persistCompletion) {
-      const completed = getTourCompletion(tourId);
-      setIsCompleted(completed);
-
-      // Auto-start if not completed
-      if (autoStart && !completed) {
-        autoStartTimeoutRef.current = setTimeout(() => {
-          startTour();
-        }, autoStartDelay);
-      }
-    } else if (autoStart) {
-      autoStartTimeoutRef.current = setTimeout(() => {
-        startTour();
-      }, autoStartDelay);
-    }
-
-    return () => {
-      if (autoStartTimeoutRef.current) {
-        clearTimeout(autoStartTimeoutRef.current);
-      }
-    };
-  }, [tourId, persistCompletion, autoStart, autoStartDelay]);
-
-  // ============================================
   // TOUR CONTROL FUNCTIONS
-  // ============================================
 
   const startTour = useCallback(() => {
     setCurrentStepIndex(0);
@@ -419,6 +347,65 @@ export function useGuidedTour(config: TourConfig): UseGuidedTourReturn {
     }
   }, [tourId, persistCompletion]);
 
+  // KEYBOARD NAVIGATION
+
+  useEffect(() => {
+    if (!isActive || !enableKeyboardNav) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case "Escape":
+          skipTour();
+          break;
+        case "ArrowRight":
+        case "Enter":
+          if (currentStepIndex < totalSteps - 1) {
+            nextStep();
+          } else {
+            completeTour();
+          }
+          break;
+        case "ArrowLeft":
+          if (currentStepIndex > 0) {
+            prevStep();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isActive, enableKeyboardNav, currentStepIndex, totalSteps, skipTour, nextStep, completeTour, prevStep]);
+
+  // INITIALIZATION
+
+  useEffect(() => {
+    // Check completion status on mount
+    if (persistCompletion) {
+      queueMicrotask(() => {
+        const completed = getTourCompletion(tourId);
+        setIsCompleted(completed);
+
+        // Auto-start if not completed
+        if (autoStart && !completed) {
+          autoStartTimeoutRef.current = setTimeout(() => {
+            startTour();
+          }, autoStartDelay);
+        }
+      });
+    } else if (autoStart) {
+      autoStartTimeoutRef.current = setTimeout(() => {
+        startTour();
+      }, autoStartDelay);
+    }
+
+    return () => {
+      if (autoStartTimeoutRef.current) {
+        clearTimeout(autoStartTimeoutRef.current);
+      }
+    };
+  }, [tourId, persistCompletion, autoStart, autoStartDelay, startTour]);
+
   return {
     isActive,
     isCompleted,
@@ -439,32 +426,27 @@ export function useGuidedTour(config: TourConfig): UseGuidedTourReturn {
   };
 }
 
-// ============================================
 // PREDEFINED TOUR CONFIGURATIONS
-// ============================================
 
+// NOTE: Every step below targets a real element that is rendered on the
+// staff dashboard (see the matching data-tour attributes in
+// dashboard-client.tsx and layout/sidebar.tsx). Do not add a step here
+// unless a node with the corresponding data-tour selector actually exists,
+// otherwise the spotlight falls back to a centered tooltip with no target.
 export const DASHBOARD_TOUR_STEPS: TourStep[] = [
   {
     id: "welcome",
     target: "[data-tour='dashboard-header']",
-    title: "Welcome to UploadPortal!",
+    title: "Welcome to CCM Content Portal!",
     content: "Let's take a quick tour of your dashboard to help you get started.",
     position: "bottom",
     spotlight: false,
   },
   {
-    id: "stats",
-    target: "[data-tour='dashboard-stats']",
-    title: "Key Metrics",
-    content: "Track your uploads, approval rates, and creator activity at a glance. Click any stat card for detailed insights.",
-    position: "bottom",
-    spotlight: true,
-  },
-  {
     id: "widgets",
     target: "[data-tour='dashboard-widgets']",
-    title: "Customizable Widgets",
-    content: "Your dashboard widgets show pending requests, recent uploads, and upcoming deadlines. Drag to reorder or click 'Add Widget' to customize.",
+    title: "Your Dashboard Widgets",
+    content: "These widgets show your quick stats, pending requests, recent uploads, and upcoming deadlines. Use 'Customize' to reorder or toggle them.",
     position: "top",
     spotlight: true,
   },
@@ -472,24 +454,8 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
     id: "sidebar",
     target: "[data-tour='sidebar-nav']",
     title: "Navigation",
-    content: "Access all sections from the sidebar: Requests, Creators, Uploads, Templates, and more.",
+    content: "Access every section from the sidebar: Creators, Requests, Uploads, Templates, Messages, and more.",
     position: "right",
-    spotlight: true,
-  },
-  {
-    id: "notifications",
-    target: "[data-tour='notification-bell']",
-    title: "Stay Updated",
-    content: "Get notified about new uploads, approvals, and important updates. Click the bell to see your notifications.",
-    position: "bottom",
-    spotlight: true,
-  },
-  {
-    id: "help",
-    target: "[data-tour='help-button']",
-    title: "Need Help?",
-    content: "Look for help icons throughout the app for contextual guidance. You can also restart this tour anytime from Settings.",
-    position: "bottom",
     spotlight: true,
   },
 ];
@@ -548,9 +514,7 @@ export const ANALYTICS_TOUR_STEPS: TourStep[] = [
   },
 ];
 
-// ============================================
 // TOUR FACTORY
-// ============================================
 
 export function createTourConfig(
   tourId: string,

@@ -28,6 +28,9 @@ const updateMediaItemSchema = z.object({
   folderId: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
   name: z.string().optional(),
+  // `title` is the client-facing alias for `name`
+  title: z.string().optional(),
+  description: z.string().optional(),
   status: z.enum(["ACTIVE", "ARCHIVED", "DELETED"]).optional(),
 });
 
@@ -320,6 +323,15 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    // Merge description into the metadata JSON blob (no dedicated column)
+    const nextMetadata =
+      data.description !== undefined
+        ? {
+            ...((existingItem.metadata as Record<string, unknown> | null) ?? {}),
+            description: data.description,
+          }
+        : undefined;
+
     // Update item
     const updatedItem = await db.mediaItem.update({
       where: { id: itemId },
@@ -327,6 +339,8 @@ export async function PATCH(req: NextRequest) {
         ...(data.folderId !== undefined && { folderId: data.folderId }),
         ...(data.tags && { tags: data.tags }),
         ...(data.name !== undefined && { name: data.name }),
+        ...(data.title !== undefined && { name: data.title }),
+        ...(nextMetadata !== undefined && { metadata: nextMetadata }),
         ...(data.status && { status: data.status }),
         updatedAt: new Date(),
       },

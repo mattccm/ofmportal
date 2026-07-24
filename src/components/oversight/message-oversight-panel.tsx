@@ -6,15 +6,13 @@ import {
   Filter,
   MessageSquare,
   Flag,
-  Download,
   ChevronRight,
   Users,
   User,
   X,
   Eye,
-  MoreVertical,
-  Calendar,
   ArrowUpDown,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,173 +34,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   type MessageOversight,
   type ConversationThread,
-  type ThreadMessage,
   type MessageFilter,
 } from "@/types/oversight";
 import { cn } from "@/lib/utils";
-
-// Mock data for conversations
-const mockConversations: MessageOversight[] = [
-  {
-    id: "conv-1",
-    conversationType: "staff_creator",
-    participants: [
-      { id: "staff-1", name: "Sarah Johnson", role: "Account Manager" },
-      { id: "creator-1", name: "Alex Rivera", role: "Creator" },
-    ],
-    messageCount: 45,
-    lastMessageAt: new Date(Date.now() - 15 * 60 * 1000),
-    flagged: true,
-    flagReason: "Contains sensitive keyword: 'payment issue'",
-    preview: "I'll look into the payment issue right away...",
-  },
-  {
-    id: "conv-2",
-    conversationType: "staff_staff",
-    participants: [
-      { id: "staff-2", name: "Mike Chen", role: "Account Manager" },
-      { id: "staff-4", name: "Lisa Wang", role: "Legal" },
-    ],
-    messageCount: 12,
-    lastMessageAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    flagged: true,
-    flagReason: "Contains sensitive keyword: 'contract'",
-    preview: "The contract needs to be reviewed before...",
-  },
-  {
-    id: "conv-3",
-    conversationType: "staff_creator",
-    participants: [
-      { id: "staff-3", name: "Emily Davis", role: "Support Specialist" },
-      { id: "creator-2", name: "Jordan Lee", role: "Creator" },
-    ],
-    messageCount: 28,
-    lastMessageAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    flagged: false,
-    preview: "Your content has been approved and is live!",
-  },
-  {
-    id: "conv-4",
-    conversationType: "staff_creator",
-    participants: [
-      { id: "staff-1", name: "Sarah Johnson", role: "Account Manager" },
-      { id: "creator-3", name: "Taylor Smith", role: "Creator" },
-    ],
-    messageCount: 67,
-    lastMessageAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    flagged: false,
-    preview: "Great work on the last campaign!",
-  },
-  {
-    id: "conv-5",
-    conversationType: "staff_staff",
-    participants: [
-      { id: "staff-1", name: "Sarah Johnson", role: "Account Manager" },
-      { id: "staff-2", name: "Mike Chen", role: "Account Manager" },
-      { id: "staff-3", name: "Emily Davis", role: "Support Specialist" },
-    ],
-    messageCount: 89,
-    lastMessageAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
-    flagged: false,
-    preview: "Team meeting notes from today...",
-  },
-  {
-    id: "conv-6",
-    conversationType: "internal_note",
-    participants: [
-      { id: "staff-2", name: "Mike Chen", role: "Account Manager" },
-    ],
-    messageCount: 5,
-    lastMessageAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
-    flagged: false,
-    preview: "Internal note about creator onboarding process...",
-  },
-];
-
-// Mock thread data
-const mockThread: ConversationThread = {
-  id: "conv-1",
-  type: "staff_creator",
-  participants: [
-    { id: "staff-1", name: "Sarah Johnson", role: "Account Manager" },
-    { id: "creator-1", name: "Alex Rivera", role: "Creator" },
-  ],
-  messages: [
-    {
-      id: "msg-1",
-      senderId: "creator-1",
-      senderName: "Alex Rivera",
-      senderRole: "Creator",
-      content: "Hi Sarah, I'm having a payment issue with the last invoice. The amount doesn't match what we agreed upon.",
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    },
-    {
-      id: "msg-2",
-      senderId: "staff-1",
-      senderName: "Sarah Johnson",
-      senderRole: "Account Manager",
-      content: "Hi Alex, I'm sorry to hear that. Let me look into this right away. Can you tell me the invoice number?",
-      timestamp: new Date(Date.now() - 2.5 * 60 * 60 * 1000),
-    },
-    {
-      id: "msg-3",
-      senderId: "creator-1",
-      senderName: "Alex Rivera",
-      senderRole: "Creator",
-      content: "Sure, it's INV-2024-0342. The invoice shows $1,500 but we agreed on $2,000 for the campaign.",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    },
-    {
-      id: "msg-4",
-      senderId: "staff-1",
-      senderName: "Sarah Johnson",
-      senderRole: "Account Manager",
-      content: "I found the discrepancy. It looks like the bonus wasn't included. I'll get this corrected and send you an updated invoice today.",
-      timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
-    },
-    {
-      id: "msg-5",
-      senderId: "creator-1",
-      senderName: "Alex Rivera",
-      senderRole: "Creator",
-      content: "Thank you so much for the quick response! I really appreciate it.",
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    },
-    {
-      id: "msg-6",
-      senderId: "staff-1",
-      senderName: "Sarah Johnson",
-      senderRole: "Account Manager",
-      content: "No problem at all! The corrected invoice has been sent. Please let me know if you have any other questions.",
-      timestamp: new Date(Date.now() - 30 * 60 * 1000),
-    },
-  ],
-  createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-  updatedAt: new Date(Date.now() - 30 * 60 * 1000),
-};
-
-// Mock staff and creators for filters
-const mockStaff = [
-  { id: "staff-1", name: "Sarah Johnson" },
-  { id: "staff-2", name: "Mike Chen" },
-  { id: "staff-3", name: "Emily Davis" },
-  { id: "staff-4", name: "Lisa Wang" },
-];
-
-const mockCreators = [
-  { id: "creator-1", name: "Alex Rivera" },
-  { id: "creator-2", name: "Jordan Lee" },
-  { id: "creator-3", name: "Taylor Smith" },
-];
 
 function formatTimeAgo(date: Date): string {
   const now = new Date();
@@ -230,48 +66,81 @@ function formatDate(date: Date): string {
 }
 
 export function MessageOversightPanel() {
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [conversations, setConversations] = React.useState<MessageOversight[]>([]);
+
   const [filter, setFilter] = React.useState<MessageFilter>({
     conversationType: "all",
   });
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedConversation, setSelectedConversation] =
     React.useState<MessageOversight | null>(null);
+  const [thread, setThread] = React.useState<ConversationThread | null>(null);
+  const [threadLoading, setThreadLoading] = React.useState(false);
   const [showThread, setShowThread] = React.useState(false);
   const [sortOrder, setSortOrder] = React.useState<"newest" | "oldest">(
     "newest"
   );
 
-  // Filter conversations based on current filters
-  const filteredConversations = React.useMemo(() => {
-    let result = [...mockConversations];
+  const load = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/oversight?type=messages");
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(
+          (data.conversations || []).map((c: MessageOversight) => ({
+            ...c,
+            lastMessageAt: new Date(c.lastMessageAt),
+          }))
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-    // Filter by type
+  React.useEffect(() => {
+    load();
+  }, [load]);
+
+  // Derive staff & creators for the filter dropdowns from real participants.
+  const { staffList, creatorList } = React.useMemo(() => {
+    const staff = new Map<string, string>();
+    const creators = new Map<string, string>();
+    for (const conv of conversations) {
+      for (const p of conv.participants) {
+        if (p.role === "Creator") creators.set(p.id, p.name);
+        else staff.set(p.id, p.name);
+      }
+    }
+    return {
+      staffList: Array.from(staff, ([id, name]) => ({ id, name })),
+      creatorList: Array.from(creators, ([id, name]) => ({ id, name })),
+    };
+  }, [conversations]);
+
+  const filteredConversations = React.useMemo(() => {
+    let result = [...conversations];
+
     if (filter.conversationType && filter.conversationType !== "all") {
       result = result.filter(
         (c) => c.conversationType === filter.conversationType
       );
     }
-
-    // Filter by flagged
     if (filter.flagged !== undefined) {
       result = result.filter((c) => c.flagged === filter.flagged);
     }
-
-    // Filter by staff
     if (filter.staffId) {
       result = result.filter((c) =>
         c.participants.some((p) => p.id === filter.staffId)
       );
     }
-
-    // Filter by creator
     if (filter.creatorId) {
       result = result.filter((c) =>
         c.participants.some((p) => p.id === filter.creatorId)
       );
     }
-
-    // Search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -281,33 +150,54 @@ export function MessageOversightPanel() {
       );
     }
 
-    // Sort
     result.sort((a, b) => {
       const diff = b.lastMessageAt.getTime() - a.lastMessageAt.getTime();
       return sortOrder === "newest" ? diff : -diff;
     });
 
     return result;
-  }, [filter, searchQuery, sortOrder]);
+  }, [conversations, filter, searchQuery, sortOrder]);
 
-  const handleViewThread = (conversation: MessageOversight) => {
+  const handleViewThread = async (conversation: MessageOversight) => {
     setSelectedConversation(conversation);
     setShowThread(true);
+    setThread(null);
+    setThreadLoading(true);
+    try {
+      const res = await fetch(
+        `/api/oversight?type=thread&conversationId=${encodeURIComponent(
+          conversation.id
+        )}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const t: ConversationThread = data.thread;
+        setThread({
+          ...t,
+          createdAt: new Date(t.createdAt),
+          updatedAt: new Date(t.updatedAt),
+          messages: t.messages.map((m) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          })),
+        });
+      }
+    } finally {
+      setThreadLoading(false);
+    }
   };
 
   const handleCloseThread = () => {
     setShowThread(false);
     setSelectedConversation(null);
+    setThread(null);
   };
 
-  const handleExport = () => {
-    // Placeholder for export functionality
-    console.log("Exporting conversations...");
-  };
-
-  const handleFlagConversation = (conversationId: string) => {
-    console.log("Flagging conversation:", conversationId);
-  };
+  const hasActiveFilters =
+    filter.staffId ||
+    filter.creatorId ||
+    filter.flagged ||
+    (filter.conversationType && filter.conversationType !== "all");
 
   return (
     <div className="space-y-6">
@@ -321,9 +211,9 @@ export function MessageOversightPanel() {
             View and monitor all staff-creator and internal communications
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" />
-          Export
+        <Button variant="outline" size="sm" onClick={load} disabled={isLoading}>
+          <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+          Refresh
         </Button>
       </div>
 
@@ -331,7 +221,6 @@ export function MessageOversightPanel() {
       <Card size="sm">
         <CardContent className="pt-4">
           <div className="flex flex-col gap-4">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -342,14 +231,14 @@ export function MessageOversightPanel() {
               />
             </div>
 
-            {/* Filter row */}
             <div className="flex flex-wrap gap-3">
               <Select
                 value={filter.conversationType || "all"}
                 onValueChange={(value) =>
                   setFilter({
                     ...filter,
-                    conversationType: value as MessageFilter["conversationType"],
+                    conversationType:
+                      value as MessageFilter["conversationType"],
                   })
                 }
               >
@@ -361,7 +250,6 @@ export function MessageOversightPanel() {
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="staff_creator">Staff-Creator</SelectItem>
                   <SelectItem value="staff_staff">Internal (Staff)</SelectItem>
-                  <SelectItem value="internal_note">Internal Notes</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -380,7 +268,7 @@ export function MessageOversightPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Staff</SelectItem>
-                  {mockStaff.map((staff) => (
+                  {staffList.map((staff) => (
                     <SelectItem key={staff.id} value={staff.id}>
                       {staff.name}
                     </SelectItem>
@@ -403,7 +291,7 @@ export function MessageOversightPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Creators</SelectItem>
-                  {mockCreators.map((creator) => (
+                  {creatorList.map((creator) => (
                     <SelectItem key={creator.id} value={creator.id}>
                       {creator.name}
                     </SelectItem>
@@ -439,40 +327,32 @@ export function MessageOversightPanel() {
               </Button>
             </div>
 
-            {/* Active filters */}
-            {(filter.staffId ||
-              filter.creatorId ||
-              filter.flagged ||
-              (filter.conversationType && filter.conversationType !== "all")) && (
+            {hasActiveFilters && (
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-muted-foreground">
                   Active filters:
                 </span>
-                {filter.conversationType && filter.conversationType !== "all" && (
-                  <Badge variant="secondary">
-                    {filter.conversationType === "staff_creator"
-                      ? "Staff-Creator"
-                      : filter.conversationType === "staff_staff"
-                      ? "Internal"
-                      : "Notes"}
-                    <button
-                      onClick={() =>
-                        setFilter({ ...filter, conversationType: "all" })
-                      }
-                      className="ml-1 hover:text-foreground"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
+                {filter.conversationType &&
+                  filter.conversationType !== "all" && (
+                    <Badge variant="secondary">
+                      {filter.conversationType === "staff_creator"
+                        ? "Staff-Creator"
+                        : "Internal"}
+                      <button
+                        onClick={() =>
+                          setFilter({ ...filter, conversationType: "all" })
+                        }
+                        className="ml-1 hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
                 {filter.staffId && (
                   <Badge variant="secondary">
-                    Staff:{" "}
-                    {mockStaff.find((s) => s.id === filter.staffId)?.name}
+                    Staff: {staffList.find((s) => s.id === filter.staffId)?.name}
                     <button
-                      onClick={() =>
-                        setFilter({ ...filter, staffId: undefined })
-                      }
+                      onClick={() => setFilter({ ...filter, staffId: undefined })}
                       className="ml-1 hover:text-foreground"
                     >
                       <X className="h-3 w-3" />
@@ -482,7 +362,7 @@ export function MessageOversightPanel() {
                 {filter.creatorId && (
                   <Badge variant="secondary">
                     Creator:{" "}
-                    {mockCreators.find((c) => c.id === filter.creatorId)?.name}
+                    {creatorList.find((c) => c.id === filter.creatorId)?.name}
                     <button
                       onClick={() =>
                         setFilter({ ...filter, creatorId: undefined })
@@ -497,9 +377,7 @@ export function MessageOversightPanel() {
                   <Badge variant="secondary">
                     Flagged
                     <button
-                      onClick={() =>
-                        setFilter({ ...filter, flagged: undefined })
-                      }
+                      onClick={() => setFilter({ ...filter, flagged: undefined })}
                       className="ml-1 hover:text-foreground"
                     >
                       <X className="h-3 w-3" />
@@ -509,9 +387,7 @@ export function MessageOversightPanel() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    setFilter({ conversationType: "all" })
-                  }
+                  onClick={() => setFilter({ conversationType: "all" })}
                   className="h-6 text-xs"
                 >
                   Clear all
@@ -546,7 +422,9 @@ export function MessageOversightPanel() {
                 <div className="flex flex-col items-center justify-center h-40 text-center">
                   <MessageSquare className="h-10 w-10 text-muted-foreground/50 mb-3" />
                   <p className="text-sm text-muted-foreground">
-                    No conversations match your filters
+                    {isLoading
+                      ? "Loading conversations..."
+                      : "No conversations match your filters"}
                   </p>
                 </div>
               ) : (
@@ -568,16 +446,12 @@ export function MessageOversightPanel() {
                             variant={
                               conv.conversationType === "staff_creator"
                                 ? "default"
-                                : conv.conversationType === "staff_staff"
-                                ? "secondary"
-                                : "outline"
+                                : "secondary"
                             }
                           >
                             {conv.conversationType === "staff_creator"
                               ? "Staff-Creator"
-                              : conv.conversationType === "staff_staff"
-                              ? "Internal"
-                              : "Note"}
+                              : "Internal"}
                           </Badge>
                           {conv.flagged && (
                             <Flag className="h-4 w-4 text-amber-500" />
@@ -651,44 +525,14 @@ export function MessageOversightPanel() {
                       .join(", ")}
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handleFlagConversation(selectedConversation.id)
-                        }
-                      >
-                        <Flag className="h-4 w-4 mr-2" />
-                        {selectedConversation.flagged
-                          ? "Remove Flag"
-                          : "Flag Conversation"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Thread
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <Calendar className="h-4 w-4 mr-2" />
-                        View Full History
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={handleCloseThread}
-                    className="lg:hidden"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleCloseThread}
+                  className="lg:hidden"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
               {selectedConversation.flagged && (
                 <div className="mt-3 p-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
@@ -701,68 +545,84 @@ export function MessageOversightPanel() {
             </CardHeader>
             <CardContent className="p-0">
               <ScrollArea className="h-[450px]">
-                <div className="p-4 space-y-4">
-                  {mockThread.messages.map((message, index) => {
-                    const isStaff = message.senderRole !== "Creator";
-                    const showDate =
-                      index === 0 ||
-                      formatDate(message.timestamp) !==
-                        formatDate(mockThread.messages[index - 1].timestamp);
+                {threadLoading ? (
+                  <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
+                    Loading thread...
+                  </div>
+                ) : !thread || thread.messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-40 text-center">
+                    <MessageSquare className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      No messages in this conversation
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-4">
+                    {thread.messages.map((message, index) => {
+                      const isStaff = message.senderRole !== "Creator";
+                      const showDate =
+                        index === 0 ||
+                        formatDate(message.timestamp) !==
+                          formatDate(thread.messages[index - 1].timestamp);
 
-                    return (
-                      <React.Fragment key={message.id}>
-                        {showDate && (
-                          <div className="flex items-center gap-3 my-4">
-                            <div className="flex-1 h-px bg-border" />
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(message.timestamp)}
-                            </span>
-                            <div className="flex-1 h-px bg-border" />
-                          </div>
-                        )}
-                        <div
-                          className={cn(
-                            "flex gap-3",
-                            isStaff ? "flex-row" : "flex-row-reverse"
+                      return (
+                        <React.Fragment key={message.id}>
+                          {showDate && (
+                            <div className="flex items-center gap-3 my-4">
+                              <div className="flex-1 h-px bg-border" />
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(message.timestamp)}
+                              </span>
+                              <div className="flex-1 h-px bg-border" />
+                            </div>
                           )}
-                        >
-                          <Avatar
-                            size="sm"
-                            user={{ name: message.senderName }}
-                          />
                           <div
                             className={cn(
-                              "flex-1 max-w-[80%]",
-                              isStaff ? "" : "flex flex-col items-end"
+                              "flex gap-3",
+                              isStaff ? "flex-row" : "flex-row-reverse"
                             )}
                           >
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm font-medium">
-                                {message.senderName}
-                              </span>
-                              <Badge variant="outline" className="text-[10px] h-4">
-                                {message.senderRole}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {formatTime(message.timestamp)}
-                              </span>
-                            </div>
+                            <Avatar
+                              size="sm"
+                              user={{ name: message.senderName }}
+                            />
                             <div
                               className={cn(
-                                "rounded-lg p-3 text-sm",
-                                isStaff
-                                  ? "bg-muted"
-                                  : "bg-primary text-primary-foreground"
+                                "flex-1 max-w-[80%]",
+                                isStaff ? "" : "flex flex-col items-end"
                               )}
                             >
-                              {message.content}
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-medium">
+                                  {message.senderName}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] h-4"
+                                >
+                                  {message.senderRole}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatTime(message.timestamp)}
+                                </span>
+                              </div>
+                              <div
+                                className={cn(
+                                  "rounded-lg p-3 text-sm",
+                                  isStaff
+                                    ? "bg-muted"
+                                    : "bg-primary text-primary-foreground"
+                                )}
+                              >
+                                {message.content}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                )}
               </ScrollArea>
             </CardContent>
           </Card>

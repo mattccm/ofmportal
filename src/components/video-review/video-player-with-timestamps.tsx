@@ -31,7 +31,6 @@ import {
   Minimize,
   SkipBack,
   SkipForward,
-  Settings,
   Check,
   Plus,
   ChevronLeft,
@@ -42,13 +41,10 @@ import {
   type VideoTimestamp,
   type VideoPlayerState,
   formatTimestamp,
-  TIMESTAMP_TYPE_COLORS,
 } from "@/types/video-timestamps";
 import { TimelineMarkers } from "./timestamp-marker";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface VideoPlayerWithTimestampsProps {
   src: string;
@@ -75,9 +71,7 @@ const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const SEEK_STEP = 5; // seconds
 const FRAME_STEP = 1 / 30; // ~1 frame at 30fps
 
-// ============================================
 // VIDEO PLAYER
-// ============================================
 
 export const VideoPlayerWithTimestamps = forwardRef<
   VideoPlayerRef,
@@ -113,6 +107,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverPosition, setHoverPosition] = useState<number>(0);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
@@ -198,6 +193,17 @@ export const VideoPlayerWithTimestamps = forwardRef<
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      container.requestFullscreen();
+    }
   }, []);
 
   // Keyboard shortcuts
@@ -291,7 +297,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [state.isPlaying, onAddTimestamp]);
+  }, [state.isPlaying, onAddTimestamp, toggleFullscreen]);
 
   // Auto-hide controls
   useEffect(() => {
@@ -350,17 +356,6 @@ export const VideoPlayerWithTimestamps = forwardRef<
     video.playbackRate = rate;
   }, []);
 
-  const toggleFullscreen = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      container.requestFullscreen();
-    }
-  }, []);
-
   const seekTo = useCallback((time: number) => {
     const video = videoRef.current;
     if (!video) return;
@@ -394,8 +389,73 @@ export const VideoPlayerWithTimestamps = forwardRef<
   );
 
   const handleProgressLeave = useCallback(() => {
+    // Don't hide the tooltip while actively scrubbing off the track.
+    if (isDragging) return;
     setHoverTime(null);
-  }, []);
+  }, [isDragging]);
+
+  // Compute a clamped time from a pointer's clientX relative to the track.
+  const timeFromClientX = useCallback(
+    (clientX: number): number | null => {
+      const rect = progressRef.current?.getBoundingClientRect();
+      if (!rect || !rect.width || !state.duration) return null;
+      const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return percentage * state.duration;
+    },
+    [state.duration]
+  );
+
+  // Seek + preview from a pointer position (used during drag scrubbing).
+  const scrubToClientX = useCallback(
+    (clientX: number) => {
+      const time = timeFromClientX(clientX);
+      if (time === null) return;
+      const rect = progressRef.current?.getBoundingClientRect();
+      seekTo(time);
+      // Update immediately so the handle/time track the pointer without
+      // waiting for the (throttled) timeupdate event.
+      setState((prev) => ({ ...prev, currentTime: time }));
+      if (rect) {
+        setHoverTime(time);
+        setHoverPosition(Math.max(0, Math.min(rect.width, clientX - rect.left)));
+      }
+    },
+    [timeFromClientX, seekTo]
+  );
+
+  const handleProgressPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      // Only primary button / touch / pen; require loaded metadata.
+      if (e.button !== 0 || !state.duration) return;
+      e.preventDefault();
+      setIsDragging(true);
+      scrubToClientX(e.clientX);
+
+      const handleMove = (ev: PointerEvent) => {
+        scrubToClientX(ev.clientX);
+      };
+      const handleUp = () => {
+        setIsDragging(false);
+        setHoverTime(null);
+        cleanup();
+      };
+      const cleanup = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        window.removeEventListener("pointercancel", handleUp);
+        dragCleanupRef.current = null;
+      };
+
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+      window.addEventListener("pointercancel", handleUp);
+      dragCleanupRef.current = cleanup;
+    },
+    [state.duration, scrubToClientX]
+  );
+
+  // Safety net: tear down drag listeners if we unmount mid-scrub.
+  useEffect(() => () => dragCleanupRef.current?.(), []);
 
   const jumpToTimestamp = useCallback(
     (time: number) => {
@@ -487,8 +547,9 @@ export const VideoPlayerWithTimestamps = forwardRef<
           {/* Progress bar */}
           <div
             ref={progressRef}
-            className="relative h-1.5 bg-white/30 rounded-full cursor-pointer group/progress"
+            className="relative h-1.5 bg-white/30 rounded-full cursor-pointer group/progress touch-none"
             onClick={handleProgressClick}
+            onPointerDown={handleProgressPointerDown}
             onMouseMove={handleProgressHover}
             onMouseLeave={handleProgressLeave}
           >

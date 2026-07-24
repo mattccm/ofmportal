@@ -25,9 +25,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type TooltipPosition = "top" | "bottom" | "left" | "right" | "center";
 
@@ -70,9 +68,7 @@ interface TourTooltipProps {
   className?: string;
 }
 
-// ============================================
 // SPOTLIGHT OVERLAY
-// ============================================
 
 function SpotlightOverlay({
   targetRect,
@@ -138,9 +134,7 @@ function SpotlightOverlay({
   );
 }
 
-// ============================================
 // STEP INDICATOR
-// ============================================
 
 interface StepIndicatorProps {
   current: number;
@@ -168,9 +162,7 @@ function StepIndicator({ current, total, className }: StepIndicatorProps) {
   );
 }
 
-// ============================================
 // TOUR TOOLTIP
-// ============================================
 
 function TourTooltip({
   step,
@@ -186,113 +178,115 @@ function TourTooltip({
 }: TourTooltipProps) {
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [arrowStyle, setArrowStyle] = useState<React.CSSProperties>({});
-  const [arrowPosition, setArrowPosition] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const tooltipRef = React.useRef<HTMLDivElement>(null);
 
   // Calculate tooltip position
   useEffect(() => {
-    if (!tooltipRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      if (!tooltipRef.current) return;
 
-    const tooltipRect = tooltipRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const gap = 16;
+      const tooltipRect = tooltipRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const gap = 16;
 
-    let top = 0;
-    let left = 0;
-    let position = step.position || "bottom";
-    let finalArrowPosition: "top" | "bottom" | "left" | "right" = "top";
+      let top = 0;
+      let left = 0;
+      const position = step.position || "bottom";
+      let finalArrowPosition: "top" | "bottom" | "left" | "right" = "top";
 
-    if (!targetRect || position === "center") {
-      // Center in viewport
-      top = (viewportHeight - tooltipRect.height) / 2;
-      left = (viewportWidth - tooltipRect.width) / 2;
-      setArrowStyle({ display: "none" });
-      setTooltipStyle({ top: `${top}px`, left: `${left}px` });
-      return;
-    }
-
-    const calculatePosition = (pos: TooltipPosition) => {
-      switch (pos) {
-        case "top":
-          top = targetRect.top - tooltipRect.height - gap;
-          left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
-          finalArrowPosition = "bottom";
-          break;
-        case "bottom":
-          top = targetRect.bottom + gap;
-          left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
-          finalArrowPosition = "top";
-          break;
-        case "left":
-          top = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
-          left = targetRect.left - tooltipRect.width - gap;
-          finalArrowPosition = "right";
-          break;
-        case "right":
-          top = targetRect.right + gap;
-          left = targetRect.right + gap;
-          finalArrowPosition = "left";
-          break;
+      if (!targetRect || position === "center") {
+        // Center in viewport
+        top = (viewportHeight - tooltipRect.height) / 2;
+        left = (viewportWidth - tooltipRect.width) / 2;
+        setArrowStyle({ display: "none" });
+        setTooltipStyle({ top: `${top}px`, left: `${left}px` });
+        return;
       }
-      return { top, left };
-    };
 
-    calculatePosition(position);
+      const calculatePosition = (pos: TooltipPosition) => {
+        switch (pos) {
+          case "top":
+            top = targetRect.top - tooltipRect.height - gap;
+            left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
+            finalArrowPosition = "bottom";
+            break;
+          case "bottom":
+            top = targetRect.bottom + gap;
+            left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
+            finalArrowPosition = "top";
+            break;
+          case "left":
+            top = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
+            left = targetRect.left - tooltipRect.width - gap;
+            finalArrowPosition = "right";
+            break;
+          case "right":
+            top = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
+            left = targetRect.right + gap;
+            finalArrowPosition = "left";
+            break;
+        }
+        return { top, left };
+      };
 
-    // Check if fits in viewport and adjust
-    const fitsInViewport = (t: number, l: number) => {
-      return (
-        t >= 10 &&
-        l >= 10 &&
-        t + tooltipRect.height <= viewportHeight - 10 &&
-        l + tooltipRect.width <= viewportWidth - 10
-      );
-    };
+      calculatePosition(position);
 
-    if (!fitsInViewport(top, left)) {
-      const alternatives: TooltipPosition[] = ["bottom", "top", "right", "left"];
-      for (const alt of alternatives) {
-        if (alt === position) continue;
-        const altPos = calculatePosition(alt);
-        if (fitsInViewport(altPos.top, altPos.left)) {
-          top = altPos.top;
-          left = altPos.left;
-          break;
+      // Check if fits in viewport and adjust
+      const fitsInViewport = (t: number, l: number) => {
+        return (
+          t >= 10 &&
+          l >= 10 &&
+          t + tooltipRect.height <= viewportHeight - 10 &&
+          l + tooltipRect.width <= viewportWidth - 10
+        );
+      };
+
+      if (!fitsInViewport(top, left)) {
+        const alternatives: TooltipPosition[] = ["bottom", "top", "right", "left"];
+        for (const alt of alternatives) {
+          if (alt === position) continue;
+          const altPos = calculatePosition(alt);
+          if (fitsInViewport(altPos.top, altPos.left)) {
+            top = altPos.top;
+            left = altPos.left;
+            break;
+          }
         }
       }
-    }
 
-    // Clamp to viewport bounds
-    top = Math.max(10, Math.min(top, viewportHeight - tooltipRect.height - 10));
-    left = Math.max(10, Math.min(left, viewportWidth - tooltipRect.width - 10));
+      // Clamp to viewport bounds
+      top = Math.max(10, Math.min(top, viewportHeight - tooltipRect.height - 10));
+      left = Math.max(10, Math.min(left, viewportWidth - tooltipRect.width - 10));
 
-    setArrowPosition(finalArrowPosition);
-    setTooltipStyle({ top: `${top}px`, left: `${left}px` });
+      setTooltipStyle({ top: `${top}px`, left: `${left}px` });
 
-    // Calculate arrow position
-    const arrowStyles: React.CSSProperties = {};
-    if (targetRect) {
-      const arrowPos = finalArrowPosition as "top" | "bottom" | "left" | "right";
-      if (arrowPos === "top") {
-        arrowStyles.top = "-8px";
-        arrowStyles.left = "50%";
-        arrowStyles.transform = "translateX(-50%) rotate(180deg)";
-      } else if (arrowPos === "bottom") {
-        arrowStyles.bottom = "-8px";
-        arrowStyles.left = "50%";
-        arrowStyles.transform = "translateX(-50%)";
-      } else if (arrowPos === "left") {
-        arrowStyles.left = "-8px";
-        arrowStyles.top = "50%";
-        arrowStyles.transform = "translateY(-50%) rotate(90deg)";
-      } else if (arrowPos === "right") {
-        arrowStyles.right = "-8px";
-        arrowStyles.top = "50%";
-        arrowStyles.transform = "translateY(-50%) rotate(-90deg)";
+      // Calculate arrow position
+      const arrowStyles: React.CSSProperties = {};
+      if (targetRect) {
+        const arrowPos = finalArrowPosition as "top" | "bottom" | "left" | "right";
+        if (arrowPos === "top") {
+          arrowStyles.top = "-8px";
+          arrowStyles.left = "50%";
+          arrowStyles.transform = "translateX(-50%) rotate(180deg)";
+        } else if (arrowPos === "bottom") {
+          arrowStyles.bottom = "-8px";
+          arrowStyles.left = "50%";
+          arrowStyles.transform = "translateX(-50%)";
+        } else if (arrowPos === "left") {
+          arrowStyles.left = "-8px";
+          arrowStyles.top = "50%";
+          arrowStyles.transform = "translateY(-50%) rotate(90deg)";
+        } else if (arrowPos === "right") {
+          arrowStyles.right = "-8px";
+          arrowStyles.top = "50%";
+          arrowStyles.transform = "translateY(-50%) rotate(-90deg)";
+        }
       }
-    }
-    setArrowStyle(arrowStyles);
+      setArrowStyle(arrowStyles);
+    });
+
+    return () => cancelAnimationFrame(frame);
   }, [targetRect, step.position]);
 
   return (
@@ -434,9 +428,9 @@ function TourTooltip({
   );
 }
 
-// ============================================
 // MAIN GUIDED TOUR COMPONENT
-// ============================================
+
+const emptySubscribe = () => () => {};
 
 export function GuidedTour({
   config,
@@ -444,13 +438,12 @@ export function GuidedTour({
   tooltipClassName,
   renderContent,
 }: GuidedTourProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = React.useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
   const tour = useGuidedTour(config);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
 
   if (!mounted || !tour.isActive || !tour.currentStep) {
     return null;
@@ -498,9 +491,7 @@ export function GuidedTour({
   );
 }
 
-// ============================================
 // TOUR TRIGGER BUTTON
-// ============================================
 
 export interface TourTriggerProps {
   tourId: string;
@@ -549,9 +540,7 @@ export function TourTrigger({
   );
 }
 
-// ============================================
 // RESTART TOUR BUTTON
-// ============================================
 
 export interface RestartTourButtonProps {
   onClick: () => void;
@@ -579,9 +568,7 @@ export function RestartTourButton({
   );
 }
 
-// ============================================
 // TOUR PROVIDER WITH CONTEXT
-// ============================================
 
 interface TourContextValue {
   activeTourId: string | null;
@@ -646,9 +633,7 @@ export function TourProvider({ children, tours }: TourProviderProps) {
   );
 }
 
-// ============================================
 // PRE-CONFIGURED TOURS
-// ============================================
 
 export const TOURS = {
   dashboard: createTourConfig("dashboard-tour", DASHBOARD_TOUR_STEPS, {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
   ArrowLeft,
-  Calendar,
   Clock,
   User,
   FileText,
@@ -25,7 +24,6 @@ import {
   GitBranch,
   ExternalLink,
   Loader2,
-  StickyNote,
   PanelRightOpen,
   Pencil,
 } from "lucide-react";
@@ -52,6 +50,7 @@ import {
 import { HtmlContent } from "@/components/ui/html-content";
 import { RequestEditor } from "@/components/requests/request-editor";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
+import { useCelebrationContext } from "@/components/celebrations";
 
 interface Creator {
   id: string;
@@ -253,6 +252,9 @@ export function RequestDetailClient({
   const { openCreatorContext } = useCreatorContextPanel();
   useSetCreatorContext(initialRequest.creator.id);
 
+  // Celebration on a meaningful, low-frequency moment (request approved)
+  const { celebrateCustom } = useCelebrationContext();
+
   // Handle exiting edit mode
   const handleExitEditMode = useCallback(() => {
     router.push(`/dashboard/requests/${request.id}`);
@@ -279,9 +281,26 @@ export function RequestDetailClient({
     setRequest((prev) => ({ ...prev, title: newTitle }));
   }, []);
 
-  const handleStatusUpdate = useCallback((newStatus: string) => {
-    setRequest((prev) => ({ ...prev, status: newStatus }));
-  }, []);
+  const handleStatusUpdate = useCallback(
+    (newStatus: string) => {
+      // Celebrate only on the transition INTO an approved state, and at most
+      // once per request (the celebration id is request-scoped, and the
+      // celebration hook additionally caps frequency per session).
+      if (newStatus === "APPROVED" && request.status !== "APPROVED") {
+        celebrateCustom({
+          id: `request-approved-${request.id}`,
+          title: "Request Approved!",
+          description: `"${request.title}" is approved and complete.`,
+          message: "Nice work — the creator's submission is fully signed off.",
+          confettiPreset: "normal",
+          colorVariant: "success",
+          dismissText: "Nice!",
+        });
+      }
+      setRequest((prev) => ({ ...prev, status: newStatus }));
+    },
+    [celebrateCustom, request.status, request.id, request.title]
+  );
 
   const handlePriorityUpdate = useCallback((newPriority: string) => {
     setRequest((prev) => ({ ...prev, urgency: newPriority }));

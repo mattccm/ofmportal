@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sessionStore } from "@/lib/realtime-session";
+import { broadcastSessionAnnotation } from "@/lib/realtime-broadcast";
 import {
   SessionAnnotation,
   SessionAnnotationType,
@@ -69,12 +69,20 @@ function clearAnnotations(sessionId: string, uploadId?: string): void {
   }
 }
 
-// Broadcast annotation event to all participants
-function broadcastAnnotationEvent(sessionId: string, event: AnnotationEvent): void {
-  const state = sessionStore.getSession(sessionId);
-  if (state) {
-    // Would broadcast via SSE in production
-    console.log("Broadcasting annotation event:", event);
+// Broadcast annotation event to all participants via Supabase Realtime.
+// Fire-and-forget from the caller's perspective, but we await the broadcast so
+// transient errors are logged rather than swallowed as unhandled rejections.
+async function broadcastAnnotationEvent(
+  sessionId: string,
+  event: AnnotationEvent
+): Promise<void> {
+  try {
+    await broadcastSessionAnnotation(sessionId, {
+      action: event.action,
+      annotation: event.annotation as unknown as Record<string, unknown>,
+    });
+  } catch (error) {
+    console.error("Failed to broadcast annotation event:", error);
   }
 }
 
@@ -160,7 +168,7 @@ export async function POST(
     addAnnotation(sessionId, annotation);
 
     // Broadcast to other participants
-    broadcastAnnotationEvent(sessionId, {
+    await broadcastAnnotationEvent(sessionId, {
       annotation,
       action: "add",
     });
@@ -292,7 +300,7 @@ export async function DELETE(
       deleteAnnotation(sessionId, annotationId);
 
       // Broadcast delete event
-      broadcastAnnotationEvent(sessionId, {
+      await broadcastAnnotationEvent(sessionId, {
         annotation,
         action: "delete",
       });
@@ -309,9 +317,9 @@ export async function DELETE(
 
       clearAnnotations(sessionId, uploadId || undefined);
 
-      // Broadcast clear event
-      broadcastAnnotationEvent(sessionId, {
-        annotation: {} as SessionAnnotation,
+      // Broadcast clear event (include uploadId so subscribers can scope the clear)
+      await broadcastAnnotationEvent(sessionId, {
+        annotation: { uploadId: uploadId || undefined } as SessionAnnotation,
         action: "clear",
       });
 
@@ -395,7 +403,7 @@ export async function PUT(
     }
 
     // Broadcast update event
-    broadcastAnnotationEvent(sessionId, {
+    await broadcastAnnotationEvent(sessionId, {
       annotation: updatedAnnotation,
       action: "update",
     });

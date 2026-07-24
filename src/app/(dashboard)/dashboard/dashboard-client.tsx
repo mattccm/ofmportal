@@ -25,7 +25,7 @@ export function DashboardClient({ userName, initialLayout }: DashboardClientProp
     <WidgetDataProvider>
       <div className="space-y-6 md:space-y-8 animate-fade-in">
         {/* Header */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1" data-tour="dashboard-header">
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Sparkles className="h-4 w-4" />
             <span>{greeting()}</span>
@@ -39,11 +39,13 @@ export function DashboardClient({ userName, initialLayout }: DashboardClientProp
         </div>
 
         {/* Widget Grid */}
-        <WidgetGrid
-          widgets={WIDGET_DEFINITIONS}
-          initialLayout={layout}
-          onLayoutChange={setLayout}
-        />
+        <div data-tour="dashboard-widgets">
+          <WidgetGrid
+            widgets={WIDGET_DEFINITIONS}
+            initialLayout={layout}
+            onLayoutChange={setLayout}
+          />
+        </div>
       </div>
     </WidgetDataProvider>
   );

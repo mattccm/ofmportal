@@ -4,20 +4,15 @@ import * as React from "react";
 import {
   Search,
   MessageSquare,
-  Clock,
   User,
   Users,
   TrendingUp,
   TrendingDown,
   ChevronRight,
-  MoreVertical,
-  Download,
-  Mail,
-  Phone,
-  Calendar,
   AlertCircle,
   CheckCircle,
   Flag,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +26,6 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -40,168 +34,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   type CreatorCommunicationSummary,
-  type ThreadMessage,
+  type ConversationThread,
 } from "@/types/oversight";
 import { cn } from "@/lib/utils";
 
-// Mock creator communication data
-const mockCreatorComms: CreatorCommunicationSummary[] = [
-  {
-    creatorId: "creator-1",
-    creatorName: "Alex Rivera",
-    creatorAvatar: undefined,
-    assignedStaff: [
-      { id: "staff-1", name: "Sarah Johnson", role: "Account Manager" },
-      { id: "staff-3", name: "Emily Davis", role: "Support Specialist" },
-    ],
-    totalMessages: 245,
-    messagesThisWeek: 34,
-    lastMessageAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    averageResponseTime: 15,
-    pendingRequests: 2,
-    flagged: true,
-    flagReasons: ["Payment discussion flagged"],
-  },
-  {
-    creatorId: "creator-2",
-    creatorName: "Jordan Lee",
-    creatorAvatar: undefined,
-    assignedStaff: [
-      { id: "staff-3", name: "Emily Davis", role: "Support Specialist" },
-    ],
-    totalMessages: 156,
-    messagesThisWeek: 18,
-    lastMessageAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    averageResponseTime: 8,
-    pendingRequests: 0,
-    flagged: false,
-  },
-  {
-    creatorId: "creator-3",
-    creatorName: "Taylor Smith",
-    creatorAvatar: undefined,
-    assignedStaff: [
-      { id: "staff-1", name: "Sarah Johnson", role: "Account Manager" },
-      { id: "staff-2", name: "Mike Chen", role: "Account Manager" },
-    ],
-    totalMessages: 389,
-    messagesThisWeek: 45,
-    lastMessageAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    averageResponseTime: 22,
-    pendingRequests: 1,
-    flagged: false,
-  },
-  {
-    creatorId: "creator-4",
-    creatorName: "Chris Brown",
-    creatorAvatar: undefined,
-    assignedStaff: [
-      { id: "staff-5", name: "James Wilson", role: "Content Reviewer" },
-    ],
-    totalMessages: 78,
-    messagesThisWeek: 12,
-    lastMessageAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
-    averageResponseTime: 35,
-    pendingRequests: 3,
-    flagged: true,
-    flagReasons: ["Slow response time", "Multiple pending requests"],
-  },
-  {
-    creatorId: "creator-5",
-    creatorName: "Morgan Davis",
-    creatorAvatar: undefined,
-    assignedStaff: [
-      { id: "staff-2", name: "Mike Chen", role: "Account Manager" },
-    ],
-    totalMessages: 234,
-    messagesThisWeek: 28,
-    lastMessageAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    averageResponseTime: 12,
-    pendingRequests: 0,
-    flagged: false,
-  },
-  {
-    creatorId: "creator-6",
-    creatorName: "Casey Williams",
-    creatorAvatar: undefined,
-    assignedStaff: [
-      { id: "staff-1", name: "Sarah Johnson", role: "Account Manager" },
-      { id: "staff-3", name: "Emily Davis", role: "Support Specialist" },
-      { id: "staff-5", name: "James Wilson", role: "Content Reviewer" },
-    ],
-    totalMessages: 567,
-    messagesThisWeek: 67,
-    lastMessageAt: new Date(Date.now() - 30 * 60 * 1000),
-    averageResponseTime: 10,
-    pendingRequests: 1,
-    flagged: false,
-  },
-];
-
-// Mock message history
-const mockMessageHistory: ThreadMessage[] = [
-  {
-    id: "msg-1",
-    senderId: "creator-1",
-    senderName: "Alex Rivera",
-    senderRole: "Creator",
-    content:
-      "Hi, I wanted to check on the status of my latest content submission.",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "msg-2",
-    senderId: "staff-1",
-    senderName: "Sarah Johnson",
-    senderRole: "Account Manager",
-    content:
-      "Hi Alex! Your submission is currently under review. We should have an update within 24 hours.",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000),
-  },
-  {
-    id: "msg-3",
-    senderId: "creator-1",
-    senderName: "Alex Rivera",
-    senderRole: "Creator",
-    content: "Perfect, thank you for the quick response!",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000),
-  },
-  {
-    id: "msg-4",
-    senderId: "staff-3",
-    senderName: "Emily Davis",
-    senderRole: "Support Specialist",
-    content:
-      "Hi Alex, I wanted to follow up - your content has been approved and is now live!",
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "msg-5",
-    senderId: "creator-1",
-    senderName: "Alex Rivera",
-    senderRole: "Creator",
-    content:
-      "That's great news! I do have a question about the payment - it doesn't seem to match what we agreed on.",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-  },
-  {
-    id: "msg-6",
-    senderId: "staff-1",
-    senderName: "Sarah Johnson",
-    senderRole: "Account Manager",
-    content:
-      "Let me look into that right away. Can you share the invoice number?",
-    timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
-  },
-];
+type CreatorSummary = CreatorCommunicationSummary & { conversationId?: string };
 
 function formatTimeAgo(date: Date): string {
   const now = new Date();
@@ -246,6 +84,9 @@ function getResponseTimeStatus(avgTime: number): {
 }
 
 export function CreatorCommunicationLog() {
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [creators, setCreators] = React.useState<CreatorSummary[]>([]);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [sortBy, setSortBy] = React.useState<
     "recent" | "messages" | "response" | "name"
@@ -253,24 +94,77 @@ export function CreatorCommunicationLog() {
   const [filterStaff, setFilterStaff] = React.useState<string>("all");
   const [showFlaggedOnly, setShowFlaggedOnly] = React.useState(false);
   const [selectedCreator, setSelectedCreator] =
-    React.useState<CreatorCommunicationSummary | null>(null);
+    React.useState<CreatorSummary | null>(null);
+  const [thread, setThread] = React.useState<ConversationThread | null>(null);
+  const [threadLoading, setThreadLoading] = React.useState(false);
+
+  const load = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/oversight?type=creators");
+      if (res.ok) {
+        const data = await res.json();
+        setCreators(
+          (data.creators || []).map((c: CreatorSummary) => ({
+            ...c,
+            lastMessageAt: c.lastMessageAt
+              ? new Date(c.lastMessageAt)
+              : undefined,
+          }))
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleSelectCreator = async (creator: CreatorSummary) => {
+    setSelectedCreator(creator);
+    setThread(null);
+    if (!creator.conversationId) return;
+    setThreadLoading(true);
+    try {
+      const res = await fetch(
+        `/api/oversight?type=thread&conversationId=${encodeURIComponent(
+          creator.conversationId
+        )}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const t: ConversationThread = data.thread;
+        setThread({
+          ...t,
+          createdAt: new Date(t.createdAt),
+          updatedAt: new Date(t.updatedAt),
+          messages: t.messages.map((m) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          })),
+        });
+      }
+    } finally {
+      setThreadLoading(false);
+    }
+  };
 
   // Get unique staff from all creators
   const allStaff = React.useMemo(() => {
     const staffMap = new Map<string, { id: string; name: string }>();
-    mockCreatorComms.forEach((creator) => {
+    creators.forEach((creator) => {
       creator.assignedStaff.forEach((staff) => {
         staffMap.set(staff.id, { id: staff.id, name: staff.name });
       });
     });
     return Array.from(staffMap.values());
-  }, []);
+  }, [creators]);
 
-  // Filter and sort creators
   const filteredCreators = React.useMemo(() => {
-    let result = [...mockCreatorComms];
+    let result = [...creators];
 
-    // Search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -280,19 +174,16 @@ export function CreatorCommunicationLog() {
       );
     }
 
-    // Filter by assigned staff
     if (filterStaff !== "all") {
       result = result.filter((c) =>
         c.assignedStaff.some((s) => s.id === filterStaff)
       );
     }
 
-    // Filter flagged only
     if (showFlaggedOnly) {
       result = result.filter((c) => c.flagged);
     }
 
-    // Sort
     result.sort((a, b) => {
       switch (sortBy) {
         case "recent":
@@ -312,29 +203,20 @@ export function CreatorCommunicationLog() {
     });
 
     return result;
-  }, [searchQuery, filterStaff, showFlaggedOnly, sortBy]);
+  }, [creators, searchQuery, filterStaff, showFlaggedOnly, sortBy]);
 
-  // Calculate summary stats
   const summaryStats = React.useMemo(() => {
-    const total = mockCreatorComms.length;
+    const total = creators.length || 1;
     return {
-      totalCreators: total,
-      totalMessages: mockCreatorComms.reduce((sum, c) => sum + c.totalMessages, 0),
-      messagesThisWeek: mockCreatorComms.reduce(
-        (sum, c) => sum + c.messagesThisWeek,
-        0
-      ),
+      totalCreators: creators.length,
+      messagesThisWeek: creators.reduce((sum, c) => sum + c.messagesThisWeek, 0),
       avgResponseTime: Math.round(
-        mockCreatorComms.reduce((sum, c) => sum + c.averageResponseTime, 0) /
-          total
+        creators.reduce((sum, c) => sum + c.averageResponseTime, 0) / total
       ),
-      pendingRequests: mockCreatorComms.reduce(
-        (sum, c) => sum + c.pendingRequests,
-        0
-      ),
-      flaggedCount: mockCreatorComms.filter((c) => c.flagged).length,
+      pendingRequests: creators.reduce((sum, c) => sum + c.pendingRequests, 0),
+      flaggedCount: creators.filter((c) => c.flagged).length,
     };
-  }, []);
+  }, [creators]);
 
   return (
     <div className="space-y-6">
@@ -348,9 +230,9 @@ export function CreatorCommunicationLog() {
             Track all communications with creators and response metrics
           </p>
         </div>
-        <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Export Report
+        <Button variant="outline" size="sm" onClick={load} disabled={isLoading}>
+          <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+          Refresh
         </Button>
       </div>
 
@@ -477,129 +359,134 @@ export function CreatorCommunicationLog() {
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[550px] -mx-4 px-4">
-              <div className="space-y-3">
-                {filteredCreators.map((creator) => {
-                  const responseStatus = getResponseTimeStatus(
-                    creator.averageResponseTime
-                  );
-                  const ResponseIcon = responseStatus.icon;
+              {filteredCreators.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-center">
+                  <Users className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    {isLoading
+                      ? "Loading creators..."
+                      : "No creator conversations yet"}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredCreators.map((creator) => {
+                    const responseStatus = getResponseTimeStatus(
+                      creator.averageResponseTime
+                    );
+                    const ResponseIcon = responseStatus.icon;
 
-                  return (
-                    <div
-                      key={creator.creatorId}
-                      className={cn(
-                        "p-4 rounded-lg border transition-colors cursor-pointer",
-                        selectedCreator?.creatorId === creator.creatorId
-                          ? "bg-muted border-primary"
-                          : "bg-card hover:bg-muted/50"
-                      )}
-                      onClick={() => setSelectedCreator(creator)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Avatar
-                          size="md"
-                          user={{ name: creator.creatorName }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">
-                              {creator.creatorName}
-                            </span>
-                            {creator.flagged && (
-                              <Flag className="h-4 w-4 text-red-500 shrink-0" />
-                            )}
-                            {creator.pendingRequests > 0 && (
-                              <Badge variant="secondary">
-                                {creator.pendingRequests} pending
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Assigned staff */}
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs text-muted-foreground">
-                              Assigned:
-                            </span>
-                            <div className="flex -space-x-1">
-                              {creator.assignedStaff.slice(0, 3).map((staff) => (
-                                <Avatar
-                                  key={staff.id}
-                                  size="xs"
-                                  user={{ name: staff.name }}
-                                  ring="white"
-                                />
-                              ))}
-                            </div>
-                            {creator.assignedStaff.length > 3 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{creator.assignedStaff.length - 3}
+                    return (
+                      <div
+                        key={creator.creatorId}
+                        className={cn(
+                          "p-4 rounded-lg border transition-colors cursor-pointer",
+                          selectedCreator?.creatorId === creator.creatorId
+                            ? "bg-muted border-primary"
+                            : "bg-card hover:bg-muted/50"
+                        )}
+                        onClick={() => handleSelectCreator(creator)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Avatar
+                            size="md"
+                            user={{ name: creator.creatorName }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate">
+                                {creator.creatorName}
                               </span>
-                            )}
+                              {creator.flagged && (
+                                <Flag className="h-4 w-4 text-red-500 shrink-0" />
+                              )}
+                              {creator.pendingRequests > 0 && (
+                                <Badge variant="secondary">
+                                  {creator.pendingRequests} pending
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* Assigned staff */}
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs text-muted-foreground">
+                                Assigned:
+                              </span>
+                              {creator.assignedStaff.length === 0 ? (
+                                <span className="text-xs text-muted-foreground">
+                                  None
+                                </span>
+                              ) : (
+                                <div className="flex -space-x-1">
+                                  {creator.assignedStaff
+                                    .slice(0, 3)
+                                    .map((staff) => (
+                                      <Avatar
+                                        key={staff.id}
+                                        size="xs"
+                                        user={{ name: staff.name }}
+                                        ring="white"
+                                      />
+                                    ))}
+                                </div>
+                              )}
+                              {creator.assignedStaff.length > 3 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{creator.assignedStaff.length - 3}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-2 mt-3">
+                              <div className="text-center p-2 rounded bg-muted/50">
+                                <p className="text-xs text-muted-foreground">
+                                  Messages
+                                </p>
+                                <p className="text-sm font-medium">
+                                  {creator.totalMessages}
+                                </p>
+                              </div>
+                              <div className="text-center p-2 rounded bg-muted/50">
+                                <p className="text-xs text-muted-foreground">
+                                  This Week
+                                </p>
+                                <p className="text-sm font-medium">
+                                  {creator.messagesThisWeek}
+                                </p>
+                              </div>
+                              <div className="text-center p-2 rounded bg-muted/50">
+                                <p className="text-xs text-muted-foreground">
+                                  Response
+                                </p>
+                                <p
+                                  className={cn(
+                                    "text-sm font-medium flex items-center justify-center gap-1",
+                                    responseStatus.color
+                                  )}
+                                >
+                                  <ResponseIcon className="h-3 w-3" />
+                                  {creator.averageResponseTime}m
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Last message */}
+                            <p className="text-xs text-muted-foreground mt-3">
+                              Last message:{" "}
+                              {creator.lastMessageAt
+                                ? formatTimeAgo(creator.lastMessageAt)
+                                : "No messages"}
+                            </p>
                           </div>
 
-                          {/* Stats */}
-                          <div className="grid grid-cols-3 gap-2 mt-3">
-                            <div className="text-center p-2 rounded bg-muted/50">
-                              <p className="text-xs text-muted-foreground">
-                                Messages
-                              </p>
-                              <p className="text-sm font-medium">
-                                {creator.totalMessages}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 rounded bg-muted/50">
-                              <p className="text-xs text-muted-foreground">
-                                This Week
-                              </p>
-                              <p className="text-sm font-medium">
-                                {creator.messagesThisWeek}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 rounded bg-muted/50">
-                              <p className="text-xs text-muted-foreground">
-                                Response
-                              </p>
-                              <p
-                                className={cn(
-                                  "text-sm font-medium flex items-center justify-center gap-1",
-                                  responseStatus.color
-                                )}
-                              >
-                                <ResponseIcon className="h-3 w-3" />
-                                {creator.averageResponseTime}m
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Flags */}
-                          {creator.flagged && creator.flagReasons && (
-                            <div className="mt-3 p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-                              <ul className="text-xs text-red-600 dark:text-red-400 space-y-0.5">
-                                {creator.flagReasons.map((reason, i) => (
-                                  <li key={i} className="flex items-center gap-1">
-                                    <Flag className="h-3 w-3" />
-                                    {reason}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-
-                          {/* Last message */}
-                          <p className="text-xs text-muted-foreground mt-3">
-                            Last message:{" "}
-                            {creator.lastMessageAt
-                              ? formatTimeAgo(creator.lastMessageAt)
-                              : "No messages"}
-                          </p>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                         </div>
-
-                        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </ScrollArea>
           </CardContent>
         </Card>
@@ -623,52 +510,28 @@ export function CreatorCommunicationLog() {
                     </CardDescription>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Email Creator
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Phone className="h-4 w-4 mr-2" />
-                      Call Creator
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      View Full History
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Messages
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
 
               {/* Assigned Staff */}
-              <div className="mt-4">
-                <p className="text-sm font-medium mb-2">Assigned Staff</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedCreator.assignedStaff.map((staff) => (
-                    <div
-                      key={staff.id}
-                      className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted"
-                    >
-                      <Avatar size="xs" user={{ name: staff.name }} />
-                      <span className="text-sm">{staff.name}</span>
-                      <Badge variant="outline" className="text-[10px] h-4">
-                        {staff.role}
-                      </Badge>
-                    </div>
-                  ))}
+              {selectedCreator.assignedStaff.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm font-medium mb-2">Assigned Staff</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCreator.assignedStaff.map((staff) => (
+                      <div
+                        key={staff.id}
+                        className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted"
+                      >
+                        <Avatar size="xs" user={{ name: staff.name }} />
+                        <span className="text-sm">{staff.name}</span>
+                        <Badge variant="outline" className="text-[10px] h-4">
+                          {staff.role}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Response Metrics */}
               <div className="mt-4 grid grid-cols-3 gap-3">
@@ -709,65 +572,84 @@ export function CreatorCommunicationLog() {
                 <p className="text-sm font-medium">Recent Messages</p>
               </div>
               <ScrollArea className="h-[320px]">
-                <div className="p-4 space-y-4">
-                  {mockMessageHistory.map((message, index) => {
-                    const isStaff = message.senderRole !== "Creator";
-                    const showDate =
-                      index === 0 ||
-                      formatDate(message.timestamp) !==
-                        formatDate(mockMessageHistory[index - 1].timestamp);
+                {threadLoading ? (
+                  <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
+                    Loading messages...
+                  </div>
+                ) : !thread || thread.messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-40 text-center">
+                    <MessageSquare className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      No messages with this creator yet
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-4">
+                    {thread.messages.map((message, index) => {
+                      const isStaff = message.senderRole !== "Creator";
+                      const showDate =
+                        index === 0 ||
+                        formatDate(message.timestamp) !==
+                          formatDate(thread.messages[index - 1].timestamp);
 
-                    return (
-                      <React.Fragment key={message.id}>
-                        {showDate && (
-                          <div className="flex items-center gap-3 my-4">
-                            <div className="flex-1 h-px bg-border" />
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(message.timestamp)}
-                            </span>
-                            <div className="flex-1 h-px bg-border" />
-                          </div>
-                        )}
-                        <div
-                          className={cn(
-                            "flex gap-3",
-                            isStaff ? "flex-row" : "flex-row-reverse"
+                      return (
+                        <React.Fragment key={message.id}>
+                          {showDate && (
+                            <div className="flex items-center gap-3 my-4">
+                              <div className="flex-1 h-px bg-border" />
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(message.timestamp)}
+                              </span>
+                              <div className="flex-1 h-px bg-border" />
+                            </div>
                           )}
-                        >
-                          <Avatar size="sm" user={{ name: message.senderName }} />
                           <div
                             className={cn(
-                              "flex-1 max-w-[80%]",
-                              isStaff ? "" : "flex flex-col items-end"
+                              "flex gap-3",
+                              isStaff ? "flex-row" : "flex-row-reverse"
                             )}
                           >
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm font-medium">
-                                {message.senderName}
-                              </span>
-                              <Badge variant="outline" className="text-[10px] h-4">
-                                {message.senderRole}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {formatTime(message.timestamp)}
-                              </span>
-                            </div>
+                            <Avatar
+                              size="sm"
+                              user={{ name: message.senderName }}
+                            />
                             <div
                               className={cn(
-                                "rounded-lg p-3 text-sm",
-                                isStaff
-                                  ? "bg-muted"
-                                  : "bg-primary text-primary-foreground"
+                                "flex-1 max-w-[80%]",
+                                isStaff ? "" : "flex flex-col items-end"
                               )}
                             >
-                              {message.content}
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-medium">
+                                  {message.senderName}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] h-4"
+                                >
+                                  {message.senderRole}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatTime(message.timestamp)}
+                                </span>
+                              </div>
+                              <div
+                                className={cn(
+                                  "rounded-lg p-3 text-sm",
+                                  isStaff
+                                    ? "bg-muted"
+                                    : "bg-primary text-primary-foreground"
+                                )}
+                              >
+                                {message.content}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                )}
               </ScrollArea>
             </CardContent>
           </Card>

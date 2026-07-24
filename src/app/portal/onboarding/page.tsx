@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -18,13 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
+
 import { OnboardingWizard, type OnboardingStep } from "@/components/onboarding/onboarding-wizard";
 import { TutorialOverlay, type TutorialStep } from "@/components/onboarding/tutorial-overlay";
 import {
@@ -34,7 +29,6 @@ import {
   CheckCircle2,
   Mail,
   MessageSquare,
-  Phone,
   Clock,
   Upload,
   FileText,
@@ -47,9 +41,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface AgencyInfo {
   name: string;
@@ -67,9 +59,7 @@ interface CreatorProfile {
   avatar?: string;
 }
 
-// ============================================
 // TIMEZONE DATA - Comprehensive list sorted by offset
-// ============================================
 
 const TIMEZONES = [
   // UTC-12 to UTC-9
@@ -150,9 +140,7 @@ const TIMEZONES = [
   { value: "Pacific/Fiji", label: "Fiji", offset: "UTC+12", offsetNum: 12 },
 ].sort((a, b) => a.offsetNum - b.offsetNum);
 
-// ============================================
 // WELCOME STEP COMPONENT
-// ============================================
 
 interface WelcomeStepProps {
   agencyInfo: AgencyInfo;
@@ -218,9 +206,7 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
   );
 }
 
-// ============================================
 // PROFILE SETUP STEP COMPONENT
-// ============================================
 
 interface ProfileStepProps {
   profile: CreatorProfile;
@@ -231,9 +217,8 @@ interface ProfileStepProps {
 function ProfileStep({ profile, onProfileChange, creatorEmail }: ProfileStepProps) {
   const handleAvatarUpload = useCallback(
     async (base64: string) => {
-      // In a real app, upload to server and get URL
       onProfileChange({ avatar: base64 });
-      toast.success("Photo uploaded successfully!");
+      toast.success("Photo uploaded");
     },
     [onProfileChange]
   );
@@ -314,9 +299,7 @@ function ProfileStep({ profile, onProfileChange, creatorEmail }: ProfileStepProp
   );
 }
 
-// ============================================
 // TIMEZONE STEP COMPONENT
-// ============================================
 
 interface TimezoneStepProps {
   timezone: string;
@@ -324,21 +307,21 @@ interface TimezoneStepProps {
 }
 
 function TimezoneStep({ timezone, onTimezoneChange }: TimezoneStepProps) {
-  const [detectedTimezone, setDetectedTimezone] = useState<string | null>(null);
+  // Try to detect user's timezone
+  const [detectedTimezone] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  });
 
   useEffect(() => {
-    // Try to detect user's timezone
-    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setDetectedTimezone(detected);
-
     // Auto-select if not already set
-    if (!timezone && detected) {
-      const match = TIMEZONES.find((tz) => tz.value === detected);
+    if (!timezone && detectedTimezone) {
+      const match = TIMEZONES.find((tz) => tz.value === detectedTimezone);
       if (match) {
         onTimezoneChange(match.value);
       }
     }
-  }, [timezone, onTimezoneChange]);
+  }, [timezone, detectedTimezone, onTimezoneChange]);
 
   const currentTime = new Date().toLocaleTimeString("en-US", {
     timeZone: timezone || undefined,
@@ -403,9 +386,7 @@ function TimezoneStep({ timezone, onTimezoneChange }: TimezoneStepProps) {
   );
 }
 
-// ============================================
 // NOTIFICATIONS STEP COMPONENT
-// ============================================
 
 interface NotificationsStepProps {
   profile: CreatorProfile;
@@ -504,9 +485,7 @@ function NotificationsStep({
   );
 }
 
-// ============================================
 // TUTORIAL STEP COMPONENT
-// ============================================
 
 interface TutorialStepProps {
   onStartTutorial: () => void;
@@ -572,9 +551,7 @@ function TutorialStep({ onStartTutorial, onSkipTutorial }: TutorialStepProps) {
   );
 }
 
-// ============================================
 // MAIN ONBOARDING PAGE
-// ============================================
 
 export default function CreatorOnboardingPage() {
   const router = useRouter();
@@ -583,9 +560,8 @@ export default function CreatorOnboardingPage() {
   const [creatorId, setCreatorId] = useState<string | null>(null);
   const [creatorEmail, setCreatorEmail] = useState<string>("");
   const [showTutorial, setShowTutorial] = useState(false);
-  const [skipTutorial, setSkipTutorial] = useState(false);
 
-  // Agency info (would come from API in real app)
+  // Agency info
   const [agencyInfo] = useState<AgencyInfo>({
     name: "Upload Portal",
     logo: undefined,
@@ -601,12 +577,6 @@ export default function CreatorOnboardingPage() {
     smsNotifications: false,
     avatar: undefined,
   });
-
-  // Refs for tutorial targets
-  const dashboardRef = useRef<HTMLDivElement>(null);
-  const uploadRef = useRef<HTMLDivElement>(null);
-  const requestsRef = useRef<HTMLDivElement>(null);
-  const settingsRef = useRef<HTMLDivElement>(null);
 
   // Check authentication and load creator data
   useEffect(() => {
@@ -659,6 +629,8 @@ export default function CreatorOnboardingPage() {
           phone: profile.phone,
           timezone: profile.timezone,
           avatar: profile.avatar,
+          emailNotifications: profile.emailNotifications,
+          smsNotifications: profile.smsNotifications,
         }),
       });
 
@@ -807,6 +779,32 @@ export default function CreatorOnboardingPage() {
         }
         return true;
       },
+    },
+    {
+      id: "notifications",
+      title: "Notifications",
+      description: "Stay in the loop",
+      icon: <Bell className="w-5 h-5" />,
+      content: (
+        <NotificationsStep
+          profile={profile}
+          onProfileChange={handleProfileChange}
+          creatorEmail={creatorEmail}
+        />
+      ),
+    },
+    {
+      id: "tutorial",
+      title: "Quick Tour",
+      description: "Learn the basics",
+      icon: <Play className="w-5 h-5" />,
+      content: (
+        <TutorialStep
+          onStartTutorial={() => setShowTutorial(true)}
+          onSkipTutorial={() => setShowTutorial(false)}
+        />
+      ),
+      optional: true,
     },
     {
       id: "complete",

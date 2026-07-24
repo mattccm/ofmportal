@@ -22,15 +22,12 @@ import {
   ArrowRight,
   Type,
   Highlighter,
-  Eraser,
   Undo2,
   Redo2,
   Trash2,
-  Palette,
   Eye,
   EyeOff,
   Download,
-  Send,
 } from "lucide-react";
 import {
   SessionAnnotation,
@@ -45,7 +42,9 @@ interface AnnotationCanvasProps {
   imageUrl?: string;
   videoTimestamp?: number;
   annotations: SessionAnnotation[];
-  onAnnotationAdd: (annotation: Omit<SessionAnnotation, "id" | "createdAt">) => void;
+  onAnnotationAdd: (
+    annotation: Omit<SessionAnnotation, "id" | "createdAt">
+  ) => Promise<SessionAnnotation | null> | void;
   onAnnotationUpdate: (annotationId: string, data: AnnotationData) => void;
   onAnnotationDelete: (annotationId: string) => void;
   onAnnotationClear: () => void;
@@ -72,6 +71,8 @@ const COLORS = [
   "#000000", // black
 ];
 
+const MAX_HISTORY = 50;
+
 export function AnnotationCanvas({
   uploadId,
   sessionId,
@@ -96,11 +97,19 @@ export function AnnotationCanvas({
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
-  const [history, setHistory] = useState<SessionAnnotation[][]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  // Local render model. Seeded from the `annotations` prop and kept in sync via
+  // an id-based merge, but owned locally so undo/redo can restore snapshots
+  // instantly without waiting for a server round-trip.
+  const [annos, setAnnos] = useState<SessionAnnotation[]>(annotations);
+  // History is a bounded stack of annotation-array snapshots. historyIndex
+  // points at the currently displayed snapshot.
+  const [history, setHistory] = useState<SessionAnnotation[][]>([annotations]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [textInput, setTextInput] = useState("");
   const [textPosition, setTextPosition] = useState<Point | null>(null);
+  // Throttle for live in-progress broadcasts while drawing.
+  const lastPreviewBroadcastRef = useRef(0);
 
   // Initialize canvas size
   useEffect(() => {
@@ -116,10 +125,23 @@ export function AnnotationCanvas({
     return () => window.removeEventListener("resize", updateCanvasSize);
   }, []);
 
-  // Redraw annotations when they change
-  useEffect(() => {
-    drawAnnotations();
-  }, [annotations, showAnnotations, canvasSize]);
+  // Reconcile the local render model with the authoritative `annotations` prop
+  // (initial load, deletes/clears, and realtime events merged in by the parent).
+  // The prop is authoritative for committed annotations; any locally-optimistic
+  // entries (still awaiting their server id) are preserved so they don't flicker.
+  // Done during render (React's recommended alternative to a syncing effect).
+  const [syncedProp, setSyncedProp] = useState(annotations);
+  if (syncedProp !== annotations) {
+    setSyncedProp(annotations);
+    setAnnos((prev) => {
+      const byId = new Map<string, SessionAnnotation>();
+      for (const a of annotations) byId.set(a.id, a);
+      for (const a of prev) {
+        if (a.id.startsWith("pending_") && !byId.has(a.id)) byId.set(a.id, a);
+      }
+      return Array.from(byId.values());
+    });
+  }
 
   const drawAnnotations = useCallback(() => {
     const canvas = canvasRef.current;
@@ -134,7 +156,7 @@ export function AnnotationCanvas({
     if (!showAnnotations) return;
 
     // Draw all annotations
-    annotations.forEach((annotation) => {
+    annos.forEach((annotation) => {
       ctx.strokeStyle = annotation.color;
       ctx.fillStyle = annotation.color;
       ctx.lineWidth = 3;
@@ -266,7 +288,12 @@ export function AnnotationCanvas({
       }
       ctx.stroke();
     }
-  }, [annotations, showAnnotations, currentPath, color, strokeWidth, tool]);
+  }, [annos, showAnnotations, currentPath, color, strokeWidth, tool]);
+
+  // Redraw annotations when they change
+  useEffect(() => {
+    drawAnnotations();
+  }, [drawAnnotations, canvasSize]);
 
   const getCanvasPoint = (e: React.MouseEvent | React.TouchEvent): Point => {
     const canvas = canvasRef.current;
@@ -287,6 +314,108 @@ export function AnnotationCanvas({
       x: clientX - rect.left,
       y: clientY - rect.top,
     };
+  };
+
+  // Push a new snapshot onto the bounded history stack, discarding any
+  // "future" (redo) snapshots beyond the current index.
+  const recordHistory = (next: SessionAnnotation[]) => {
+    const truncated = history.slice(0, historyIndex + 1);
+    const updated = [...truncated, next].slice(-MAX_HISTORY);
+    setHistory(updated);
+    setHistoryIndex(updated.length - 1);
+  };
+
+  // Live, throttled broadcast of an in-progress (not yet committed) annotation
+  // so other participants see the shape being drawn in real time.
+  const broadcastPreview = (data: AnnotationData) => {
+    if (!onAnnotationBroadcast) return;
+    const now = Date.now();
+    if (now - lastPreviewBroadcastRef.current < 80) return;
+    lastPreviewBroadcastRef.current = now;
+    onAnnotationBroadcast({
+      action: "add",
+      annotation: {
+        id: `preview_${userId}`,
+        sessionId,
+        uploadId,
+        userId,
+        type: tool,
+        data,
+        color,
+        timestamp: videoTimestamp,
+        createdAt: new Date(),
+      },
+    });
+  };
+
+  // Tell other participants to drop this user's in-progress preview.
+  const clearPreview = () => {
+    onAnnotationBroadcast?.({
+      action: "delete",
+      annotation: { id: `preview_${userId}` } as SessionAnnotation,
+    });
+  };
+
+  // Add a new annotation: optimistically render it, snapshot history, persist
+  // it (learning the server id), and broadcast the committed result.
+  const commitAnnotation = async (
+    base: Omit<SessionAnnotation, "id" | "createdAt">
+  ) => {
+    const tempId = `pending_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 9)}`;
+    const optimistic: SessionAnnotation = {
+      ...base,
+      id: tempId,
+      createdAt: new Date(),
+    };
+    const next = [...annos, optimistic];
+    setAnnos(next);
+    recordHistory(next);
+    clearPreview();
+
+    const saved = await onAnnotationAdd(base);
+    if (saved) {
+      setAnnos((prev) => prev.map((a) => (a.id === tempId ? saved : a)));
+      onAnnotationBroadcast?.({ action: "add", annotation: saved });
+    }
+  };
+
+  // Restore the annotations array to a history snapshot and reconcile the
+  // difference against the server (delete removed, re-add restored, update
+  // changed) so undo/redo actually persists and re-renders.
+  const restoreSnapshot = (target: SessionAnnotation[]) => {
+    const currentById = new Map(annos.map((a) => [a.id, a]));
+    const targetById = new Map(target.map((a) => [a.id, a]));
+
+    for (const a of annos) {
+      if (!targetById.has(a.id)) {
+        if (!a.id.startsWith("pending_")) onAnnotationDelete(a.id);
+        onAnnotationBroadcast?.({ action: "delete", annotation: a });
+      }
+    }
+
+    for (const a of target) {
+      const cur = currentById.get(a.id);
+      if (!cur) {
+        const base: Omit<SessionAnnotation, "id" | "createdAt"> = {
+          sessionId: a.sessionId,
+          uploadId: a.uploadId,
+          userId: a.userId,
+          type: a.type,
+          data: a.data,
+          color: a.color,
+          timestamp: a.timestamp,
+        };
+        void onAnnotationAdd(base);
+        onAnnotationBroadcast?.({ action: "add", annotation: a });
+      } else if (cur.data !== a.data) {
+        onAnnotationUpdate(a.id, a.data);
+        onAnnotationBroadcast?.({ action: "update", annotation: a });
+      }
+    }
+
+    setAnnos(target);
   };
 
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
@@ -312,6 +441,7 @@ export function AnnotationCanvas({
     if (tool === "freehand") {
       setCurrentPath((prev) => [...prev, point]);
       drawAnnotations();
+      broadcastPreview({ paths: [[...currentPath, point]] });
     } else if (startPoint) {
       // For shapes, we need to redraw preview
       drawAnnotations();
@@ -372,6 +502,29 @@ export function AnnotationCanvas({
           ctx.globalAlpha = 1;
           break;
       }
+
+      const previewData: AnnotationData =
+        tool === "arrow"
+          ? {
+              startX: startPoint.x,
+              startY: startPoint.y,
+              endX: point.x,
+              endY: point.y,
+            }
+          : tool === "circle"
+          ? {
+              x: (startPoint.x + point.x) / 2,
+              y: (startPoint.y + point.y) / 2,
+              width: Math.abs(point.x - startPoint.x),
+              height: Math.abs(point.y - startPoint.y),
+            }
+          : {
+              x: Math.min(startPoint.x, point.x),
+              y: Math.min(startPoint.y, point.y),
+              width: Math.abs(point.x - startPoint.x),
+              height: Math.abs(point.y - startPoint.y),
+            };
+      broadcastPreview(previewData);
     }
   };
 
@@ -436,8 +589,10 @@ export function AnnotationCanvas({
         timestamp: videoTimestamp,
       };
 
-      onAnnotationAdd(annotation);
-      saveToHistory();
+      void commitAnnotation(annotation);
+    } else {
+      // Nothing committed (e.g. zero-size shape) - clear any live preview.
+      clearPreview();
     }
 
     setStartPoint(null);
@@ -461,36 +616,36 @@ export function AnnotationCanvas({
       timestamp: videoTimestamp,
     };
 
-    onAnnotationAdd(annotation);
-    saveToHistory();
+    void commitAnnotation(annotation);
     setTextInput("");
     setTextPosition(null);
   };
 
-  const saveToHistory = () => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push([...annotations]);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
-
   const handleUndo = () => {
     if (historyIndex > 0) {
+      const target = history[historyIndex - 1];
       setHistoryIndex(historyIndex - 1);
-      // Would need to restore from history
+      restoreSnapshot(target);
     }
   };
 
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
+      const target = history[historyIndex + 1];
       setHistoryIndex(historyIndex + 1);
-      // Would need to restore from history
+      restoreSnapshot(target);
     }
   };
 
   const handleClear = () => {
     onAnnotationClear();
-    saveToHistory();
+    const next: SessionAnnotation[] = [];
+    setAnnos(next);
+    recordHistory(next);
+    onAnnotationBroadcast?.({
+      action: "clear",
+      annotation: { uploadId } as SessionAnnotation,
+    });
   };
 
   const handleExport = () => {
@@ -628,7 +783,7 @@ export function AnnotationCanvas({
               size="icon"
               className="h-8 w-8"
               onClick={handleClear}
-              disabled={disabled || annotations.length === 0}
+              disabled={disabled || annos.length === 0}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -652,7 +807,7 @@ export function AnnotationCanvas({
         {imageUrl && (
           <img
             src={imageUrl}
-            alt=""
+            alt="Media being annotated"
             className="absolute inset-0 w-full h-full object-contain"
           />
         )}
@@ -711,9 +866,9 @@ export function AnnotationCanvas({
       </div>
 
       {/* Annotation Count */}
-      {annotations.length > 0 && (
+      {annos.length > 0 && (
         <Badge variant="secondary" className="absolute bottom-2 right-2">
-          {annotations.length} annotation{annotations.length !== 1 ? "s" : ""}
+          {annos.length} annotation{annos.length !== 1 ? "s" : ""}
         </Badge>
       )}
     </div>

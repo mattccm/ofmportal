@@ -4,17 +4,13 @@ import * as React from "react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import {
-  X,
   Download,
   Share2,
   Edit2,
@@ -25,7 +21,6 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Maximize2,
   Play,
   Pause,
   Volume2,
@@ -37,7 +32,6 @@ import {
   Video,
   Music,
   File,
-  Folder,
   Info,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -99,6 +93,9 @@ export function MediaPreviewModal({
   onDownload,
 }: MediaPreviewModalProps) {
   const [isEditing, setIsEditing] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  // Local copy so saved edits are reflected immediately without a parent refetch
+  const [localMedia, setLocalMedia] = React.useState<MediaItem | null>(media);
   const [zoom, setZoom] = React.useState(1);
   const [rotation, setRotation] = React.useState(0);
   const [isPlaying, setIsPlaying] = React.useState(false);
@@ -113,6 +110,7 @@ export function MediaPreviewModal({
   const [editTags, setEditTags] = React.useState("");
 
   React.useEffect(() => {
+    setLocalMedia(media);
     if (media) {
       setEditTitle(media.title || "");
       setEditDescription(media.description || "");
@@ -129,6 +127,18 @@ export function MediaPreviewModal({
       setIsEditing(false);
     }
   }, [open]);
+
+  const togglePlayPause = React.useCallback(() => {
+    const mediaElement = videoRef.current || audioRef.current;
+    if (mediaElement) {
+      if (isPlaying) {
+        mediaElement.pause();
+      } else {
+        mediaElement.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  }, [isPlaying]);
 
   // Keyboard navigation
   React.useEffect(() => {
@@ -166,26 +176,44 @@ export function MediaPreviewModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, hasPrevious, hasNext, onPrevious, onNext, onOpenChange, media]);
-
-  const togglePlayPause = () => {
-    const mediaElement = videoRef.current || audioRef.current;
-    if (mediaElement) {
-      if (isPlaying) {
-        mediaElement.pause();
-      } else {
-        mediaElement.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
+  }, [open, hasPrevious, hasNext, onPrevious, onNext, onOpenChange, media, togglePlayPause]);
 
   const handleSaveEdit = async () => {
-    if (!media) return;
+    if (!media || isSaving) return;
 
-    // Would call API to save
-    toast.success("Changes saved");
-    setIsEditing(false);
+    const title = editTitle.trim();
+    const description = editDescription.trim();
+    const tags = editTags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(
+        `/api/media-library?id=${encodeURIComponent(media.id)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, description, tags }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const updated: MediaItem = { ...media, title, description, tags };
+      setLocalMedia(updated);
+      onEdit?.(updated);
+      toast.success("Changes saved");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Failed to save media changes:", error);
+      toast.error("Failed to save changes");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCopyLink = () => {
@@ -195,6 +223,9 @@ export function MediaPreviewModal({
   };
 
   if (!media) return null;
+
+  // Prefer locally-edited values so saves show immediately
+  const display = localMedia ?? media;
 
   const renderMediaContent = () => {
     switch (media.mediaType) {
@@ -310,7 +341,7 @@ export function MediaPreviewModal({
             </div>
             <div>
               <h2 className="font-semibold text-sm">
-                {media.title || media.originalName}
+                {display.title || display.originalName}
               </h2>
               <p className="text-xs text-muted-foreground">
                 {formatFileSize(media.fileSize)} • {media.mimeType}
@@ -446,12 +477,17 @@ export function MediaPreviewModal({
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleSaveEdit} className="flex-1">
-                      Save Changes
+                    <Button
+                      onClick={handleSaveEdit}
+                      className="flex-1"
+                      disabled={isSaving}
+                    >
+                      {isSaving ? "Saving..." : "Save Changes"}
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => setIsEditing(false)}
+                      disabled={isSaving}
                     >
                       Cancel
                     </Button>
@@ -472,15 +508,15 @@ export function MediaPreviewModal({
                         Edit
                       </Button>
                     </div>
-                    {media.title && (
-                      <p className="text-sm font-medium mb-1">{media.title}</p>
+                    {display.title && (
+                      <p className="text-sm font-medium mb-1">{display.title}</p>
                     )}
-                    {media.description && (
+                    {display.description && (
                       <p className="text-sm text-muted-foreground">
-                        {media.description}
+                        {display.description}
                       </p>
                     )}
-                    {!media.title && !media.description && (
+                    {!display.title && !display.description && (
                       <p className="text-sm text-muted-foreground italic">
                         No title or description
                       </p>
@@ -493,9 +529,9 @@ export function MediaPreviewModal({
                       <Tag className="h-3.5 w-3.5" />
                       Tags
                     </h4>
-                    {media.tags && media.tags.length > 0 ? (
+                    {display.tags && display.tags.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {media.tags.map((tag) => (
+                        {display.tags.map((tag) => (
                           <Badge key={tag} variant="secondary" className="text-xs">
                             {tag}
                           </Badge>

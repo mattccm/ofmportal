@@ -8,6 +8,9 @@ import { QuickActionsProvider } from "@/components/quick-actions";
 import { PageErrorBoundary, WidgetErrorBoundary, ProviderErrorBoundary } from "@/components/errors";
 import { AnnouncementsProvider } from "@/components/announcements";
 import { CreatorContextProvider } from "@/components/providers/creator-context-provider";
+import { CelebrationProvider } from "@/components/celebrations";
+import { DashboardTour } from "@/components/help/dashboard-tour";
+import { OfflineIndicator } from "@/components/offline/offline-indicator";
 import { useRouteCleanup } from "@/hooks/use-route-cleanup";
 
 const ActivityPanel = lazy(() =>
@@ -47,17 +50,31 @@ export const DashboardLayoutClient = memo(function DashboardLayoutClient({
               <AnnouncementsProvider>
                 <ProviderErrorBoundary providerName="CreatorContextProvider">
                   <CreatorContextProvider>
-                    <ResponsiveLayout>
-                      <PageErrorBoundary>
-                        {children}
-                      </PageErrorBoundary>
-                      {/* Lazy load activity panel with Suspense */}
-                      <Suspense fallback={null}>
+                    <ProviderErrorBoundary providerName="CelebrationProvider">
+                      <CelebrationProvider>
+                        <ResponsiveLayout>
+                          <PageErrorBoundary>
+                            {children}
+                          </PageErrorBoundary>
+                          {/* Lazy load activity panel with Suspense */}
+                          <Suspense fallback={null}>
+                            <WidgetErrorBoundary>
+                              <ActivityPanel maxItems={20} compact={false} />
+                            </WidgetErrorBoundary>
+                          </Suspense>
+                        </ResponsiveLayout>
+                        {/* First-visit guided tour (shows once, dashboard home only) */}
                         <WidgetErrorBoundary>
-                          <ActivityPanel maxItems={20} compact={false} />
+                          <DashboardTour />
                         </WidgetErrorBoundary>
-                      </Suspense>
-                    </ResponsiveLayout>
+                        {/* Offline / sync status indicator (renders only when offline or with pending changes) */}
+                        <WidgetErrorBoundary>
+                          <div className="fixed bottom-20 left-4 z-40 md:bottom-4">
+                            <OfflineIndicator variant="compact" />
+                          </div>
+                        </WidgetErrorBoundary>
+                      </CelebrationProvider>
+                    </ProviderErrorBoundary>
                   </CreatorContextProvider>
                 </ProviderErrorBoundary>
               </AnnouncementsProvider>

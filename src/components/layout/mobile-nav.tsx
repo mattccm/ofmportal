@@ -17,7 +17,6 @@ import {
   LogOut,
   UserCog,
   HelpCircle,
-  Sparkles,
   LayoutTemplate,
   BarChart3,
   BellRing,
@@ -27,6 +26,7 @@ import {
   Download,
   Repeat,
   Sun,
+  Eye,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { clearRememberToken, setSignedOutFlag } from "@/lib/remember-token";
@@ -72,6 +72,13 @@ const moreMenuItems = [
   { name: "Reminders", href: "/dashboard/reminders", icon: Bell },
   { name: "Notifications", href: "/dashboard/notifications", icon: BellRing },
 ];
+
+// Oversight - management feature gated to elevated roles (owner/admin/manager)
+const oversightItem = {
+  name: "Oversight",
+  href: "/dashboard/oversight",
+  icon: Eye,
+};
 
 const adminItems = [
   { name: "Team", href: "/dashboard/team", icon: UserCog },
@@ -181,16 +188,26 @@ export function MobileNav() {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
 
   const isAdmin = user?.role === "OWNER" || user?.role === "ADMIN";
+  const canViewOversight =
+    user?.role === "OWNER" ||
+    user?.role === "ADMIN" ||
+    user?.role === "MANAGER";
+  const navItems = canViewOversight
+    ? [...moreMenuItems, oversightItem]
+    : moreMenuItems;
 
-  const isActive = (href: string) => {
-    if (href === "/dashboard") {
-      return pathname === "/dashboard";
-    }
-    return pathname.startsWith(href);
-  };
+  const isActive = useCallback(
+    (href: string) => {
+      if (href === "/dashboard") {
+        return pathname === "/dashboard";
+      }
+      return pathname.startsWith(href);
+    },
+    [pathname]
+  );
 
   // Check if any "More" section item is active
-  const isMoreActive = [...moreMenuItems, ...adminItems].some((item) =>
+  const isMoreActive = [...navItems, ...adminItems].some((item) =>
     pathname.startsWith(item.href)
   );
 
@@ -202,7 +219,7 @@ export function MobileNav() {
       }
     }
     return -1;
-  }, [pathname]);
+  }, [isActive]);
 
   // Pull-to-refresh handler
   const handleTouchStart = useCallback((e: TouchEvent) => {
@@ -297,7 +314,7 @@ export function MobileNav() {
     };
   }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
 
-  const handleNavClick = useCallback((href: string) => {
+  const handleNavClick = useCallback(() => {
     triggerHaptic("light");
   }, []);
 
@@ -350,7 +367,7 @@ export function MobileNav() {
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={() => handleNavClick(item.href)}
+                onClick={handleNavClick}
                 className={cn(
                   // Touch target: minimum 48px for accessibility
                   "flex flex-col items-center justify-center gap-1",
@@ -503,7 +520,7 @@ export function MobileNav() {
             <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Navigation
             </p>
-            {moreMenuItems.map((item) => {
+            {navItems.map((item) => {
               const active = isActive(item.href);
               return (
                 <Link
