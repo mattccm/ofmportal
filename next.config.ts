@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // Self-contained server build for containerized (Railway) deploys
+  output: "standalone",
+  // Pin the tracing root to this project (a stray parent lockfile can otherwise
+  // make Next misdetect the workspace root and nest the standalone output).
+  outputFileTracingRoot: __dirname,
   // Increase body size limit for API routes (templates with rich content can be large)
   experimental: {
     serverActions: {
