@@ -5,16 +5,33 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 
-// Validation schemas
+// Map the client-facing lowercase media type to the Prisma MediaType enum.
+const MEDIA_TYPE_MAP = {
+  image: "IMAGE",
+  video: "VIDEO",
+  audio: "AUDIO",
+  document: "DOCUMENT",
+} as const;
+
+// Validation schema for creating a media item.
+//
+// Two callers finalize through this route with slightly different field names:
+//   - server-side callers may send `name` + `type` (uppercase enum) + `fileType` (MIME)
+//   - the uploader (media-uploader.tsx) sends `title` + `mediaType` (lowercase) + `mimeType`
+// The schema accepts both shapes and normalizes them below.
 const createMediaItemSchema = z.object({
   creatorId: z.string(),
-  name: z.string().min(1),
+  name: z.string().min(1).optional(),
+  title: z.string().optional(),
   fileName: z.string().min(1),
-  fileType: z.string().min(1),
+  originalName: z.string().optional(),
+  fileType: z.string().optional(),
+  mimeType: z.string().optional(),
   fileSize: z.number().positive(),
   storageKey: z.string().min(1),
   thumbnailKey: z.string().optional(),
-  type: z.enum(["IMAGE", "VIDEO", "AUDIO", "DOCUMENT"]),
+  type: z.enum(["IMAGE", "VIDEO", "AUDIO", "DOCUMENT"]).optional(),
+  mediaType: z.enum(["image", "video", "audio", "document"]).optional(),
   folderId: z.string().optional().nullable(),
   tags: z.array(z.string()).optional().default([]),
   width: z.number().optional(),
@@ -125,6 +142,12 @@ export async function GET(req: NextRequest) {
       items: items.map((item) => ({
         ...item,
         fileSize: Number(item.fileSize),
+        // Aliases the media-library UI reads (mediaType/mimeType/title/originalName/usageCount)
+        mediaType: item.type.toLowerCase(),
+        mimeType: item.fileType,
+        title: item.name,
+        originalName: item.fileName,
+        usageCount: Array.isArray(item.usedInRequests) ? item.usedInRequests.length : 0,
       })),
       folders: folders.map((folder) => ({
         ...folder,
@@ -162,6 +185,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const data = createMediaItemSchema.parse(body);
 
+    // Normalize the two accepted payload shapes into canonical DB fields.
+    const resolvedName = data.name ?? data.title ?? data.fileName;
+    const resolvedMime = data.mimeType ?? data.fileType ?? "application/octet-stream";
+    const resolvedType =
+      data.type ?? (data.mediaType ? MEDIA_TYPE_MAP[data.mediaType] : undefined);
+
+    if (!resolvedType) {
+      return NextResponse.json(
+        { error: "Media type is required (type or mediaType)" },
+        { status: 400 }
+      );
+    }
+
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
       where: {
@@ -194,13 +230,13 @@ export async function POST(req: NextRequest) {
         id: uuidv4(),
         agencyId: session.user.agencyId,
         creatorId: data.creatorId,
-        name: data.name,
+        name: resolvedName,
         fileName: data.fileName,
-        fileType: data.fileType,
+        fileType: resolvedMime,
         fileSize: BigInt(data.fileSize),
         storageKey: data.storageKey,
         thumbnailKey: data.thumbnailKey,
-        type: data.type,
+        type: resolvedType,
         status: "ACTIVE",
         folderId: data.folderId || null,
         tags: data.tags,
@@ -231,7 +267,7 @@ export async function POST(req: NextRequest) {
         metadata: {
           creatorId: data.creatorId,
           fileName: data.fileName,
-          type: data.type,
+          type: resolvedType,
         },
       },
     });
