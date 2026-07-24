@@ -441,6 +441,7 @@ export function FilePreviewModal({
                   src={currentFile.url}
                   alt={currentFile.originalName}
                   onLoad={handleContentLoad}
+                  onError={handleContentLoad}
                 />
               )}
 
@@ -687,6 +688,10 @@ export function FilePreviewModal({
                       src={file.url}
                       alt={file.originalName}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Missing object - fall back to a neutral placeholder
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full bg-white/10 flex items-center justify-center">

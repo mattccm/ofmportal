@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Maximize,
   Move,
+  ImageOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,14 +18,16 @@ interface ImageViewerProps {
   alt: string;
   className?: string;
   onLoad?: () => void;
+  onError?: () => void;
 }
 
-export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
+export function ImageViewer({ src, alt, className, onLoad, onError }: ImageViewerProps) {
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasError, setHasError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -57,6 +60,20 @@ export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
     setPosition({ x: 0, y: 0 });
     setRotation(0);
   }, []);
+
+  // Reset error state when the source changes (e.g. navigating between files)
+  const [prevSrc, setPrevSrc] = useState(src);
+  if (src !== prevSrc) {
+    setPrevSrc(src);
+    setHasError(false);
+  }
+
+  const handleError = useCallback(() => {
+    setHasError(true);
+    // Clear any parent loading state so the modal doesn't spin forever
+    onError?.();
+    onLoad?.();
+  }, [onError, onLoad]);
 
   // Mouse wheel zoom
   const handleWheel = useCallback(
@@ -221,6 +238,27 @@ export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleZoomIn, handleZoomOut, handleRotateRight, handleRotateLeft, handleFitToScreen]);
 
+  if (hasError) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center gap-4 p-8 text-center w-full h-full max-h-[calc(100dvh-10rem)]",
+          className
+        )}
+      >
+        <div className="w-24 h-24 rounded-xl bg-white/10 flex items-center justify-center">
+          <ImageOff className="h-12 w-12 text-white/60" />
+        </div>
+        <div>
+          <p className="text-white font-medium">Image unavailable</p>
+          <p className="text-white/50 text-sm mt-1">
+            This file could not be loaded. It may have been moved or deleted.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("relative flex flex-col w-full h-full max-h-[calc(100dvh-10rem)]", className)}>
       {/* Image container */}
@@ -252,6 +290,7 @@ export function ImageViewer({ src, alt, className, onLoad }: ImageViewerProps) {
           }}
           draggable={false}
           onLoad={onLoad}
+          onError={handleError}
         />
       </div>
 

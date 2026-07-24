@@ -356,12 +356,13 @@ export function UploadReviewCard({
             className="relative aspect-square bg-muted/30 cursor-pointer overflow-hidden"
             onClick={handlePreview}
           >
-            {thumbnailUrl ? (
+            {thumbnailUrl && !thumbnailError ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={thumbnailUrl}
                 alt={upload.originalName}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                onError={() => setThumbnailError(true)}
               />
             ) : thumbnailLoading ? (
               <div className="flex h-full w-full items-center justify-center">
@@ -750,12 +751,13 @@ export function UploadReviewCard({
           className="shrink-0 relative h-16 w-16 rounded-lg bg-muted/50 overflow-hidden cursor-pointer group"
           onClick={handlePreview}
         >
-          {thumbnailUrl ? (
+          {thumbnailUrl && !thumbnailError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={thumbnailUrl}
               alt={upload.originalName}
               className="h-full w-full object-cover"
+              onError={() => setThumbnailError(true)}
             />
           ) : thumbnailLoading ? (
             <div className="flex h-full w-full items-center justify-center">

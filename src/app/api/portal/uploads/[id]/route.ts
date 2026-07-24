@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validateCreatorSession } from "@/lib/portal-auth";
-import { getDownloadPresignedUrl, useLocalStorage } from "@/lib/storage";
+import { getFileUrl, useLocalStorage } from "@/lib/storage";
 
 /**
  * GET /api/portal/uploads/[id]
@@ -42,9 +42,10 @@ export async function GET(
         thumbnailUrl = `/api/local-files/${encodeURIComponent(upload.thumbnailKey)}`;
       }
     } else {
-      url = await getDownloadPresignedUrl(upload.storageKey);
+      // Prefer the public domain (zero bandwidth), fall back to a presigned URL
+      url = await getFileUrl(upload.storageKey, upload.originalName || upload.fileName);
       if (upload.thumbnailKey) {
-        thumbnailUrl = await getDownloadPresignedUrl(upload.thumbnailKey);
+        thumbnailUrl = await getFileUrl(upload.thumbnailKey);
       }
     }
 
