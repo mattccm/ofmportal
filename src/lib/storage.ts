@@ -6,6 +6,10 @@ import {
   HeadObjectCommand,
   CreateBucketCommand,
   HeadBucketCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { existsSync } from "fs";
@@ -92,6 +96,107 @@ export async function getUploadPresignedUrl(
   });
 
   return { url, key };
+}
+
+// ---------------------------------------------------------------------------
+// Multipart upload (resumable, large-file uploads)
+//
+// Large files (multi-GB videos) are uploaded in parts directly from the
+// browser to R2. The server only issues short-lived presigned URLs for each
+// part; the bytes never pass through this app.
+// ---------------------------------------------------------------------------
+
+// S3/R2 requires every part except the last to be at least 5MB.
+export const MIN_MULTIPART_PART_SIZE = 5 * 1024 * 1024; // 5MB
+
+// Start a multipart upload and return its uploadId.
+export async function createMultipartUpload(
+  key: string,
+  contentType: string
+): Promise<{ uploadId: string; key: string }> {
+  // Ensure bucket exists for local dev (MinIO)
+  if (isLocal) {
+    await ensureBucketExists();
+  }
+
+  const response = await s3Client.send(
+    new CreateMultipartUploadCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      ContentType: contentType,
+    })
+  );
+
+  if (!response.UploadId) {
+    throw new Error("Storage did not return a multipart upload id");
+  }
+
+  return { uploadId: response.UploadId, key };
+}
+
+// Presign a single UploadPart PUT URL (short TTL — parts finish quickly).
+export async function getUploadPartPresignedUrl(
+  key: string,
+  uploadId: string,
+  partNumber: number
+): Promise<string> {
+  const command = new UploadPartCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    UploadId: uploadId,
+    PartNumber: partNumber,
+  });
+
+  return getSignedUrl(s3Client, command, {
+    expiresIn: 3600, // 1 hour — long enough for a slow part on a bad connection
+  });
+}
+
+// Presign several part URLs at once to reduce client round-trips.
+export async function getUploadPartPresignedUrls(
+  key: string,
+  uploadId: string,
+  partNumbers: number[]
+): Promise<Array<{ partNumber: number; url: string }>> {
+  return Promise.all(
+    partNumbers.map(async (partNumber) => ({
+      partNumber,
+      url: await getUploadPartPresignedUrl(key, uploadId, partNumber),
+    }))
+  );
+}
+
+// Finalize a multipart upload with the ordered list of uploaded parts.
+export async function completeMultipartUpload(
+  key: string,
+  uploadId: string,
+  parts: Array<{ PartNumber: number; ETag: string }>
+): Promise<void> {
+  // S3 requires parts sorted ascending by part number.
+  const orderedParts = [...parts].sort((a, b) => a.PartNumber - b.PartNumber);
+
+  await s3Client.send(
+    new CompleteMultipartUploadCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      UploadId: uploadId,
+      MultipartUpload: { Parts: orderedParts },
+    })
+  );
+}
+
+// Abort a multipart upload (cancel / cleanup — frees the staged parts).
+export async function abortMultipartUpload(
+  key: string,
+  uploadId: string
+): Promise<void> {
+  await s3Client.send(
+    new AbortMultipartUploadCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      UploadId: uploadId,
+    })
+  );
 }
 
 // Generate presigned URL for download (15 minute expiry)

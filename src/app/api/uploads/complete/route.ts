@@ -3,8 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
-import { fileExists } from "@/lib/storage";
-import { dispatchWebhookEvent } from "@/lib/webhooks";
+import { finalizeUpload } from "@/lib/upload-finalize";
 
 const completeUploadSchema = z.object({
   uploadId: z.string().min(1, "Upload ID is required"),
@@ -69,104 +68,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify file exists in storage (with retry for eventual consistency)
-    let exists = await fileExists(upload.storageKey);
+    // Run the shared post-upload bookkeeping (storage verification, status
+    // transition, webhooks, request roll-up).
+    const result = await finalizeUpload(upload);
 
-    // If not found, wait a moment and try again (R2 eventual consistency)
-    if (!exists) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      exists = await fileExists(upload.storageKey);
-    }
-
-    if (!exists) {
-      console.error(`[UploadComplete] File verification failed for ${upload.storageKey}`);
-      return NextResponse.json(
-        { error: "File not found in storage. Please retry the upload." },
-        { status: 400 }
-      );
-    }
-
-    // Update upload status (only if not already completed, so retries are idempotent)
-    const transition = await db.upload.updateMany({
-      where: {
-        id: uploadId,
-        uploadStatus: { not: "COMPLETED" },
-      },
-      data: {
-        uploadStatus: "COMPLETED",
-        uploadProgress: 100,
-        uploadedAt: new Date(),
-      },
-    });
-    const transitioned = transition.count > 0;
-
-    const updatedUpload = await db.upload.findUnique({
-      where: { id: uploadId },
-    });
-
-    if (!updatedUpload) {
-      return NextResponse.json({ error: "Upload not found" }, { status: 404 });
-    }
-
-    if (transitioned) {
-      // Fire webhook events
-      dispatchWebhookEvent(upload.request.agencyId, "upload.completed", {
-        uploadId: updatedUpload.id,
-        fileName: updatedUpload.originalName,
-        fileSize: Number(updatedUpload.fileSize),
-        requestId: upload.requestId,
-        creatorId: upload.creatorId,
-        creatorName: upload.request.creator.name,
-      });
-
-      // Also fire creator.uploaded
-      dispatchWebhookEvent(upload.request.agencyId, "creator.uploaded", {
-        creatorId: upload.creatorId,
-        creatorName: upload.request.creator.name,
-        uploadId: updatedUpload.id,
-        fileName: updatedUpload.originalName,
-        requestId: upload.requestId,
-      });
-
-      // Check if all uploads for this request are complete
-      // and update request status if needed
-      const pendingUploads = await db.upload.count({
-        where: {
-          requestId: upload.requestId,
-          uploadStatus: { not: "COMPLETED" },
-        },
-      });
-
-      if (pendingUploads === 0) {
-        // Check total uploads for this request
-        const totalUploads = await db.upload.count({
-          where: {
-            requestId: upload.requestId,
-            uploadStatus: "COMPLETED",
-          },
-        });
-
-        if (totalUploads > 0) {
-          // Update request status to IN_PROGRESS if it was PENDING
-          await db.contentRequest.updateMany({
-            where: {
-              id: upload.requestId,
-              status: "PENDING",
-            },
-            data: {
-              status: "IN_PROGRESS",
-            },
-          });
-        }
-      }
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
     return NextResponse.json({
       success: true,
-      upload: {
-        ...updatedUpload,
-        fileSize: Number(updatedUpload.fileSize),
-      },
+      upload: result.upload,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

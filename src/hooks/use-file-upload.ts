@@ -4,6 +4,12 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { MAX_FILE_SIZE, isAllowedFileType } from "@/lib/file-utils";
 import { extractVideoThumbnail, isVideoFile } from "@/lib/video-thumbnail";
+import {
+  uploadFileMultipart,
+  abortPersistedUpload,
+  MultipartAbortError,
+  MULTIPART_THRESHOLD,
+} from "@/lib/multipart-upload";
 
 export type UploadStatus = "pending" | "uploading" | "paused" | "completed" | "error" | "cancelled";
 
@@ -17,6 +23,8 @@ export interface QueuedFile {
   uploadUrl?: string;
   storageKey?: string;
   xhr?: XMLHttpRequest;
+  multipartUploadId?: string; // storage backend multipart upload id (large files)
+  abortController?: AbortController; // aborts an in-flight multipart upload
   startTime?: number;
   bytesUploaded?: number;
   speed?: number; // bytes per second
@@ -152,6 +160,28 @@ export function useFileUpload({
     }
   }, [validateFile]);
 
+  // Build auth headers (creator token + any caller-provided headers)
+  const buildAuthHeaders = useCallback((): Record<string, string> => {
+    const headers = getAuthHeaders?.() || {};
+    const token = typeof window !== "undefined" ? localStorage.getItem("creatorToken") : null;
+    return { "x-creator-token": token || "", ...headers };
+  }, [getAuthHeaders]);
+
+  // Abort + clean up a multipart upload's server session and resume state.
+  const abortMultipartFor = useCallback((file: QueuedFile) => {
+    if (file.file.size <= MULTIPART_THRESHOLD) return;
+    abortPersistedUpload({
+      file: file.file,
+      requestId,
+      fieldId: file.fieldId,
+      headers: buildAuthHeaders(),
+      dbUploadId: file.uploadId,
+      multipartUploadId: file.multipartUploadId,
+    }).catch(() => {
+      // Best effort — server also reaps incomplete uploads over time.
+    });
+  }, [requestId, buildAuthHeaders]);
+
   // Upload using local fallback (FormData approach)
   const uploadFileLocal = useCallback(async (queuedFile: QueuedFile): Promise<void> => {
     const token = typeof window !== "undefined" ? localStorage.getItem("creatorToken") : null;
@@ -240,10 +270,139 @@ export function useFileUpload({
     });
   }, [requestId, getAuthHeaders, onUploadComplete]);
 
+  // Upload a large file via resumable S3 multipart upload
+  const uploadFileMultipartFlow = useCallback(async (queuedFile: QueuedFile): Promise<void> => {
+    const headers = getAuthHeaders?.() || {};
+    const token = typeof window !== "undefined" ? localStorage.getItem("creatorToken") : null;
+    const authHeaders: Record<string, string> = { "x-creator-token": token || "", ...headers };
+
+    const controller = new AbortController();
+
+    // Track speed / ETA the same way the single-shot path does.
+    let lastLoaded = 0;
+    let lastTime = Date.now();
+
+    setQueue((prev) =>
+      prev.map((f) =>
+        f.id === queuedFile.id
+          ? { ...f, abortController: controller, status: "uploading" as UploadStatus, startTime: Date.now() }
+          : f
+      )
+    );
+
+    try {
+      const result = await uploadFileMultipart({
+        file: queuedFile.file,
+        requestId,
+        fieldId: queuedFile.fieldId,
+        headers: authHeaders,
+        signal: controller.signal,
+        onInit: ({ dbUploadId, multipartUploadId }) => {
+          setQueue((prev) =>
+            prev.map((f) =>
+              f.id === queuedFile.id ? { ...f, uploadId: dbUploadId, multipartUploadId } : f
+            )
+          );
+        },
+        onProgress: ({ bytesUploaded, totalBytes, percent }) => {
+          const now = Date.now();
+          const timeDiff = (now - lastTime) / 1000;
+          const bytesDiff = bytesUploaded - lastLoaded;
+          const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
+          const remaining = totalBytes - bytesUploaded;
+          const timeRemaining = speed > 0 ? remaining / speed : 0;
+          lastLoaded = bytesUploaded;
+          lastTime = now;
+
+          setQueue((prev) =>
+            prev.map((f) =>
+              f.id === queuedFile.id
+                ? { ...f, progress: percent, bytesUploaded, speed, timeRemaining }
+                : f
+            )
+          );
+        },
+      });
+
+      setQueue((prev) =>
+        prev.map((f) =>
+          f.id === queuedFile.id
+            ? {
+                ...f,
+                status: "completed" as UploadStatus,
+                progress: 100,
+                uploadId: result.dbUploadId,
+                abortController: undefined,
+              }
+            : f
+        )
+      );
+
+      toast.success(`Uploaded ${queuedFile.file.name}`);
+
+      if (isVideoFile(queuedFile.file) && result.dbUploadId) {
+        generateAndUploadThumbnail(queuedFile.file, result.dbUploadId, headers, token);
+      }
+
+      onUploadComplete?.({ ...queuedFile, status: "completed" as UploadStatus, uploadId: result.dbUploadId });
+    } catch (error) {
+      // Aborted: keep "paused" if the user paused, otherwise mark cancelled.
+      if (error instanceof MultipartAbortError) {
+        setQueue((prev) =>
+          prev.map((f) =>
+            f.id === queuedFile.id
+              ? f.status === "paused"
+                ? { ...f, abortController: undefined }
+                : { ...f, status: "cancelled" as UploadStatus, abortController: undefined }
+              : f
+          )
+        );
+        return;
+      }
+
+      // If storage isn't configured for multipart (local dev), fall back to
+      // the local single-shot endpoint.
+      const status = (error as Error & { status?: number }).status;
+      if (status === 409) {
+        setQueue((prev) =>
+          prev.map((f) =>
+            f.id === queuedFile.id
+              ? { ...f, progress: 0, status: "pending" as UploadStatus, abortController: undefined }
+              : f
+          )
+        );
+        return uploadFileLocal(queuedFile);
+      }
+
+      const errorMessage = error instanceof Error ? error.message : "Upload failed";
+      setQueue((prev) =>
+        prev.map((f) =>
+          f.id === queuedFile.id
+            ? {
+                ...f,
+                status: "error" as UploadStatus,
+                error: errorMessage,
+                abortController: undefined,
+                retryCount: f.retryCount + 1,
+              }
+            : f
+        )
+      );
+      toast.error(`${queuedFile.file.name}: ${errorMessage}`);
+      onError?.(queuedFile, errorMessage);
+    }
+  }, [requestId, getAuthHeaders, onUploadComplete, onError, uploadFileLocal]);
+
   // Upload a single file
   const uploadFile = useCallback(async (queuedFile: QueuedFile): Promise<void> => {
     const headers = getAuthHeaders?.() || {};
     const token = typeof window !== "undefined" ? localStorage.getItem("creatorToken") : null;
+
+    // Large files use resumable multipart upload; small files keep the
+    // single-shot presigned PUT below.
+    if (queuedFile.file.size > MULTIPART_THRESHOLD) {
+      return uploadFileMultipartFlow(queuedFile);
+    }
 
     try {
       // Get presigned URL
@@ -430,7 +589,7 @@ export function useFileUpload({
       toast.error(`${queuedFile.file.name}: ${errorMessage}`);
       onError?.(queuedFile, errorMessage);
     }
-  }, [requestId, getAuthHeaders, onUploadComplete, onError, uploadFileLocal]);
+  }, [requestId, getAuthHeaders, onUploadComplete, onError, uploadFileLocal, uploadFileMultipartFlow]);
 
   // Process upload queue
   const processQueue = useCallback(async () => {
@@ -483,18 +642,26 @@ export function useFileUpload({
       if (file?.xhr) {
         file.xhr.abort();
       }
+      if (file?.abortController) {
+        file.abortController.abort();
+      }
+      if (file) {
+        abortMultipartFor(file);
+      }
       return prev.filter((f) => f.id !== fileId);
     });
     activeUploadsRef.current.delete(fileId);
-  }, []);
+  }, [abortMultipartFor]);
 
   // Pause file upload
   const pauseFile = useCallback((fileId: string) => {
     setQueue((prev) =>
       prev.map((f) => {
-        if (f.id === fileId && f.xhr && f.status === "uploading") {
-          f.xhr.abort();
-          return { ...f, status: "paused" as UploadStatus, xhr: undefined };
+        if (f.id === fileId && f.status === "uploading" && (f.xhr || f.abortController)) {
+          // Soft stop: keep the multipart resume state so it can continue.
+          f.xhr?.abort();
+          f.abortController?.abort();
+          return { ...f, status: "paused" as UploadStatus, xhr: undefined, abortController: undefined };
         }
         return f;
       })
@@ -537,12 +704,18 @@ export function useFileUpload({
       if (file?.xhr) {
         file.xhr.abort();
       }
+      if (file?.abortController) {
+        file.abortController.abort();
+      }
+      if (file) {
+        abortMultipartFor(file);
+      }
       return prev.map((f) =>
-        f.id === fileId ? { ...f, status: "cancelled" as UploadStatus, xhr: undefined } : f
+        f.id === fileId ? { ...f, status: "cancelled" as UploadStatus, xhr: undefined, abortController: undefined } : f
       );
     });
     activeUploadsRef.current.delete(fileId);
-  }, []);
+  }, [abortMultipartFor]);
 
   // Clear completed uploads
   const clearCompleted = useCallback(() => {
@@ -555,19 +728,24 @@ export function useFileUpload({
       if (f.xhr) {
         f.xhr.abort();
       }
+      if (f.abortController) {
+        f.abortController.abort();
+      }
+      abortMultipartFor(f);
     });
     setQueue([]);
     activeUploadsRef.current.clear();
-  }, [queue]);
+  }, [queue, abortMultipartFor]);
 
   // Pause all uploads
   const pauseAll = useCallback(() => {
     setQueue((prev) =>
       prev.map((f) => {
-        if (f.status === "uploading" && f.xhr) {
-          f.xhr.abort();
+        if (f.status === "uploading" && (f.xhr || f.abortController)) {
+          f.xhr?.abort();
+          f.abortController?.abort();
           activeUploadsRef.current.delete(f.id);
-          return { ...f, status: "paused" as UploadStatus, xhr: undefined };
+          return { ...f, status: "paused" as UploadStatus, xhr: undefined, abortController: undefined };
         }
         if (f.status === "pending") {
           return { ...f, status: "paused" as UploadStatus };
