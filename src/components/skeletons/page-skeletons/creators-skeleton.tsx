@@ -1,10 +1,9 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton, SkeletonAvatar, SkeletonBadge, SkeletonButton } from "@/components/ui/skeleton"
 import { TableSkeleton } from "../table-skeleton"
-import { MobileListSkeleton } from "../list-skeleton"
 
 interface CreatorsSkeletonProps {
   /**

@@ -13,9 +13,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Loader2, AlertCircle, Info, CheckCircle } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type ConfirmDialogVariant = "default" | "destructive" | "warning" | "info";
 
@@ -33,9 +31,7 @@ export interface ConfirmDialogProps {
   children?: React.ReactNode;
 }
 
-// ============================================
 // VARIANT CONFIGURATION
-// ============================================
 
 const variantConfig: Record<
   ConfirmDialogVariant,
@@ -72,9 +68,7 @@ const variantConfig: Record<
   },
 };
 
-// ============================================
 // CONFIRM DIALOG COMPONENT
-// ============================================
 
 export function ConfirmDialog({
   open,
@@ -175,9 +169,7 @@ export function ConfirmDialog({
   );
 }
 
-// ============================================
 // DELETE CONFIRM DIALOG - SPECIALIZED VARIANT
-// ============================================
 
 export interface DeleteConfirmDialogProps {
   open: boolean;
@@ -236,9 +228,7 @@ export function DeleteConfirmDialog({
   );
 }
 
-// ============================================
 // REMOVE CONFIRM DIALOG - FOR TEAM/ACCESS REMOVAL
-// ============================================
 
 export interface RemoveConfirmDialogProps {
   open: boolean;
@@ -305,9 +295,7 @@ export function RemoveConfirmDialog({
   );
 }
 
-// ============================================
 // REVOKE CONFIRM DIALOG - FOR API KEYS/TOKENS
-// ============================================
 
 export interface RevokeConfirmDialogProps {
   open: boolean;

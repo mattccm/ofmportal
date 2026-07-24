@@ -29,9 +29,7 @@ function sanitizeHtml(html: string): string {
     .replace(/on\w+='[^']*'/gi, "");
 }
 
-// ============================================
 // TYPES
-// ============================================
 
 interface FieldExamplesDisplayProps {
   richContent: TemplateField["richContent"];
@@ -43,9 +41,7 @@ interface FieldExamplesDisplayProps {
   variant?: "inline" | "card";
 }
 
-// ============================================
 // VIDEO EMBED HELPERS
-// ============================================
 
 function getVideoEmbedUrl(url: string): { type: "youtube" | "vimeo" | "direct"; embedUrl: string } | null {
   if (!url) return null;
@@ -97,13 +93,10 @@ function getVideoThumbnailUrl(url: string): string | null {
   return null;
 }
 
-// ============================================
 // VIDEO THUMBNAIL COMPONENT
-// ============================================
 
 function VideoThumbnail({ url, onClick }: { url: string; onClick: () => void }) {
   const [thumbnailSrc, setThumbnailSrc] = React.useState<string | null>(null);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
 
   React.useEffect(() => {
     // First try platform-specific thumbnails
@@ -172,9 +165,7 @@ function VideoThumbnail({ url, onClick }: { url: string; onClick: () => void }) 
   );
 }
 
-// ============================================
 // VIDEO PLAYER COMPONENT
-// ============================================
 
 function VideoPlayer({
   url,
@@ -217,13 +208,10 @@ function VideoPlayer({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function FieldExamplesDisplay({
   richContent,
-  fieldLabel,
   className,
   defaultExpanded = true, // Changed to true by default
   variant = "inline",
@@ -251,7 +239,7 @@ export function FieldExamplesDisplay({
     }
 
     return images;
-  }, [richContent?.exampleImages, richContent?.exampleImageUrl]);
+  }, [richContent]);
 
   // Convert to PreviewFile format for FilePreviewModal
   const previewFiles: PreviewFile[] = React.useMemo(() =>

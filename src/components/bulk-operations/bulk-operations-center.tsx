@@ -5,27 +5,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Users,
   FileCheck,
   RefreshCw,
   Bell,
   History,
-  Sparkles,
-  ArrowRight,
   Clock,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Zap,
-  Settings,
-  Play,
-  Keyboard,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 import { BulkRequestCreator } from "./bulk-request-creator";
 import { BulkReviewGrid } from "./bulk-review-grid";
@@ -34,7 +26,7 @@ import { BulkReminderSender } from "./bulk-reminder-sender";
 import { OperationHistory } from "./operation-history";
 import { UndoManager, useUndoManager, UndoToast } from "./undo-manager";
 import { FloatingShortcutsIndicator, KeyboardShortcutsModal } from "./keyboard-shortcuts-modal";
-import type { BulkOperationType, BulkOperationStatus, DEFAULT_PRESETS } from "@/lib/bulk-operations";
+import type { BulkOperationType, BulkOperationStatus } from "@/lib/bulk-operations";
 
 // Types
 interface RecentOperation {
@@ -216,7 +208,7 @@ export function BulkOperationsCenter() {
 
   // Handle operation complete
   const handleOperationComplete = useCallback(() => {
-    toast.success("Operation completed successfully");
+    toast.success("All done");
     // Refresh stats
     // Would trigger a re-fetch of stats here
   }, []);

@@ -148,7 +148,7 @@ export function EditCreatorProfileModal({
       }
 
       onUpdate(updated.creator);
-      toast.success("Creator profile updated successfully");
+      toast.success("Profile updated");
       onOpenChange(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update profile");
@@ -193,7 +193,7 @@ export function EditCreatorProfileModal({
         throw new Error(error.error || "Failed to resend invite");
       }
 
-      toast.success("Invitation resent successfully");
+      toast.success("Invite resent");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to resend invite");
     }
@@ -219,7 +219,7 @@ export function EditCreatorProfileModal({
         ? data.url
         : `${data.url}${data.url.includes("?") ? "&" : "?"}t=${Date.now()}`;
       handleInputChange("avatar", cacheBustedUrl);
-      toast.success("Avatar uploaded successfully");
+      toast.success("New avatar saved");
     } catch (error) {
       console.error("Error uploading avatar:", error);
       toast.error(error instanceof Error ? error.message : "Failed to upload avatar");
@@ -256,7 +256,7 @@ export function EditCreatorProfileModal({
             Edit Creator Profile
           </DialogTitle>
           <DialogDescription>
-            Update the creator's profile information, contact details, and settings.
+            Update the creator&apos;s profile information, contact details, and settings.
           </DialogDescription>
         </DialogHeader>
 
@@ -460,7 +460,7 @@ export function EditCreatorProfileModal({
                 <div className="flex-1 space-y-1">
                   <h4 className="font-medium">Password Reset</h4>
                   <p className="text-sm text-muted-foreground">
-                    Send a password reset link to the creator's email address. They can use this to set a new password for their portal access.
+                    Send a password reset link to the creator&apos;s email address. They can use this to set a new password for their portal access.
                   </p>
                 </div>
               </div>
@@ -499,7 +499,7 @@ export function EditCreatorProfileModal({
                 <div className="flex-1 space-y-1">
                   <h4 className="font-medium">Account Security</h4>
                   <p className="text-sm text-muted-foreground">
-                    Manage the creator's account access and security settings.
+                    Manage the creator&apos;s account access and security settings.
                   </p>
                 </div>
               </div>
@@ -534,7 +534,7 @@ export function EditCreatorProfileModal({
                 <div className="flex-1 space-y-1">
                   <h4 className="font-medium text-destructive">Danger Zone</h4>
                   <p className="text-sm text-muted-foreground">
-                    Deactivate or delete this creator's portal access. This action requires Owner permissions.
+                    Deactivate or delete this creator&apos;s portal access. This action requires Owner permissions.
                   </p>
                 </div>
               </div>

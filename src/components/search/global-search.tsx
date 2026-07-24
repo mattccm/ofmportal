@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { sanitizeHtml } from "@/components/ui/html-content";
 import {
   Search,
   Users,
@@ -468,7 +469,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                           <p
                             className="text-sm font-medium truncate"
                             dangerouslySetInnerHTML={{
-                              __html: result.highlight || result.title
+                              __html: sanitizeHtml(result.highlight || result.title)
                             }}
                           />
                           <span className={cn(

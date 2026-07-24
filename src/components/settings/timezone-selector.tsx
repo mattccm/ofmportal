@@ -8,7 +8,6 @@ import {
   MapPin,
   Check,
   ChevronDown,
-  RefreshCw,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,16 +29,12 @@ import {
 import {
   detectLocalTimezone,
   getAllTimezones,
-  getTimezonesByRegion,
   searchTimezones,
   getTimezoneEntry,
   formatTime,
-  getTimezoneOffsetString,
 } from "@/lib/timezone-utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TimezoneSelectorProps {
   value: string;
@@ -53,9 +48,7 @@ interface TimezoneSelectorProps {
   description?: string;
 }
 
-// ============================================
 // TIMEZONE OPTION COMPONENT
-// ============================================
 
 function TimezoneOption({
   timezone,
@@ -122,9 +115,7 @@ function TimezoneOption({
   );
 }
 
-// ============================================
 // REGION GROUP COMPONENT
-// ============================================
 
 function RegionGroup({
   region,
@@ -167,9 +158,7 @@ function RegionGroup({
   );
 }
 
-// ============================================
 // MAIN TIMEZONE SELECTOR COMPONENT
-// ============================================
 
 export function TimezoneSelector({
   value,
@@ -384,9 +373,7 @@ export function TimezoneSelector({
   );
 }
 
-// ============================================
 // COMPACT TIMEZONE SELECTOR
-// ============================================
 
 export function CompactTimezoneSelector({
   value,
@@ -451,9 +438,7 @@ export function CompactTimezoneSelector({
   );
 }
 
-// ============================================
 // TIMEZONE DISPLAY BADGE
-// ============================================
 
 export function TimezoneBadge({
   timezone,

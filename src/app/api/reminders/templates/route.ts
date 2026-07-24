@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const createTemplateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -25,9 +23,7 @@ const updateTemplateSchema = createTemplateSchema.partial().extend({
   id: z.string(),
 });
 
-// ============================================
 // GET - List all reminder templates for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -63,9 +59,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create new reminder template
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -134,9 +128,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // PUT - Update reminder template
-// ============================================
 
 export async function PUT(req: NextRequest) {
   try {
@@ -227,9 +219,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Delete reminder template
-// ============================================
 
 export async function DELETE(req: NextRequest) {
   try {

@@ -1,6 +1,4 @@
-// ============================================
 // NOTIFICATION PREFERENCES TYPES
-// ============================================
 
 /**
  * Notification categories that users can configure

@@ -230,8 +230,7 @@ export default function MessagesPage() {
       // Handle file uploads if any
       const attachmentData: { id: string; name: string; url: string; type: string; size: number }[] = [];
       if (attachments && attachments.length > 0) {
-        // For now, we'll skip actual file upload - this would integrate with your storage service
-        // In production, you'd upload files first then include their URLs
+        // File attachment upload isn't wired up yet
         console.log("File attachments:", attachments);
       }
 

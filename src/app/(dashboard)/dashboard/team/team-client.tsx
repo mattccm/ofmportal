@@ -40,8 +40,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Select,
@@ -52,12 +50,8 @@ import {
   SelectGroup,
   SelectLabel,
 } from "@/components/ui/select";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+
+
 import {
   Tooltip,
   TooltipContent,
@@ -73,15 +67,12 @@ import {
   UserCog,
   User,
   Clock,
-  ChevronRight,
   Mail,
   Trash2,
   Edit,
   Activity,
   Users,
-  AlertCircle,
   Settings,
-  ExternalLink,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
@@ -283,7 +274,7 @@ export default function TeamClient({
         throw new Error(data.error || "Failed to invite member");
       }
 
-      toast.success("Invitation sent successfully");
+      toast.success("Invite sent");
       setInviteDialogOpen(false);
       setInviteForm({ email: "", name: "", role: "MEMBER", customRoleId: "" });
 
@@ -325,7 +316,7 @@ export default function TeamClient({
         throw new Error(data.error || "Failed to update role");
       }
 
-      toast.success("Role updated successfully");
+      toast.success("Role updated");
       setEditDialogOpen(false);
       setSelectedMember(null);
 
@@ -356,7 +347,7 @@ export default function TeamClient({
         throw new Error(data.error || "Failed to remove member");
       }
 
-      toast.success("Member removed successfully");
+      toast.success("Member removed");
       setDeleteDialogOpen(false);
       setSelectedMember(null);
 

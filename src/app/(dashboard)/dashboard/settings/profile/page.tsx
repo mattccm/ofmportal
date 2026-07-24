@@ -142,7 +142,7 @@ export default function ProfileSettingsPage() {
         timezone: recovered.timezone || "America/New_York",
         preferredLanguage: recovered.preferredLanguage || "en",
       });
-      toast.success("Form data restored successfully");
+      toast.success("Restored your unsaved changes");
     }
   };
 
@@ -255,7 +255,7 @@ export default function ProfileSettingsPage() {
         await updateSession({ name: formData.name });
       }
 
-      toast.success("Profile updated successfully");
+      toast.success("Profile updated");
     } catch (error) {
       console.error("Error updating profile:", error);
       toast.error(
@@ -296,7 +296,7 @@ export default function ProfileSettingsPage() {
       // Force router refresh to ensure all components re-render with new session
       router.refresh();
 
-      toast.success("Avatar updated successfully");
+      toast.success("Avatar updated");
     } catch (error) {
       console.error("Error uploading avatar:", error);
       toast.error(

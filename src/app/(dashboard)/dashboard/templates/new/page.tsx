@@ -7,7 +7,6 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TemplateBuilder } from "@/components/templates/template-builder";
 import { TemplateFormData } from "@/lib/template-types";
-import { toast } from "sonner";
 
 export default function NewTemplatePage() {
   const router = useRouter();

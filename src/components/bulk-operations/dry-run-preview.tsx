@@ -32,7 +32,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BulkOperationType, DryRunResult, DryRunItem } from "@/lib/bulk-operations";
+import type { BulkOperationType, DryRunResult } from "@/lib/bulk-operations";
 
 interface DryRunPreviewProps {
   operationType: BulkOperationType;
@@ -308,7 +308,7 @@ export function DryRunPreview({
                 <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
                 <span className="text-blue-700 dark:text-blue-400">
                   This is a preview only. No changes have been made yet.
-                  Click "Execute Now" to apply these changes.
+                  Click &quot;Execute Now&quot; to apply these changes.
                 </span>
               </div>
             </div>

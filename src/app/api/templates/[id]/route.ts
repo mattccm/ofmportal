@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { validateTemplateFields, TemplateField, deserializeTemplate } from "@/lib/templates";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 // Rich content schema for template and field-level examples
 const richContentSchema = z.object({
@@ -74,9 +72,7 @@ const updateTemplateSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-// ============================================
 // GET - Fetch single template
-// ============================================
 
 export async function GET(
   request: NextRequest,
@@ -133,9 +129,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // PATCH - Update template
-// ============================================
 
 export async function PATCH(
   request: NextRequest,
@@ -261,9 +255,7 @@ export async function PATCH(
   }
 }
 
-// ============================================
 // DELETE - Delete template (soft delete if in use)
-// ============================================
 
 export async function DELETE(
   request: NextRequest,

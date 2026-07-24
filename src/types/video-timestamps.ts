@@ -1,6 +1,4 @@
-// ============================================
 // VIDEO TIMESTAMP TYPES
-// ============================================
 
 /**
  * User information for video timestamps
@@ -65,9 +63,7 @@ export interface VideoTimestampReply {
   user: TimestampUser;
 }
 
-// ============================================
 // API TYPES
-// ============================================
 
 /**
  * Create timestamp payload
@@ -123,9 +119,7 @@ export interface RepliesResponse {
   replies: VideoTimestampReply[];
 }
 
-// ============================================
 // COMPONENT TYPES
-// ============================================
 
 /**
  * Timestamp marker type colors
@@ -184,9 +178,7 @@ export const DEFAULT_TIMESTAMP_FILTERS: TimestampFilters = {
   sortOrder: "asc",
 };
 
-// ============================================
 // UTILITY TYPES
-// ============================================
 
 /**
  * Format timestamp to readable string

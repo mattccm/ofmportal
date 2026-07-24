@@ -5,13 +5,11 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarGroup } from "@/components/ui/avatar";
-import { TypingIndicator as TypingIndicatorType, TypingDisplayInfo } from "@/types/read-receipts";
+import { TypingIndicator as TypingIndicatorType } from "@/types/read-receipts";
 import { useWatchTypingIndicator, useTypingIndicator } from "@/hooks/use-typing-indicator";
 import { formatTypingText } from "@/lib/realtime-simulation";
 
-// ============================================================================
 // Typing Dots Animation
-// ============================================================================
 
 interface TypingDotsProps {
   className?: string;
@@ -52,9 +50,7 @@ export function TypingDots({ className, size = "md", color = "default" }: Typing
   );
 }
 
-// ============================================================================
 // Typing Bubble Component
-// ============================================================================
 
 interface TypingBubbleProps {
   className?: string;
@@ -91,9 +87,7 @@ export function TypingBubble({ className, variant = "default" }: TypingBubblePro
   );
 }
 
-// ============================================================================
 // Tooltip Wrapper
-// ============================================================================
 
 function TypingTooltip({
   children,
@@ -126,9 +120,7 @@ function TypingTooltip({
   );
 }
 
-// ============================================================================
 // Main Typing Indicator Component
-// ============================================================================
 
 interface TypingIndicatorProps {
   // Conversation identification
@@ -301,9 +293,7 @@ export function TypingIndicator({
   );
 }
 
-// ============================================================================
 // Typing Indicator with Input Binding
-// ============================================================================
 
 interface TypingIndicatorWithInputProps {
   conversationId?: string;
@@ -370,9 +360,7 @@ export function TypingIndicatorWithInput({
   );
 }
 
-// ============================================================================
 // Typing Status Bar (for chat headers)
-// ============================================================================
 
 interface TypingStatusBarProps {
   conversationId?: string;
@@ -413,9 +401,7 @@ export function TypingStatusBar({
   );
 }
 
-// ============================================================================
 // Multiple Typing Indicators (for conversation list)
-// ============================================================================
 
 interface ConversationTypingBadgeProps {
   conversationId: string;
@@ -454,9 +440,7 @@ export function ConversationTypingBadge({
   );
 }
 
-// ============================================================================
 // Typing Indicator Animation Variants
-// ============================================================================
 
 interface AnimatedTypingDotsProps {
   variant?: "bounce" | "pulse" | "wave" | "fade";

@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 interface PopoverContextType {
   open: boolean;
   setOpen: (open: boolean) => void;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  triggerEl: HTMLButtonElement | null;
+  setTriggerEl: (node: HTMLButtonElement | null) => void;
 }
 
 const PopoverContext = React.createContext<PopoverContextType | null>(null);
@@ -33,7 +34,7 @@ export function Popover({
   defaultOpen = false,
 }: PopoverProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const [triggerEl, setTriggerEl] = React.useState<HTMLButtonElement | null>(null);
 
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
@@ -49,7 +50,7 @@ export function Popover({
   );
 
   return (
-    <PopoverContext.Provider value={{ open, setOpen, triggerRef }}>
+    <PopoverContext.Provider value={{ open, setOpen, triggerEl, setTriggerEl }}>
       <div className="relative inline-block">{children}</div>
     </PopoverContext.Provider>
   );
@@ -61,7 +62,7 @@ interface PopoverTriggerProps {
 }
 
 export function PopoverTrigger({ children, asChild }: PopoverTriggerProps) {
-  const { open, setOpen, triggerRef } = usePopoverContext();
+  const { open, setOpen, setTriggerEl } = usePopoverContext();
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -69,20 +70,31 @@ export function PopoverTrigger({ children, asChild }: PopoverTriggerProps) {
   };
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<any>, {
-      ref: triggerRef,
-      onClick: (e: React.MouseEvent) => {
-        handleClick(e);
-        (children as React.ReactElement<any>).props.onClick?.(e);
-      },
-      "aria-expanded": open,
-      "aria-haspopup": "dialog",
-    });
+    const child = children as React.ReactElement<{
+      ref?: React.Ref<HTMLButtonElement>;
+      onClick?: (e: React.MouseEvent) => void;
+      "aria-expanded"?: boolean;
+      "aria-haspopup"?: React.AriaAttributes["aria-haspopup"];
+    }>;
+    const Comp = child.type as React.ElementType;
+    return (
+      <Comp
+        {...child.props}
+        key={child.key}
+        ref={setTriggerEl}
+        onClick={(e: React.MouseEvent) => {
+          handleClick(e);
+          child.props.onClick?.(e);
+        }}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      />
+    );
   }
 
   return (
     <button
-      ref={triggerRef}
+      ref={setTriggerEl}
       type="button"
       onClick={handleClick}
       aria-expanded={open}
@@ -110,7 +122,7 @@ export function PopoverContent({
   sideOffset = 4,
   onOpenAutoFocus,
 }: PopoverContentProps) {
-  const { open, setOpen, triggerRef } = usePopoverContext();
+  const { open, setOpen, triggerEl } = usePopoverContext();
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   // Handle auto focus when popover opens
@@ -130,8 +142,8 @@ export function PopoverContent({
       if (
         contentRef.current &&
         !contentRef.current.contains(target) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(target)
+        triggerEl &&
+        !triggerEl.contains(target)
       ) {
         setOpen(false);
       }
@@ -140,7 +152,7 @@ export function PopoverContent({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
-        triggerRef.current?.focus();
+        triggerEl?.focus();
       }
     };
 
@@ -151,7 +163,7 @@ export function PopoverContent({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [open, setOpen, triggerRef]);
+  }, [open, setOpen, triggerEl]);
 
   if (!open) return null;
 

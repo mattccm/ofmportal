@@ -93,13 +93,8 @@ export function AutosaveIndicator({
     return null;
   }
 
-  // Determine the display text
-  const displayText = React.useMemo(() => {
-    if (status === "saved" && lastSavedText) {
-      return `Saved ${lastSavedText}`;
-    }
-    return config.text;
-  }, [status, lastSavedText, config.text]);
+  const displayText =
+    status === "saved" && lastSavedText ? `Saved ${lastSavedText}` : config.text;
 
   if (compact) {
     return (

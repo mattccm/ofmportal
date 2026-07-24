@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // SCHEMAS
-// ============================================
 
 const createTimestampSchema = z.object({
   timestamp: z.number().min(0),
@@ -20,9 +18,7 @@ const updateTimestampSchema = z.object({
   resolved: z.boolean().optional(),
 });
 
-// ============================================
 // HELPERS
-// ============================================
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -46,9 +42,7 @@ async function verifyUploadAccess(uploadId: string, agencyId: string) {
   return upload;
 }
 
-// ============================================
 // GET - Fetch timestamps for an upload
-// ============================================
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
@@ -111,9 +105,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ============================================
 // POST - Create a new timestamp
-// ============================================
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
@@ -176,9 +168,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ============================================
 // PATCH - Update timestamp(s)
-// ============================================
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
@@ -308,9 +298,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ============================================
 // DELETE - Delete a timestamp
-// ============================================
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   Download,
@@ -31,19 +30,15 @@ import {
   Users,
   Calendar,
   Filter,
-  ChevronDown,
-  ChevronUp,
   FileSpreadsheet,
   FileJson,
   File,
-  Play,
   Upload,
   BarChart3,
   GripVertical,
   X,
   Plus,
   Trash2,
-  Eye,
   ArrowRight,
   Check,
 } from "lucide-react";
@@ -191,7 +186,6 @@ const STATUS_OPTIONS = [
 
 export function ExportBuilder({
   creators,
-  requests,
   onExport,
   onClose,
   isLoading,
@@ -202,9 +196,10 @@ export function ExportBuilder({
 
   // Configuration state
   const [entity, setEntity] = useState<EntityType>("creators");
-  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [selectedFields, setSelectedFields] = useState<string[]>(() =>
+    ENTITY_FIELDS.creators.slice(0, 5).map((f) => f.key)
+  );
   const [format, setFormat] = useState<ExportFormat>("csv");
-  const [showFilters, setShowFilters] = useState(false);
 
   // Filter state
   const [dateRangeStart, setDateRangeStart] = useState("");
@@ -216,35 +211,21 @@ export function ExportBuilder({
   // Drag state for field reordering
   const [draggedField, setDraggedField] = useState<string | null>(null);
 
-  // Preview state
-  const [showPreview, setShowPreview] = useState(false);
-
   // Available fields for current entity
   const availableFields = useMemo(() => ENTITY_FIELDS[entity], [entity]);
 
   // Initialize with some default fields when entity changes
-  useEffect(() => {
-    const defaultFields = availableFields.slice(0, 5).map((f) => f.key);
-    setSelectedFields(defaultFields);
+  const [prevEntity, setPrevEntity] = useState(entity);
+
+  if (entity !== prevEntity) {
+    setPrevEntity(entity);
+    setSelectedFields(ENTITY_FIELDS[entity].slice(0, 5).map((f) => f.key));
     setFilterConditions([]);
     setSelectedCreators([]);
     setSelectedStatuses([]);
-  }, [entity, availableFields]);
+  }
 
-  // Notify parent of config changes
-  useEffect(() => {
-    if (onConfigChange) {
-      const config: ExportConfig = {
-        entity,
-        fields: selectedFields,
-        filters: buildFilters(),
-        format,
-      };
-      onConfigChange(config);
-    }
-  }, [entity, selectedFields, format, dateRangeStart, dateRangeEnd, selectedCreators, selectedStatuses, filterConditions]);
-
-  const buildFilters = (): ExportFilters => {
+  const buildFilters = useCallback((): ExportFilters => {
     const filters: ExportFilters = {};
 
     if (dateRangeStart || dateRangeEnd) {
@@ -267,7 +248,20 @@ export function ExportBuilder({
     }
 
     return filters;
-  };
+  }, [dateRangeStart, dateRangeEnd, selectedCreators, selectedStatuses, filterConditions]);
+
+  // Notify parent of config changes
+  useEffect(() => {
+    if (onConfigChange) {
+      const config: ExportConfig = {
+        entity,
+        fields: selectedFields,
+        filters: buildFilters(),
+        format,
+      };
+      onConfigChange(config);
+    }
+  }, [entity, selectedFields, format, buildFilters, onConfigChange]);
 
   const handleFieldToggle = (fieldKey: string) => {
     setSelectedFields((prev) =>

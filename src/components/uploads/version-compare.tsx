@@ -19,7 +19,6 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Download,
   ChevronLeft,
   ChevronRight,
   Image as ImageIcon,
@@ -27,11 +26,10 @@ import {
   Music,
   FileText,
   Check,
-  X,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/file-utils";
 import type { UploadVersion } from "./version-history";
@@ -114,15 +112,14 @@ function compareMetadata(
 }
 
 export function VersionCompare({
-  uploadId,
   versions,
   initialLeft,
   initialRight,
   onVersionSelect,
   className,
 }: VersionCompareProps) {
-  const [leftVersion, setLeftVersion] = useState<UploadVersion | null>(initialLeft || null);
-  const [rightVersion, setRightVersion] = useState<UploadVersion | null>(initialRight || null);
+  const [selectedLeft, setLeftVersion] = useState<UploadVersion | null>(initialLeft || null);
+  const [selectedRight, setRightVersion] = useState<UploadVersion | null>(initialRight || null);
   const [compareMode, setCompareMode] = useState<CompareMode>("side-by-side");
   const [sliderPosition, setSliderPosition] = useState(50);
   const [overlayOpacity, setOverlayOpacity] = useState(50);
@@ -135,15 +132,10 @@ export function VersionCompare({
   // Sort versions by version number descending
   const sortedVersions = [...versions].sort((a, b) => b.versionNumber - a.versionNumber);
 
-  // Set initial versions if not provided
-  useEffect(() => {
-    if (!leftVersion && sortedVersions.length >= 2) {
-      setLeftVersion(sortedVersions[1]);
-    }
-    if (!rightVersion && sortedVersions.length >= 1) {
-      setRightVersion(sortedVersions[0]);
-    }
-  }, [versions]);
+  // Fall back to the two most recent versions if none selected
+  const leftVersion =
+    selectedLeft ?? (sortedVersions.length >= 2 ? sortedVersions[1] : null);
+  const rightVersion = selectedRight ?? sortedVersions[0] ?? null;
 
   const handleVersionChange = (position: "left" | "right", versionId: string) => {
     const version = versions.find((v) => v.id === versionId);
@@ -216,8 +208,6 @@ export function VersionCompare({
 
   const isImage =
     leftVersion?.fileType.startsWith("image/") || rightVersion?.fileType.startsWith("image/");
-  const isVideo =
-    leftVersion?.fileType.startsWith("video/") || rightVersion?.fileType.startsWith("video/");
 
   return (
     <div className={cn("space-y-4", className)}>

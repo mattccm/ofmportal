@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const createCategorySchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
@@ -18,9 +16,7 @@ const createCategorySchema = z.object({
     .optional(),
 });
 
-// ============================================
 // GET - List all template categories for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -72,9 +68,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create a new template category
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

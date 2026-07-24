@@ -7,7 +7,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Loader2, ChevronDown } from "lucide-react";

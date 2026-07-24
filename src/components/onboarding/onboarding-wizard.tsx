@@ -8,9 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface OnboardingStep {
   id: string;
@@ -37,9 +35,7 @@ interface OnboardingWizardProps {
   className?: string;
 }
 
-// ============================================
 // ONBOARDING WIZARD COMPONENT
-// ============================================
 
 export function OnboardingWizard({
   steps,

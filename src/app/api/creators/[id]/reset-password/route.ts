@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { sendPasswordResetEmail } from "@/lib/email";
 import crypto from "crypto";
 
 // POST - Send password reset link to creator
@@ -81,17 +82,11 @@ export async function POST(
       },
     });
 
-    // TODO: Send actual email using email service
-    // await sendEmail({
-    //   to: creator.email,
-    //   subject: `Reset your ${creator.agency?.name} portal password`,
-    //   template: "password-reset",
-    //   data: {
-    //     name: creator.name,
-    //     resetUrl,
-    //     agencyName: creator.agency?.name,
-    //   },
-    // });
+    await sendPasswordResetEmail({
+      to: creator.email,
+      creatorName: creator.name,
+      resetLink: resetUrl,
+    });
 
     return NextResponse.json({
       message: "Password reset link sent successfully",

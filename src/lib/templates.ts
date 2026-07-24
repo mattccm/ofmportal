@@ -3,9 +3,7 @@
 
 import { db } from "@/lib/db";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type FieldType =
   | "text"
@@ -87,9 +85,7 @@ export interface TemplateFormData {
   isActive: boolean;
 }
 
-// ============================================
 // VALIDATION
-// ============================================
 
 export interface ValidationError {
   fieldId?: string;
@@ -290,9 +286,7 @@ export function validateFieldValue(
   return null;
 }
 
-// ============================================
 // DEFAULT VALUES
-// ============================================
 
 export function getDefaultValues(
   template: { fields: TemplateField[] }
@@ -323,9 +317,7 @@ export function getDefaultValues(
   return defaults;
 }
 
-// ============================================
 // CONDITIONAL VISIBILITY
-// ============================================
 
 export function evaluateCondition(
   condition: ConditionalVisibility,
@@ -368,9 +360,7 @@ export function isFieldVisible(
   return evaluateCondition(field.conditionalVisibility, values);
 }
 
-// ============================================
 // USAGE COUNT
-// ============================================
 
 export async function getTemplateUsageCount(templateId: string): Promise<number> {
   const count = await db.contentRequest.count({
@@ -392,9 +382,7 @@ export async function getTemplatesWithUsage(agencyId: string) {
   return templates;
 }
 
-// ============================================
 // FIELD HELPERS
-// ============================================
 
 export function createEmptyField(type: FieldType = "text"): TemplateField {
   const id = `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -490,9 +478,7 @@ export const FIELD_TYPE_CONFIG: Record<
   },
 };
 
-// ============================================
 // SERIALIZATION
-// ============================================
 
 export function serializeTemplate(template: TemplateFormData): {
   name: string;

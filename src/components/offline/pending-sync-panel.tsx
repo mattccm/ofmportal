@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react';
 import {
   Clock,
-  Upload,
   MessageSquare,
   Trash2,
   RefreshCw,
@@ -15,7 +14,6 @@ import {
   FileAudio,
   FileText,
   MoreVertical,
-  X,
   ArrowUpCircle,
   Loader2,
 } from 'lucide-react';
@@ -47,9 +45,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog-enhanced';
 
-// ============================================
 // Types
-// ============================================
 
 interface PendingSyncPanelProps {
   maxHeight?: string;
@@ -59,9 +55,7 @@ interface PendingSyncPanelProps {
 
 type TabType = 'all' | 'uploads' | 'drafts';
 
-// ============================================
 // Helper Functions
-// ============================================
 
 function formatRelativeTime(timestamp: number): string {
   const now = Date.now();
@@ -85,12 +79,38 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith('image/')) return FileImage;
-  if (mimeType.startsWith('video/')) return FileVideo;
-  if (mimeType.startsWith('audio/')) return FileAudio;
-  if (mimeType.startsWith('text/')) return FileText;
-  return File;
+function FileTypeIcon({
+  mimeType,
+  className,
+}: {
+  mimeType: string;
+  className?: string;
+}) {
+  if (mimeType.startsWith('image/')) return <FileImage className={className} />;
+  if (mimeType.startsWith('video/')) return <FileVideo className={className} />;
+  if (mimeType.startsWith('audio/')) return <FileAudio className={className} />;
+  if (mimeType.startsWith('text/')) return <FileText className={className} />;
+  return <File className={className} />;
+}
+
+function DraftTypeIcon({
+  type,
+  className,
+}: {
+  type: Draft['type'];
+  className?: string;
+}) {
+  switch (type) {
+    case 'comment':
+    case 'reply':
+      return <MessageSquare className={className} />;
+    case 'message':
+      return <ArrowUpCircle className={className} />;
+    case 'note':
+      return <FileText className={className} />;
+    default:
+      return <MessageSquare className={className} />;
+  }
 }
 
 function getStatusColor(status: PendingUpload['status']): string {
@@ -123,9 +143,7 @@ function getStatusLabel(status: PendingUpload['status']): string {
   }
 }
 
-// ============================================
 // Main Component
-// ============================================
 
 export function PendingSyncPanel({
   maxHeight = '400px',
@@ -187,9 +205,7 @@ export function PendingSyncPanel({
     }
   }, [itemToDelete]);
 
-  // ============================================
   // Empty State
-  // ============================================
 
   if (totalPending === 0) {
     return (
@@ -212,9 +228,7 @@ export function PendingSyncPanel({
     );
   }
 
-  // ============================================
   // Render
-  // ============================================
 
   return (
     <div className={cn('rounded-lg border bg-card', className)}>
@@ -348,9 +362,7 @@ export function PendingSyncPanel({
   );
 }
 
-// ============================================
 // Pending Upload Item Component
-// ============================================
 
 interface PendingUploadItemProps {
   upload: PendingUpload;
@@ -358,8 +370,6 @@ interface PendingUploadItemProps {
 }
 
 function PendingUploadItem({ upload, onDelete }: PendingUploadItemProps) {
-  const FileIcon = getFileIcon(upload.fileType);
-
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
       {/* File Icon / Thumbnail */}
@@ -368,13 +378,16 @@ function PendingUploadItem({ upload, onDelete }: PendingUploadItemProps) {
           <div className="h-10 w-10 rounded-lg overflow-hidden bg-muted">
             <img
               src={upload.thumbnail}
-              alt=""
+              alt={upload.fileName}
               className="h-full w-full object-cover"
             />
           </div>
         ) : (
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-            <FileIcon className="h-5 w-5 text-muted-foreground" />
+            <FileTypeIcon
+              mimeType={upload.fileType}
+              className="h-5 w-5 text-muted-foreground"
+            />
           </div>
         )}
       </div>
@@ -432,9 +445,7 @@ function PendingUploadItem({ upload, onDelete }: PendingUploadItemProps) {
   );
 }
 
-// ============================================
 // Draft Item Component
-// ============================================
 
 interface DraftItemProps {
   draft: Draft;
@@ -442,28 +453,12 @@ interface DraftItemProps {
 }
 
 function DraftItem({ draft, onDelete }: DraftItemProps) {
-  const getTypeIcon = () => {
-    switch (draft.type) {
-      case 'comment':
-      case 'reply':
-        return MessageSquare;
-      case 'message':
-        return ArrowUpCircle;
-      case 'note':
-        return FileText;
-      default:
-        return MessageSquare;
-    }
-  };
-
-  const Icon = getTypeIcon();
-
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
       {/* Icon */}
       <div className="flex-shrink-0">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Icon className="h-5 w-5 text-primary" />
+          <DraftTypeIcon type={draft.type} className="h-5 w-5 text-primary" />
         </div>
       </div>
 
@@ -504,9 +499,7 @@ function DraftItem({ draft, onDelete }: DraftItemProps) {
   );
 }
 
-// ============================================
 // Compact Pending Sync Summary
-// ============================================
 
 interface PendingSyncSummaryProps {
   className?: string;

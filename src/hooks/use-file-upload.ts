@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { ALLOWED_TYPES, MAX_FILE_SIZE, isAllowedFileType } from "@/lib/file-utils";
+import { MAX_FILE_SIZE, isAllowedFileType } from "@/lib/file-utils";
 import { extractVideoThumbnail, isVideoFile } from "@/lib/video-thumbnail";
 
 export type UploadStatus = "pending" | "uploading" | "paused" | "completed" | "error" | "cancelled";
@@ -218,7 +218,7 @@ export function useFileUpload({
                 : f
             )
           );
-          toast.success(`${queuedFile.file.name} uploaded successfully`);
+          toast.success(`${queuedFile.file.name} uploaded`);
           onUploadComplete?.({ ...queuedFile, status: "completed" });
           resolve();
         } else {
@@ -366,7 +366,7 @@ export function useFileUpload({
         )
       );
 
-      toast.success(`${queuedFile.file.name} uploaded successfully`);
+      toast.success(`Uploaded ${queuedFile.file.name}`);
 
       // Generate and upload thumbnail for videos (async, non-blocking)
       if (isVideoFile(queuedFile.file) && uploadId) {

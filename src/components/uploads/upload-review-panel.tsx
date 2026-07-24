@@ -27,13 +27,11 @@ import {
   Loader2,
   Calendar,
   HardDrive,
-  User,
   Clock,
   MessageSquare,
   History,
   ChevronRight,
   ExternalLink,
-  Play,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -388,7 +386,7 @@ export function UploadReviewPanel({
 
       if (!response.ok) throw new Error("Failed to approve upload");
 
-      toast.success("Upload approved successfully");
+      toast.success("Upload approved");
       onOpenChange(false);
       onReviewComplete?.();
     } catch {

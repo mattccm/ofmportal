@@ -10,23 +10,19 @@ import { format, differenceInDays } from "date-fns";
 // Note: customMessage support would need to be added to sendReminderEmail/sendReminderSms
 // For now, we use the default templates
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const sendReminderSchema = z.object({
   reminderId: z.string().optional(),
   requestId: z.string().optional(),
   channel: z.enum(["EMAIL", "SMS", "BOTH"]).default("EMAIL"),
-  customMessage: z.string().optional(),
+  customMessage: z.string().max(2000, "Message too long").optional(),
 }).refine(
   (data) => data.reminderId || data.requestId,
   { message: "Either reminderId or requestId is required" }
 );
 
-// ============================================
 // POST - Manually send a reminder
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

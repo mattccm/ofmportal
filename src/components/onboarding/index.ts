@@ -1,6 +1,4 @@
-// ============================================
 // ONBOARDING COMPONENTS (Simplified for CCM)
-// ============================================
 
 // Onboarding wizard and tutorial (minimal versions for creator portal)
 export { OnboardingWizard, type OnboardingStep } from "./onboarding-wizard";

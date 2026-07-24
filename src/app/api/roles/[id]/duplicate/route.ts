@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession, type Session } from "next-auth";
+import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { DEFAULT_ROLES } from "@/types/permissions";
 import { isAdminOrHigher, PermissionUser } from "@/lib/permissions";
 
 // Helper to convert session user to PermissionUser
-function sessionToPermissionUser(session: any): PermissionUser {
+function sessionToPermissionUser(session: Session): PermissionUser {
   return {
     id: session.user.id,
     role: session.user.role,
@@ -40,34 +41,52 @@ export async function POST(
     // Check if it's a default role
     const defaultRole = DEFAULT_ROLES.find((r) => r.id === id);
 
-    let sourceRole: any;
+    let sourceRole: {
+      name: string;
+      description?: string | null;
+      permissions: Prisma.InputJsonValue;
+      creatorVisibility: Prisma.InputJsonValue;
+      dataFieldVisibility: Prisma.InputJsonValue;
+      teamMemberVisibility: Prisma.InputJsonValue;
+      color?: string | null;
+    };
 
     if (defaultRole) {
       // Use the default role as source
       sourceRole = {
         name: defaultRole.name,
         description: defaultRole.description,
-        permissions: defaultRole.permissions,
-        creatorVisibility: defaultRole.creatorVisibility,
-        dataFieldVisibility: defaultRole.dataFieldVisibility,
-        teamMemberVisibility: defaultRole.teamMemberVisibility,
+        permissions: defaultRole.permissions as unknown as Prisma.InputJsonValue,
+        creatorVisibility: defaultRole.creatorVisibility as unknown as Prisma.InputJsonValue,
+        dataFieldVisibility: defaultRole.dataFieldVisibility as unknown as Prisma.InputJsonValue,
+        teamMemberVisibility: defaultRole.teamMemberVisibility as unknown as Prisma.InputJsonValue,
         color: defaultRole.color,
       };
     } else {
       // Find the custom role
-      sourceRole = await db.customRole.findFirst({
+      const customRole = await db.customRole.findFirst({
         where: {
           id,
           agencyId: session.user.agencyId,
         },
       });
 
-      if (!sourceRole) {
+      if (!customRole) {
         return NextResponse.json(
           { error: "Role not found" },
           { status: 404 }
         );
       }
+
+      sourceRole = {
+        name: customRole.name,
+        description: customRole.description,
+        permissions: customRole.permissions as Prisma.InputJsonValue,
+        creatorVisibility: customRole.creatorVisibility as Prisma.InputJsonValue,
+        dataFieldVisibility: customRole.dataFieldVisibility as Prisma.InputJsonValue,
+        teamMemberVisibility: customRole.teamMemberVisibility as Prisma.InputJsonValue,
+        color: customRole.color,
+      };
     }
 
     // Generate a unique name for the duplicate

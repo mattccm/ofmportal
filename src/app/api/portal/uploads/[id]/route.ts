@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validateCreatorSession } from "@/lib/portal-auth";
-import { getDownloadPresignedUrl, useLocalStorage, LOCAL_UPLOAD_DIR } from "@/lib/storage";
-import path from "path";
+import { getDownloadPresignedUrl, useLocalStorage } from "@/lib/storage";
 
 /**
  * GET /api/portal/uploads/[id]

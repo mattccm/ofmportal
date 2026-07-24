@@ -28,14 +28,14 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Something went wrong");
+        setError(data.error || "Couldn't send the reset link.");
         setLoading(false);
         return;
       }
 
       setSubmitted(true);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Couldn't send the reset link. Please try again.");
     } finally {
       setLoading(false);
     }

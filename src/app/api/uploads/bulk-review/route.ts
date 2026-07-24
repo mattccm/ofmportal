@@ -11,7 +11,6 @@ import { sendContentApprovedSms, sendRevisionRequestSms } from "@/lib/sms";
 import {
   generateOperationId,
   createUndoWindow,
-  chunkArray,
   DEFAULT_REJECT_TEMPLATES,
 } from "@/lib/bulk-operations";
 import { deleteFile } from "@/lib/storage";

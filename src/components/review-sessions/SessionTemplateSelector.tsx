@@ -26,7 +26,6 @@ import {
   FileText,
   Save,
   Trash2,
-  Edit,
   MoreVertical,
   Clock,
   User,

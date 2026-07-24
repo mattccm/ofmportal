@@ -4,11 +4,9 @@ import * as React from "react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { X, Pin, PinOff } from "lucide-react";
+import { X, Pin } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type TooltipPosition =
   | "top"
@@ -47,9 +45,7 @@ export interface TooltipEnhancedProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-// ============================================
 // ARROW COMPONENT
-// ============================================
 
 interface TooltipArrowProps {
   position: TooltipPosition;
@@ -90,9 +86,7 @@ function TooltipArrow({ position, className }: TooltipArrowProps) {
   );
 }
 
-// ============================================
 // TOOLTIP CONTENT COMPONENT
-// ============================================
 
 interface TooltipContentProps {
   content: React.ReactNode;
@@ -127,107 +121,111 @@ function TooltipContent({
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!tooltipRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      if (!tooltipRef.current) return;
 
-    const tooltipRect = tooltipRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const gap = sideOffset;
+      const tooltipRect = tooltipRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const gap = sideOffset;
 
-    let top = 0;
-    let left = 0;
-    let finalPosition = position;
+      let top = 0;
+      let left = 0;
+      let finalPosition = position;
 
-    const calculatePosition = (pos: TooltipPosition) => {
-      switch (pos) {
-        case "top":
-          top = targetRect.top - tooltipRect.height - gap;
-          left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
-          break;
-        case "top-start":
-          top = targetRect.top - tooltipRect.height - gap;
-          left = targetRect.left;
-          break;
-        case "top-end":
-          top = targetRect.top - tooltipRect.height - gap;
-          left = targetRect.right - tooltipRect.width;
-          break;
-        case "bottom":
-          top = targetRect.bottom + gap;
-          left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
-          break;
-        case "bottom-start":
-          top = targetRect.bottom + gap;
-          left = targetRect.left;
-          break;
-        case "bottom-end":
-          top = targetRect.bottom + gap;
-          left = targetRect.right - tooltipRect.width;
-          break;
-        case "left":
-          top = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
-          left = targetRect.left - tooltipRect.width - gap;
-          break;
-        case "right":
-          top = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
-          left = targetRect.right + gap;
-          break;
-      }
-      return { top, left };
-    };
+      const calculatePosition = (pos: TooltipPosition) => {
+        switch (pos) {
+          case "top":
+            top = targetRect.top - tooltipRect.height - gap;
+            left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
+            break;
+          case "top-start":
+            top = targetRect.top - tooltipRect.height - gap;
+            left = targetRect.left;
+            break;
+          case "top-end":
+            top = targetRect.top - tooltipRect.height - gap;
+            left = targetRect.right - tooltipRect.width;
+            break;
+          case "bottom":
+            top = targetRect.bottom + gap;
+            left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
+            break;
+          case "bottom-start":
+            top = targetRect.bottom + gap;
+            left = targetRect.left;
+            break;
+          case "bottom-end":
+            top = targetRect.bottom + gap;
+            left = targetRect.right - tooltipRect.width;
+            break;
+          case "left":
+            top = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
+            left = targetRect.left - tooltipRect.width - gap;
+            break;
+          case "right":
+            top = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
+            left = targetRect.right + gap;
+            break;
+        }
+        return { top, left };
+      };
 
-    const initialPos = calculatePosition(position);
-    top = initialPos.top;
-    left = initialPos.left;
+      const initialPos = calculatePosition(position);
+      top = initialPos.top;
+      left = initialPos.left;
 
-    // Check viewport bounds and adjust
-    const fitsInViewport = (t: number, l: number) => {
-      return (
-        t >= 8 &&
-        l >= 8 &&
-        t + tooltipRect.height <= viewportHeight - 8 &&
-        l + tooltipRect.width <= viewportWidth - 8
-      );
-    };
+      // Check viewport bounds and adjust
+      const fitsInViewport = (t: number, l: number) => {
+        return (
+          t >= 8 &&
+          l >= 8 &&
+          t + tooltipRect.height <= viewportHeight - 8 &&
+          l + tooltipRect.width <= viewportWidth - 8
+        );
+      };
 
-    if (!fitsInViewport(top, left)) {
-      const alternatives: TooltipPosition[] = [
-        "bottom",
-        "top",
-        "right",
-        "left",
-        "bottom-start",
-        "bottom-end",
-        "top-start",
-        "top-end",
-      ];
+      if (!fitsInViewport(top, left)) {
+        const alternatives: TooltipPosition[] = [
+          "bottom",
+          "top",
+          "right",
+          "left",
+          "bottom-start",
+          "bottom-end",
+          "top-start",
+          "top-end",
+        ];
 
-      for (const alt of alternatives) {
-        if (alt === position) continue;
-        const altPos = calculatePosition(alt);
-        if (fitsInViewport(altPos.top, altPos.left)) {
-          top = altPos.top;
-          left = altPos.left;
-          finalPosition = alt;
-          break;
+        for (const alt of alternatives) {
+          if (alt === position) continue;
+          const altPos = calculatePosition(alt);
+          if (fitsInViewport(altPos.top, altPos.left)) {
+            top = altPos.top;
+            left = altPos.left;
+            finalPosition = alt;
+            break;
+          }
         }
       }
-    }
 
-    // Clamp to viewport bounds
-    top = Math.max(8, Math.min(top, viewportHeight - tooltipRect.height - 8));
-    left = Math.max(8, Math.min(left, viewportWidth - tooltipRect.width - 8));
+      // Clamp to viewport bounds
+      top = Math.max(8, Math.min(top, viewportHeight - tooltipRect.height - 8));
+      left = Math.max(8, Math.min(left, viewportWidth - tooltipRect.width - 8));
 
-    setAdjustedPosition(finalPosition);
-    setTooltipStyle({
-      top: `${top}px`,
-      left: `${left}px`,
+      setAdjustedPosition(finalPosition);
+      setTooltipStyle({
+        top: `${top}px`,
+        left: `${left}px`,
+      });
+
+      // Trigger animation
+      requestAnimationFrame(() => {
+        setIsVisible(true);
+      });
     });
 
-    // Trigger animation
-    requestAnimationFrame(() => {
-      setIsVisible(true);
-    });
+    return () => cancelAnimationFrame(frame);
   }, [targetRect, position, sideOffset]);
 
   const isRichContent = typeof content !== "string";
@@ -296,9 +294,7 @@ function TooltipContent({
   );
 }
 
-// ============================================
 // MAIN TOOLTIP COMPONENT
-// ============================================
 
 export function TooltipEnhanced({
   content,
@@ -317,15 +313,15 @@ export function TooltipEnhanced({
   const [isOpen, setIsOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
-  const triggerRef = useRef<HTMLElement>(null);
+  const [triggerEl, setTriggerEl] = useState<HTMLElement | null>(null);
   const showTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const updateTargetRect = useCallback(() => {
-    if (triggerRef.current) {
-      setTargetRect(triggerRef.current.getBoundingClientRect());
+    if (triggerEl) {
+      setTargetRect(triggerEl.getBoundingClientRect());
     }
-  }, []);
+  }, [triggerEl]);
 
   const show = useCallback(() => {
     if (disabled) return;
@@ -402,17 +398,14 @@ export function TooltipEnhanced({
     if (!isPinned) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
+      if (triggerEl && !triggerEl.contains(e.target as Node)) {
         handleClose();
       }
     };
 
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [isPinned, handleClose]);
+  }, [isPinned, triggerEl, handleClose]);
 
   // Cleanup timeouts
   useEffect(() => {
@@ -433,30 +426,35 @@ export function TooltipEnhanced({
     "aria-describedby"?: string;
   };
   const typedChildren = children as React.ReactElement<ChildProps>;
-  const trigger = React.cloneElement(typedChildren, {
-    ref: triggerRef,
-    onMouseEnter: (e: React.MouseEvent) => {
-      typedChildren.props.onMouseEnter?.(e);
-      show();
-    },
-    onMouseLeave: (e: React.MouseEvent) => {
-      typedChildren.props.onMouseLeave?.(e);
-      hide();
-    },
-    onFocus: (e: React.FocusEvent) => {
-      typedChildren.props.onFocus?.(e);
-      show();
-    },
-    onBlur: (e: React.FocusEvent) => {
-      typedChildren.props.onBlur?.(e);
-      hide();
-    },
-    onClick: (e: React.MouseEvent) => {
-      typedChildren.props.onClick?.(e);
-      handleClick();
-    },
-    "aria-describedby": isOpen ? "tooltip" : undefined,
-  });
+  const TriggerComp = typedChildren.type as React.ElementType;
+  const trigger = (
+    <TriggerComp
+      {...typedChildren.props}
+      key={typedChildren.key}
+      ref={setTriggerEl}
+      onMouseEnter={(e: React.MouseEvent) => {
+        typedChildren.props.onMouseEnter?.(e);
+        show();
+      }}
+      onMouseLeave={(e: React.MouseEvent) => {
+        typedChildren.props.onMouseLeave?.(e);
+        hide();
+      }}
+      onFocus={(e: React.FocusEvent) => {
+        typedChildren.props.onFocus?.(e);
+        show();
+      }}
+      onBlur={(e: React.FocusEvent) => {
+        typedChildren.props.onBlur?.(e);
+        hide();
+      }}
+      onClick={(e: React.MouseEvent) => {
+        typedChildren.props.onClick?.(e);
+        handleClick();
+      }}
+      aria-describedby={isOpen ? "tooltip" : undefined}
+    />
+  );
 
   return (
     <>
@@ -480,9 +478,7 @@ export function TooltipEnhanced({
   );
 }
 
-// ============================================
 // SHORTHAND COMPONENTS
-// ============================================
 
 interface IconButtonTooltipProps {
   icon: React.ReactNode;

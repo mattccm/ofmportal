@@ -18,17 +18,13 @@ import {
 } from "@/components/ui/select";
 import {
   Search,
-  Filter,
   Clock,
-  CheckCircle,
-  XCircle,
   AlertTriangle,
   Archive,
   Loader2,
   ArrowRight,
   Calendar,
   User,
-  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays, isAfter, isBefore } from "date-fns";
@@ -38,7 +34,6 @@ import { OperationTemplates } from "./operation-templates";
 import { SmartSelectionPresets } from "./smart-selection-presets";
 import { cn } from "@/lib/utils";
 import type { RequestStatus } from "@/lib/bulk-operations";
-import { UNDO_STORAGE_KEY, createEnhancedUndoWindow } from "@/lib/bulk-operations";
 
 // Types
 interface Request {

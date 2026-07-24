@@ -25,7 +25,7 @@ export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
 
   // Initial fetch and polling
   useEffect(() => {
-    refresh();
+    queueMicrotask(refresh);
 
     // Poll every 5 minutes (reduced from 60s to save database egress)
     const interval = setInterval(refresh, 300000);

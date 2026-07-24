@@ -32,14 +32,12 @@ import {
   FileText,
   Folder,
   Tag,
-  Plus,
   X,
   Check,
   CheckCircle2,
   ArrowRight,
   Sparkles,
   Filter,
-  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MediaFolder, MediaType, ImportableUpload } from "@/types/media-library";

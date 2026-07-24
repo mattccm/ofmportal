@@ -3,9 +3,7 @@
 import { MessageSquare, MessageSquarePlus, Send } from "lucide-react";
 import { EmptyState, type EmptyStateProps } from "./empty-state";
 
-// ============================================
 // NO MESSAGES EMPTY STATE
-// ============================================
 
 interface NoMessagesProps {
   /** Optional custom title */

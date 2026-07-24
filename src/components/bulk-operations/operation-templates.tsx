@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +36,6 @@ import {
 import {
   Save,
   FolderOpen,
-  Plus,
   MoreHorizontal,
   Trash2,
   Edit2,
@@ -50,7 +49,7 @@ import {
   Archive,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   type BulkOperationType,
@@ -73,7 +72,18 @@ export function OperationTemplates({
   onLoadTemplate,
   className,
 }: OperationTemplatesProps) {
-  const [templates, setTemplates] = useState<BulkOperationTemplate[]>([]);
+  const [allTemplates, setAllTemplates] = useState<BulkOperationTemplate[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored) as BulkOperationTemplate[];
+      }
+    } catch (error) {
+      console.error("Failed to load templates:", error);
+    }
+    return [];
+  });
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -84,33 +94,25 @@ export function OperationTemplates({
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
 
-  // Load templates from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(TEMPLATES_STORAGE_KEY);
-      if (stored) {
-        const allTemplates: BulkOperationTemplate[] = JSON.parse(stored);
-        // Filter to only show templates for this operation type
-        setTemplates(allTemplates.filter((t) => t.type === operationType));
-      }
-    } catch (error) {
-      console.error("Failed to load templates:", error);
-    }
-  }, [operationType]);
+  // Filter to only show templates for this operation type
+  const templates = useMemo(
+    () => allTemplates.filter((t) => t.type === operationType),
+    [allTemplates, operationType]
+  );
 
   // Save templates to localStorage
   const saveToStorage = useCallback((newTemplates: BulkOperationTemplate[]) => {
     try {
       // Get all templates first
       const stored = localStorage.getItem(TEMPLATES_STORAGE_KEY);
-      let allTemplates: BulkOperationTemplate[] = stored ? JSON.parse(stored) : [];
+      let updatedTemplates: BulkOperationTemplate[] = stored ? JSON.parse(stored) : [];
 
       // Remove templates of this type and add new ones
-      allTemplates = allTemplates.filter((t) => t.type !== operationType);
-      allTemplates = [...allTemplates, ...newTemplates];
+      updatedTemplates = updatedTemplates.filter((t) => t.type !== operationType);
+      updatedTemplates = [...updatedTemplates, ...newTemplates];
 
-      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(allTemplates));
-      setTemplates(newTemplates);
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(updatedTemplates));
+      setAllTemplates(updatedTemplates);
     } catch (error) {
       console.error("Failed to save templates:", error);
       toast.error("Failed to save templates");

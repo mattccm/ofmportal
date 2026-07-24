@@ -6,9 +6,7 @@ import { usePathname } from "next/navigation";
 import { CreatorContextPanel } from "@/components/creators/creator-context-panel";
 import { useShortcut } from "@/hooks/use-keyboard-shortcuts";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface CreatorContextProviderValue {
   /** Currently selected creator ID for the context panel */
@@ -25,9 +23,7 @@ interface CreatorContextProviderValue {
   setCreatorId: (creatorId: string | null) => void;
 }
 
-// ============================================
 // CONTEXT
-// ============================================
 
 const CreatorContextContext = createContext<CreatorContextProviderValue | null>(null);
 
@@ -56,9 +52,7 @@ export function useCreatorContextPanel() {
   return context;
 }
 
-// ============================================
 // PROVIDER COMPONENT
-// ============================================
 
 interface CreatorContextProviderProps {
   children: React.ReactNode;
@@ -152,9 +146,7 @@ export function CreatorContextProvider({ children }: CreatorContextProviderProps
   );
 }
 
-// ============================================
 // HOOK FOR AUTOMATIC CREATOR DETECTION
-// ============================================
 
 /**
  * Hook that automatically sets the creator context based on the current page content.
@@ -195,9 +187,13 @@ export function CreatorContextTrigger({
   };
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<any>, {
+    const child = children as React.ReactElement<{
+      onClick?: React.MouseEventHandler;
+      className?: string;
+    }>;
+    return React.cloneElement(child, {
       onClick: handleClick,
-      className: `${(children as React.ReactElement<any>).props.className || ""} ${className || ""}`.trim(),
+      className: `${child.props.className || ""} ${className || ""}`.trim(),
     });
   }
 

@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Check, CheckCheck, Paperclip, Download, FileText, Image as ImageIcon, Video, Music } from "lucide-react";
+import { Check, CheckCheck, Download, FileText, Image as ImageIcon, Video, Music } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import type { MessageWithSender, Attachment } from "@/lib/chat-types";
 
 interface MessageBubbleProps {
@@ -131,10 +130,23 @@ interface AttachmentPreviewProps {
   isOwn: boolean;
 }
 
+const FILE_TYPE_ICONS = {
+  image: ImageIcon,
+  video: Video,
+  audio: Music,
+  file: FileText,
+};
+
+function getFileIconKey(type: string): keyof typeof FILE_TYPE_ICONS {
+  if (type.startsWith("image/")) return "image";
+  if (type.startsWith("video/")) return "video";
+  if (type.startsWith("audio/")) return "audio";
+  return "file";
+}
+
 function AttachmentPreview({ attachment, isOwn }: AttachmentPreviewProps) {
   const isImage = attachment.type.startsWith("image/");
   const isVideo = attachment.type.startsWith("video/");
-  const isAudio = attachment.type.startsWith("audio/");
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -142,14 +154,7 @@ function AttachmentPreview({ attachment, isOwn }: AttachmentPreviewProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const getFileIcon = () => {
-    if (isImage) return ImageIcon;
-    if (isVideo) return Video;
-    if (isAudio) return Music;
-    return FileText;
-  };
-
-  const FileIcon = getFileIcon();
+  const FileIcon = FILE_TYPE_ICONS[getFileIconKey(attachment.type)];
 
   // Image preview
   if (isImage) {

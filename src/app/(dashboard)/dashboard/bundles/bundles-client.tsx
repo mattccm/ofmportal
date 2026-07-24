@@ -12,9 +12,7 @@ import type {
   UrgencyLevel,
 } from "@/types/request-bundles";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Template {
   id: string;
@@ -42,9 +40,7 @@ interface BundlesClientProps {
   creators: Creator[];
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function BundlesClient({
   initialBundles,

@@ -348,9 +348,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function normalizeFilename(filename: string): string {
   const lastDot = filename.lastIndexOf(".");

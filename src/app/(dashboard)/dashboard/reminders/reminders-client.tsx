@@ -62,9 +62,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ReminderTemplate {
   id: string;
@@ -118,9 +116,7 @@ interface RemindersClientProps {
   agencySettings: Record<string, unknown>;
 }
 
-// ============================================
 // TEMPLATE VARIABLES HELP
-// ============================================
 
 const TEMPLATE_VARIABLES = [
   { variable: "{{creatorName}}", description: "Creator's name" },
@@ -131,9 +127,7 @@ const TEMPLATE_VARIABLES = [
   { variable: "{{urgencyText}}", description: "Text like 'due in 3 days' or '2 days overdue'" },
 ];
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function RemindersClient({
   initialTemplates,
@@ -188,9 +182,7 @@ export function RemindersClient({
   const pendingReminders = filteredReminders.filter((r) => r.status === "PENDING");
   const historyReminders = filteredReminders.filter((r) => r.status !== "PENDING");
 
-  // ============================================
   // API CALLS
-  // ============================================
 
   const refreshReminders = async () => {
     setIsLoading(true);
@@ -263,7 +255,7 @@ export function RemindersClient({
       });
 
       if (response.ok) {
-        toast.success("Reminder sent successfully");
+        toast.success("Reminder sent");
         await refreshReminders();
       } else {
         const error = await response.json();
@@ -322,9 +314,7 @@ export function RemindersClient({
     }
   };
 
-  // ============================================
   // RENDER
-  // ============================================
 
   return (
     <Tabs defaultValue="templates" className="space-y-6">
@@ -928,9 +918,7 @@ export function RemindersClient({
   );
 }
 
-// ============================================
 // TEMPLATE DIALOG COMPONENT
-// ============================================
 
 interface TemplateDialogProps {
   template: ReminderTemplate | null;

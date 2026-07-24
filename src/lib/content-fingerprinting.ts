@@ -14,7 +14,6 @@ import type {
   DuplicateMatch,
   DuplicateCheckResult,
   FingerprintConfig,
-  DEFAULT_FINGERPRINT_CONFIG,
 } from "@/types/content-fingerprint";
 
 // Re-export types for convenience

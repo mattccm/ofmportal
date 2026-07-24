@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useDebounce } from "./use-debounce";
 import type {
   MentionSuggestion,
@@ -15,9 +15,7 @@ import {
   extractMentionIds,
 } from "@/lib/mention-parser";
 
-// ============================================
 // USE MENTION INPUT HOOK
-// ============================================
 
 interface UseMentionInputOptions {
   onMentionsChange?: (mentionIds: string[]) => void;
@@ -49,9 +47,7 @@ export function useMentionInput(
 
   // Text state
   const [text, setText] = useState(initialText);
-  const [mentionIds, setMentionIds] = useState<string[]>(() =>
-    extractMentionIds(initialText)
-  );
+  const mentionIds = useMemo(() => extractMentionIds(text), [text]);
 
   // Input state for autocomplete
   const [inputState, setInputState] = useState<MentionInputState>({
@@ -64,7 +60,6 @@ export function useMentionInput(
 
   // Suggestions state
   const [allSuggestions, setAllSuggestions] = useState<MentionSuggestion[]>([]);
-  const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   // Debounced query for API calls
@@ -84,7 +79,6 @@ export function useMentionInput(
         if (response.ok) {
           const data = await response.json();
           setAllSuggestions(data.suggestions);
-          setSuggestions(filterSuggestions(data.suggestions, inputState.query));
         }
       } catch (error) {
         console.error("Failed to fetch mention suggestions:", error);
@@ -99,18 +93,15 @@ export function useMentionInput(
   }, [debouncedQuery, inputState.isOpen]);
 
   // Filter suggestions when query changes (local filtering)
-  useEffect(() => {
-    if (inputState.isOpen && allSuggestions.length > 0) {
-      setSuggestions(filterSuggestions(allSuggestions, inputState.query));
-    }
-  }, [inputState.query, allSuggestions, inputState.isOpen]);
+  const suggestions = useMemo(
+    () => filterSuggestions(allSuggestions, inputState.query),
+    [allSuggestions, inputState.query]
+  );
 
-  // Update mention IDs when text changes
+  // Notify when mention IDs change
   useEffect(() => {
-    const ids = extractMentionIds(text);
-    setMentionIds(ids);
-    onMentionsChange?.(ids);
-  }, [text, onMentionsChange]);
+    onMentionsChange?.(mentionIds);
+  }, [mentionIds, onMentionsChange]);
 
   // Handle text change and detect @ trigger
   const handleTextChange = useCallback(
@@ -141,6 +132,44 @@ export function useMentionInput(
     },
     []
   );
+
+  // Handle selecting a suggestion
+  const handleSelectSuggestion = useCallback(
+    (suggestion: MentionSuggestion): string => {
+      if (mentionStartIndexRef.current === null) return text;
+
+      const result = insertMention(
+        text,
+        suggestion,
+        mentionStartIndexRef.current,
+        inputState.cursorPosition
+      );
+
+      setText(result.text);
+      mentionStartIndexRef.current = null;
+      setInputState({
+        isOpen: false,
+        query: "",
+        cursorPosition: result.cursorPosition,
+        selectedIndex: 0,
+        triggerPosition: null,
+      });
+
+      return result.text;
+    },
+    [text, inputState.cursorPosition]
+  );
+
+  // Close suggestions
+  const closeSuggestions = useCallback(() => {
+    mentionStartIndexRef.current = null;
+    setInputState((prev) => ({
+      ...prev,
+      isOpen: false,
+      query: "",
+      selectedIndex: 0,
+    }));
+  }, []);
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback(
@@ -187,46 +216,8 @@ export function useMentionInput(
           return false;
       }
     },
-    [inputState.isOpen, inputState.selectedIndex, suggestions]
+    [inputState.isOpen, inputState.selectedIndex, suggestions, handleSelectSuggestion, closeSuggestions]
   );
-
-  // Handle selecting a suggestion
-  const handleSelectSuggestion = useCallback(
-    (suggestion: MentionSuggestion): string => {
-      if (mentionStartIndexRef.current === null) return text;
-
-      const result = insertMention(
-        text,
-        suggestion,
-        mentionStartIndexRef.current,
-        inputState.cursorPosition
-      );
-
-      setText(result.text);
-      mentionStartIndexRef.current = null;
-      setInputState({
-        isOpen: false,
-        query: "",
-        cursorPosition: result.cursorPosition,
-        selectedIndex: 0,
-        triggerPosition: null,
-      });
-
-      return result.text;
-    },
-    [text, inputState.cursorPosition]
-  );
-
-  // Close suggestions
-  const closeSuggestions = useCallback(() => {
-    mentionStartIndexRef.current = null;
-    setInputState((prev) => ({
-      ...prev,
-      isOpen: false,
-      query: "",
-      selectedIndex: 0,
-    }));
-  }, []);
 
   return {
     inputState,
@@ -242,9 +233,7 @@ export function useMentionInput(
   };
 }
 
-// ============================================
 // USE MENTIONS PANEL HOOK
-// ============================================
 
 interface UseMentionsPanelOptions {
   filters?: MentionFilters;
@@ -275,7 +264,7 @@ export function useMentionsPanel(
   const [error, setError] = useState<Error | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const offsetRef = useRef(0);
 
   // Fetch mentions
   const fetchMentions = useCallback(
@@ -286,7 +275,7 @@ export function useMentionsPanel(
 
         const params = new URLSearchParams();
         params.set("limit", limit.toString());
-        params.set("offset", reset ? "0" : offset.toString());
+        params.set("offset", reset ? "0" : offsetRef.current.toString());
 
         if (filters?.read !== undefined) {
           params.set("read", filters.read.toString());
@@ -304,10 +293,10 @@ export function useMentionsPanel(
 
         if (reset) {
           setMentions(data.mentions);
-          setOffset(data.mentions.length);
+          offsetRef.current = data.mentions.length;
         } else {
           setMentions((prev) => [...prev, ...data.mentions]);
-          setOffset((prev) => prev + data.mentions.length);
+          offsetRef.current += data.mentions.length;
         }
 
         setHasMore(data.hasMore);
@@ -317,7 +306,7 @@ export function useMentionsPanel(
         setIsLoading(false);
       }
     },
-    [filters, limit, offset]
+    [filters, limit]
   );
 
   // Fetch unread count
@@ -335,9 +324,11 @@ export function useMentionsPanel(
 
   // Initial fetch
   useEffect(() => {
-    fetchMentions(true);
-    fetchUnreadCount();
-  }, [filters]);
+    queueMicrotask(() => {
+      fetchMentions(true);
+      fetchUnreadCount();
+    });
+  }, [fetchMentions, fetchUnreadCount]);
 
   // Refresh
   const refresh = useCallback(async () => {
@@ -404,9 +395,7 @@ export function useMentionsPanel(
   };
 }
 
-// ============================================
 // USE UNREAD MENTIONS COUNT HOOK
-// ============================================
 
 interface UseUnreadMentionsReturn {
   count: number;
@@ -430,7 +419,7 @@ export function useUnreadMentions(): UseUnreadMentionsReturn {
 
   // Initial fetch and polling
   useEffect(() => {
-    refresh();
+    queueMicrotask(refresh);
 
     // Poll every 30 seconds
     const interval = setInterval(refresh, 30000);

@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const templateConfigSchema = z.object({
   templateId: z.string().min(1),
@@ -34,9 +32,7 @@ const updateBundleSchema = z.object({
   autoTrigger: z.enum(["on_creator_create", "manual"]).nullable().optional(),
 });
 
-// ============================================
 // GET - List all bundles for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -151,9 +147,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create new bundle
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -226,9 +220,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // PATCH - Update bundle
-// ============================================
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -319,9 +311,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Delete bundle
-// ============================================
 
 export async function DELETE(req: NextRequest) {
   try {

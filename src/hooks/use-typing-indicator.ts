@@ -62,7 +62,6 @@ export function useTypingIndicator(
     enablePolling = true,
     pollInterval = READ_RECEIPT_CONSTANTS.POLL_INTERVAL_MS,
     typingTimeout = READ_RECEIPT_CONSTANTS.TYPING_TIMEOUT_MS,
-    debounceInterval = READ_RECEIPT_CONSTANTS.TYPING_DEBOUNCE_MS,
   } = options;
 
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
@@ -71,7 +70,6 @@ export function useTypingIndicator(
 
   const key = getTypingKey(conversationId, requestId);
   const mountedRef = useRef(true);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create debounced typing handler
   const debouncedTyping = useMemo(() => {
@@ -168,7 +166,7 @@ export function useTypingIndicator(
 
   // Initial fetch
   useEffect(() => {
-    fetchTypingIndicators();
+    queueMicrotask(fetchTypingIndicators);
   }, [fetchTypingIndicators]);
 
   // Set up polling if enabled
@@ -202,9 +200,6 @@ export function useTypingIndicator(
       if (isTyping) {
         clearTypingIndicator(userId, conversationId, requestId);
       }
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
     };
   }, [userId, conversationId, requestId, isTyping]);
 
@@ -220,9 +215,7 @@ export function useTypingIndicator(
   };
 }
 
-// ============================================================================
 // Simplified typing indicator hook for single input
-// ============================================================================
 
 interface UseSimpleTypingOptions {
   conversationId?: string;
@@ -257,9 +250,7 @@ export function useSimpleTypingIndicator(options: UseSimpleTypingOptions) {
   };
 }
 
-// ============================================================================
 // Watch typing indicator hook (read-only)
-// ============================================================================
 
 interface UseWatchTypingOptions {
   conversationId?: string;
@@ -309,9 +300,13 @@ export function useWatchTypingIndicator(options: UseWatchTypingOptions) {
     });
 
     // Initial fetch
-    const indicators = getTypingIndicators(conversationId, requestId);
-    setTypingUsers(indicators);
-    setIsLoading(false);
+    queueMicrotask(() => {
+      if (mountedRef.current) {
+        const indicators = getTypingIndicators(conversationId, requestId);
+        setTypingUsers(indicators);
+        setIsLoading(false);
+      }
+    });
 
     return () => {
       mountedRef.current = false;
@@ -351,9 +346,7 @@ export function useWatchTypingIndicator(options: UseWatchTypingOptions) {
   };
 }
 
-// ============================================================================
 // Multiple conversation typing tracking
-// ============================================================================
 
 interface UseMultiConversationTypingOptions {
   conversationIds: string[];

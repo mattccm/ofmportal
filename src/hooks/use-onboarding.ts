@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface OnboardingProgress {
   /** Unique identifier for the onboarding type */
@@ -51,9 +49,7 @@ export interface UseOnboardingReturn {
   isOnboardingComplete: boolean;
 }
 
-// ============================================
 // LOCAL STORAGE HELPERS
-// ============================================
 
 const STORAGE_KEY = "onboarding_progress";
 
@@ -98,9 +94,7 @@ function clearLocalProgress(): void {
   }
 }
 
-// ============================================
 // HOOK IMPLEMENTATION
-// ============================================
 
 export function useOnboarding(
   options: UseOnboardingOptions = {}
@@ -114,9 +108,7 @@ export function useOnboarding(
 
   const isMountedRef = useRef(true);
 
-  // ============================================
   // FETCH PROGRESS
-  // ============================================
 
   const fetchProgress = useCallback(async () => {
     try {
@@ -165,9 +157,7 @@ export function useOnboarding(
     }
   }, [useLocalStorage]);
 
-  // ============================================
   // MARK STEP COMPLETE
-  // ============================================
 
   const markStepComplete = useCallback(
     async (stepKey: string, data?: Record<string, unknown>): Promise<boolean> => {
@@ -209,9 +199,7 @@ export function useOnboarding(
     [useLocalStorage]
   );
 
-  // ============================================
   // MARK MULTIPLE STEPS COMPLETE
-  // ============================================
 
   const markStepsComplete = useCallback(
     async (stepKeys: string[]): Promise<boolean> => {
@@ -246,9 +234,7 @@ export function useOnboarding(
     [useLocalStorage]
   );
 
-  // ============================================
   // RESET ONBOARDING
-  // ============================================
 
   const resetOnboarding = useCallback(async (): Promise<boolean> => {
     try {
@@ -270,9 +256,7 @@ export function useOnboarding(
     }
   }, [useLocalStorage]);
 
-  // ============================================
   // UTILITY FUNCTIONS
-  // ============================================
 
   const isStepComplete = useCallback(
     (stepKey: string): boolean => {
@@ -306,9 +290,7 @@ export function useOnboarding(
     await fetchProgress();
   }, [fetchProgress]);
 
-  // ============================================
   // EFFECTS
-  // ============================================
 
   // Initial fetch
   useEffect(() => {
@@ -347,9 +329,7 @@ export function useOnboarding(
   };
 }
 
-// ============================================
 // PREDEFINED STEP KEYS
-// ============================================
 
 export const AGENCY_ONBOARDING_STEPS = [
   "agency_setup",

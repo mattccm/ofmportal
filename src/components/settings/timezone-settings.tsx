@@ -9,7 +9,6 @@ import {
   Moon,
   MapPin,
   Building2,
-  Settings2,
   RefreshCw,
   CheckCircle,
   Loader2,
@@ -44,7 +43,6 @@ import {
 } from "@/types/timezone";
 import {
   TimezoneSelector,
-  TimezoneBadge,
 } from "@/components/settings/timezone-selector";
 import {
   useTimezone,
@@ -59,9 +57,7 @@ import {
   getTimezoneOffsetString,
 } from "@/lib/timezone-utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TimezoneSettingsProps {
   onSave?: (preferences: TimezonePreferences) => Promise<void>;
@@ -75,9 +71,7 @@ interface TimezonePreviewProps {
   dateFormat: DateFormatOption;
 }
 
-// ============================================
 // TIMEZONE PREVIEW COMPONENT
-// ============================================
 
 function TimezonePreview({ timezone, use24HourFormat, dateFormat }: TimezonePreviewProps) {
   const [currentTime, setCurrentTime] = React.useState<string>("");
@@ -120,9 +114,7 @@ function TimezonePreview({ timezone, use24HourFormat, dateFormat }: TimezonePrev
   );
 }
 
-// ============================================
 // BUSINESS HOURS EDITOR COMPONENT
-// ============================================
 
 function BusinessHoursEditor({
   value,
@@ -227,9 +219,7 @@ function BusinessHoursEditor({
   );
 }
 
-// ============================================
 // MAIN TIMEZONE SETTINGS COMPONENT
-// ============================================
 
 export function TimezoneSettings({
   onSave,
@@ -336,7 +326,7 @@ export function TimezoneSettings({
               <div>
                 <p className="font-medium">Auto-detect timezone</p>
                 <p className="text-sm text-muted-foreground">
-                  Automatically use your browser's timezone
+                  Automatically use your browser&apos;s timezone
                 </p>
               </div>
             </div>
@@ -546,9 +536,7 @@ export function TimezoneSettings({
   );
 }
 
-// ============================================
 // COMPACT TIMEZONE SETTINGS (for Profile page)
-// ============================================
 
 export function CompactTimezoneSettings({
   timezone,

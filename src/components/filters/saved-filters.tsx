@@ -1,18 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -29,7 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Filter,
   Save,
@@ -39,7 +32,6 @@ import {
   Pencil,
   Trash2,
   ChevronDown,
-  Plus,
   X,
   Check,
   Loader2,
@@ -146,10 +138,10 @@ export function SavedFilters({
         setSavedFilters((prev) =>
           prev.map((f) => (f.id === editingFilter.id ? data.filter : f))
         );
-        toast.success("Filter updated successfully");
+        toast.success("Filter updated");
       } else {
         setSavedFilters((prev) => [...prev, data.filter]);
-        toast.success("Filter saved successfully");
+        toast.success("Filter saved");
       }
 
       setSaveDialogOpen(false);

@@ -10,18 +10,14 @@ import {
   getRemindersummary,
 } from "@/lib/auto-reminder-scheduler";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const scheduleOptionsSchema = z.object({
   preview: z.boolean().default(false),
   cancelExisting: z.boolean().default(true),
 });
 
-// ============================================
 // GET - Get reminder summary and preview for a request
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -86,9 +82,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // POST - Schedule or reschedule reminders for a request
-// ============================================
 
 export async function POST(
   req: NextRequest,
@@ -198,9 +192,7 @@ export async function POST(
   }
 }
 
-// ============================================
 // DELETE - Cancel all auto-generated reminders for a request
-// ============================================
 
 export async function DELETE(
   req: NextRequest,

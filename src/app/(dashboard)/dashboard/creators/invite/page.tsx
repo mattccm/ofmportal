@@ -59,9 +59,9 @@ export default function InviteCreatorPage() {
 
       setInviteLink(data.inviteLink);
       setCreatedCreatorId(data.creator?.id || null);
-      toast.success("Creator invited successfully!");
+      toast.success("Invite sent");
     } catch {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Couldn't send the invite. Please try again.");
     } finally {
       setLoading(false);
     }

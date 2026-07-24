@@ -16,7 +16,6 @@ import {
   Undo2,
   Clock,
   AlertTriangle,
-  CheckCircle,
   Loader2,
   X,
   History,
@@ -25,7 +24,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   type BulkOperationType,
-  type EnhancedUndoOperation,
   UNDO_STORAGE_KEY,
   UNDO_WINDOW_SECONDS,
   isUndoWindowValid,
@@ -56,29 +54,36 @@ interface UndoManagerState {
 
 // Global undo state manager using a custom hook
 export function useUndoManager() {
-  const [state, setState] = useState<UndoManagerState>({
-    operations: [],
-    isProcessing: false,
-    processingId: null,
+  const [state, setState] = useState<UndoManagerState>(() => {
+    let operations: UndoableOperation[] = [];
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(UNDO_STORAGE_KEY);
+        if (stored) {
+          const parsed: UndoableOperation[] = JSON.parse(stored);
+          // Filter out expired operations
+          operations = parsed.filter((op) => isUndoWindowValid(op.expiresAt));
+        }
+      } catch (error) {
+        console.error("Failed to load undo operations:", error);
+      }
+    }
+    return { operations, isProcessing: false, processingId: null };
   });
 
-  // Load operations from storage on mount
+  // Update storage to remove expired operations on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(UNDO_STORAGE_KEY);
       if (stored) {
         const operations: UndoableOperation[] = JSON.parse(stored);
-        // Filter out expired operations
         const validOperations = operations.filter((op) => isUndoWindowValid(op.expiresAt));
-        setState((prev) => ({ ...prev, operations: validOperations }));
-
-        // Update storage to remove expired
         if (validOperations.length !== operations.length) {
           localStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(validOperations));
         }
       }
     } catch (error) {
-      console.error("Failed to load undo operations:", error);
+      console.error("Failed to clean up undo operations:", error);
     }
   }, []);
 
@@ -107,7 +112,7 @@ export function useUndoManager() {
           localStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(newOperations));
           return { ...prev, operations: newOperations, isProcessing: false, processingId: null };
         });
-        toast.success("Operation undone successfully");
+        toast.success("Change undone");
         return true;
       } else {
         toast.error("Failed to undo operation");
@@ -272,9 +277,6 @@ export function UndoManager({ className }: UndoManagerProps) {
     removeOperation,
     clearAll,
   } = useUndoManager();
-
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedOperation, setSelectedOperation] = useState<UndoableOperation | null>(null);
 
   const handleUndo = async (operation: UndoableOperation) => {
     // This would be replaced with actual undo API call

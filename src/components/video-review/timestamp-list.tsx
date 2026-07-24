@@ -45,17 +45,13 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   type VideoTimestamp,
-  type VideoTimestampReply,
   type TimestampFilters,
   DEFAULT_TIMESTAMP_FILTERS,
   formatTimestamp,
-  getTimestampTypeLabel,
   getSeverityLabel,
 } from "@/types/video-timestamps";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TimestampListProps {
   timestamps: VideoTimestamp[];
@@ -83,9 +79,7 @@ interface TimestampItemProps {
   currentUserId?: string;
 }
 
-// ============================================
 // HELPERS
-// ============================================
 
 function getTypeIcon(type: VideoTimestamp["type"]) {
   switch (type) {
@@ -130,9 +124,7 @@ function getSeverityBadgeVariant(severity: VideoTimestamp["severity"]) {
   }
 }
 
-// ============================================
 // TIMESTAMP ITEM
-// ============================================
 
 function TimestampItem({
   timestamp,
@@ -424,9 +416,7 @@ function TimestampItem({
   );
 }
 
-// ============================================
 // TIMESTAMP LIST
-// ============================================
 
 export function TimestampList({
   timestamps,

@@ -4,10 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // CONTACT CREATOR API
 // Send messages to creators via their preferred contact methods
-// ============================================
 
 const contactSchema = z.object({
   method: z.enum(["email", "sms", "whatsapp", "telegram", "discord", "in_app", "phone"]),
@@ -108,45 +106,10 @@ export async function POST(
       },
     });
 
-    // Based on the method, send the actual message
-    // In a production environment, this would integrate with actual messaging services
-    switch (validatedData.method) {
-      case "email":
-        // In production: await sendEmail(contactValue, validatedData.subject, validatedData.message);
-        console.log(`[EMAIL] To: ${contactValue}, Subject: ${validatedData.subject}`);
-        break;
-
-      case "sms":
-        // In production: await sendSMS(contactValue, validatedData.message);
-        console.log(`[SMS] To: ${contactValue}`);
-        break;
-
-      case "whatsapp":
-        // In production: await sendWhatsApp(contactValue, validatedData.message);
-        console.log(`[WHATSAPP] To: ${contactValue}`);
-        break;
-
-      case "telegram":
-        // In production: await sendTelegram(contactValue, validatedData.message);
-        console.log(`[TELEGRAM] To: ${contactValue}`);
-        break;
-
-      case "discord":
-        // In production: await sendDiscordDM(contactValue, validatedData.message);
-        console.log(`[DISCORD] To: ${contactValue}`);
-        break;
-
-      case "in_app":
-        // Create an in-app notification for the creator
-        // In production, this would create a notification record
-        console.log(`[IN_APP] To creator: ${creator.id}`);
-        break;
-
-      case "phone":
-        // Phone calls would typically be logged but initiated externally
-        console.log(`[PHONE] Logged call to: ${contactValue}`);
-        break;
-    }
+    // NOTE: Actual message delivery is not implemented. In production this would
+    // integrate with the relevant messaging service (email, SMS, WhatsApp, etc.)
+    // based on validatedData.method. Currently the contact is only recorded in
+    // the activity log above.
 
     return NextResponse.json({
       success: true,

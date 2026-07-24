@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,6 @@ import {
   Eye,
   Type,
   Zap,
-  Sun,
-  Moon,
   Monitor,
   RotateCcw,
   Accessibility,
@@ -18,9 +16,7 @@ import {
   Plus,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface AccessibilitySettings {
   /** Reduce motion for animations */
@@ -51,9 +47,7 @@ interface AccessibilityContextValue {
   isLoaded: boolean;
 }
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 const STORAGE_KEY = 'uploadportal-a11y-settings';
 
@@ -83,9 +77,7 @@ const COLOR_BLIND_OPTIONS = [
   { value: 'tritanopia', label: 'Tritanopia (Blue-blind)' },
 ] as const;
 
-// ============================================
 // CONTEXT
-// ============================================
 
 const AccessibilityContext = createContext<AccessibilityContextValue | null>(null);
 
@@ -97,9 +89,7 @@ export function useAccessibility() {
   return context;
 }
 
-// ============================================
 // PROVIDER
-// ============================================
 
 interface AccessibilityProviderProps {
   children: React.ReactNode;
@@ -107,40 +97,56 @@ interface AccessibilityProviderProps {
   defaultSettings?: Partial<AccessibilitySettings>;
 }
 
+const emptySubscribe = () => () => {};
+
+function loadInitialSettings(
+  defaultSettings?: Partial<AccessibilitySettings>
+): AccessibilitySettings {
+  const settings: AccessibilitySettings = {
+    ...DEFAULT_SETTINGS,
+    ...defaultSettings,
+  };
+
+  if (typeof window === 'undefined') {
+    return settings;
+  }
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      Object.assign(settings, parsed);
+    }
+
+    // Check system preferences
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      settings.reduceMotion = true;
+    }
+    if (
+      window.matchMedia('(prefers-contrast: more)').matches ||
+      window.matchMedia('(prefers-contrast: high)').matches
+    ) {
+      settings.highContrast = true;
+    }
+  } catch (error) {
+    console.error('Failed to load accessibility settings:', error);
+  }
+
+  return settings;
+}
+
 export function AccessibilityProvider({
   children,
   defaultSettings,
 }: AccessibilityProviderProps) {
-  const [settings, setSettings] = useState<AccessibilitySettings>({
-    ...DEFAULT_SETTINGS,
-    ...defaultSettings,
-  });
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Load settings from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setSettings((prev) => ({ ...prev, ...parsed }));
-      }
-
-      // Check system preferences
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        setSettings((prev) => ({ ...prev, reduceMotion: true }));
-      }
-      if (
-        window.matchMedia('(prefers-contrast: more)').matches ||
-        window.matchMedia('(prefers-contrast: high)').matches
-      ) {
-        setSettings((prev) => ({ ...prev, highContrast: true }));
-      }
-    } catch (error) {
-      console.error('Failed to load accessibility settings:', error);
-    }
-    setIsLoaded(true);
-  }, []);
+  const [settings, setSettings] = useState<AccessibilitySettings>(() =>
+    loadInitialSettings(defaultSettings)
+  );
+  const isLoaded = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   // Save settings to localStorage
   useEffect(() => {
@@ -238,9 +244,7 @@ export function AccessibilityProvider({
   );
 }
 
-// ============================================
 // SETTINGS PANEL
-// ============================================
 
 interface AccessibilitySettingsPanelProps {
   className?: string;
@@ -395,9 +399,7 @@ export function AccessibilitySettingsPanel({
   );
 }
 
-// ============================================
 // HELPER COMPONENTS
-// ============================================
 
 interface SettingRowProps {
   icon: React.ReactNode;
@@ -569,9 +571,7 @@ function ColorBlindSelector({ value, onChange }: ColorBlindSelectorProps) {
   );
 }
 
-// ============================================
 // QUICK ACCESS TOGGLE
-// ============================================
 
 interface AccessibilityQuickToggleProps {
   className?: string;
@@ -641,8 +641,6 @@ export function AccessibilityQuickToggle({ className }: AccessibilityQuickToggle
   );
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export default AccessibilitySettingsPanel;

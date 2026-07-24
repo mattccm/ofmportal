@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,13 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Loader2,
   GripVertical,
   Search,
   X,
-  UserPlus,
   Check,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -143,7 +141,7 @@ export function GroupEditor({
         throw new Error(data.error || "Failed to save group");
       }
 
-      toast.success(group ? "Group updated successfully" : "Group created successfully");
+      toast.success(group ? "Group updated" : "Group created");
       onSave(data);
       onOpenChange(false);
     } catch (error) {

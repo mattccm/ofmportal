@@ -107,7 +107,7 @@ export function SessionSummary({
             Session Summary: {summary.sessionName}
           </DialogTitle>
           <DialogDescription>
-            Review completed. Here's a summary of the decisions made during the session.
+            Review completed. Here&apos;s a summary of the decisions made during the session.
           </DialogDescription>
         </DialogHeader>
 

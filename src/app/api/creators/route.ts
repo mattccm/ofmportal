@@ -8,9 +8,8 @@ import { sendCreatorInviteEmail } from "@/lib/email";
 import {
   parsePaginationParams,
   createPaginatedResponse,
-  PAGE_SIZES,
 } from "@/lib/pagination";
-import { cache, cacheKeys, cacheTTL, invalidateCache } from "@/lib/cache";
+import { invalidateCache } from "@/lib/cache";
 
 const createCreatorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),

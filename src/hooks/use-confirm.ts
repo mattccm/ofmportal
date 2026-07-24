@@ -3,9 +3,7 @@
 import * as React from "react";
 import type { ConfirmDialogVariant } from "@/components/ui/confirm-dialog";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface ConfirmOptions {
   title: string;
@@ -36,9 +34,7 @@ export interface UseConfirmReturn {
   close: () => void;
 }
 
-// ============================================
 // DEFAULT OPTIONS
-// ============================================
 
 const defaultOptions: Partial<ConfirmOptions> = {
   confirmLabel: "Confirm",
@@ -46,9 +42,7 @@ const defaultOptions: Partial<ConfirmOptions> = {
   variant: "default",
 };
 
-// ============================================
 // USE CONFIRM HOOK
-// ============================================
 
 export function useConfirm(): UseConfirmReturn {
   const [state, setState] = React.useState<ConfirmState>({
@@ -87,7 +81,7 @@ export function useConfirm(): UseConfirmReturn {
       loading: false,
       resolve: null,
     }));
-  }, [state.resolve]);
+  }, [state]);
 
   const handleCancel = React.useCallback(() => {
     if (state.resolve) {
@@ -99,7 +93,7 @@ export function useConfirm(): UseConfirmReturn {
       loading: false,
       resolve: null,
     }));
-  }, [state.resolve]);
+  }, [state]);
 
   const setLoading = React.useCallback((loading: boolean) => {
     setState((prev) => ({ ...prev, loading }));
@@ -115,7 +109,7 @@ export function useConfirm(): UseConfirmReturn {
       loading: false,
       resolve: null,
     }));
-  }, [state.resolve]);
+  }, [state]);
 
   return {
     confirm,
@@ -127,9 +121,7 @@ export function useConfirm(): UseConfirmReturn {
   };
 }
 
-// ============================================
 // USE DELETE CONFIRM HOOK - SPECIALIZED
-// ============================================
 
 export interface DeleteConfirmOptions {
   itemName?: string;
@@ -178,9 +170,7 @@ export function useDeleteConfirm() {
   };
 }
 
-// ============================================
 // USE REVOKE CONFIRM HOOK - FOR API KEYS/TOKENS
-// ============================================
 
 export interface RevokeConfirmOptions {
   itemName?: string;
@@ -229,9 +219,7 @@ export function useRevokeConfirm() {
   };
 }
 
-// ============================================
 // USE REMOVE CONFIRM HOOK - FOR TEAM/ACCESS
-// ============================================
 
 export interface RemoveConfirmOptions {
   memberName?: string;
@@ -280,9 +268,7 @@ export function useRemoveConfirm() {
   };
 }
 
-// ============================================
 // CONFIRM DIALOG WRAPPER COMPONENT
 // Renders the dialog based on hook state
-// ============================================
 
 export { useConfirm as default };

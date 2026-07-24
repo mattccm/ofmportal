@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import {
   Search,
@@ -9,7 +8,6 @@ import {
   MessageSquare,
   Users,
   Hash,
-  Circle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";

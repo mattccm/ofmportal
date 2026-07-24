@@ -13,9 +13,9 @@ import { useSession } from "next-auth/react";
 import {
   Role,
   Permission,
+  PermissionAction,
   PermissionOverride,
   ActivityRestrictions,
-  DEFAULT_ROLES,
   getEffectivePermissions,
 } from "@/types/permissions";
 import { getRole } from "@/lib/permissions";
@@ -216,7 +216,7 @@ export function withRequiredPermission<P extends object>(
     const hasPermission = effectivePermissions.some(
       (p) =>
         p.resource === requiredPermission.resource &&
-        p.actions.includes(requiredPermission.action as any)
+        p.actions.includes(requiredPermission.action as PermissionAction)
     );
 
     if (!hasPermission) {
@@ -243,7 +243,7 @@ export function withRequiredPermission<P extends object>(
           </div>
           <h3 className="text-lg font-semibold mb-1">Access Denied</h3>
           <p className="text-sm text-muted-foreground max-w-sm">
-            You don't have permission to access this feature. Contact your
+            You don&apos;t have permission to access this feature. Contact your
             administrator if you believe this is an error.
           </p>
         </div>
@@ -277,7 +277,7 @@ export function RequirePermission({
   }
 
   const hasPermission = effectivePermissions.some(
-    (p) => p.resource === resource && p.actions.includes(action as any)
+    (p) => p.resource === resource && p.actions.includes(action as PermissionAction)
   );
 
   if (!hasPermission) {
@@ -343,7 +343,7 @@ export function useHasPermission(resource: string, action: string): boolean {
   }
 
   return effectivePermissions.some(
-    (p) => p.resource === resource && p.actions.includes(action as any)
+    (p) => p.resource === resource && p.actions.includes(action as PermissionAction)
   );
 }
 
@@ -359,7 +359,7 @@ export function useHasAnyPermission(
 
   return checks.some((check) =>
     effectivePermissions.some(
-      (p) => p.resource === check.resource && p.actions.includes(check.action as any)
+      (p) => p.resource === check.resource && p.actions.includes(check.action as PermissionAction)
     )
   );
 }
@@ -376,7 +376,7 @@ export function useHasAllPermissions(
 
   return checks.every((check) =>
     effectivePermissions.some(
-      (p) => p.resource === check.resource && p.actions.includes(check.action as any)
+      (p) => p.resource === check.resource && p.actions.includes(check.action as PermissionAction)
     )
   );
 }

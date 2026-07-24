@@ -12,16 +12,12 @@ import {
   File as FileIcon,
   Sparkles,
   AlertCircle,
-  X,
   Clipboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   formatFileSize,
   ALLOWED_TYPES,
-  ALLOWED_IMAGE_TYPES,
-  ALLOWED_VIDEO_TYPES,
-  ALLOWED_AUDIO_TYPES,
   MAX_FILE_SIZE,
   isAllowedFileType,
 } from "@/lib/file-utils";

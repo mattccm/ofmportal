@@ -8,12 +8,9 @@ import { BackToTop } from "@/components/ui/back-to-top";
 import {
   useInfiniteScroll,
   useScrollPosition,
-  type UseInfiniteScrollOptions,
 } from "@/hooks/use-infinite-scroll";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface InfiniteListProps {
   /** List items to render */
@@ -59,9 +56,7 @@ export interface InfiniteListProps {
   };
 }
 
-// ============================================
 // LOADING INDICATOR COMPONENT
-// ============================================
 
 export interface LoadingIndicatorProps {
   text?: string;
@@ -85,9 +80,7 @@ export function LoadingIndicator({
   );
 }
 
-// ============================================
 // END OF LIST INDICATOR COMPONENT
-// ============================================
 
 export interface EndOfListIndicatorProps {
   text?: string;
@@ -115,9 +108,7 @@ export function EndOfListIndicator({
   );
 }
 
-// ============================================
 // ERROR INDICATOR COMPONENT
-// ============================================
 
 export interface ErrorIndicatorProps {
   error?: Error | null;
@@ -161,9 +152,7 @@ export function ErrorIndicator({
   );
 }
 
-// ============================================
 // INFINITE LIST COMPONENT
-// ============================================
 
 export function InfiniteList({
   children,
@@ -276,9 +265,7 @@ export function InfiniteList({
   );
 }
 
-// ============================================
 // INFINITE SCROLL CONTAINER
-// ============================================
 
 export interface InfiniteScrollContainerProps {
   children: React.ReactNode;
@@ -336,9 +323,7 @@ export function InfiniteScrollContainer({
   );
 }
 
-// ============================================
 // LOAD MORE BUTTON COMPONENT
-// ============================================
 
 export interface LoadMoreButtonProps {
   onLoadMore: () => Promise<void>;

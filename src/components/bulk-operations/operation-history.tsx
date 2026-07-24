@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,7 +51,6 @@ import {
   Bell,
   Archive,
   User,
-  Calendar,
   Loader2,
   Download,
   ExternalLink,
@@ -64,7 +63,6 @@ import {
   type BulkOperationStatus,
   type BulkOperationHistoryEntry,
   HISTORY_STORAGE_KEY,
-  MAX_HISTORY_ENTRIES,
   getOperationTypeLabel,
   isUndoWindowValid,
   getRemainingUndoTime,
@@ -247,7 +245,7 @@ export function OperationHistory({ className }: OperationHistoryProps) {
     a.click();
     URL.revokeObjectURL(url);
 
-    toast.success("History exported successfully");
+    toast.success("History exported");
   }, [filteredHistory]);
 
   if (isLoading) {

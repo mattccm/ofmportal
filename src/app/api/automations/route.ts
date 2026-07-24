@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const conditionSchema = z.object({
   id: z.string(),
@@ -67,9 +65,7 @@ const listAutomationsSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50),
 });
 
-// ============================================
 // GET - List all automations for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -193,9 +189,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create new automation
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

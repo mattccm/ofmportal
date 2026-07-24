@@ -14,9 +14,7 @@ import {
   type ArrowDirection,
 } from "@/lib/a11y-utils";
 
-// ============================================
 // ANNOUNCEMENT HOOKS
-// ============================================
 
 /**
  * Hook for making screen reader announcements
@@ -67,9 +65,7 @@ export function useLoadingAnnounce(isLoading: boolean, loadingText = "Loading", 
   }, [isLoading, loadingText, loadedText, announce]);
 }
 
-// ============================================
 // FOCUS MANAGEMENT HOOKS
-// ============================================
 
 /**
  * Hook to focus an element on mount
@@ -142,9 +138,7 @@ export function useFocusById() {
   }, []);
 }
 
-// ============================================
 // KEYBOARD NAVIGATION HOOKS
-// ============================================
 
 /**
  * Hook for arrow key navigation within a container
@@ -236,9 +230,7 @@ export function useKeyboardShortcut(
   }, [key, handler, ctrlKey, shiftKey, altKey, metaKey, enabled, preventDefault]);
 }
 
-// ============================================
 // PREFERENCE HOOKS
-// ============================================
 
 /**
  * Hook to detect reduced motion preference
@@ -307,9 +299,7 @@ export function useIsKeyboardUser() {
   return isKeyboard;
 }
 
-// ============================================
 // ARIA HOOKS
-// ============================================
 
 /**
  * Hook for managing aria-expanded state
@@ -394,9 +384,7 @@ export function useAriaChecked(defaultChecked = false, onChange?: (checked: bool
   return { isChecked, setIsChecked, toggle, ariaProps };
 }
 
-// ============================================
 // ID GENERATION
-// ============================================
 
 let idCounter = 0;
 
@@ -428,9 +416,7 @@ export function useA11yIds(prefix = "a11y") {
   };
 }
 
-// ============================================
 // LIVE REGION HOOK
-// ============================================
 
 /**
  * Hook to create a local live region for announcements
@@ -480,9 +466,7 @@ export function useLiveRegion(politeness: "polite" | "assertive" = "polite") {
   return { message, announce: announceMessage, liveRegionProps };
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export default {
   useAnnounce,

@@ -3,9 +3,7 @@
 
 import { z } from "zod";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type BulkOperationType =
   | "request_create"
@@ -59,9 +57,7 @@ export interface BulkOperationProgress {
   estimatedTimeRemaining?: number; // seconds
 }
 
-// ============================================
 // BULK REQUEST CREATION TYPES
-// ============================================
 
 export interface BulkRequestItem {
   creatorId: string;
@@ -109,9 +105,7 @@ export const bulkRequestSchema = z.object({
   }).optional(),
 });
 
-// ============================================
 // BULK REVIEW TYPES
-// ============================================
 
 export type ReviewAction = "approve" | "reject" | "skip";
 
@@ -151,9 +145,7 @@ export const bulkReviewSchema = z.object({
   })).min(1, "At least one review is required"),
 });
 
-// ============================================
 // BULK STATUS UPDATE TYPES
-// ============================================
 
 export type RequestStatus =
   | "DRAFT"
@@ -202,9 +194,7 @@ export const bulkArchiveSchema = z.object({
   ])).min(1),
 });
 
-// ============================================
 // BULK REMINDER TYPES
-// ============================================
 
 export type ReminderFilter =
   | "overdue"
@@ -235,9 +225,7 @@ export const bulkReminderSchema = z.object({
   channels: z.array(z.enum(["email", "sms"])).min(1),
 });
 
-// ============================================
 // UNDO OPERATION TYPES
-// ============================================
 
 export interface UndoOperation {
   operationId: string;
@@ -246,9 +234,7 @@ export interface UndoOperation {
   expiresAt: Date;
 }
 
-// ============================================
 // UTILITY FUNCTIONS
-// ============================================
 
 /**
  * Generate a unique operation ID
@@ -388,9 +374,7 @@ export function validateBulkLimits(
   return { valid: true };
 }
 
-// ============================================
 // KEYBOARD SHORTCUTS
-// ============================================
 
 export const BULK_REVIEW_SHORTCUTS: Record<string, { action: ReviewAction | "select_all" | "deselect_all"; label: string }> = {
   a: { action: "approve", label: "Approve selected" },
@@ -402,9 +386,7 @@ export const BULK_REVIEW_SHORTCUTS: Record<string, { action: ReviewAction | "sel
   Escape: { action: "deselect_all", label: "Deselect all" },
 };
 
-// ============================================
 // OPERATION PRESETS / TEMPLATES
-// ============================================
 
 export interface BulkOperationTemplate {
   id: string;
@@ -452,9 +434,7 @@ export const DEFAULT_PRESETS: Omit<BulkOperationPreset, "id" | "createdAt" | "us
   },
 ];
 
-// ============================================
 // OPERATION HISTORY
-// ============================================
 
 export interface BulkOperationHistoryEntry {
   id: string;
@@ -485,9 +465,7 @@ export interface BulkOperationHistoryEntry {
   errors?: string[];
 }
 
-// ============================================
 // DRY RUN / PREVIEW TYPES
-// ============================================
 
 export interface DryRunResult {
   operationType: BulkOperationType;
@@ -507,9 +485,7 @@ export interface DryRunItem {
   warningMessage?: string;
 }
 
-// ============================================
 // SMART SELECTION PRESETS
-// ============================================
 
 export interface SmartSelectionPreset {
   id: string;
@@ -576,9 +552,7 @@ export const SMART_SELECTION_PRESETS: SmartSelectionPreset[] = [
   },
 ];
 
-// ============================================
 // ENHANCED UNDO OPERATION
-// ============================================
 
 export interface EnhancedUndoOperation {
   operationId: string;
@@ -625,9 +599,7 @@ export function getRemainingUndoTime(expiresAt: string | Date): number {
   return Math.max(0, remaining);
 }
 
-// ============================================
 // TEMPLATE STORAGE UTILITIES
-// ============================================
 
 export const TEMPLATES_STORAGE_KEY = "bulk_operation_templates";
 export const HISTORY_STORAGE_KEY = "bulk_operation_history";

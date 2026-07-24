@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { EditableCreatorName } from "@/components/editable";
 import {
   Select,
@@ -56,27 +55,20 @@ import {
   TrendingUp,
   BarChart3,
   Activity,
-  Target,
-  StickyNote,
-  Trash2,
   Send,
   Bell,
   Image as ImageIcon,
   Video,
   File,
-  Filter,
   Grid3X3,
   List,
-  ChevronRight,
   Star,
   AlertCircle,
   XCircle,
-  Users,
   Eye,
   Play,
   RefreshCw,
   Settings,
-  Shield,
 } from "lucide-react";
 import { CopyableEmail } from "@/components/ui/copyable-text";
 import { NotesPanel } from "@/components/notes/notes-panel";
@@ -87,7 +79,6 @@ import { ContactCreatorModal } from "@/components/creators/contact-creator-modal
 import { EditCreatorProfileModal } from "@/components/creators/edit-creator-profile-modal";
 import {
   type CommunicationPreferences,
-  type ContactMethod,
   DEFAULT_COMMUNICATION_PREFERENCES,
 } from "@/types/communication-preferences";
 
@@ -404,7 +395,7 @@ export function CreatorVaultClient({
 
       if (!response.ok) throw new Error("Failed to archive creator");
 
-      toast.success("Creator archived successfully");
+      toast.success("Creator archived");
       router.push("/dashboard/creators");
     } catch (error) {
       toast.error("Failed to archive creator");
@@ -428,7 +419,7 @@ export function CreatorVaultClient({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success("Export downloaded successfully");
+      toast.success("Download ready");
     } catch (error) {
       toast.error("Failed to export content");
     }
@@ -446,7 +437,7 @@ export function CreatorVaultClient({
 
       if (!response.ok) throw new Error("Failed to send reminder");
 
-      toast.success("Reminder sent successfully");
+      toast.success("Reminder sent");
     } catch (error) {
       toast.error("Failed to send reminder");
     }
@@ -1213,7 +1204,7 @@ export function CreatorVaultClient({
                 </Card>
               </div>
 
-              {/* Charts placeholder - in production, you'd use a charting library */}
+              {/* Chart cards */}
               <div className="grid md:grid-cols-2 gap-6">
                 <Card className="card-elevated">
                   <CardHeader>

@@ -27,25 +27,23 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
-
+  // Detect iOS
+  const [isIOS] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+      !(window as Window & { MSStream?: unknown }).MSStream
+    );
+  });
   // Check if app is already installed (standalone mode)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const standalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-      setIsStandalone(standalone);
-
-      // Detect iOS
-      const iOS =
-        /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-        !(window as Window & { MSStream?: unknown }).MSStream;
-      setIsIOS(iOS);
-    }
-  }, []);
+  const [isStandalone] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+    );
+  });
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   // Listen for the beforeinstallprompt event
   useEffect(() => {

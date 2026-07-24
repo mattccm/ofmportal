@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface UseInfiniteScrollOptions {
   /** Callback to fetch more items */
@@ -40,9 +38,7 @@ export interface UseInfiniteScrollReturn {
   reset: () => void;
 }
 
-// ============================================
 // HOOK IMPLEMENTATION
-// ============================================
 
 export function useInfiniteScroll(
   options: UseInfiniteScrollOptions
@@ -170,9 +166,7 @@ export function useInfiniteScroll(
   };
 }
 
-// ============================================
 // SCROLL POSITION PRESERVATION HOOK
-// ============================================
 
 export interface UseScrollPositionOptions {
   /** Unique key to identify the scroll position */
@@ -256,9 +250,7 @@ export function useScrollPosition(options: UseScrollPositionOptions) {
   };
 }
 
-// ============================================
 // SCROLL TO TOP HOOK
-// ============================================
 
 export interface UseScrollToTopOptions {
   /** Threshold in pixels to show the button */
@@ -269,17 +261,31 @@ export interface UseScrollToTopOptions {
 
 export function useScrollToTop(options: UseScrollToTopOptions = {}) {
   const { threshold = 400, smooth = true } = options;
-  const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Subscribe to scroll position changes
+  const subscribeToScroll = useCallback((listener: () => void) => {
+    const target = containerRef.current || window;
+
+    target.addEventListener("scroll", listener, { passive: true });
+
+    return () => {
+      target.removeEventListener("scroll", listener);
+    };
+  }, []);
+
   // Check scroll position
-  const checkScrollPosition = useCallback(() => {
-    const container = containerRef.current || document.documentElement;
-    const scrollTop = containerRef.current
-      ? container.scrollTop
-      : window.scrollY;
-    setIsVisible(scrollTop > threshold);
-  }, [threshold]);
+  const isVisible = useSyncExternalStore(
+    subscribeToScroll,
+    () => {
+      const container = containerRef.current || document.documentElement;
+      const scrollTop = containerRef.current
+        ? container.scrollTop
+        : window.scrollY;
+      return scrollTop > threshold;
+    },
+    () => false
+  );
 
   // Scroll to top
   const scrollToTop = useCallback(() => {
@@ -296,19 +302,6 @@ export function useScrollToTop(options: UseScrollToTopOptions = {}) {
       });
     }
   }, [smooth]);
-
-  // Set up scroll listener
-  useEffect(() => {
-    const container = containerRef.current;
-    const target = container || window;
-
-    target.addEventListener("scroll", checkScrollPosition, { passive: true });
-    checkScrollPosition(); // Check initial position
-
-    return () => {
-      target.removeEventListener("scroll", checkScrollPosition);
-    };
-  }, [checkScrollPosition]);
 
   return {
     containerRef,

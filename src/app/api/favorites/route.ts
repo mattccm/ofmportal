@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const favoriteSchema = z.object({
   itemId: z.string().min(1, "Item ID is required"),
@@ -14,9 +12,7 @@ const favoriteSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
-// ============================================
 // GET - List all favorites for user
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -222,9 +218,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Add item to favorites
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -351,9 +345,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Remove item from favorites
-// ============================================
 
 export async function DELETE(req: NextRequest) {
   try {

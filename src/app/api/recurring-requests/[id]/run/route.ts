@@ -9,9 +9,7 @@ import {
   type RequestSettings,
 } from "@/types/recurring-requests";
 
-// ============================================
 // POST - Execute recurring request manually
-// ============================================
 
 export async function POST(
   req: NextRequest,

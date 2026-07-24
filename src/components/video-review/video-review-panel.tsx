@@ -18,24 +18,18 @@ import {
 import {
   Video,
   Clock,
-  MessageSquare,
   AlertCircle,
-  ThumbsUp,
   Check,
-  Loader2,
   Keyboard,
   Sidebar,
   SidebarClose,
   Download,
-  ExternalLink,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import {
   type VideoTimestamp,
   type CreateTimestampPayload,
-  formatTimestamp,
 } from "@/types/video-timestamps";
 import {
   VideoPlayerWithTimestamps,
@@ -44,9 +38,7 @@ import {
 import { TimestampList } from "./timestamp-list";
 import { TimestampForm } from "./timestamp-form";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface VideoReviewPanelProps {
   uploadId: string;
@@ -62,9 +54,7 @@ interface VideoReviewPanelProps {
   };
 }
 
-// ============================================
 // VIDEO REVIEW PANEL
-// ============================================
 
 export function VideoReviewPanel({
   uploadId,

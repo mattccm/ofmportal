@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const listEventsSchema = z.object({
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
@@ -20,9 +18,7 @@ const listEventsSchema = z.object({
   type: z.enum(["all", "request", "deadline", "reminder"]).optional(),
 });
 
-// ============================================
 // EVENT TYPES
-// ============================================
 
 export type CalendarEventType = "request" | "deadline" | "reminder";
 
@@ -42,9 +38,7 @@ export interface CalendarEvent {
   metadata?: Record<string, unknown>;
 }
 
-// ============================================
 // COLOR MAPPING
-// ============================================
 
 const statusColors: Record<string, string> = {
   DRAFT: "#94a3b8",
@@ -72,9 +66,7 @@ const urgencyColors: Record<string, string> = {
   URGENT: "#ef4444",
 };
 
-// ============================================
 // GET - Fetch calendar events
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -112,9 +104,7 @@ export async function GET(req: NextRequest) {
       requestWhere.status = params.status;
     }
 
-    // ============================================
     // FETCH REQUEST EVENTS (creation dates)
-    // ============================================
     if (params.type === "all" || params.type === "request") {
       const requests = await db.contentRequest.findMany({
         where: {
@@ -155,9 +145,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ============================================
     // FETCH DEADLINE EVENTS (due dates)
-    // ============================================
     if (params.type === "all" || params.type === "deadline") {
       const deadlines = await db.contentRequest.findMany({
         where: {
@@ -204,9 +192,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ============================================
     // FETCH REMINDER EVENTS
-    // ============================================
     if (params.type === "all" || params.type === "reminder") {
       const reminderRequestWhere: Record<string, unknown> = {
         agencyId: session.user.agencyId,
@@ -297,9 +283,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // PATCH - Reschedule an event (update due date)
-// ============================================
 
 const rescheduleSchema = z.object({
   eventId: z.string(),

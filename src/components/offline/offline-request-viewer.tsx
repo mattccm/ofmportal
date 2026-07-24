@@ -5,8 +5,6 @@ import {
   FileText,
   Calendar,
   Clock,
-  User,
-  Tag,
   Search,
   Filter,
   MoreVertical,
@@ -26,7 +24,6 @@ import {
 import { cn } from '@/lib/utils';
 import {
   getOfflineRequests,
-  getOfflineRequest,
   deleteOfflineRequest,
   type CachedRequest,
 } from '@/lib/offline-storage';
@@ -67,9 +64,7 @@ import {
 } from '@/components/ui/select';
 import { useOffline } from '@/hooks/use-offline';
 
-// ============================================
 // Types
-// ============================================
 
 interface OfflineRequestViewerProps {
   maxHeight?: string;
@@ -82,9 +77,7 @@ interface OfflineRequestViewerProps {
 type StatusFilter = 'all' | 'active' | 'completed' | 'archived';
 type SortOption = 'recent' | 'deadline' | 'alphabetical';
 
-// ============================================
 // Helper Functions
-// ============================================
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
@@ -110,16 +103,22 @@ function formatRelativeTime(timestamp: number): string {
   return formatDate(new Date(timestamp).toISOString());
 }
 
-function getStatusIcon(status: CachedRequest['status']) {
+function StatusIcon({
+  status,
+  className,
+}: {
+  status: CachedRequest['status'];
+  className?: string;
+}) {
   switch (status) {
     case 'active':
-      return Inbox;
+      return <Inbox className={className} />;
     case 'completed':
-      return CheckCircle2;
+      return <CheckCircle2 className={className} />;
     case 'archived':
-      return Archive;
+      return <Archive className={className} />;
     default:
-      return FileText;
+      return <FileText className={className} />;
   }
 }
 
@@ -136,9 +135,7 @@ function getStatusColor(status: CachedRequest['status']): string {
   }
 }
 
-// ============================================
 // Main Component
-// ============================================
 
 export function OfflineRequestViewer({
   maxHeight = '500px',
@@ -147,7 +144,7 @@ export function OfflineRequestViewer({
   onViewRequest,
   className,
 }: OfflineRequestViewerProps) {
-  const { isOffline, pendingActions } = useOffline();
+  const { isOffline } = useOffline();
 
   const [requests, setRequests] = useState<CachedRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -244,9 +241,7 @@ export function OfflineRequestViewer({
     }
   };
 
-  // ============================================
   // Loading State
-  // ============================================
 
   if (isLoading) {
     return (
@@ -258,9 +253,7 @@ export function OfflineRequestViewer({
     );
   }
 
-  // ============================================
   // Empty State
-  // ============================================
 
   if (requests.length === 0) {
     return (
@@ -278,9 +271,7 @@ export function OfflineRequestViewer({
     );
   }
 
-  // ============================================
   // Render
-  // ============================================
 
   return (
     <div className={cn('rounded-lg border bg-card', className)}>
@@ -432,9 +423,7 @@ export function OfflineRequestViewer({
   );
 }
 
-// ============================================
 // Request Item Component
-// ============================================
 
 interface RequestItemProps {
   request: CachedRequest;
@@ -443,8 +432,6 @@ interface RequestItemProps {
 }
 
 function RequestItem({ request, onView, onDelete }: RequestItemProps) {
-  const StatusIcon = getStatusIcon(request.status);
-
   return (
     <div
       className={cn(
@@ -464,7 +451,7 @@ function RequestItem({ request, onView, onDelete }: RequestItemProps) {
             : 'bg-gray-500/10 text-gray-500'
         )}
       >
-        <StatusIcon className="h-5 w-5" />
+        <StatusIcon status={request.status} className="h-5 w-5" />
       </div>
 
       {/* Content */}
@@ -538,9 +525,7 @@ function RequestItem({ request, onView, onDelete }: RequestItemProps) {
   );
 }
 
-// ============================================
 // Request Details Component
-// ============================================
 
 interface RequestDetailsProps {
   request: CachedRequest;
@@ -548,7 +533,6 @@ interface RequestDetailsProps {
 
 function RequestDetails({ request }: RequestDetailsProps) {
   const { isOffline } = useOffline();
-  const StatusIcon = getStatusIcon(request.status);
 
   return (
     <div className="space-y-6">
@@ -564,6 +548,7 @@ function RequestDetails({ request }: RequestDetailsProps) {
         )}
       >
         <StatusIcon
+          status={request.status}
           className={cn(
             'h-5 w-5',
             request.status === 'active'

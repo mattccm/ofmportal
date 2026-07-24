@@ -7,7 +7,6 @@ import {
   Layers,
   CheckCircle,
   Loader2,
-  Users,
   Zap,
   Info,
 } from "lucide-react";
@@ -18,9 +17,6 @@ import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Tooltip,
@@ -29,11 +25,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { UrgencyLevel } from "@/types/request-bundles";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface BundleSummary {
   id: string;
@@ -52,9 +45,7 @@ interface OnboardingBundleSelectorProps {
   className?: string;
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function OnboardingBundleSelector({
   onBundleSelect,
@@ -230,9 +221,7 @@ export function OnboardingBundleSelector({
   );
 }
 
-// ============================================
 // POST-INVITE BUNDLE APPLY COMPONENT
-// ============================================
 
 interface PostInviteBundleApplyProps {
   creatorId: string;

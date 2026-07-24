@@ -13,7 +13,6 @@ import {
 import {
   S3Client,
   PutObjectCommand,
-  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 
 // S3-compatible client for branding asset storage

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { Prisma, UserRole } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -15,7 +16,7 @@ import {
 import { getRole } from "@/lib/permissions";
 
 // GET - Get current user's permissions and role
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
@@ -173,11 +174,11 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build update data
-    const updateData: any = {};
+    const updateData: Prisma.UserUncheckedUpdateInput = {};
 
     if (roleId && !customRoleId) {
       // Map roleId to UserRole enum
-      const roleMap: Record<string, string> = {
+      const roleMap: Record<string, UserRole> = {
         owner: "OWNER",
         admin: "ADMIN",
         manager: "MANAGER",

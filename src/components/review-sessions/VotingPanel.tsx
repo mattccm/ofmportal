@@ -17,7 +17,6 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  AlertTriangle,
   Users,
 } from "lucide-react";
 import { VotingPanelProps, ReviewVoteType } from "@/types/review-session";

@@ -41,9 +41,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface ScheduledReminder {
   id?: string;
@@ -69,9 +67,7 @@ export interface ReminderPreviewCalendarProps {
   description?: string;
 }
 
-// ============================================
 // HELPER COMPONENTS
-// ============================================
 
 function ReminderIndicator({
   reminder,
@@ -176,9 +172,7 @@ function ReminderIndicator({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function ReminderPreviewCalendar({
   reminders,

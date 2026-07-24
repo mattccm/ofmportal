@@ -10,12 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ViewReceipt, ViewHistory } from "@/types/read-receipts";
+import { ViewReceipt } from "@/types/read-receipts";
 import { formatViewDuration, getViewReceipts, getViewKey, subscribeToViewReceipts } from "@/lib/realtime-simulation";
 
-// ============================================================================
 // Device Icon Component
-// ============================================================================
 
 interface DeviceIconProps {
   deviceType?: "desktop" | "mobile" | "tablet";
@@ -35,9 +33,7 @@ function DeviceIcon({ deviceType, className }: DeviceIconProps) {
   return <Icon className={cn("h-3.5 w-3.5", className)} />;
 }
 
-// ============================================================================
 // View Receipt Item Component
-// ============================================================================
 
 interface ViewReceiptItemProps {
   view: ViewReceipt;
@@ -101,9 +97,7 @@ function ViewReceiptItem({
   );
 }
 
-// ============================================================================
 // Main Who Viewed Panel Component
-// ============================================================================
 
 interface WhoViewedPanelProps {
   resourceType: "request" | "upload" | "message";
@@ -244,9 +238,7 @@ export function WhoViewedPanel({
   );
 }
 
-// ============================================================================
 // Compact Who Viewed (Inline)
-// ============================================================================
 
 interface WhoViewedInlineProps {
   resourceType: "request" | "upload" | "message";
@@ -319,9 +311,7 @@ export function WhoViewedInline({
   );
 }
 
-// ============================================================================
 // Collapsible Who Viewed Panel
-// ============================================================================
 
 interface WhoViewedCollapsibleProps {
   resourceType: "request" | "upload" | "message";
@@ -416,9 +406,7 @@ export function WhoViewedCollapsible({
   );
 }
 
-// ============================================================================
 // View History Timeline
-// ============================================================================
 
 interface ViewHistoryTimelineProps {
   views: ViewReceipt[];

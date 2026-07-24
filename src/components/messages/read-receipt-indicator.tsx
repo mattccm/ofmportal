@@ -11,13 +11,10 @@ import {
   ReadReceiptWithUser,
   ReadStatusDisplay,
   ReadStatusInfo,
-  DEVICE_TYPE_ICONS,
 } from "@/types/read-receipts";
 import { useReadReceipts } from "@/hooks/use-read-receipts";
 
-// ============================================================================
 // Tooltip Wrapper Component
-// ============================================================================
 
 function ReadReceiptTooltip({
   children,
@@ -50,9 +47,7 @@ function ReadReceiptTooltip({
   );
 }
 
-// ============================================================================
 // Status Icon Component
-// ============================================================================
 
 interface StatusIconProps {
   status: ReadStatusDisplay;
@@ -85,9 +80,7 @@ function StatusIcon({ status, className, animate }: StatusIconProps) {
   }
 }
 
-// ============================================================================
 // Device Icon Component
-// ============================================================================
 
 interface DeviceIconProps {
   deviceType?: "desktop" | "mobile" | "tablet";
@@ -107,9 +100,7 @@ function DeviceIcon({ deviceType, className }: DeviceIconProps) {
   return <Icon className={cn("h-3 w-3 text-muted-foreground", className)} />;
 }
 
-// ============================================================================
 // Main Read Receipt Indicator Component
-// ============================================================================
 
 interface ReadReceiptIndicatorProps {
   // Message identification
@@ -402,9 +393,7 @@ export function ReadReceiptIndicator({
   );
 }
 
-// ============================================================================
 // Seen By Component (for group messages)
-// ============================================================================
 
 interface SeenByAvatarsProps {
   readers: ReadReceiptWithUser[];
@@ -486,9 +475,7 @@ export function SeenByAvatars({
   );
 }
 
-// ============================================================================
 // Inline Read Status (compact for message lists)
-// ============================================================================
 
 interface InlineReadStatusProps {
   messageId?: string;
@@ -523,9 +510,7 @@ export function InlineReadStatus({
   );
 }
 
-// ============================================================================
 // Message Read Receipt Footer
-// ============================================================================
 
 interface MessageReadReceiptFooterProps {
   messageId?: string;

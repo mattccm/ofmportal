@@ -71,9 +71,7 @@ export function isRealtimeAvailable(): boolean {
   );
 }
 
-// ============================================
 // REALTIME CHANNEL TYPES
-// ============================================
 
 export type RealtimeEventType =
   | "notification"
@@ -91,9 +89,7 @@ export interface RealtimePayload<T = unknown> {
   agencyId?: string;
 }
 
-// ============================================
 // CHANNEL MANAGEMENT
-// ============================================
 
 const activeChannels = new Map<string, RealtimeChannel>();
 
@@ -186,9 +182,7 @@ export function cleanupAllChannels(): void {
   activeChannels.clear();
 }
 
-// ============================================
 // CHANNEL NAME HELPERS
-// ============================================
 
 export const channelNames = {
   /** Agency-wide notifications channel */

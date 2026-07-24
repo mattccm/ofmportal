@@ -9,7 +9,7 @@ interface SendSmsOptions {
 
 export async function sendSms({ to, message }: SendSmsOptions) {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
-    console.log("📱 [MOCK SMS] Would be sent:", { to, message });
+    console.log("[MOCK SMS] Would be sent:", { to, message });
     return { success: true, mock: true };
   }
 
@@ -86,10 +86,9 @@ export async function sendReminderSms({
         ? "due TODAY"
         : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? "s" : ""}`;
 
-  const emoji = daysUntilDue < 0 ? "⚠️" : "📅";
   const testPrefix = isTest ? "[TEST] " : "";
 
-  const message = `${testPrefix}${emoji} Hi ${creatorName}! Your content for "${requestTitle}" is ${urgencyText}. Upload: ${portalLink}`;
+  const message = `${testPrefix}Hi ${creatorName}, your content for "${requestTitle}" is ${urgencyText}. Upload: ${portalLink}`;
   return sendSms({ to, message });
 }
 
@@ -102,7 +101,7 @@ export async function sendContentApprovedSms({
   creatorName: string;
   requestTitle: string;
 }) {
-  const message = `✅ Hi ${creatorName}! Great news - your content for "${requestTitle}" has been approved!`;
+  const message = `Hi ${creatorName}, your content for "${requestTitle}" has been approved.`;
   return sendSms({ to, message });
 }
 
@@ -118,7 +117,7 @@ export async function sendRevisionRequestSms({
   portalLink?: string;
 }) {
   const linkPart = portalLink ? ` Check feedback & resubmit: ${portalLink}` : "";
-  const message = `📝 Hi ${creatorName}, revision needed for "${requestTitle}".${linkPart}`;
+  const message = `Hi ${creatorName}, revision needed for "${requestTitle}".${linkPart}`;
   return sendSms({ to, message });
 }
 
@@ -133,7 +132,7 @@ export async function sendBatchedReminderSms({
   requestCount: number;
   portalLink: string;
 }) {
-  const message = `📋 Hi ${creatorName}! You have ${requestCount} content requests pending. View all: ${portalLink}`;
+  const message = `Hi ${creatorName}, you have ${requestCount} content requests pending. View all: ${portalLink}`;
   return sendSms({ to, message });
 }
 

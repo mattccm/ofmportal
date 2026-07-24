@@ -77,8 +77,7 @@ export function useReadReceipts(options: UseReadReceiptsOptions): UseReadReceipt
   // Fetch receipts from API/store
   const fetchReceipts = useCallback(async () => {
     try {
-      // In production, this would fetch from API
-      // For now, use the in-memory store
+      // Reads from the in-memory store
       const stored = getReadReceipts(messageId, requestId, commentId);
 
       // Merge with optimistic updates
@@ -147,10 +146,9 @@ export function useReadReceipts(options: UseReadReceiptsOptions): UseReadReceipt
     ]);
 
     try {
-      // In production, this would call the API
       // await fetch("/api/read-receipts", { method: "POST", body: JSON.stringify(receipt) });
 
-      // For now, add to in-memory store
+      // Add to the in-memory store
       addReadReceipt({
         ...receipt,
         userName,
@@ -220,7 +218,7 @@ export function useReadReceipts(options: UseReadReceiptsOptions): UseReadReceipt
       interval: pollInterval,
       key: pollKey,
       fetchFn: async () => {
-        // In production, fetch from API
+        // Pull the latest from the in-memory store
         return getReadReceipts(messageId, requestId, commentId);
       },
       onData: (data) => {
@@ -259,9 +257,7 @@ export function useReadReceipts(options: UseReadReceiptsOptions): UseReadReceipt
   };
 }
 
-// ============================================================================
 // Batch Read Receipts Hook
-// ============================================================================
 
 interface UseBatchReadReceiptsOptions {
   messageIds?: string[];
@@ -369,9 +365,7 @@ export function useBatchReadReceipts(
   };
 }
 
-// ============================================================================
 // Visibility-based Read Tracking Hook
-// ============================================================================
 
 interface UseVisibilityReadTrackingOptions {
   messageId?: string;

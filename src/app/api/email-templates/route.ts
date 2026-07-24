@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import {
-  DEFAULT_TEMPLATES,
   EmailTemplateType,
   getAllTemplateConfigs,
   getTemplateConfig,
@@ -13,9 +12,7 @@ import {
 } from "@/lib/email-templates";
 import { sendEmail } from "@/lib/email";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const updateTemplateSchema = z.object({
   type: z.enum([
@@ -67,9 +64,7 @@ const resetTemplateSchema = z.object({
   ]),
 });
 
-// ============================================
 // GET - Get all templates for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -140,9 +135,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Update or create template
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -216,9 +209,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // PUT - Reset template to default
-// ============================================
 
 export async function PUT(req: NextRequest) {
   try {
@@ -272,9 +263,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// ============================================
 // PATCH - Send test email
-// ============================================
 
 export async function PATCH(req: NextRequest) {
   try {

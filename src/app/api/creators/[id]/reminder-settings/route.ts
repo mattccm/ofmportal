@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { scheduleRemindersForAgency } from "@/lib/auto-reminder-scheduler";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const overdueFrequencyEnum = z.enum([
   "NONE",
@@ -29,9 +27,7 @@ const updateOverrideSchema = z.object({
   rescheduleExisting: z.boolean().default(false),
 });
 
-// ============================================
 // GET - Get creator's reminder settings
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -129,9 +125,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // POST - Create or update creator's reminder override
-// ============================================
 
 export async function POST(
   req: NextRequest,
@@ -266,9 +260,7 @@ export async function POST(
   }
 }
 
-// ============================================
 // PUT - Alias for POST (update)
-// ============================================
 
 export async function PUT(
   req: NextRequest,
@@ -277,9 +269,7 @@ export async function PUT(
   return POST(req, { params });
 }
 
-// ============================================
 // DELETE - Remove creator's custom settings (revert to agency defaults)
-// ============================================
 
 export async function DELETE(
   req: NextRequest,

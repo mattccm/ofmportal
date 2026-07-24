@@ -42,9 +42,7 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Creator {
   id: string;
@@ -76,9 +74,7 @@ const typeOptions = [
   { value: "reminder", label: "Reminders" },
 ];
 
-// ============================================
 // STATUS BADGE COMPONENT
-// ============================================
 
 function StatusBadge({ status }: { status?: string }) {
   if (!status) return null;
@@ -104,9 +100,7 @@ function StatusBadge({ status }: { status?: string }) {
   );
 }
 
-// ============================================
 // EVENT DETAIL PANEL
-// ============================================
 
 interface EventDetailPanelProps {
   event: CalendarEvent | null;
@@ -213,7 +207,7 @@ function EventDetailPanel({ event, onClose, onReschedule, isOpen, isMobile }: Ev
           <Button
             variant="outline"
             onClick={() => {
-              // For now, just show a toast - could open a date picker
+              // Surface the reschedule action via a toast
               toast.info("Reschedule feature coming soon!");
             }}
             className="w-full justify-between"
@@ -257,9 +251,7 @@ function EventDetailPanel({ event, onClose, onReschedule, isOpen, isMobile }: Ev
   );
 }
 
-// ============================================
 // MAIN CALENDAR CLIENT COMPONENT
-// ============================================
 
 export function CalendarClient({ creators }: CalendarClientProps) {
   const router = useRouter();
@@ -290,9 +282,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // ============================================
   // FETCH EVENTS
-  // ============================================
 
   const fetchEvents = useCallback(async () => {
     setIsLoading(true);
@@ -338,9 +328,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
     fetchEvents();
   }, [fetchEvents]);
 
-  // ============================================
   // EVENT HANDLERS
-  // ============================================
 
   const handleEventClick = useCallback((event: CalendarEvent) => {
     setSelectedEvent(event);
@@ -364,7 +352,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
         throw new Error("Failed to reschedule event");
       }
 
-      toast.success("Event rescheduled successfully");
+      toast.success("Event moved");
       fetchEvents();
     } catch (error) {
       console.error("Error rescheduling event:", error);
@@ -390,9 +378,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
 
   const hasActiveFilters = creatorFilter !== "all" || statusFilter !== "all" || typeFilter !== "all";
 
-  // ============================================
   // RENDER
-  // ============================================
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

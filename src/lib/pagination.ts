@@ -5,9 +5,7 @@
 
 import { z } from "zod";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface PaginationParams {
   page: number;
@@ -41,9 +39,7 @@ export interface CursorPaginatedResponse<T> {
   };
 }
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 export const paginationQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -55,9 +51,7 @@ export const cursorPaginationQuerySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(25),
 });
 
-// ============================================
 // HELPERS
-// ============================================
 
 /**
  * Parse pagination params from URL search params

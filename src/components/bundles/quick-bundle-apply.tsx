@@ -34,11 +34,9 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import type { RequestBundle, QuickApplyHistory, BundleExecutionResult } from "@/types/request-bundles";
+import type { QuickApplyHistory, BundleExecutionResult } from "@/types/request-bundles";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface BundleSummary {
   id: string;
@@ -62,9 +60,7 @@ interface QuickBundleApplyProps {
   showLabel?: boolean;
 }
 
-// ============================================
 // LOCAL STORAGE KEY FOR HISTORY
-// ============================================
 
 const HISTORY_STORAGE_KEY = "bundle-apply-history";
 
@@ -97,9 +93,7 @@ function setLocalHistory(creatorId: string, history: QuickApplyHistory) {
   }
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function QuickBundleApply({
   creatorId,
@@ -328,9 +322,7 @@ export function QuickBundleApply({
   );
 }
 
-// ============================================
 // COMPACT VARIANT FOR LISTS
-// ============================================
 
 interface QuickBundleApplyCompactProps {
   creatorId: string;

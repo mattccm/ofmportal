@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const platformSchema = z.enum([
   "instagram",
@@ -32,9 +30,7 @@ const createGroupSchema = z.object({
   isDefault: z.boolean().optional().default(false),
 });
 
-// ============================================
 // GET - List all template groups for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -154,9 +150,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create a new template group
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

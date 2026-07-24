@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Home,
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -86,7 +85,7 @@ Stack: ${error.stack || "No stack trace"}
               Dashboard Error
             </CardTitle>
             <CardDescription className="text-base mt-2">
-              Something went wrong while loading this section. Your work is safe - you can try again or navigate elsewhere.
+              This section hit an unexpected error. Your work is safe - try again or head elsewhere.
             </CardDescription>
           </CardHeader>
 

@@ -26,9 +26,7 @@ export function generateId(prefix: string = "id"): string {
   return `${prefix}_${Date.now()}_${++idCounter}`;
 }
 
-// ============================================================================
 // Read Receipt Functions
-// ============================================================================
 
 export function getReadReceiptKey(
   messageId?: string,
@@ -86,9 +84,7 @@ export function subscribeToReadReceipts(
   };
 }
 
-// ============================================================================
 // Typing Indicator Functions
-// ============================================================================
 
 export function getTypingKey(conversationId?: string, requestId?: string): string {
   if (conversationId) return `conversation:${conversationId}`;
@@ -178,9 +174,7 @@ export function clearTypingIndicator(userId: string, conversationId?: string, re
   }
 }
 
-// ============================================================================
 // View Receipt Functions
-// ============================================================================
 
 export function getViewKey(resourceType: string, resourceId: string): string {
   return `${resourceType}:${resourceId}`;
@@ -236,9 +230,7 @@ export function subscribeToViewReceipts(
   };
 }
 
-// ============================================================================
 // Polling Manager
-// ============================================================================
 
 interface PollingConfig {
   interval: number;
@@ -307,9 +299,7 @@ class PollingManager {
 
 export const pollingManager = new PollingManager();
 
-// ============================================================================
 // Optimistic UI Helpers
-// ============================================================================
 
 export interface OptimisticUpdate<T> {
   id: string;
@@ -367,9 +357,7 @@ export const optimisticReadReceipts = new OptimisticStore<ReadReceipt>();
 export const optimisticTypingIndicators = new OptimisticStore<TypingIndicator>();
 export const optimisticViewReceipts = new OptimisticStore<ViewReceipt>();
 
-// ============================================================================
 // Batch Processing
-// ============================================================================
 
 interface BatchConfig<T> {
   maxSize: number;
@@ -445,9 +433,7 @@ export const viewReceiptBatch = new BatchProcessor<ViewReceipt>({
   },
 });
 
-// ============================================================================
 // Utility Functions
-// ============================================================================
 
 export function formatTypingText(typingUsers: TypingIndicator[]): string {
   if (typingUsers.length === 0) return "";
@@ -501,9 +487,7 @@ export function getDeviceType(): "desktop" | "mobile" | "tablet" {
   return "desktop";
 }
 
-// ============================================================================
 // Debounce Utility for Typing Indicators
-// ============================================================================
 
 export function createDebouncedTyping(
   sendTyping: (isTyping: boolean) => void,
@@ -546,9 +530,7 @@ export function createDebouncedTyping(
   };
 }
 
-// ============================================================================
 // Mock Data for Development
-// ============================================================================
 
 export const mockUsers = [
   { id: "user1", name: "Alice Johnson", avatar: "/avatars/alice.jpg", email: "alice@example.com" },

@@ -10,9 +10,7 @@ import { WidgetCard, type WidgetProps } from "../widget-grid";
 import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface PendingRequest {
   id: string;
@@ -28,9 +26,7 @@ interface PendingRequest {
   uploadCount: number;
 }
 
-// ============================================
 // STATUS CONFIG
-// ============================================
 
 function getStatusConfig(status: string) {
   const configs: Record<string, { class: string; label: string }> = {
@@ -43,9 +39,7 @@ function getStatusConfig(status: string) {
   return configs[status] || { class: "bg-muted text-muted-foreground", label: status };
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function PendingRequestsWidget({ config, size }: WidgetProps) {
   // Use batched widget data from context (single API call for all widgets)

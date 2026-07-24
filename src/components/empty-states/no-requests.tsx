@@ -3,9 +3,7 @@
 import { FileText, Plus, Filter } from "lucide-react";
 import { EmptyState, type EmptyStateProps } from "./empty-state";
 
-// ============================================
 // NO REQUESTS EMPTY STATE
-// ============================================
 
 interface NoRequestsProps {
   /** Optional custom title */

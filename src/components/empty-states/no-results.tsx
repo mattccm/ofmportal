@@ -3,9 +3,7 @@
 import { Search, X, RefreshCw, Filter } from "lucide-react";
 import { EmptyState, type EmptyStateProps } from "./empty-state";
 
-// ============================================
 // NO RESULTS EMPTY STATE (FOR SEARCH)
-// ============================================
 
 interface NoResultsProps {
   /** The search query that returned no results */

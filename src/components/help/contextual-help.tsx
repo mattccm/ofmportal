@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -21,9 +20,7 @@ import {
 import { getHelpContent, type HelpContent, type HelpLink } from "@/lib/help-content";
 import Link from "next/link";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface ContextualHelpProps {
   /** The help content key to display */
@@ -57,9 +54,7 @@ export interface HelpTriggerProps {
   isOpen?: boolean;
 }
 
-// ============================================
 // SIZE CONFIGURATIONS
-// ============================================
 
 const sizeClasses = {
   sm: "h-3.5 w-3.5",
@@ -73,9 +68,7 @@ const buttonSizeClasses = {
   lg: "h-8 w-8",
 };
 
-// ============================================
 // HELP ICON TRIGGER
-// ============================================
 
 function HelpTrigger({ size, inline, className, isOpen }: HelpTriggerProps) {
   return (
@@ -96,9 +89,7 @@ function HelpTrigger({ size, inline, className, isOpen }: HelpTriggerProps) {
   );
 }
 
-// ============================================
 // LINK BUTTON COMPONENT
-// ============================================
 
 interface LinkButtonProps {
   link: HelpLink;
@@ -146,9 +137,7 @@ function LinkButton({ link, icon, variant = "secondary" }: LinkButtonProps) {
   );
 }
 
-// ============================================
 // TIPS SECTION
-// ============================================
 
 interface TipsSectionProps {
   tips: string[];
@@ -176,9 +165,7 @@ function TipsSection({ tips }: TipsSectionProps) {
   );
 }
 
-// ============================================
 // MAIN CONTEXTUAL HELP COMPONENT
-// ============================================
 
 export function ContextualHelp({
   helpKey,
@@ -297,10 +284,8 @@ export function ContextualHelp({
   );
 }
 
-// ============================================
 // HELP LABEL COMPONENT
 // Combines a label with inline help icon
-// ============================================
 
 export interface HelpLabelProps {
   /** Label text */
@@ -336,10 +321,8 @@ export function HelpLabel({
   );
 }
 
-// ============================================
 // HELP BADGE COMPONENT
 // A small help badge for compact spaces
-// ============================================
 
 export interface HelpBadgeProps {
   helpKey: string;
@@ -373,10 +356,8 @@ export function HelpBadge({ helpKey, className }: HelpBadgeProps) {
   );
 }
 
-// ============================================
 // HELP TOOLTIP WRAPPER
 // Wraps any element with help on hover
-// ============================================
 
 export interface HelpTooltipWrapperProps {
   children: React.ReactNode;
@@ -431,10 +412,8 @@ export function HelpTooltipWrapper({
   );
 }
 
-// ============================================
 // QUICK HELP CARD
 // Minimal help card for tooltips
-// ============================================
 
 interface QuickHelpCardProps {
   helpKey: string;
@@ -480,10 +459,8 @@ function QuickHelpCard({ helpKey, onClose }: QuickHelpCardProps) {
   );
 }
 
-// ============================================
 // INLINE HELP TEXT
 // For showing help text directly in forms
-// ============================================
 
 export interface InlineHelpTextProps {
   helpKey: string;
@@ -515,10 +492,8 @@ export function InlineHelpText({
   );
 }
 
-// ============================================
 // SECTION HELP HEADER
 // For adding help to entire sections
-// ============================================
 
 export interface SectionHelpHeaderProps {
   title: string;

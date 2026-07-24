@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 
-// ============================================
 // HINT IDS - Register all hints here
-// ============================================
 
 export const HINT_IDS = {
   // Dashboard hints
@@ -63,9 +61,7 @@ export const HINT_IDS = {
 
 export type HintId = (typeof HINT_IDS)[keyof typeof HINT_IDS];
 
-// ============================================
 // HINT CONFIGURATION
-// ============================================
 
 export interface HintConfig {
   id: HintId;
@@ -357,9 +353,7 @@ export const HINT_CONFIGS: Record<HintId, HintConfig> = {
   },
 };
 
-// ============================================
 // LOCAL STORAGE HELPERS
-// ============================================
 
 const STORAGE_KEY = "uploadportal_hints";
 const PERMANENT_DISMISS_KEY = "uploadportal_hints_permanent";
@@ -422,9 +416,7 @@ function setPermanentDismissed(ids: Set<string>): void {
   }
 }
 
-// ============================================
 // HINTS HOOK
-// ============================================
 
 export interface UseHintsReturn {
   /** Check if a hint has been dismissed */
@@ -450,12 +442,6 @@ export interface UseHintsReturn {
 export function useHints(): UseHintsReturn {
   const [storage, setStorage] = useState<HintStorage>(() => getHintStorage());
   const [permanentDismissed, setPermanent] = useState<Set<string>>(() => getPermanentDismissed());
-
-  // Sync with localStorage on mount
-  useEffect(() => {
-    setStorage(getHintStorage());
-    setPermanent(getPermanentDismissed());
-  }, []);
 
   const isHintDismissed = useCallback(
     (hintId: HintId): boolean => {
@@ -560,9 +546,7 @@ export function useHints(): UseHintsReturn {
   };
 }
 
-// ============================================
 // HINT TARGETING HELPERS
-// ============================================
 
 export function getHintsForAudience(
   audience: "agency" | "creator",

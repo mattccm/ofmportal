@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Search, Filter, SortAsc, ArrowUpDown, FolderOpen, Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -21,13 +20,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   TemplateCard,
-  TemplateCardSkeleton,
 } from "@/components/templates/template-card";
 import { NoTemplates } from "@/components/empty-states";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TemplateCategory {
   id: string;
@@ -56,9 +52,7 @@ interface TemplatesClientProps {
 type SortOption = "name" | "usage" | "updated";
 type FilterOption = "all" | "active" | "inactive";
 
-// ============================================
 // CLIENT COMPONENT
-// ============================================
 
 export function TemplatesClient({ initialTemplates, categories = [] }: TemplatesClientProps) {
   const router = useRouter();

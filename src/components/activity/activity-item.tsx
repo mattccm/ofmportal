@@ -26,9 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type ActivityType =
   | "upload_new"
@@ -92,9 +90,7 @@ interface ActivityItemProps {
   className?: string;
 }
 
-// ============================================
 // ACTIVITY CONFIG
-// ============================================
 
 interface ActivityConfig {
   icon: LucideIcon;
@@ -216,9 +212,7 @@ const activityConfig: Record<ActivityType, ActivityConfig> = {
   },
 };
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function formatRelativeTime(date: Date): string {
   const now = new Date();
@@ -268,9 +262,7 @@ function formatFullDate(date: Date): string {
   });
 }
 
-// ============================================
 // ACTIVITY ITEM COMPONENT
-// ============================================
 
 export const ActivityItem = forwardRef<HTMLDivElement, ActivityItemProps>(
   function ActivityItem(
@@ -429,9 +421,7 @@ export const ActivityItem = forwardRef<HTMLDivElement, ActivityItemProps>(
   }
 );
 
-// ============================================
 // ACTIVITY SKELETON
-// ============================================
 
 export function ActivityItemSkeleton({ compact = false }: { compact?: boolean }) {
   return (

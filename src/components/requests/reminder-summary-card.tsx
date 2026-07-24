@@ -8,14 +8,11 @@ import {
   Mail,
   Loader2,
   AlertCircle,
-  Info,
   Zap,
   Check,
   X,
   RotateCcw,
   Calendar,
-  Settings,
-  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,9 +33,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ReminderItem {
   id: string;
@@ -79,9 +74,7 @@ interface ReminderSummaryCardProps {
   className?: string;
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function getStatusColor(status: ReminderItem["status"]) {
   switch (status) {
@@ -126,9 +119,7 @@ function getTypeLabel(type: ReminderItem["type"]) {
   }
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function ReminderSummaryCard({ requestId, className }: ReminderSummaryCardProps) {
   const [isLoading, setIsLoading] = React.useState(true);

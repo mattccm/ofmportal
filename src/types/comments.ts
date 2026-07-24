@@ -1,6 +1,4 @@
-// ============================================
 // COMMENT TYPES
-// ============================================
 
 /**
  * User information for comments
@@ -99,9 +97,7 @@ export interface ReactionResponse {
   action: "added" | "removed";
 }
 
-// ============================================
 // COMMENT EDITOR TYPES
-// ============================================
 
 /**
  * Comment editor submit handler
@@ -127,9 +123,7 @@ export interface CommentEditorProps {
   autoFocus?: boolean;
 }
 
-// ============================================
 // COMMENT THREAD TYPES
-// ============================================
 
 /**
  * Comment thread event handlers
@@ -151,9 +145,7 @@ export interface CommentThreadProps extends CommentThreadHandlers {
   teamMembers: TeamMember[];
 }
 
-// ============================================
 // REACTION TYPES
-// ============================================
 
 /**
  * Common emoji categories for reactions

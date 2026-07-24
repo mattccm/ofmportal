@@ -3,9 +3,7 @@
 import * as React from "react";
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface WidgetDataContextType {
   /** All widget data, keyed by widget type */
@@ -24,9 +22,7 @@ interface WidgetDataContextType {
 
 const WidgetDataContext = createContext<WidgetDataContextType | null>(null);
 
-// ============================================
 // PROVIDER COMPONENT
-// ============================================
 
 interface WidgetDataProviderProps {
   children: React.ReactNode;
@@ -123,9 +119,7 @@ export function WidgetDataProvider({ children, refreshInterval = 0 }: WidgetData
   );
 }
 
-// ============================================
 // HOOK
-// ============================================
 
 export function useWidgetData() {
   const context = useContext(WidgetDataContext);
@@ -156,16 +150,6 @@ export function useWidgetDataFor<T>(
   const [fallbackLoading, setFallbackLoading] = useState(false);
   const [fallbackError, setFallbackError] = useState<string | null>(null);
 
-  // If we have context, use it
-  if (context) {
-    return {
-      data: context.getWidgetData<T>(widgetType),
-      isLoading: context.isLoading,
-      error: context.error,
-      refresh: context.refresh,
-    };
-  }
-
   // Fallback to individual fetch (backwards compatibility)
   const fetchFallback = useCallback(async () => {
     if (!options?.fallbackFetch) return;
@@ -181,6 +165,16 @@ export function useWidgetDataFor<T>(
       setFallbackLoading(false);
     }
   }, [options?.fallbackFetch]);
+
+  // If we have context, use it
+  if (context) {
+    return {
+      data: context.getWidgetData<T>(widgetType),
+      isLoading: context.isLoading,
+      error: context.error,
+      refresh: context.refresh,
+    };
+  }
 
   return {
     data: fallbackData,

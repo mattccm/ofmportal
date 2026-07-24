@@ -68,6 +68,9 @@ import {
   DEFAULT_ROLES,
   PERMISSION_RESOURCES,
   PermissionCategory,
+  PermissionOverride,
+  TemplateVisibility,
+  ActivityRestrictions,
 } from "@/types/permissions";
 import { cn } from "@/lib/utils";
 
@@ -298,7 +301,21 @@ export default function RolesSettingsPage() {
         const membersData = await membersRes.json();
         // Transform to TeamMember type
         const transformedMembers: TeamMember[] = (membersData.members || []).map(
-          (m: any) => ({
+          (m: {
+            id: string;
+            name: string;
+            email: string;
+            avatar?: string | null;
+            role: string;
+            customRoleId?: string | null;
+            permissionOverrides?: PermissionOverride[];
+            assignedCreatorIds?: string[];
+            templateVisibility?: TemplateVisibility;
+            allowedCategoryIds?: string[];
+            activityRestrictions?: ActivityRestrictions;
+            createdAt: string;
+            updatedAt?: string;
+          }) => ({
             id: m.id,
             name: m.name,
             email: m.email,
@@ -321,7 +338,7 @@ export default function RolesSettingsPage() {
         // Handle paginated response {data: [...]} or legacy {creators: [...]}
         const creatorsList = creatorsData.data || creatorsData.creators || [];
         setCreators(
-          creatorsList.map((c: any) => ({
+          creatorsList.map((c: { id: string; name: string; email: string; avatar?: string }) => ({
             id: c.id,
             name: c.name,
             email: c.email,
@@ -333,7 +350,7 @@ export default function RolesSettingsPage() {
       if (groupsRes.ok) {
         const groupsData = await groupsRes.json();
         setCreatorGroups(
-          (groupsData.groups || []).map((g: any) => ({
+          (groupsData.groups || []).map((g: { id: string; name: string }) => ({
             id: g.id,
             name: g.name,
           }))
@@ -345,7 +362,7 @@ export default function RolesSettingsPage() {
         // Handle both paginated response and raw array
         const templatesList = Array.isArray(templatesData) ? templatesData : templatesData.data || [];
         setTemplates(
-          templatesList.map((t: any) => ({
+          templatesList.map((t: { id: string; name: string; description?: string | null }) => ({
             id: t.id,
             name: t.name,
             description: t.description,
@@ -356,12 +373,14 @@ export default function RolesSettingsPage() {
       if (categoriesRes.ok) {
         const categoriesData = await categoriesRes.json();
         setCategories(
-          (categoriesData.categories || []).map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            color: c.color,
-            templateCount: c.templateCount,
-          }))
+          (categoriesData.categories || []).map(
+            (c: { id: string; name: string; color: string | null; templateCount?: number }) => ({
+              id: c.id,
+              name: c.name,
+              color: c.color,
+              templateCount: c.templateCount,
+            })
+          )
         );
       }
     } catch (err) {
@@ -480,9 +499,9 @@ export default function RolesSettingsPage() {
 
       const data = await response.json();
       setRoles((prev) => [...prev, data.role]);
-      toast.success("Role duplicated successfully");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to duplicate role");
+      toast.success("Role duplicated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to duplicate role");
     }
   };
 
@@ -520,9 +539,9 @@ export default function RolesSettingsPage() {
 
     try {
       await handleDeleteRole(roleToDelete.id);
-      toast.success("Role deleted successfully");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete role");
+      toast.success("Role deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete role");
     } finally {
       setDeleteConfirmOpen(false);
       setRoleToDelete(null);
@@ -586,7 +605,7 @@ export default function RolesSettingsPage() {
             </div>
             <h2 className="text-lg font-semibold mb-2">Access Denied</h2>
             <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
-              You don't have permission to manage roles and permissions. Please
+              You don&apos;t have permission to manage roles and permissions. Please
               contact your administrator if you need access.
             </p>
             <Button variant="outline" onClick={() => router.push("/dashboard")}>
@@ -822,7 +841,7 @@ export default function RolesSettingsPage() {
               Delete Role
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the role "{roleToDelete?.name}"?
+              Are you sure you want to delete the role &quot;{roleToDelete?.name}&quot;?
               {getMemberCount(roleToDelete?.id || "") > 0 && (
                 <span className="block mt-2 font-medium text-amber-600">
                   Warning: {getMemberCount(roleToDelete?.id || "")} team member(s) are currently assigned to this role.

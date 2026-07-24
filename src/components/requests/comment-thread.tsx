@@ -25,9 +25,7 @@ import { CommentEditor } from "./comment-editor";
 import { CommentReactions } from "./comment-reactions";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface CommentUser {
   id: string;
@@ -80,9 +78,7 @@ interface CommentThreadProps {
   onCommentDeleted?: (commentId: string) => void;
 }
 
-// ============================================
 // SINGLE COMMENT COMPONENT
-// ============================================
 
 interface SingleCommentProps {
   comment: Comment;
@@ -353,9 +349,7 @@ function SingleComment({
   );
 }
 
-// ============================================
 // MAIN COMMENT THREAD COMPONENT
-// ============================================
 
 export function CommentThread({
   requestId,

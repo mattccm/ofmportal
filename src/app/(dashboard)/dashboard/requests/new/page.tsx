@@ -41,9 +41,7 @@ import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { RichContentEditor } from "@/components/templates/field-editor";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Creator {
   id: string;
@@ -139,9 +137,7 @@ interface RequestFormData {
 type SelectionMode = "individual" | "group";
 type Step = "template" | "creator" | "details";
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 const FORM_ID = "new-request-form";
 
@@ -154,9 +150,7 @@ const STEPS: { id: Step; label: string; description: string }[] = [
 const RECENT_TEMPLATES_KEY = "uploadportal_recent_templates";
 const FAVORITE_TEMPLATES_KEY = "uploadportal_favorite_templates";
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function getRecentTemplates(): string[] {
   if (typeof window === "undefined") return [];
@@ -203,9 +197,7 @@ function toggleFavoriteTemplate(templateId: string): string[] {
   }
 }
 
-// ============================================
 // STEP INDICATOR COMPONENT
-// ============================================
 
 interface StepIndicatorProps {
   currentStep: Step;
@@ -277,9 +269,7 @@ function StepIndicator({ currentStep, completedSteps, onStepClick }: StepIndicat
   );
 }
 
-// ============================================
 // CREATOR SELECTOR COMPONENT
-// ============================================
 
 interface CreatorSelectorProps {
   creators: Creator[];
@@ -547,9 +537,7 @@ function GroupCard({
   );
 }
 
-// ============================================
 // MAIN FORM COMPONENT
-// ============================================
 
 function NewRequestForm() {
   const router = useRouter();
@@ -666,7 +654,7 @@ function NewRequestForm() {
         setCurrentStep("creator");
       }
 
-      toast.success("Form data restored successfully");
+      toast.success("Restored your draft");
     }
   };
 
@@ -735,7 +723,6 @@ function NewRequestForm() {
           // Handle both paginated response and raw array
           const parsedCreators = Array.isArray(creatorsData) ? creatorsData : creatorsData.data || [];
           setCreators(parsedCreators);
-          console.log("[NewRequest] Loaded creators:", parsedCreators.length);
         } else {
           console.error("[NewRequest] Failed to load creators:", creatorsRes.status);
         }
@@ -746,7 +733,6 @@ function NewRequestForm() {
           // Handle both paginated response and raw array
           const templatesData = Array.isArray(templatesRaw) ? templatesRaw : templatesRaw.data || [];
           setTemplates(templatesData);
-          console.log("[NewRequest] Loaded templates:", templatesData.length);
 
           if (preselectedTemplateId) {
             const template = templatesData.find((t: Template) => t.id === preselectedTemplateId);
@@ -764,7 +750,6 @@ function NewRequestForm() {
           // Handle both paginated response and raw array
           const parsedGroups = Array.isArray(groupsData) ? groupsData : groupsData.data || [];
           setGroups(parsedGroups);
-          console.log("[NewRequest] Loaded groups:", parsedGroups.length);
         } else {
           console.error("[NewRequest] Failed to load groups:", groupsRes.status);
         }
@@ -957,13 +942,13 @@ function NewRequestForm() {
         toast.success(
           saveAsDraft
             ? `${successCount} requests saved as draft!`
-            : `${successCount} content requests created successfully!`
+            : `${successCount} content requests created`
         );
       } else {
         toast.success(
           saveAsDraft
             ? "Request saved as draft!"
-            : "Content request created successfully!"
+            : "Content request created"
         );
       }
 
@@ -978,7 +963,7 @@ function NewRequestForm() {
         }
       }
     } catch {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Couldn't create the request. Give it another try.");
       setLoading(false);
     }
   };

@@ -31,9 +31,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Creator {
   id: string;
@@ -55,9 +53,7 @@ interface CreatorsListProps {
   favoriteIds?: string[];
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function getInviteStatusBadge(status: string, compact = false) {
   const configs: Record<string, { class: string; label: string; shortLabel: string }> = {
@@ -88,9 +84,7 @@ function getInviteStatusBadge(status: string, compact = false) {
   );
 }
 
-// ============================================
 // CREATORS LIST COMPONENT
-// ============================================
 
 export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) {
   return (

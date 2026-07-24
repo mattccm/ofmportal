@@ -8,11 +8,9 @@ import {
   Loader2,
   Plus,
   AlertCircle,
-  Settings,
   Clock,
   Zap,
   MessageSquare,
-  Check,
   X,
   Save,
   RotateCcw,
@@ -48,9 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { ReminderSettingsPanel, TieredTemplatesPanel } from "@/components/reminders";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ReminderRule {
   id?: string;
@@ -114,9 +110,7 @@ const OVERDUE_FREQUENCY_OPTIONS = [
   { value: "WEEKLY", label: "Weekly" },
 ];
 
-// ============================================
 // COMPONENTS
-// ============================================
 
 function ReminderDaysInput({
   value,
@@ -163,7 +157,7 @@ function ReminderDaysInput({
               <p>
                 Enter days before the due date to send reminders. Use comma-separated values.
                 <br /><br />
-                Example: "3, 1, 0" means reminders will be sent 3 days before, 1 day before, and on the due date.
+                Example: &quot;3, 1, 0&quot; means reminders will be sent 3 days before, 1 day before, and on the due date.
               </p>
             </TooltipContent>
           </Tooltip>
@@ -351,9 +345,7 @@ function RuleCard({
   );
 }
 
-// ============================================
 // MAIN PAGE COMPONENT
-// ============================================
 
 export default function ReminderRulesPage() {
   const [isLoading, setIsLoading] = React.useState(true);

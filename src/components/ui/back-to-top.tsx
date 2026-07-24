@@ -5,9 +5,7 @@ import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface BackToTopProps {
   /** Container element to scroll (uses window if not provided) */
@@ -36,9 +34,7 @@ export interface BackToTopProps {
   "aria-label"?: string;
 }
 
-// ============================================
 // BACK TO TOP COMPONENT
-// ============================================
 
 export function BackToTop({
   containerRef,
@@ -213,9 +209,7 @@ export function BackToTop({
   );
 }
 
-// ============================================
 // BACK TO TOP CONTAINER
-// ============================================
 
 export interface BackToTopContainerProps {
   children: React.ReactNode;

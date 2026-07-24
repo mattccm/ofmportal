@@ -14,7 +14,6 @@ import {
   isSameDay,
   isToday,
   isPast,
-  parseISO,
 } from "date-fns";
 import {
   CalendarDays,
@@ -24,7 +23,6 @@ import {
   List,
   Grid3X3,
   Search,
-  Filter,
   Clock,
   FilePlus,
   Bell,
@@ -40,7 +38,6 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  AlertCircle,
   Repeat,
   User,
   Users,
@@ -53,9 +50,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Select,
@@ -71,30 +65,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   ScheduledTask,
   ScheduledTaskType,
   ScheduledTaskStatus,
-  RecurrencePattern,
   TASK_TYPE_LABELS,
   RECURRENCE_LABELS,
   STATUS_LABELS,
-  STATUS_COLORS,
-  CalendarTask,
 } from "@/types/scheduled-tasks";
 import { ScheduleRequestModal } from "./schedule-request-modal";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Template {
   id: string;
@@ -114,9 +99,7 @@ interface ScheduledTaskManagerProps {
   creators: Creator[];
 }
 
-// ============================================
 // TASK TYPE ICONS
-// ============================================
 
 const TaskTypeIcon: React.FC<{ type: ScheduledTaskType; className?: string }> = ({
   type,
@@ -138,9 +121,7 @@ const TaskTypeIcon: React.FC<{ type: ScheduledTaskType; className?: string }> = 
   }
 };
 
-// ============================================
 // STATUS BADGE
-// ============================================
 
 const StatusBadge: React.FC<{ status: ScheduledTaskStatus }> = ({ status }) => {
   const colorMap: Record<ScheduledTaskStatus, string> = {
@@ -167,9 +148,7 @@ const StatusBadge: React.FC<{ status: ScheduledTaskStatus }> = ({ status }) => {
   );
 };
 
-// ============================================
 // CALENDAR VIEW
-// ============================================
 
 interface CalendarViewProps {
   tasks: ScheduledTask[];
@@ -343,9 +322,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   );
 };
 
-// ============================================
 // LIST VIEW
-// ============================================
 
 interface ListViewProps {
   tasks: ScheduledTask[];
@@ -524,9 +501,7 @@ const ListView: React.FC<ListViewProps> = ({
   );
 };
 
-// ============================================
 // TASK DETAILS PANEL
-// ============================================
 
 interface TaskDetailsPanelProps {
   task: ScheduledTask | null;
@@ -813,9 +788,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
   );
 };
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function ScheduledTaskManager({
   initialTasks = [],
@@ -942,7 +915,7 @@ export function ScheduledTaskManager({
       if (!response.ok) throw new Error("Failed to run task");
 
       await fetchTasks();
-      toast.success("Task executed successfully");
+      toast.success("Ran the task");
     } catch (error) {
       console.error("Error running task:", error);
       toast.error("Failed to run task");

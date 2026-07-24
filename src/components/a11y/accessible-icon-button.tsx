@@ -6,9 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { VisuallyHidden } from "./visually-hidden";
 
-// ============================================
 // VARIANTS
-// ============================================
 
 const iconButtonVariants = cva(
   [
@@ -51,9 +49,7 @@ const iconButtonVariants = cva(
   }
 );
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface AccessibleIconButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -70,9 +66,7 @@ export interface AccessibleIconButtonProps
   showTooltip?: boolean;
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 /**
  * An accessible icon button component that ensures proper labeling
@@ -132,9 +126,7 @@ export const AccessibleIconButton = forwardRef<
 
 AccessibleIconButton.displayName = "AccessibleIconButton";
 
-// ============================================
 // LOADING SPINNER
-// ============================================
 
 function LoadingSpinner({ className }: { className?: string }) {
   return (
@@ -162,9 +154,7 @@ function LoadingSpinner({ className }: { className?: string }) {
   );
 }
 
-// ============================================
 // ACCESSIBLE BUTTON GROUP
-// ============================================
 
 interface AccessibleButtonGroupProps {
   children: React.ReactNode;
@@ -202,9 +192,7 @@ export function AccessibleButtonGroup({
   );
 }
 
-// ============================================
 // ACCESSIBLE TOGGLE BUTTON
-// ============================================
 
 interface AccessibleToggleButtonProps
   extends Omit<AccessibleIconButtonProps, "aria-label"> {
@@ -273,9 +261,7 @@ export const AccessibleToggleButton = forwardRef<
 
 AccessibleToggleButton.displayName = "AccessibleToggleButton";
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export { iconButtonVariants };
 export default AccessibleIconButton;

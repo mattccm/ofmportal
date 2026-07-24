@@ -13,9 +13,7 @@ import { AtSign } from "lucide-react";
 import { useUnreadMentions } from "@/hooks/use-mentions";
 import { MentionsDropdown } from "./mentions-panel";
 
-// ============================================
 // MENTIONS BELL COMPONENT
-// ============================================
 
 interface MentionsBellProps {
   className?: string;
@@ -97,9 +95,7 @@ export function MentionsBell({ className }: MentionsBellProps) {
   );
 }
 
-// ============================================
 // INLINE MENTIONS INDICATOR
-// ============================================
 
 interface MentionsIndicatorProps {
   className?: string;

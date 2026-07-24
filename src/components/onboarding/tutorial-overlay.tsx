@@ -9,9 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface TutorialStep {
   id: string;
@@ -32,9 +30,7 @@ interface TutorialOverlayProps {
   className?: string;
 }
 
-// ============================================
 // TUTORIAL OVERLAY COMPONENT
-// ============================================
 
 export function TutorialOverlay({
   steps,

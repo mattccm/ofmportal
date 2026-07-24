@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Loader2,
   AlertCircle,
-  CheckCircle2,
   Play,
   Volume2,
 } from "lucide-react";
@@ -336,7 +335,7 @@ export function NotificationPreferencesForm({
 
       setOriginalPreferences(preferences);
       clearFormData(FORM_ID); // Clear autosaved data on successful submit
-      toast.success("Notification preferences saved successfully");
+      toast.success("Preferences saved");
     } catch (error) {
       console.error("Error saving preferences:", error);
       toast.error("Failed to save notification preferences");

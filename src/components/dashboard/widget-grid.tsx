@@ -10,7 +10,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -27,7 +26,6 @@ import {
   Maximize2,
   Minimize2,
   MoreHorizontal,
-  Settings,
   LayoutGrid,
   Save,
   RotateCcw,
@@ -37,9 +35,7 @@ import { toast } from "sonner";
 import { ContextualHelp } from "@/components/help/contextual-help";
 import { WidgetErrorBoundary } from "@/components/errors";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type WidgetSize = "small" | "medium" | "large";
 
@@ -76,9 +72,7 @@ interface WidgetGridProps {
   className?: string;
 }
 
-// ============================================
 // SIZE CONFIGURATIONS
-// ============================================
 
 const SIZE_CLASSES: Record<WidgetSize, string> = {
   small: "col-span-1",
@@ -92,9 +86,7 @@ const SIZE_LABELS: Record<WidgetSize, string> = {
   large: "Large",
 };
 
-// ============================================
 // DRAGGABLE WIDGET WRAPPER
-// ============================================
 
 interface DraggableWidgetProps {
   config: WidgetConfig;
@@ -228,9 +220,7 @@ function DraggableWidget({
   );
 }
 
-// ============================================
 // ADD WIDGET DIALOG
-// ============================================
 
 interface AddWidgetDialogProps {
   widgets: WidgetDefinition[];
@@ -310,9 +300,7 @@ function AddWidgetDialog({
   );
 }
 
-// ============================================
 // MAIN WIDGET GRID COMPONENT
-// ============================================
 
 export function WidgetGrid({
   widgets,
@@ -565,9 +553,7 @@ export function WidgetGrid({
   );
 }
 
-// ============================================
 // WIDGET CARD WRAPPER COMPONENT
-// ============================================
 
 interface WidgetCardProps {
   title: string;

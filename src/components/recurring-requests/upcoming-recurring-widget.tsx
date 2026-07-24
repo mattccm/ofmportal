@@ -6,8 +6,6 @@ import Link from "next/link";
 import {
   Repeat,
   ChevronRight,
-  Clock,
-  Users,
   Play,
   CalendarDays,
 } from "lucide-react";
@@ -25,22 +23,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   RecurringRequest,
-  FREQUENCY_LABELS,
   type RequestSettings,
 } from "@/types/recurring-requests";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface UpcomingRecurringWidgetProps {
   className?: string;
   limit?: number;
 }
 
-// ============================================
 // UPCOMING ITEM
-// ============================================
 
 function UpcomingItem({
   recurringRequest,
@@ -112,9 +105,7 @@ function UpcomingItem({
   );
 }
 
-// ============================================
 // LOADING SKELETON
-// ============================================
 
 function ItemSkeleton() {
   return (
@@ -128,9 +119,7 @@ function ItemSkeleton() {
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function UpcomingRecurringWidget({
   className,

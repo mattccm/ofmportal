@@ -12,7 +12,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Select,
@@ -30,8 +29,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -42,16 +39,10 @@ import {
   Mail,
   Users,
   FileText,
-  Calendar,
-  AlertCircle,
-  CheckCircle,
   Loader2,
-  Trash2,
-  X,
 } from "lucide-react";
 import { EmailEditor, EMAIL_VARIABLES } from "@/components/email/email-editor";
 import { RecipientPicker, type Creator } from "@/components/email/recipient-picker";
-import { cn } from "@/lib/utils";
 
 // Email template presets
 const EMAIL_TEMPLATES = [
@@ -263,7 +254,6 @@ export default function EmailComposePage() {
 
     setIsSaving(true);
     try {
-      // In a real app, this would save to the database
       const draftData: EmailDraft = {
         subject,
         body,
@@ -279,7 +269,7 @@ export default function EmailComposePage() {
       await new Promise((resolve) => setTimeout(resolve, 500));
       setDraft(draftData);
 
-      toast.success("Draft saved successfully");
+      toast.success("Draft saved");
     } catch (error) {
       console.error("Error saving draft:", error);
       toast.error("Failed to save draft");

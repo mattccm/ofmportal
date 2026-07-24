@@ -10,9 +10,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
 } from "@/types/notification-preferences";
 
-// ============================================
 // POST - Send test notification
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

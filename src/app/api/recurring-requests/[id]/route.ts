@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { calculateNextRunDate } from "@/types/recurring-requests";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 const updateRecurringRequestSchema = z.object({
   name: z.string().min(1).optional(),
@@ -34,9 +32,7 @@ const updateRecurringRequestSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-// ============================================
 // GET - Get single recurring request
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -115,9 +111,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // PUT/PATCH - Update recurring request
-// ============================================
 
 export async function PUT(
   req: NextRequest,
@@ -275,9 +269,7 @@ export async function PATCH(
   return PUT(req, { params });
 }
 
-// ============================================
 // DELETE - Delete recurring request
-// ============================================
 
 export async function DELETE(
   req: NextRequest,

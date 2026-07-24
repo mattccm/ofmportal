@@ -5,14 +5,12 @@ import type {
   DuplicateCheckResult,
   DuplicateMatch,
   DuplicateOverrideReason,
-  ContentFingerprint,
 } from "@/types/content-fingerprint";
 import {
   generateFileHash,
   generateDifferenceHash,
   getImageDimensions,
   getVideoFingerprint,
-  createFileFingerprint,
 } from "@/lib/content-fingerprinting";
 
 export interface UseDuplicateCheckOptions {

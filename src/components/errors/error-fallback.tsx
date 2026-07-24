@@ -39,6 +39,7 @@ export function ErrorFallback({
 }: ErrorFallbackProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [errorId] = useState(() => Date.now().toString(36).toUpperCase());
 
   const handleCopyError = () => {
     const errorText = `
@@ -90,7 +91,7 @@ Timestamp: ${new Date().toISOString()}
             </div>
             <div>
               <CardTitle className="text-base">
-                {title || "Something went wrong"}
+                {title || "This section hit a snag"}
               </CardTitle>
               <CardDescription>
                 {description || "This section encountered an error"}
@@ -100,7 +101,7 @@ Timestamp: ${new Date().toISOString()}
         </CardHeader>
         <CardContent className="pt-0">
           <p className="text-sm text-muted-foreground">
-            We apologize for the inconvenience. You can try refreshing this section or continue using other parts of the application.
+            Try refreshing this section, or keep working elsewhere in the app.
           </p>
         </CardContent>
         <CardFooter className="flex gap-2">
@@ -134,10 +135,10 @@ Timestamp: ${new Date().toISOString()}
               <Frown className="h-8 w-8 text-rose-500" />
             </div>
             <CardTitle className="text-2xl">
-              {title || "Oops! Something went wrong"}
+              {title || "This page hit an unexpected error"}
             </CardTitle>
             <CardDescription className="text-base mt-2">
-              {description || "We encountered an unexpected error. Don't worry, your data is safe."}
+              {description || "Your data is safe. Try again, or head back to the dashboard."}
             </CardDescription>
           </CardHeader>
 
@@ -281,7 +282,7 @@ Timestamp: ${new Date().toISOString()}
 
         {/* Additional help text */}
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Error ID: {Date.now().toString(36).toUpperCase()}
+          Error ID: {errorId}
         </p>
       </div>
     </div>

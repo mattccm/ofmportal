@@ -27,16 +27,10 @@ import {
   Link2,
   List,
   ListOrdered,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
   Code,
   Variable,
   Eye,
   EyeOff,
-  Undo,
-  Redo,
-  Image,
   Heading1,
   Heading2,
   Quote,
@@ -226,10 +220,15 @@ export function EmailEditor({
     [body, onBodyChange, insertAtCursor]
   );
 
-  // Process variables for preview
+  // Process variables for preview (escapes HTML first to prevent XSS)
   const processVariables = useCallback(
     (text: string): string => {
-      let processed = text;
+      // Escape HTML entities first
+      let processed = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
 
       EMAIL_VARIABLES.forEach((variable) => {
         const regex = new RegExp(`\\{\\{${variable.key}\\}\\}`, "g");

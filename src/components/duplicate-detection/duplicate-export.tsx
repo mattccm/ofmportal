@@ -34,9 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { DuplicateAttempt } from "@/types/content-fingerprint";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface DuplicateExportProps {
   // If provided, export only these attempts
@@ -60,9 +58,7 @@ interface ExportOptions {
   filterMatchType: "all" | "EXACT" | "NEAR" | "SIMILAR";
 }
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 const DEFAULT_OPTIONS: ExportOptions = {
   format: "csv",
@@ -79,9 +75,7 @@ const DEFAULT_OPTIONS: ExportOptions = {
   filterMatchType: "all",
 };
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function formatDateForFilename(date: Date): string {
   return date.toISOString().split("T")[0];
@@ -118,9 +112,7 @@ function getDateRangeFilter(dateRange: ExportOptions["dateRange"]): { start?: Da
   }
 }
 
-// ============================================
 // EXPORT FUNCTIONS
-// ============================================
 
 function generateCSVContent(
   attempts: DuplicateAttempt[],
@@ -271,9 +263,7 @@ function downloadFile(content: string, filename: string, mimeType: string): void
   URL.revokeObjectURL(url);
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function DuplicateExportDialog({
   attempts: providedAttempts,
@@ -558,7 +548,7 @@ export function DuplicateExportDialog({
           {success && (
             <div className="flex items-center gap-2 text-green-600 text-sm p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
               <CheckCircle2 className="h-4 w-4" />
-              Export completed successfully!
+              Export ready
             </div>
           )}
         </div>
@@ -590,9 +580,7 @@ export function DuplicateExportDialog({
   );
 }
 
-// ============================================
 // QUICK EXPORT BUTTON (for inline use)
-// ============================================
 
 export function QuickExportButton({
   attempts,

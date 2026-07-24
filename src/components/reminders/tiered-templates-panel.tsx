@@ -10,9 +10,6 @@ import {
   ChevronRight,
   Clock,
   AlertTriangle,
-  CheckCircle,
-  Edit2,
-  X,
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,9 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Select,
@@ -49,9 +44,7 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ReminderTemplate {
   id?: string;
@@ -257,9 +250,7 @@ View Request: {{portalLink}}
   },
 ];
 
-// ============================================
 // TEMPLATE EDITOR COMPONENT
-// ============================================
 
 function TemplateEditor({
   template,
@@ -533,9 +524,7 @@ function TemplateEditor({
   );
 }
 
-// ============================================
 // MAIN PANEL COMPONENT
-// ============================================
 
 export function TieredTemplatesPanel() {
   const [templates, setTemplates] = React.useState<ReminderTemplate[]>([]);
@@ -598,7 +587,7 @@ export function TieredTemplatesPanel() {
         setNewTemplate(null);
       }
 
-      toast.success("Template saved successfully");
+      toast.success("Template saved");
     } catch (error) {
       console.error("Error saving template:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save template");

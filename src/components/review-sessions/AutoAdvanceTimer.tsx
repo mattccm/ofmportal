@@ -21,7 +21,7 @@ import {
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
-import { AutoAdvanceState, AutoAdvanceEvent } from "@/types/review-session";
+import { AutoAdvanceEvent } from "@/types/review-session";
 
 interface AutoAdvanceTimerProps {
   enabled: boolean;
@@ -57,41 +57,21 @@ export function AutoAdvanceTimer({
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const pausedAtRef = useRef<Date | null>(null);
+  const onAdvanceRef = useRef(onAdvance);
+  const onTimerUpdateRef = useRef(onTimerUpdate);
 
-  // Start/stop timer when enabled changes
   useEffect(() => {
-    if (enabled && !disabled) {
-      startTimer();
-    } else {
-      stopTimer();
-    }
+    onAdvanceRef.current = onAdvance;
+    onTimerUpdateRef.current = onTimerUpdate;
+  }, [onAdvance, onTimerUpdate]);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [enabled, disabled]);
-
-  // Reset timer when duration changes
-  useEffect(() => {
+  const handleAdvance = useCallback(() => {
+    onTimerUpdateRef.current?.({
+      type: "timer_completed",
+    });
+    onAdvanceRef.current();
     setRemaining(duration);
-    setLocalDuration(duration);
   }, [duration]);
-
-  // Pause timer when there's a conflict
-  useEffect(() => {
-    if (hasConflict && isRunning && !isPaused) {
-      pauseTimer();
-    }
-  }, [hasConflict, isRunning, isPaused]);
-
-  // Auto-advance on majority if enabled
-  useEffect(() => {
-    if (autoAdvanceOnMajority && hasMajority && isRunning) {
-      handleAdvance();
-    }
-  }, [autoAdvanceOnMajority, hasMajority, isRunning]);
 
   const startTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -103,7 +83,7 @@ export function AutoAdvanceTimer({
     setRemaining(duration);
     pausedAtRef.current = null;
 
-    onTimerUpdate?.({
+    onTimerUpdateRef.current?.({
       type: "timer_started",
       remaining: duration,
     });
@@ -117,7 +97,7 @@ export function AutoAdvanceTimer({
         return prev - 1;
       });
     }, 1000);
-  }, [duration, onTimerUpdate]);
+  }, [duration, handleAdvance]);
 
   const stopTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -137,11 +117,11 @@ export function AutoAdvanceTimer({
     setIsPaused(true);
     pausedAtRef.current = new Date();
 
-    onTimerUpdate?.({
+    onTimerUpdateRef.current?.({
       type: "timer_paused",
       remaining,
     });
-  }, [remaining, onTimerUpdate]);
+  }, [remaining]);
 
   const resumeTimer = useCallback(() => {
     if (!isRunning) return;
@@ -149,7 +129,7 @@ export function AutoAdvanceTimer({
     setIsPaused(false);
     pausedAtRef.current = null;
 
-    onTimerUpdate?.({
+    onTimerUpdateRef.current?.({
       type: "timer_resumed",
       remaining,
     });
@@ -163,12 +143,12 @@ export function AutoAdvanceTimer({
         return prev - 1;
       });
     }, 1000);
-  }, [isRunning, remaining, duration, onTimerUpdate]);
+  }, [isRunning, remaining, duration, handleAdvance]);
 
   const resetTimer = useCallback(() => {
     setRemaining(duration);
 
-    onTimerUpdate?.({
+    onTimerUpdateRef.current?.({
       type: "timer_reset",
       remaining: duration,
     });
@@ -187,15 +167,42 @@ export function AutoAdvanceTimer({
         });
       }, 1000);
     }
-  }, [duration, isRunning, isPaused, onTimerUpdate]);
+  }, [duration, isRunning, isPaused, handleAdvance]);
 
-  const handleAdvance = useCallback(() => {
-    onTimerUpdate?.({
-      type: "timer_completed",
-    });
-    onAdvance();
+  // Start/stop timer when enabled changes
+  useEffect(() => {
+    if (enabled && !disabled) {
+      startTimer();
+    } else {
+      stopTimer();
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [enabled, disabled, startTimer, stopTimer]);
+
+  // Reset timer when duration changes
+  useEffect(() => {
     setRemaining(duration);
-  }, [duration, onAdvance, onTimerUpdate]);
+    setLocalDuration(duration);
+  }, [duration]);
+
+  // Pause timer when there's a conflict
+  useEffect(() => {
+    if (hasConflict && isRunning && !isPaused) {
+      pauseTimer();
+    }
+  }, [hasConflict, isRunning, isPaused, pauseTimer]);
+
+  // Auto-advance on majority if enabled
+  useEffect(() => {
+    if (autoAdvanceOnMajority && hasMajority && isRunning) {
+      handleAdvance();
+    }
+  }, [autoAdvanceOnMajority, hasMajority, isRunning, handleAdvance]);
 
   const handleSettingsSave = () => {
     onSettingsChange?.({

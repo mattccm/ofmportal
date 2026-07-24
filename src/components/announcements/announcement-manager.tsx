@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Sparkles,
-  X,
   Loader2,
   Pin,
   PinOff,
@@ -26,9 +25,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Select,

@@ -1,9 +1,7 @@
 // Template Types and Client-Side Utilities
 // These can be safely imported in client components
 
-// ============================================
 // TYPES
-// ============================================
 
 export type FieldType =
   | "text"
@@ -109,9 +107,7 @@ export interface TemplateFormData {
   [key: string]: unknown;
 }
 
-// ============================================
 // VALIDATION
-// ============================================
 
 export interface ValidationError {
   fieldId?: string;
@@ -312,9 +308,7 @@ export function validateFieldValue(
   return null;
 }
 
-// ============================================
 // DEFAULT VALUES
-// ============================================
 
 export function getDefaultValues(
   template: { fields: TemplateField[] }
@@ -345,9 +339,7 @@ export function getDefaultValues(
   return defaults;
 }
 
-// ============================================
 // CONDITIONAL VISIBILITY
-// ============================================
 
 export function evaluateCondition(
   condition: ConditionalVisibility,
@@ -390,9 +382,7 @@ export function isFieldVisible(
   return evaluateCondition(field.conditionalVisibility, values);
 }
 
-// ============================================
 // FIELD HELPERS
-// ============================================
 
 export function createEmptyField(type: FieldType = "text"): TemplateField {
   const id = `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -568,9 +558,7 @@ export const FIELD_TYPE_CONFIG: Record<
   },
 };
 
-// ============================================
 // SERIALIZATION
-// ============================================
 
 export function serializeTemplate(template: TemplateFormData): {
   name: string;

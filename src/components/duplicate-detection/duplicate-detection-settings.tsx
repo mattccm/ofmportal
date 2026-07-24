@@ -508,7 +508,7 @@ export function DuplicateDetectionSettingsForm({
         {success && (
           <div className="flex items-center gap-2 text-green-600">
             <CheckCircle2 className="h-4 w-4" />
-            <span className="text-sm">Settings saved successfully</span>
+            <span className="text-sm">Settings saved</span>
           </div>
         )}
         <div className={cn(!error && !success && "ml-auto")}>

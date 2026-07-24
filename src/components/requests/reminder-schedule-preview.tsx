@@ -14,7 +14,6 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -28,9 +27,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ReminderPreview {
   scheduledAt: string;
@@ -62,9 +59,7 @@ interface ReminderSchedulePreviewProps {
   showDetails?: boolean;
 }
 
-// ============================================
 // HELPER COMPONENTS
-// ============================================
 
 function ReminderTypeIcon({ type }: { type: ReminderPreview["type"] }) {
   switch (type) {
@@ -115,9 +110,7 @@ function getConfigSourceLabel(source: ReminderPreviewResponse["config"]["source"
   }
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function ReminderSchedulePreview({
   creatorId,

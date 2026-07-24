@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,14 +39,10 @@ import {
   Grid3X3,
   List,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Search,
   Clock,
   CheckCircle2,
   XCircle,
   FileStack,
-  Filter,
   ArrowUpDown,
   SlidersHorizontal,
   Tags,
@@ -293,7 +288,7 @@ export function UploadsPageClient({
       if (!response.ok) throw new Error("Failed to approve uploads");
 
       const data = await response.json();
-      toast.success(`${data.approved} upload(s) approved successfully`);
+      toast.success(`Approved ${data.approved} upload(s)`);
       setSelectedIds(new Set());
       refreshData();
     } catch {
@@ -355,7 +350,7 @@ export function UploadsPageClient({
       if (!response.ok) throw new Error("Failed to delete uploads");
 
       const data = await response.json();
-      toast.success(`${data.deleted} upload(s) deleted successfully`);
+      toast.success(`Deleted ${data.deleted} upload(s)`);
       setSelectedIds(new Set());
       refreshData();
     } catch {
@@ -394,7 +389,7 @@ export function UploadsPageClient({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success("CSV exported successfully");
+      toast.success("CSV downloaded");
     } catch {
       toast.error("Failed to export CSV");
     }

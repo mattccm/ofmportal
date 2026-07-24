@@ -1,11 +1,9 @@
 "use client";
 
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { queryKeys, invalidateCache } from "@/lib/cache";
+import { queryKeys } from "@/lib/cache";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -29,9 +27,7 @@ interface FetchOptions {
   [key: string]: string | number | undefined;
 }
 
-// ============================================
 // GENERIC FETCH FUNCTION
-// ============================================
 
 async function fetchPaginated<T>(
   endpoint: string,
@@ -55,9 +51,7 @@ async function fetchPaginated<T>(
   return response.json();
 }
 
-// ============================================
 // CREATORS HOOKS
-// ============================================
 
 export interface Creator {
   id: string;
@@ -104,9 +98,7 @@ export function useCreator(id: string) {
   });
 }
 
-// ============================================
 // REQUESTS HOOKS
-// ============================================
 
 export interface ContentRequest {
   id: string;
@@ -161,9 +153,7 @@ export function useRequest(id: string) {
   });
 }
 
-// ============================================
 // BULK OPERATIONS HOOKS
-// ============================================
 
 interface BulkActionParams {
   action: string;
@@ -199,9 +189,7 @@ export function useBulkRequestAction() {
   });
 }
 
-// ============================================
 // DASHBOARD HOOKS
-// ============================================
 
 export function useDashboardStats() {
   return useQuery({
@@ -216,9 +204,7 @@ export function useDashboardStats() {
   });
 }
 
-// ============================================
 // TEMPLATES HOOKS
-// ============================================
 
 export function useTemplates() {
   return useQuery({
@@ -232,9 +218,7 @@ export function useTemplates() {
   });
 }
 
-// ============================================
 // NOTIFICATIONS HOOKS
-// ============================================
 
 export function useUnreadNotificationCount() {
   return useQuery({
@@ -249,9 +233,7 @@ export function useUnreadNotificationCount() {
   });
 }
 
-// ============================================
 // UTILITY HOOK FOR FLATTENING INFINITE QUERY DATA
-// ============================================
 
 export function flattenInfiniteData<T>(
   data: { pages: PaginatedResponse<T>[] } | undefined

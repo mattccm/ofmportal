@@ -1,6 +1,5 @@
 "use client";
 
-import { useContext } from "react";
 import Link from "next/link";
 import { Upload, ChevronRight, Image, Video, FileText, File, CheckCircle, XCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +9,7 @@ import { WidgetCard, type WidgetProps } from "../widget-grid";
 import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface RecentUpload {
   id: string;
@@ -34,9 +31,7 @@ interface RecentUpload {
   };
 }
 
-// ============================================
 // HELPERS
-// ============================================
 
 function getFileIcon(fileType: string) {
   if (fileType.startsWith("image/")) return <Image className="h-4 w-4" />;
@@ -75,9 +70,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function RecentUploadsWidget({ config, size }: WidgetProps) {
   // Use batched widget data from context (single API call for all widgets)

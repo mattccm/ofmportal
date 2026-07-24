@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Clock, Calendar, AlertCircle, CheckCircle } from "lucide-react";
+import { Clock, Calendar, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,9 +15,6 @@ import {
   formatTime,
   getRelativeTime,
   getSmartRelativeDate,
-  isToday,
-  isYesterday,
-  isTomorrow,
   formatDueDate,
   getDueDateStatus,
   getTimezoneAbbreviation,
@@ -26,9 +23,7 @@ import {
 } from "@/lib/timezone-utils";
 import { useTimezone } from "@/components/providers/timezone-provider";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface LocalizedDateProps {
   /** The date to display (Date object, ISO string, or timestamp) */
@@ -87,9 +82,7 @@ interface ActivityTimestampProps {
   className?: string;
 }
 
-// ============================================
 // DATE TOOLTIP CONTENT
-// ============================================
 
 function DateTooltipContent({
   date,
@@ -141,9 +134,7 @@ function DateTooltipContent({
   );
 }
 
-// ============================================
 // LOCALIZED DATE COMPONENT
-// ============================================
 
 export function LocalizedDate({
   date,
@@ -247,9 +238,7 @@ export function LocalizedDate({
   );
 }
 
-// ============================================
 // DUE DATE DISPLAY COMPONENT
-// ============================================
 
 export function DueDateDisplay({
   dueDate,
@@ -355,9 +344,7 @@ export function DueDateDisplay({
   );
 }
 
-// ============================================
 // ACTIVITY TIMESTAMP COMPONENT
-// ============================================
 
 export function ActivityTimestamp({
   timestamp,
@@ -408,9 +395,7 @@ export function ActivityTimestamp({
   );
 }
 
-// ============================================
 // SCHEDULED ITEM DISPLAY
-// ============================================
 
 export function ScheduledItemDate({
   date,
@@ -467,9 +452,7 @@ export function ScheduledItemDate({
   );
 }
 
-// ============================================
 // CALENDAR EVENT DATE RANGE
-// ============================================
 
 export function CalendarEventRange({
   startDate,
@@ -562,9 +545,7 @@ export function CalendarEventRange({
   );
 }
 
-// ============================================
 // SIMPLE RELATIVE TIME (NO TOOLTIP)
-// ============================================
 
 export function RelativeTime({
   date,

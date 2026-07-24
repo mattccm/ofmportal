@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useState } from "react";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
@@ -105,12 +105,14 @@ export function MobileSheet({
   }, [isDragging, showHandle, onOpenChange]);
 
   // Reset drag offset when sheet closes
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (!open) {
       setDragOffset(0);
       setIsDragging(false);
     }
-  }, [open]);
+  }
 
   return (
     <SheetPrimitive.Root open={open} onOpenChange={onOpenChange}>

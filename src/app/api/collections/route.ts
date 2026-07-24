@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const createCollectionSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
@@ -18,9 +16,7 @@ const createCollectionSchema = z.object({
   color: z.string().optional().nullable(),
 });
 
-// ============================================
 // GET - List all collections for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -151,9 +147,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create new collection
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

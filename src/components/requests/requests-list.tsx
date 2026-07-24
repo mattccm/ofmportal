@@ -41,9 +41,7 @@ import {
   Loader2,
   ArrowUpDown,
   Layers,
-  Flame,
   Copy,
-  Eye,
   Flag,
   UserPlus,
   ChevronDown,
@@ -68,15 +66,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, formatDistanceToNow, isPast, isWithinInterval, addDays, isToday, endOfWeek } from "date-fns";
 import { toast } from "sonner";
 import {
-  PriorityIndicator,
-  PriorityBadge,
   DeadlineCountdown,
   PriorityDot,
-  OverdueWarning,
 } from "@/components/requests/priority-indicator";
 import {
   type Priority,
@@ -84,15 +79,10 @@ import {
   groupByPriority,
   isDeadlineOverdue,
   getPriorityConfig,
-  getDeadlineInfo,
 } from "@/lib/deadline-utils";
 import { BulkStatusDialog, type BulkActionType } from "./bulk-status-dialog";
 import { NoRequests } from "@/components/empty-states";
-import { RequestViewedIndicator } from "@/components/messages/read-receipt";
 import { CloneRequestDialog } from "./clone-request-dialog";
-import { TagList, TagBadge } from "@/components/tags/tag-badge";
-import { TagFilter, BulkTagDialog } from "@/components/tags/tag-manager";
-import { Tag, BulkTagAction } from "@/lib/tag-types";
 import { SavedFilters } from "@/components/filters/saved-filters";
 import {
   type FilterGroup,
@@ -590,7 +580,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
         throw new Error(result.error || "Failed to perform action");
       }
 
-      toast.success("Request updated successfully");
+      toast.success("Request updated");
 
       // Refresh requests
       const refreshResponse = await fetch("/api/requests");
@@ -652,7 +642,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
     localStorage.setItem("savedRequestFilters", JSON.stringify(updatedFilters));
     setSaveFilterDialog(false);
     setNewFilterName("");
-    toast.success("Filter saved successfully");
+    toast.success("Filter saved");
   };
 
   const applySavedFilter = (filter: SavedFilter) => {
@@ -707,7 +697,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
     setSelectedIds(new Set(filteredRequests.map((r) => r.id)));
   }, [filteredRequests]);
 
-  // Select all matching filter (same as selectAllVisible for now)
+  // Select all matching the filter (same behavior as selectAllVisible)
   const selectAllMatching = useCallback(() => {
     setSelectedIds(new Set(filteredRequests.map((r) => r.id)));
   }, [filteredRequests]);

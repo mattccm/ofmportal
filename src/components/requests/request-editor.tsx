@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowLeft,
   Save,
@@ -10,11 +9,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Plus,
-  X,
   Settings,
   FileText,
-  Calendar,
-  User,
   Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,7 +29,6 @@ import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { Avatar } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { FieldEditor, RichContentEditor } from "@/components/templates/field-editor";
 import {
   TemplateField as FullTemplateField,
@@ -42,9 +37,7 @@ import {
   RichContent,
 } from "@/lib/template-types";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Creator {
   id: string;
@@ -77,9 +70,7 @@ interface RequestEditorProps {
   onCancel?: () => void;
 }
 
-// ============================================
 // REQUEST EDITOR
-// ============================================
 
 export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps) {
   const router = useRouter();
@@ -178,7 +169,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
         throw new Error(error.message || "Failed to update request");
       }
 
-      toast.success("Request updated successfully");
+      toast.success("Changes saved");
       setHasChanges(false);
 
       if (onSave) {

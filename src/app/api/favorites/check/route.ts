@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// ============================================
 // GET - Check if an item is favorited
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -76,9 +74,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Batch check multiple items
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

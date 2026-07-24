@@ -5,17 +5,13 @@ import { useState, useCallback, useMemo } from "react";
 import { format, addDays } from "date-fns";
 import {
   Package,
-  Users,
   Calendar,
-  Clock,
   AlertTriangle,
-  Zap,
   CheckCircle,
   XCircle,
   Loader2,
   ChevronDown,
   ChevronUp,
-  Edit2,
   Bell,
   BellOff,
   Play,
@@ -55,15 +51,12 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type {
   RequestBundle,
-  TemplateConfig,
   UrgencyLevel,
   BundleExecutionConfig,
   BundleExecutionResult,
 } from "@/types/request-bundles";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Template {
   id: string;
@@ -93,9 +86,7 @@ interface BundleExecutorProps {
   preSelectedCreatorIds?: string[];
 }
 
-// ============================================
 // URGENCY CONFIG
-// ============================================
 
 const URGENCY_CONFIG: Record<UrgencyLevel, { label: string; color: string; bgColor: string }> = {
   LOW: { label: "Low", color: "text-slate-500", bgColor: "bg-slate-500/10" },
@@ -104,15 +95,11 @@ const URGENCY_CONFIG: Record<UrgencyLevel, { label: string; color: string; bgCol
   URGENT: { label: "Urgent", color: "text-red-500", bgColor: "bg-red-500/10" },
 };
 
-// ============================================
 // EXECUTION STEPS
-// ============================================
 
 type ExecutionStep = "select-creators" | "preview" | "executing" | "complete";
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function BundleExecutor({
   open,

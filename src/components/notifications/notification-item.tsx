@@ -20,9 +20,7 @@ import {
   Bell,
 } from "lucide-react";
 
-// ============================================
 // TYPE DEFINITIONS
-// ============================================
 
 export interface NotificationItemData {
   id: string;
@@ -41,9 +39,7 @@ interface NotificationItemProps {
   compact?: boolean;
 }
 
-// ============================================
 // ICON MAPPING
-// ============================================
 
 const notificationIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   [NotificationType.UPLOAD_SUBMITTED]: Upload,
@@ -57,9 +53,7 @@ const notificationIcons: Record<string, React.ComponentType<{ className?: string
   [NotificationType.SYSTEM]: Info,
 };
 
-// ============================================
 // TIME AGO FORMATTER
-// ============================================
 
 function formatTimeAgo(date: Date): string {
   const now = new Date();
@@ -97,9 +91,7 @@ function formatTimeAgo(date: Date): string {
   return `${Math.floor(diffInMonths / 12)}y ago`;
 }
 
-// ============================================
 // NOTIFICATION ITEM COMPONENT
-// ============================================
 
 export function NotificationItem({
   notification,
@@ -225,9 +217,7 @@ export function NotificationItem({
   );
 }
 
-// ============================================
 // NOTIFICATION SKELETON
-// ============================================
 
 export function NotificationItemSkeleton({ compact = false }: { compact?: boolean }) {
   return (
@@ -262,9 +252,7 @@ export function NotificationItemSkeleton({ compact = false }: { compact?: boolea
   );
 }
 
-// ============================================
 // EMPTY STATE
-// ============================================
 
 export function NotificationEmptyState() {
   return (

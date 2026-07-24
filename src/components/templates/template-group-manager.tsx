@@ -23,7 +23,6 @@ import {
   Music,
   MessageCircle,
   Folder,
-  Check,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -62,7 +61,6 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { DeleteConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import {
@@ -71,13 +69,10 @@ import {
   TemplateGroupWithTemplates,
   TemplateInGroup,
   PLATFORM_CONFIG,
-  getPlatformColor,
   getAllPlatforms,
 } from "@/types/template-groups";
 
-// ============================================
 // ICON MAP
-// ============================================
 
 const PLATFORM_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   Instagram,
@@ -94,9 +89,7 @@ function getPlatformIcon(iconName: string) {
   return PLATFORM_ICONS[iconName] || Folder;
 }
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TemplateGroupManagerProps {
   initialGroups?: TemplateGroupWithTemplates[];
@@ -106,13 +99,10 @@ interface TemplateGroupManagerProps {
 
 type ViewMode = "grid" | "list";
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function TemplateGroupManager({
   initialGroups = [],
-  availableTemplates = [],
   onGroupsChange,
 }: TemplateGroupManagerProps) {
   // State
@@ -189,19 +179,6 @@ export function TemplateGroupManager({
         next.delete(groupId);
       } else {
         next.add(groupId);
-      }
-      return next;
-    });
-  };
-
-  // Handle template selection
-  const toggleTemplateSelection = (templateId: string) => {
-    setSelectedTemplates((prev) => {
-      const next = new Set(prev);
-      if (next.has(templateId)) {
-        next.delete(templateId);
-      } else {
-        next.add(templateId);
       }
       return next;
     });
@@ -526,9 +503,7 @@ export function TemplateGroupManager({
   );
 }
 
-// ============================================
 // GRID VIEW COMPONENT
-// ============================================
 
 interface GroupGridViewProps {
   groupsByPlatform: Record<Platform, TemplateGroupWithTemplates[]>;
@@ -601,9 +576,7 @@ function GroupGridView({
   );
 }
 
-// ============================================
 // LIST VIEW COMPONENT
-// ============================================
 
 interface GroupListViewProps {
   groups: TemplateGroupWithTemplates[];
@@ -761,9 +734,7 @@ function GroupListView({
   );
 }
 
-// ============================================
 // GROUP CARD COMPONENT
-// ============================================
 
 interface GroupCardProps {
   group: TemplateGroupWithTemplates;
@@ -785,7 +756,7 @@ function GroupCard({
   onRemoveTemplate,
 }: GroupCardProps) {
   const config = PLATFORM_CONFIG[group.platform];
-  const Icon = getPlatformIcon(config.icon);
+  const Icon = PLATFORM_ICONS[config.icon] || Folder;
 
   return (
     <Card
@@ -933,9 +904,7 @@ function GroupCard({
   );
 }
 
-// ============================================
 // GROUP FORM DIALOG
-// ============================================
 
 interface GroupFormDialogProps {
   open: boolean;
@@ -1104,9 +1073,7 @@ function GroupFormDialog({
   );
 }
 
-// ============================================
 // BULK ASSIGN DIALOG
-// ============================================
 
 interface BulkAssignDialogProps {
   open: boolean;
@@ -1195,9 +1162,7 @@ function BulkAssignDialog({
   );
 }
 
-// ============================================
 // EMPTY STATE COMPONENT
-// ============================================
 
 interface EmptyStateProps {
   onCreateClick: () => void;

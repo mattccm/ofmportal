@@ -13,9 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Mail, User, ExternalLink } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface MentionChipProps {
   userId: string;
@@ -35,9 +33,7 @@ interface MentionUser {
   isOnline?: boolean;
 }
 
-// ============================================
 // MENTION CHIP COMPONENT
-// ============================================
 
 export function MentionChip({
   userId,
@@ -108,9 +104,7 @@ export function MentionChip({
   );
 }
 
-// ============================================
 // MENTION HOVER CARD
-// ============================================
 
 interface MentionHoverCardProps {
   user: MentionUser | null;
@@ -194,9 +188,7 @@ function MentionHoverCard({ user, username, isLoading }: MentionHoverCardProps) 
   );
 }
 
-// ============================================
 // INLINE MENTION RENDERER
-// ============================================
 
 interface RenderMentionsProps {
   segments: Array<

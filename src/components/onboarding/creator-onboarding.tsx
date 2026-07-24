@@ -4,7 +4,6 @@ import * as React from "react";
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,9 +28,7 @@ import {
   Folder,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface CreatorOnboardingProps {
   creatorName?: string;
@@ -40,9 +37,7 @@ interface CreatorOnboardingProps {
   className?: string;
 }
 
-// ============================================
 // HELPER TIP COMPONENT
-// ============================================
 
 function HelperTip({
   children,
@@ -64,9 +59,7 @@ function HelperTip({
   );
 }
 
-// ============================================
 // STEP 1: WELCOME + PROFILE SETUP
-// ============================================
 
 interface ProfileSetupStepProps {
   displayName: string;
@@ -176,9 +169,7 @@ function ProfileSetupStep({
   );
 }
 
-// ============================================
 // STEP 2: UPLOAD PREFERENCES
-// ============================================
 
 interface UploadPreferencesStepProps {
   preferredFormats: string[];
@@ -303,9 +294,7 @@ function UploadPreferencesStep({
   );
 }
 
-// ============================================
 // STEP 3: NOTIFICATION PREFERENCES
-// ============================================
 
 interface NotificationPreferencesStepProps {
   emailNotifications: boolean;
@@ -335,7 +324,7 @@ function NotificationPreferencesStep({
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground">
-        Choose how you'd like to stay updated on new requests and feedback.
+        Choose how you&apos;d like to stay updated on new requests and feedback.
       </p>
 
       <div className="space-y-4">
@@ -453,15 +442,13 @@ function NotificationPreferencesStep({
   );
 }
 
-// ============================================
 // STEP 4: PORTAL TOUR
-// ============================================
 
 function PortalTourStep() {
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground">
-        Here's a quick overview of your creator portal. Let's explore what you can do!
+        Here&apos;s a quick overview of your creator portal. Let&apos;s explore what you can do!
       </p>
 
       <div className="space-y-4">
@@ -517,16 +504,14 @@ function PortalTourStep() {
       <div className="p-4 bg-gradient-to-br from-primary/5 to-violet-500/5 rounded-lg border border-primary/10">
         <p className="text-sm font-medium mb-2">Ready to start?</p>
         <p className="text-sm text-muted-foreground">
-          Click "Complete" to finish setup and start viewing your content requests!
+          Click &quot;Complete&quot; to finish setup and start viewing your content requests!
         </p>
       </div>
     </div>
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function CreatorOnboarding({
   creatorName = "Creator",

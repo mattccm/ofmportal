@@ -13,7 +13,6 @@ import {
   Upload,
   MessageSquare,
   Tag,
-  Building,
 } from "lucide-react";
 
 interface Creator {

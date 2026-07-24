@@ -25,8 +25,6 @@ import {
   Settings,
   LogOut,
   Bell,
-  Menu,
-  X,
   ChevronDown,
   Sparkles,
 } from "lucide-react";
@@ -125,25 +123,18 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
   const checkAndRestoreSession = useCallback(async (source: string): Promise<{ token: string; creatorId: string; creatorName: string | null; creatorEmail: string | null; creatorAvatar: string | null } | null> => {
     // Prevent concurrent checks
     if (sessionCheckInProgress.current) {
-      console.log(`[CreatorLayout] Session check already in progress, skipping (${source})`);
       return null;
     }
 
     // Check if user intentionally signed out
     if (hasSignedOutFlag()) {
-      console.log(`[CreatorLayout] User signed out intentionally, skipping session check (${source})`);
       return null;
     }
 
     sessionCheckInProgress.current = true;
-    console.log(`[CreatorLayout] Starting session check (${source})`);
 
     try {
-      // DIAGNOSTIC: Log ALL localStorage keys to understand what persists
       const allKeys = Object.keys(localStorage);
-      console.log(`[CreatorLayout] ALL localStorage keys (${allKeys.length}):`, allKeys);
-
-      // Log specific values
       const diagnosticData = {
         source,
         localStorageKeys: allKeys,
@@ -154,7 +145,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
         themePreference: localStorage.getItem("theme-preference"),
         signedOutFlag: hasSignedOutFlag(),
       };
-      console.log(`[CreatorLayout] Diagnostic localStorage values:`, JSON.stringify(diagnosticData));
 
       const hasIndicator = hasCreatorSessionIndicator();
       const hasLocalToken = !!localStorage.getItem("creatorToken");
@@ -173,8 +163,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       };
       sendDebugLog(source, fullDiagnostics);
 
-      console.log(`[CreatorLayout] Session state - indicator: ${hasIndicator}, localStorage: ${hasLocalToken}, cookie: ${hasCookieToken}, PWA: ${isPWA}`);
-
       // Try localStorage first
       let token = localStorage.getItem("creatorToken");
       let creatorId = localStorage.getItem("creatorId");
@@ -184,7 +172,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
       // If localStorage is empty but cookies exist, restore from cookies
       if (!token && getCookie("creatorToken")) {
-        console.log("[CreatorLayout] Restoring from cookies");
         token = getCookie("creatorToken");
         creatorId = getCookie("creatorId");
         creatorName = getCookie("creatorName");
@@ -200,13 +187,10 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       // If still no token, try IndexedDB (most reliable on iOS PWA)
       // ALWAYS check IndexedDB if: we have indicator cookie, OR we're in PWA mode, OR it's a resume event
       const shouldCheckIndexedDB = !token && (hasIndicator || isPWA || source === "pageshow" || source === "visibilitychange" || source === "mount");
-      console.log(`[CreatorLayout] Should check IndexedDB: ${shouldCheckIndexedDB} (token: ${!!token}, indicator: ${hasIndicator}, PWA: ${isPWA}, source: ${source})`);
 
       if (shouldCheckIndexedDB) {
-        console.log("[CreatorLayout] Checking IndexedDB for creator session...");
         try {
           const storedSession = await getCreatorSession();
-          console.log("[CreatorLayout] IndexedDB result:", storedSession ? "FOUND" : "NOT FOUND");
 
           // Send IndexedDB result to server
           sendDebugLog("indexeddb-check", {
@@ -218,7 +202,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
           });
 
           if (storedSession) {
-            console.log("[CreatorLayout] Found session in IndexedDB, restoring to all storage...");
             token = storedSession.token;
             creatorId = storedSession.creatorId;
             creatorName = storedSession.name;
@@ -248,7 +231,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
               avatar: creatorAvatar || undefined,
             });
 
-            console.log("[CreatorLayout] Session fully restored from IndexedDB");
             sendDebugLog("session-restored", { source, email: creatorEmail, creatorId });
           }
         } catch (error) {
@@ -258,7 +240,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       }
 
       if (!token || !creatorId) {
-        console.log(`[CreatorLayout] No valid session found (${source})`);
         sendDebugLog("no-session", { source, redirectingToLogin: true });
         return null;
       }
@@ -271,15 +252,12 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
   // Handle pageshow event - fires when PWA is resumed from background
   const handlePageShow = useCallback(async (event: PageTransitionEvent) => {
-    console.log("[CreatorLayout] pageshow event, persisted:", event.persisted);
-
     // event.persisted is true when page is restored from bfcache (back-forward cache)
     if (event.persisted) {
       // Check if localStorage was cleared but we have IndexedDB data
       const hasLocalToken = !!localStorage.getItem("creatorToken");
 
       if (!hasLocalToken) {
-        console.log("[CreatorLayout] No localStorage token on resume, checking IndexedDB...");
         const authData = await checkAndRestoreSession("pageshow");
 
         if (authData) {
@@ -292,7 +270,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
           });
         } else if (!hasSignedOutFlag()) {
           // No session found and user didn't sign out - redirect to login
-          console.log("[CreatorLayout] Session lost on PWA resume, redirecting to login");
           router.push("/login");
         }
       }
@@ -302,8 +279,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
   // Handle visibilitychange - fires when app comes to foreground
   const handleVisibilityChange = useCallback(async () => {
     if (document.visibilityState === "visible") {
-      console.log("[CreatorLayout] App became visible");
-
       // Small delay to let iOS settle
       await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -311,7 +286,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       const hasLocalToken = !!localStorage.getItem("creatorToken");
 
       if (!hasLocalToken && !hasSignedOutFlag()) {
-        console.log("[CreatorLayout] No localStorage token on visibility change, checking IndexedDB...");
         const authData = await checkAndRestoreSession("visibilitychange");
 
         if (authData) {
@@ -324,7 +298,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
           });
         } else if (!hasSignedOutFlag()) {
           // No session found and user didn't sign out - redirect to login
-          console.log("[CreatorLayout] Session lost after visibility change, redirecting to login");
           router.push("/login");
         }
       }
@@ -334,9 +307,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
   // Set up PWA event listeners
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const isPWA = isStandaloneMode();
-    console.log("[CreatorLayout] Setting up PWA event listeners, isPWA:", isPWA);
 
     // Always set up event listeners (they're cheap and help with debugging)
     window.addEventListener("pageshow", handlePageShow);
@@ -410,7 +380,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
     // Set signed-out flag FIRST to prevent auto-login from kicking back in
     setSignedOutFlag();
-    console.log("[CreatorLayout] Setting signed-out flag");
 
     // Call logout API to invalidate session on server
     if (token) {

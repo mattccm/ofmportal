@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,20 +22,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   Download,
   FileText,
   Clock,
-  Save,
   Loader2,
   Users,
-  Calendar,
-  Filter,
-  ChevronDown,
-  ChevronUp,
   FileSpreadsheet,
   FileJson,
   File,
@@ -47,12 +41,9 @@ import {
   History,
   Zap,
   Plus,
-  GripVertical,
-  X,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ExportBuilder } from "@/components/exports/export-builder";
@@ -269,7 +260,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      toast.success("Export downloaded successfully");
+      toast.success("Export downloaded");
       fetchExportHistory();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to generate export");
@@ -310,7 +301,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      toast.success("Export downloaded successfully");
+      toast.success("Export ready");
       setShowBuilder(false);
       fetchExportHistory();
     } catch (error) {

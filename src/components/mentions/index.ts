@@ -1,6 +1,4 @@
-// ============================================
 // MENTIONS COMPONENTS - PUBLIC API
-// ============================================
 
 // Core components
 export { MentionChip, RenderMentions } from "./mention-chip";

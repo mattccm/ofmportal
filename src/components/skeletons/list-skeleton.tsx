@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Skeleton, SkeletonAvatar, SkeletonBadge, SkeletonText } from "@/components/ui/skeleton"
+import { Skeleton, SkeletonAvatar, SkeletonBadge } from "@/components/ui/skeleton"
 
 interface ListSkeletonProps {
   /**

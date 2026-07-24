@@ -15,6 +15,7 @@ import {
   scheduleRemindersForRequest,
   formatReminderSchedule,
 } from "@/lib/auto-reminder-scheduler";
+import { dispatchWebhookEvent } from "@/lib/webhooks";
 
 const createRequestSchema = z.object({
   creatorId: z.string().min(1, "Creator is required"),
@@ -233,6 +234,18 @@ export async function POST(req: NextRequest) {
         creator: true,
       },
     });
+
+    // Fire webhook for new request (not drafts)
+    if (!validatedData.saveAsDraft) {
+      dispatchWebhookEvent(session.user.agencyId, "request.created", {
+        requestId: contentRequest.id,
+        title: contentRequest.title,
+        creatorId: contentRequest.creatorId,
+        creatorName: contentRequest.creator.name,
+        dueDate: contentRequest.dueDate?.toISOString() || null,
+        urgency: contentRequest.urgency,
+      });
+    }
 
     // Send notification if requested (and not a draft)
     if (validatedData.sendNotification && !validatedData.saveAsDraft) {

@@ -13,9 +13,7 @@ import {
   type ChecklistStatus,
 } from "@/lib/onboarding-tasks";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const markTaskCompleteSchema = z.object({
   taskId: z.string().min(1).max(100),
@@ -25,9 +23,7 @@ const dismissChecklistSchema = z.object({
   dismissed: z.boolean(),
 });
 
-// ============================================
 // AUTO-DETECTION FUNCTIONS
-// ============================================
 
 async function autoDetectTaskCompletion(
   userId: string,
@@ -99,9 +95,7 @@ async function autoDetectTaskCompletion(
   return results;
 }
 
-// ============================================
 // GET - Fetch checklist status
-// ============================================
 
 export async function GET() {
   try {
@@ -171,9 +165,7 @@ export async function GET() {
   }
 }
 
-// ============================================
 // POST - Mark task as complete
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -305,9 +297,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // PATCH - Dismiss checklist
-// ============================================
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -393,9 +383,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Reset checklist (for testing/dev)
-// ============================================
 
 export async function DELETE() {
   try {
@@ -424,7 +412,7 @@ export async function DELETE() {
     const preferences = (user?.preferences as Record<string, unknown>) || {};
 
     // Remove checklist state from preferences
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     const { [CHECKLIST_STORAGE_KEY]: _, ...restPreferences } = preferences;
 
     await db.user.update({

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { ErrorFallback } from "./error-fallback";
 
 interface ErrorBoundaryProps {
@@ -75,17 +76,25 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
     };
 
-    // For now, just log to console in a structured format
-    console.group("Error Log");
-    console.log("Timestamp:", errorLog.timestamp);
-    console.log("URL:", errorLog.url);
-    console.log("Message:", errorLog.message);
-    console.log("Stack:", errorLog.stack);
-    console.log("Component Stack:", errorLog.componentStack);
-    console.groupEnd();
+    // Report to Sentry
+    Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
 
-    // TODO: Send to actual error tracking service
-    // fetch('/api/log-error', { method: 'POST', body: JSON.stringify(errorLog) });
+    if (process.env.NODE_ENV === "development") {
+      console.group("Error Log");
+      console.log("Timestamp:", errorLog.timestamp);
+      console.log("URL:", errorLog.url);
+      console.log("Message:", errorLog.message);
+      console.groupEnd();
+    }
+
+    // Send to server-side error logging endpoint
+    fetch("/api/log-error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(errorLog),
+    }).catch(() => {
+      // Silently fail - error logging should never break the app
+    });
   };
 
   resetError = (): void => {

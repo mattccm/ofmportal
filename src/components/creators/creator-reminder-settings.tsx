@@ -10,8 +10,6 @@ import {
   Save,
   RotateCcw,
   Info,
-  Check,
-  X,
   BellOff,
   Settings,
 } from "lucide-react";
@@ -48,9 +46,7 @@ import {
 } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ReminderOverride {
   id?: string;
@@ -108,9 +104,7 @@ const OVERDUE_FREQUENCY_OPTIONS = [
   { value: "WEEKLY", label: "Weekly" },
 ];
 
-// ============================================
 // REMINDER DAYS INPUT COMPONENT
-// ============================================
 
 function ReminderDaysInput({
   value,
@@ -161,7 +155,7 @@ function ReminderDaysInput({
               <p>
                 Enter days before the due date to send reminders. Use comma-separated values.
                 <br /><br />
-                Example: "3, 1, 0" means reminders 3 days before, 1 day before, and on the due date.
+                Example: &quot;3, 1, 0&quot; means reminders 3 days before, 1 day before, and on the due date.
               </p>
             </TooltipContent>
           </Tooltip>
@@ -178,9 +172,7 @@ function ReminderDaysInput({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function CreatorReminderSettings({
   creatorId,
@@ -515,7 +507,7 @@ export function CreatorReminderSettings({
                     />
                     {data.creator.preferredContact === "EMAIL" && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">
-                        Note: This creator's preferred contact is Email only.
+                        Note: This creator&apos;s preferred contact is Email only.
                         SMS escalation requires a phone number and SMS preference.
                       </p>
                     )}

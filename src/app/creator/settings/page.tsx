@@ -206,7 +206,7 @@ export default function CreatorSettingsPage() {
       // Update local storage
       localStorage.setItem("creatorName", name);
 
-      toast.success("Profile saved successfully");
+      toast.success("Profile saved");
     } catch {
       toast.error("Failed to save profile");
     } finally {
@@ -249,7 +249,7 @@ export default function CreatorSettingsPage() {
       setNewPassword("");
       setConfirmPassword("");
 
-      toast.success("Password changed successfully");
+      toast.success("Password changed");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to change password");
     } finally {

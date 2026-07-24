@@ -52,15 +52,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { NotificationType } from "@/lib/notifications";
 import { NoNotifications } from "@/components/empty-states";
 
-// ============================================
 // TYPE DEFINITIONS
-// ============================================
 
 interface NotificationData {
   id: string;
@@ -81,9 +77,7 @@ interface NotificationGroup {
 type FilterType = "all" | NotificationType;
 type ReadFilter = "all" | "unread" | "read";
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   all: "All Types",
@@ -159,9 +153,7 @@ const FILTER_CATEGORIES = [
   { value: "system", label: "System", types: ["SYSTEM"] },
 ];
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function formatDate(date: Date): string {
   const now = new Date();
@@ -210,9 +202,7 @@ function groupNotificationsByDate(notifications: NotificationData[]): Notificati
     }));
 }
 
-// ============================================
 // NOTIFICATION ITEM COMPONENT
-// ============================================
 
 interface NotificationItemProps {
   notification: NotificationData;
@@ -385,9 +375,7 @@ function NotificationItemCard({
   );
 }
 
-// ============================================
 // NOTIFICATION SETTINGS PREVIEW
-// ============================================
 
 function NotificationSettingsPreview() {
   return (
@@ -457,9 +445,7 @@ function NotificationSettingsPreview() {
   );
 }
 
-// ============================================
 // MAIN PAGE COMPONENT
-// ============================================
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -538,9 +524,7 @@ export default function NotificationsPage() {
     rootMargin: "200px",
   });
 
-  // ============================================
   // FETCH FUNCTIONS
-  // ============================================
 
   const fetchNotifications = useCallback(async (reset = false) => {
     if (reset) {
@@ -605,9 +589,7 @@ export default function NotificationsPage() {
     fetchNotifications(true);
   };
 
-  // ============================================
   // ACTIONS
-  // ============================================
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -767,9 +749,7 @@ export default function NotificationsPage() {
     // Custom handling if needed
   };
 
-  // ============================================
   // FILTERED AND GROUPED DATA
-  // ============================================
 
   const filteredNotifications = useMemo(() => {
     let filtered = notifications;
@@ -805,9 +785,7 @@ export default function NotificationsPage() {
   const allSelected = selectedIds.size > 0 && selectedIds.size === filteredNotifications.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < filteredNotifications.length;
 
-  // ============================================
   // RENDER
-  // ============================================
 
   return (
     <div className="space-y-8 animate-fade-in">

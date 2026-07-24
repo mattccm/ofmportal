@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +60,22 @@ export function CelebrationModal({
   const [showConfetti, setShowConfetti] = useState(false);
   const [showCheckmark, setShowCheckmark] = useState(false);
 
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (!open) {
+      setShowConfetti(false);
+      setShowCheckmark(false);
+    }
+  }
+
+  const handleClose = useCallback(() => {
+    setShowConfetti(false);
+    setShowCheckmark(false);
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     if (open && celebration) {
       // Stagger animations
@@ -79,17 +95,8 @@ export function CelebrationModal({
         clearTimeout(checkmarkTimer);
         if (autoDismissTimer) clearTimeout(autoDismissTimer);
       };
-    } else {
-      setShowConfetti(false);
-      setShowCheckmark(false);
     }
-  }, [open, celebration]);
-
-  const handleClose = () => {
-    setShowConfetti(false);
-    setShowCheckmark(false);
-    onClose();
-  };
+  }, [open, celebration, handleClose]);
 
   const handleAction = () => {
     celebration?.onAction?.();

@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -28,7 +27,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -36,49 +34,34 @@ import {
   Search,
   Check,
   X,
-  SkipForward,
-  Play,
   Image as ImageIcon,
   Video,
   File,
-  ChevronLeft,
-  ChevronRight,
   Grid3X3,
   List,
   Filter,
-  Star,
-  MessageSquare,
   Loader2,
   CheckCircle,
-  XCircle,
-  AlertTriangle,
   Keyboard,
   MoreHorizontal,
   ZoomIn,
   User,
-  Clock,
-  Eye,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ProgressTracker } from "./progress-tracker";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { OperationTemplates } from "./operation-templates";
-import { DryRunPreview, InlineDryRunPreview } from "./dry-run-preview";
+import { DryRunPreview } from "./dry-run-preview";
 import { CompactSmartSelection } from "./smart-selection-presets";
-import { KeyboardShortcutsModal, KeyboardHint } from "./keyboard-shortcuts-modal";
+import { KeyboardHint } from "./keyboard-shortcuts-modal";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_REJECT_TEMPLATES,
   BULK_REVIEW_SHORTCUTS,
-  type QuickRejectTemplate,
   type DryRunResult,
   type DryRunItem,
-  createEnhancedUndoWindow,
   UNDO_STORAGE_KEY,
 } from "@/lib/bulk-operations";
-import { useBulkReviewKeyboard, BULK_REVIEW_KEYBOARD_SHORTCUTS } from "@/hooks/use-bulk-review-keyboard";
+import { useBulkReviewKeyboard } from "@/hooks/use-bulk-review-keyboard";
 
 // Types
 interface Upload {

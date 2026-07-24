@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import {
   Send,
   Paperclip,
@@ -41,7 +40,6 @@ import {
 import {
   MessageBubble,
   DateSeparator,
-  TypingIndicator,
 } from "./message-bubble";
 import { NoMessages } from "@/components/empty-states";
 import {
@@ -51,7 +49,6 @@ import {
   isUserOnline,
 } from "@/lib/chat-types";
 import {
-  ReadReceiptIndicator,
   SeenByIndicator,
   LastSeenIndicator,
   useReadReceiptSettings,
@@ -588,6 +585,10 @@ function groupMessagesByDate(
 }
 
 export function ChatWindowSkeleton() {
+  const [skeletonWidths] = React.useState(() =>
+    [1, 2, 3, 4, 5].map(() => Math.random() * 30 + 30)
+  );
+
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Header skeleton */}
@@ -619,7 +620,7 @@ export function ChatWindowSkeleton() {
                 "rounded-2xl p-3 space-y-2",
                 i % 2 === 0 ? "bg-primary/20" : "bg-muted"
               )}
-              style={{ width: `${Math.random() * 30 + 30}%` }}
+              style={{ width: `${skeletonWidths[i - 1]}%` }}
             >
               <div className="h-4 w-full rounded bg-muted/50 animate-shimmer" />
               {i % 3 === 0 && (

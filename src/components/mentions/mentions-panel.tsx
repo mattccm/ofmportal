@@ -20,7 +20,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -36,15 +35,12 @@ import {
   MessageSquare,
   Inbox,
   Eye,
-  Trash2,
 } from "lucide-react";
 import { useMentionsPanel } from "@/hooks/use-mentions";
 import type { MentionWithDetails, MentionFilters } from "@/types/mentions";
 import { toast } from "sonner";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface MentionsPanelProps {
   className?: string;
@@ -52,9 +48,7 @@ interface MentionsPanelProps {
   maxItems?: number;
 }
 
-// ============================================
 // RESOURCE TYPE ICONS
-// ============================================
 
 const resourceTypeIcons = {
   request: FileText,
@@ -68,9 +62,7 @@ const resourceTypeLabels = {
   message: "Message",
 };
 
-// ============================================
 // MENTIONS PANEL COMPONENT
-// ============================================
 
 export function MentionsPanel({
   className,
@@ -344,9 +336,7 @@ export function MentionsPanel({
   );
 }
 
-// ============================================
 // MENTION ITEM COMPONENT
-// ============================================
 
 interface MentionItemProps {
   mention: MentionWithDetails;
@@ -466,9 +456,7 @@ function MentionItem({
   );
 }
 
-// ============================================
 // SKELETON
-// ============================================
 
 function MentionItemSkeleton({ compact = false }: { compact?: boolean }) {
   return (
@@ -489,9 +477,7 @@ function MentionItemSkeleton({ compact = false }: { compact?: boolean }) {
   );
 }
 
-// ============================================
 // COMPACT MENTIONS DROPDOWN
-// ============================================
 
 interface MentionsDropdownProps {
   maxItems?: number;

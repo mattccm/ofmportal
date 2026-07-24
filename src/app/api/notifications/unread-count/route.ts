@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUnreadCount } from "@/lib/notifications";
 
-// ============================================
 // GET - Fetch unread notification count
-// ============================================
 
 export async function GET() {
   try {
@@ -30,9 +28,7 @@ export async function GET() {
   }
 }
 
-// ============================================
 // OPTIONS - CORS preflight
-// ============================================
 
 export async function OPTIONS() {
   return new NextResponse(null, {

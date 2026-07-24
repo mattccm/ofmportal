@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils"
 
 function TooltipProvider({
   children,
-  delayDuration = 200,
 }: {
   children: React.ReactNode
   delayDuration?: number
@@ -43,9 +42,12 @@ function TooltipTrigger({
     <TooltipPrimitive.Trigger
       className={cn("cursor-default", className)}
       render={asChild && React.isValidElement(children) ? (triggerProps) => {
-        return React.cloneElement(children as React.ReactElement<any>, {
+        const child = children as React.ReactElement<
+          React.HTMLAttributes<HTMLElement> & { ref?: React.Ref<HTMLElement> }
+        >
+        return React.cloneElement(child, {
           ...triggerProps,
-          className: cn((children as React.ReactElement<any>).props.className, className),
+          className: cn(child.props.className, className),
         })
       } : undefined}
       {...props}

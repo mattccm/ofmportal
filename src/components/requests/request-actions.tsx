@@ -12,14 +12,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+
+
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   MoreHorizontal,
@@ -34,7 +28,6 @@ import {
   ArchiveRestore,
   FileEdit,
   Copy,
-  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -238,7 +231,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
         throw new Error(result.error || "Failed to perform action");
       }
 
-      toast.success("Request updated successfully");
+      toast.success("Request updated");
       window.location.reload();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to perform action");

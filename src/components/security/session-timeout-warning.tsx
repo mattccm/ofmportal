@@ -95,6 +95,23 @@ export function SessionTimeoutWarning({
     }
   }, []);
 
+  // Handle logout
+  const handleLogout = React.useCallback(async () => {
+    setIsLoggingOut(true);
+    clearAllTimers();
+
+    try {
+      // Set flag to prevent auto-login, then clear token
+      setSignedOutFlag();
+      await clearRememberToken();
+      await signOut({ callbackUrl: "/login?reason=timeout" });
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+      // Force redirect even if signOut fails
+      window.location.href = "/login?reason=timeout";
+    }
+  }, [clearAllTimers]);
+
   // Reset the session timeout
   const resetTimeout = React.useCallback(() => {
     if (!enabled) return;
@@ -129,7 +146,7 @@ export function SessionTimeoutWarning({
         handleLogout();
       }, warningTime);
     }, timeUntilWarning);
-  }, [enabled, sessionTimeout, warningTime, clearAllTimers, updateLastActivity]);
+  }, [enabled, sessionTimeout, warningTime, clearAllTimers, updateLastActivity, handleLogout]);
 
   // Handle extending the session
   const handleExtendSession = async () => {
@@ -152,23 +169,6 @@ export function SessionTimeoutWarning({
       console.error("Failed to extend session:", error);
     } finally {
       setIsExtending(false);
-    }
-  };
-
-  // Handle logout
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    clearAllTimers();
-
-    try {
-      // Set flag to prevent auto-login, then clear token
-      setSignedOutFlag();
-      await clearRememberToken();
-      await signOut({ callbackUrl: "/login?reason=timeout" });
-    } catch (error) {
-      console.error("Failed to sign out:", error);
-      // Force redirect even if signOut fails
-      window.location.href = "/login?reason=timeout";
     }
   };
 
@@ -269,7 +269,7 @@ export function SessionTimeoutWarning({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [enabled, sessionTimeout, warningTime]);
+  }, [enabled, sessionTimeout, warningTime, handleLogout]);
 
   // Calculate progress percentage
   const progressPercentage = Math.max(0, (timeRemaining / warningTime) * 100);
@@ -372,13 +372,13 @@ export function useSessionTimeout(options?: {
   warningTime?: number;
   sessionTimeout?: number;
 }) {
-  const [lastActivity, setLastActivity] = React.useState(Date.now());
+  const [lastActivity, setLastActivity] = React.useState(() => Date.now());
 
   const updateActivity = React.useCallback(() => {
     setLastActivity(Date.now());
   }, []);
 
-  const isSessionExpiringSoon = React.useMemo(() => {
+  const isSessionExpiringSoon = React.useCallback(() => {
     const elapsed = Date.now() - lastActivity;
     const sessionTimeout = options?.sessionTimeout ?? 30 * 60 * 1000;
     const warningTime = options?.warningTime ?? 5 * 60 * 1000;

@@ -1,8 +1,6 @@
 import type { ParsedMention, MentionSegment, MentionSuggestion } from "@/types/mentions";
 
-// ============================================
 // REGEX PATTERNS
-// ============================================
 
 /**
  * Pattern to match @mentions in text
@@ -21,9 +19,7 @@ export const MENTION_TRIGGER_PATTERN = /@(\w*)$/;
  */
 export const SIMPLE_MENTION_PATTERN = /@(\w+)/g;
 
-// ============================================
 // PARSING FUNCTIONS
-// ============================================
 
 /**
  * Parse all mentions from formatted text

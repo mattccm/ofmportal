@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { createContext, useContext, useCallback } from "react";
+import { createContext, useContext } from "react";
 import { CelebrationModal, type CelebrationConfig, type CelebrationTemplate } from "./celebration-modal";
-import { useCelebration, useMilestoneTracker } from "@/hooks/use-celebration";
+import { useMilestoneTracker } from "@/hooks/use-celebration";
 
 interface CelebrationContextValue {
   /** Trigger a celebration by template name */

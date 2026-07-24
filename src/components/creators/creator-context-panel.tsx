@@ -86,9 +86,7 @@ import {
   Minimize2,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface CreatorContextPanelProps {
   creatorId: string | null;
@@ -98,9 +96,7 @@ interface CreatorContextPanelProps {
   onToggle?: () => void; // For external keyboard shortcut control
 }
 
-// ============================================
 // RESPONSE TIME INDICATOR (TRAFFIC LIGHT)
-// ============================================
 
 type ResponseTimeStatus = "fast" | "moderate" | "slow";
 
@@ -155,9 +151,7 @@ function ResponseTimeIndicator({ avgResponseTimeHours }: { avgResponseTimeHours:
   );
 }
 
-// ============================================
 // HELPER COMPONENTS
-// ============================================
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -260,9 +254,7 @@ function ActivityIcon({ icon, color }: { icon: string; color: string }) {
   return <IconComponent className={cn("h-4 w-4", colorClasses[color] || "text-gray-500")} />;
 }
 
-// ============================================
 // QUICK ACTIONS BAR
-// ============================================
 
 function QuickActionsBar({
   data,
@@ -278,7 +270,7 @@ function QuickActionsBar({
   const handleSendReminder = async () => {
     try {
       await onSendReminder();
-      toast.success("Reminder sent successfully");
+      toast.success("Reminder's on its way");
     } catch {
       toast.error("Failed to send reminder");
     }
@@ -346,9 +338,7 @@ function QuickActionsBar({
   );
 }
 
-// ============================================
 // SECTION COMPONENTS
-// ============================================
 
 function PanelHeader({
   data,
@@ -1021,9 +1011,7 @@ function LoadingSkeleton() {
   );
 }
 
-// ============================================
 // PANEL CONTENT (shared between Sheet and Dialog)
-// ============================================
 
 function PanelContent({
   data,
@@ -1127,9 +1115,7 @@ function PanelContent({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function CreatorContextPanel({
   creatorId,

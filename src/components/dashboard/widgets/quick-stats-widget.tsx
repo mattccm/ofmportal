@@ -18,9 +18,7 @@ import { WidgetCard, type WidgetProps } from "../widget-grid";
 import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface QuickStats {
   activeCreators: number;
@@ -47,9 +45,7 @@ interface StatItem {
   isAlert?: boolean;
 }
 
-// ============================================
 // TREND INDICATOR
-// ============================================
 
 function TrendIndicator({ value }: { value: number }) {
   if (value === 0) {
@@ -75,9 +71,7 @@ function TrendIndicator({ value }: { value: number }) {
   );
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function QuickStatsWidget({ config, size }: WidgetProps) {
   // Use batched widget data from context (single API call for all widgets)

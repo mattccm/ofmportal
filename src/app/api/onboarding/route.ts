@@ -4,18 +4,14 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const markStepCompleteSchema = z.object({
   stepKey: z.string().min(1).max(100),
   data: z.record(z.string(), z.unknown()).optional(),
 });
 
-// ============================================
 // ONBOARDING STEP DEFINITIONS
-// ============================================
 
 const AGENCY_ONBOARDING_STEPS = [
   "agency_setup",
@@ -34,9 +30,7 @@ const CREATOR_ONBOARDING_STEPS = [
   "creator_onboarding_complete",
 ];
 
-// ============================================
 // GET - Fetch user's onboarding progress
-// ============================================
 
 export async function GET() {
   try {
@@ -99,9 +93,7 @@ export async function GET() {
   }
 }
 
-// ============================================
 // POST - Mark a step as complete
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -196,9 +188,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Reset onboarding progress (for testing)
-// ============================================
 
 export async function DELETE() {
   try {

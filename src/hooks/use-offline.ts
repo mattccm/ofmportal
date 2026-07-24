@@ -1,19 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import {
   getSyncStatus,
   updateSyncStatus,
   getPendingUploads,
   getDrafts,
-  type SyncStatus,
   type PendingUpload,
   type Draft,
 } from '@/lib/offline-storage';
 
-// ============================================
 // Types
-// ============================================
 
 export interface ConnectionQuality {
   type: 'wifi' | 'cellular' | '4g' | '3g' | '2g' | 'slow-2g' | 'offline' | 'unknown';
@@ -42,9 +39,7 @@ export interface UseOfflineReturn extends OfflineState {
   checkConnection: () => Promise<boolean>;
 }
 
-// ============================================
 // Network Information API Types
-// ============================================
 
 interface NetworkInformation {
   type: string;
@@ -64,9 +59,7 @@ declare global {
   }
 }
 
-// ============================================
 // Hook Implementation
-// ============================================
 
 export function useOffline(): UseOfflineReturn {
   const [isOffline, setIsOffline] = useState(false);
@@ -86,9 +79,7 @@ export function useOffline(): UseOfflineReturn {
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(null);
 
-  // ============================================
   // Connection Quality Detection
-  // ============================================
 
   const updateConnectionQuality = useCallback(() => {
     const connection =
@@ -112,9 +103,40 @@ export function useOffline(): UseOfflineReturn {
     }
   }, []);
 
-  // ============================================
+  // Load Pending Items
+
+  const loadPendingItems = useCallback(async () => {
+    try {
+      const [uploads, drafts, status] = await Promise.all([
+        getPendingUploads(),
+        getDrafts(),
+        getSyncStatus(),
+      ]);
+
+      setPendingUploads(uploads);
+      setPendingDrafts(drafts);
+
+      if (status.lastSyncedAt) {
+        setLastSyncedAt(new Date(status.lastSyncedAt));
+      }
+    } catch (error) {
+      console.error('[useOffline] Failed to load pending items:', error);
+    }
+  }, []);
+
+  // Sync Trigger
+
+  const triggerSync = useCallback(async () => {
+    if (isOffline || isSyncing) return;
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'FORCE_SYNC',
+      });
+    }
+  }, [isOffline, isSyncing]);
+
   // Offline Detection
-  // ============================================
 
   useEffect(() => {
     // Initialize offline state
@@ -167,11 +189,9 @@ export function useOffline(): UseOfflineReturn {
         clearTimeout(syncTimeoutRef.current);
       }
     };
-  }, [updateConnectionQuality]);
+  }, [updateConnectionQuality, triggerSync]);
 
-  // ============================================
   // Service Worker Message Handling
-  // ============================================
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -215,53 +235,18 @@ export function useOffline(): UseOfflineReturn {
         );
       }
     };
-  }, []);
-
-  // ============================================
-  // Load Pending Items
-  // ============================================
-
-  const loadPendingItems = useCallback(async () => {
-    try {
-      const [uploads, drafts, status] = await Promise.all([
-        getPendingUploads(),
-        getDrafts(),
-        getSyncStatus(),
-      ]);
-
-      setPendingUploads(uploads);
-      setPendingDrafts(drafts);
-
-      if (status.lastSyncedAt) {
-        setLastSyncedAt(new Date(status.lastSyncedAt));
-      }
-    } catch (error) {
-      console.error('[useOffline] Failed to load pending items:', error);
-    }
-  }, []);
+  }, [loadPendingItems]);
 
   // Load pending items on mount and periodically
   useEffect(() => {
-    loadPendingItems();
+    queueMicrotask(loadPendingItems);
 
     const interval = setInterval(loadPendingItems, 30000); // Every 30 seconds
 
     return () => clearInterval(interval);
   }, [loadPendingItems]);
 
-  // ============================================
   // Sync Operations
-  // ============================================
-
-  const triggerSync = useCallback(async () => {
-    if (isOffline || isSyncing) return;
-
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'FORCE_SYNC',
-      });
-    }
-  }, [isOffline, isSyncing]);
 
   const syncNow = useCallback(async () => {
     if (isOffline) {
@@ -285,12 +270,7 @@ export function useOffline(): UseOfflineReturn {
         });
       }
 
-      // Also sync any local pending uploads directly
-      const uploads = await getPendingUploads();
-      const pendingUploads = uploads.filter((u) => u.status === 'pending');
-
-      // For now, just reload pending items after a delay
-      // The actual sync is handled by the service worker
+      // Give the service worker a moment to sync, then reload pending items
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       await updateSyncStatus({
@@ -314,10 +294,6 @@ export function useOffline(): UseOfflineReturn {
 
   const retryFailed = useCallback(async () => {
     // Retry failed uploads
-    const uploads = await getPendingUploads();
-    const failed = uploads.filter((u) => u.status === 'failed');
-
-    // Reset status to pending for retry
     // This would trigger the sync process again
     await syncNow();
   }, [syncNow]);
@@ -333,9 +309,7 @@ export function useOffline(): UseOfflineReturn {
     await loadPendingItems();
   }, [loadPendingItems]);
 
-  // ============================================
   // Connection Check
-  // ============================================
 
   const checkConnection = useCallback(async (): Promise<boolean> => {
     try {
@@ -362,9 +336,7 @@ export function useOffline(): UseOfflineReturn {
     }
   }, [updateConnectionQuality]);
 
-  // ============================================
   // Return Values
-  // ============================================
 
   const pendingActions =
     pendingUploads.filter((u) => u.status !== 'completed').length +
@@ -387,9 +359,7 @@ export function useOffline(): UseOfflineReturn {
   };
 }
 
-// ============================================
 // Utility Hook: Offline-aware Fetch
-// ============================================
 
 export function useOfflineFetch() {
   const { isOffline } = useOffline();
@@ -457,27 +427,30 @@ export function useOfflineFetch() {
   return { offlineFetch, isOffline };
 }
 
-// ============================================
 // Utility Hook: Simple Online/Offline State
-// ============================================
+
+function subscribeToOnlineStatus(listener: () => void) {
+  window.addEventListener('online', listener);
+  window.addEventListener('offline', listener);
+
+  return () => {
+    window.removeEventListener('online', listener);
+    window.removeEventListener('offline', listener);
+  };
+}
+
+function getOnlineStatus(): boolean {
+  return navigator.onLine;
+}
+
+function getServerOnlineStatus(): boolean {
+  return true;
+}
 
 export function useOnlineStatus(): boolean {
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  return isOnline;
+  return useSyncExternalStore(
+    subscribeToOnlineStatus,
+    getOnlineStatus,
+    getServerOnlineStatus
+  );
 }

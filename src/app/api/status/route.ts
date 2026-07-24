@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 
-// ============================================
 // TYPES
-// ============================================
 
 type StatusLevel = "operational" | "degraded" | "partial_outage" | "major_outage";
 
@@ -60,9 +58,7 @@ interface UptimeHistory {
   overallUptime: number;
 }
 
-// ============================================
 // MOCK DATA GENERATORS
-// ============================================
 
 function generateMockServiceStatus(): ServiceStatus[] {
   // In a real application, these would be actual health checks
@@ -267,9 +263,7 @@ function getStatusMessage(status: StatusLevel): string {
   }
 }
 
-// ============================================
 // API ROUTE HANDLERS
-// ============================================
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

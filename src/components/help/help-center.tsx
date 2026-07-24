@@ -37,9 +37,6 @@ import {
   Clock,
   HelpCircle,
   Zap,
-  Shield,
-  Download,
-  CalendarClock,
   UserPlus,
   CheckCircle,
   RefreshCw,
@@ -48,18 +45,11 @@ import {
   Video,
   ArrowRight,
   Command,
-  Plus,
   Eye,
-  Save,
-  Undo,
-  Copy,
-  Trash2,
   X,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface QuickStartGuide {
   id: string;
@@ -111,9 +101,7 @@ interface ChangelogEntry {
   type: "feature" | "improvement" | "fix";
 }
 
-// ============================================
 // DATA
-// ============================================
 
 const QUICK_START_GUIDES: QuickStartGuide[] = [
   {
@@ -401,9 +389,7 @@ const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   },
 ];
 
-// ============================================
 // COMPONENTS
-// ============================================
 
 interface SearchBarProps {
   value: string;
@@ -857,7 +843,7 @@ function ContactSupportSection() {
             <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <CheckCircle className="w-5 h-5" />
               <span className="text-sm">
-                Ticket submitted successfully! We&apos;ll get back to you soon.
+                Ticket submitted. We&apos;ll get back to you soon.
               </span>
             </div>
           ) : (
@@ -912,9 +898,7 @@ function ContactSupportSection() {
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 interface HelpCenterProps {
   isAuthenticated?: boolean;

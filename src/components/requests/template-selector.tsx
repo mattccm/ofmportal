@@ -35,11 +35,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { Template, TemplateField, FieldType } from "@/lib/template-types";
+import type { Template, FieldType } from "@/lib/template-types";
 
-// ============================================
 // HELPERS
-// ============================================
 
 // Helper function to strip HTML tags from text
 function stripHtml(html: string | null | undefined): string {
@@ -47,9 +45,7 @@ function stripHtml(html: string | null | undefined): string {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TemplateSelectorProps {
   templates: Template[];
@@ -65,9 +61,7 @@ interface TemplateSelectorProps {
 type ViewMode = "grid" | "list";
 type CategoryFilter = "all" | "recent" | "favorites" | "popular";
 
-// ============================================
 // FIELD TYPE ICONS
-// ============================================
 
 const FIELD_ICONS: Record<FieldType, React.ReactNode> = {
   text: <Type className="h-3 w-3" />,
@@ -79,9 +73,7 @@ const FIELD_ICONS: Record<FieldType, React.ReactNode> = {
   file: <Upload className="h-3 w-3" />,
 };
 
-// ============================================
 // TEMPLATE SELECTOR COMPONENT
-// ============================================
 
 export function TemplateSelector({
   templates,
@@ -382,9 +374,7 @@ export function TemplateSelector({
   );
 }
 
-// ============================================
 // TEMPLATE QUICK CARD (for recommended/recent sections)
-// ============================================
 
 interface TemplateQuickCardProps {
   template: Template;
@@ -451,9 +441,7 @@ function TemplateQuickCard({
   );
 }
 
-// ============================================
 // TEMPLATE GRID CARD
-// ============================================
 
 interface TemplateCardProps {
   template: Template;
@@ -580,9 +568,7 @@ function TemplateGridCard({
   );
 }
 
-// ============================================
 // TEMPLATE LIST CARD
-// ============================================
 
 function TemplateListCard({
   template,
@@ -674,9 +660,7 @@ function TemplateListCard({
   );
 }
 
-// ============================================
 // TEMPLATE PREVIEW TOOLTIP
-// ============================================
 
 interface TemplatePreviewTooltipProps {
   template: Template;

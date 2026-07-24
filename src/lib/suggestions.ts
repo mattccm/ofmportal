@@ -132,9 +132,7 @@ export function generateSuggestions(context: SuggestionContext): Suggestion[] {
   // Helper to check if suggestion should be shown
   const shouldShow = (id: string): boolean => !dismissedSuggestions.includes(id);
 
-  // ===========================================
   // HIGH PRIORITY - Action Needed Suggestions
-  // ===========================================
 
   // Pending uploads need review
   if (context.awaitingReview && context.awaitingReview > 0) {
@@ -193,9 +191,7 @@ export function generateSuggestions(context: SuggestionContext): Suggestion[] {
     }
   }
 
-  // ===========================================
   // MEDIUM PRIORITY - Workflow Optimization
-  // ===========================================
 
   // Inactive creators
   if (context.creatorsWithoutActivity && context.creatorsWithoutActivity.length > 0) {
@@ -248,9 +244,7 @@ export function generateSuggestions(context: SuggestionContext): Suggestion[] {
     }
   }
 
-  // ===========================================
   // LOW PRIORITY - Feature Discovery
-  // ===========================================
 
   // Suggest templates if not used
   if (context.totalTemplates === 0 && context.activeCreators && context.activeCreators > 0) {

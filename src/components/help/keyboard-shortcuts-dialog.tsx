@@ -35,9 +35,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface KeyboardShortcutsDialogProps {
   open: boolean;
@@ -45,9 +43,7 @@ interface KeyboardShortcutsDialogProps {
   context?: string;
 }
 
-// ============================================
 // ICON MAP
-// ============================================
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   Compass: <Compass className="h-4 w-4" />,
@@ -65,9 +61,7 @@ const CATEGORY_COLORS: Record<ShortcutCategory, string> = {
   general: "text-slate-500 bg-slate-500/10",
 };
 
-// ============================================
 // KEY COMPONENT
-// ============================================
 
 interface KeyProps {
   children: React.ReactNode;
@@ -97,9 +91,7 @@ function Key({ children, isModifier = false, size = "md" }: KeyProps) {
   );
 }
 
-// ============================================
 // SHORTCUT KEYS DISPLAY
-// ============================================
 
 interface ShortcutKeysDisplayProps {
   keys: string | string[];
@@ -151,9 +143,7 @@ function ShortcutKeysDisplay({ keys, size = "md" }: ShortcutKeysDisplayProps) {
   );
 }
 
-// ============================================
 // SHORTCUT ITEM
-// ============================================
 
 interface ShortcutItemProps {
   shortcut: ShortcutDefinition;
@@ -174,9 +164,7 @@ function ShortcutItem({ shortcut, isHighlighted }: ShortcutItemProps) {
   );
 }
 
-// ============================================
 // CATEGORY SECTION
-// ============================================
 
 interface CategorySectionProps {
   group: ShortcutGroup;
@@ -218,9 +206,7 @@ function CategorySection({ group, shortcuts, searchQuery }: CategorySectionProps
   );
 }
 
-// ============================================
 // SEARCH RESULTS
-// ============================================
 
 interface SearchResultsProps {
   shortcuts: ShortcutDefinition[];
@@ -233,7 +219,7 @@ function SearchResults({ shortcuts, query }: SearchResultsProps) {
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Search className="h-10 w-10 text-muted-foreground/30 mb-3" />
         <p className="text-sm text-muted-foreground">
-          No shortcuts found for "{query}"
+          No shortcuts found for &quot;{query}&quot;
         </p>
         <p className="text-xs text-muted-foreground/70 mt-1">
           Try a different search term
@@ -254,9 +240,7 @@ function SearchResults({ shortcuts, query }: SearchResultsProps) {
   );
 }
 
-// ============================================
 // QUICK TIPS
-// ============================================
 
 function QuickTips() {
   const modKey = getModifierKey();
@@ -303,22 +287,26 @@ function QuickTips() {
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function KeyboardShortcutsDialog({
   open,
   onOpenChange,
-  context,
 }: KeyboardShortcutsDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setSearchQuery("");
+    }
+  }
+
   // Focus search input when dialog opens
   useEffect(() => {
     if (open) {
-      setSearchQuery("");
       // Small delay to ensure dialog is rendered
       setTimeout(() => {
         inputRef.current?.focus();
@@ -458,9 +446,7 @@ export function KeyboardShortcutsDialog({
   );
 }
 
-// ============================================
 // STANDALONE MODAL (for backward compatibility)
-// ============================================
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;

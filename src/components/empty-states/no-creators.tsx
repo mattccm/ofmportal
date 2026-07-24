@@ -3,9 +3,7 @@
 import { Users, UserPlus, Mail, Link as LinkIcon } from "lucide-react";
 import { EmptyState, type EmptyStateProps } from "./empty-state";
 
-// ============================================
 // NO CREATORS EMPTY STATE
-// ============================================
 
 interface NoCreatorsProps {
   /** Optional custom title */

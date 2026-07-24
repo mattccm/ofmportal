@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // SCHEMA VALIDATION
-// ============================================
 
 const addWatcherSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
@@ -31,9 +29,7 @@ const updatePreferencesSchema = z.object({
   notifyOnDueDate: z.boolean().optional(),
 });
 
-// ============================================
 // GET - List all watchers for a request
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -88,9 +84,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // POST - Add a watcher to a request
-// ============================================
 
 export async function POST(
   req: NextRequest,
@@ -201,9 +195,7 @@ export async function POST(
   }
 }
 
-// ============================================
 // DELETE - Remove a watcher from a request
-// ============================================
 
 export async function DELETE(
   req: NextRequest,
@@ -311,9 +303,7 @@ export async function DELETE(
   }
 }
 
-// ============================================
 // PATCH - Update watcher notification preferences
-// ============================================
 
 export async function PATCH(
   req: NextRequest,

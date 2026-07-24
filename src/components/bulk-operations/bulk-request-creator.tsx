@@ -33,7 +33,6 @@ import {
   Loader2,
   CheckCircle,
   ChevronRight,
-  ChevronDown,
   X,
   Sparkles,
   Eye,

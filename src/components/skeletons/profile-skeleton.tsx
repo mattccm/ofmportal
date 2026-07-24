@@ -1,8 +1,8 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Skeleton, SkeletonAvatar, SkeletonBadge, SkeletonText, SkeletonButton } from "@/components/ui/skeleton"
+import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton, SkeletonAvatar, SkeletonBadge, SkeletonButton } from "@/components/ui/skeleton"
 
 interface ProfileSkeletonProps {
   /**

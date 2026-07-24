@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,7 +36,6 @@ import {
 import { cn } from "@/lib/utils";
 import {
   type SmartSelectionPreset,
-  type SmartSelectionFilter,
   SMART_SELECTION_PRESETS,
 } from "@/lib/bulk-operations";
 

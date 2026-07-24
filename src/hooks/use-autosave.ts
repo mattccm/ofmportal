@@ -5,7 +5,7 @@
  * conflict detection, and recovery capabilities.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   saveFormData,
   getFormData,
@@ -113,10 +113,13 @@ export function useAutosave<T extends Record<string, unknown>>({
   const initialCheckDone = useRef(false);
 
   // Storage options
-  const storageOptions: FormStorageOptions = {
-    userId,
-    expiresIn,
-  };
+  const storageOptions: FormStorageOptions = useMemo(
+    () => ({
+      userId,
+      expiresIn,
+    }),
+    [userId, expiresIn]
+  );
 
   // Update data ref when data changes
   useEffect(() => {
@@ -289,11 +292,14 @@ export function useFormRecovery<T>(
   dismiss: () => void;
 } {
   const [recoverableData, setRecoverableData] = useState<StoredFormData<T> | null>(null);
+  const { userId, expiresIn } = options;
 
   useEffect(() => {
-    const saved = getFormData<T>(formId, options);
-    setRecoverableData(saved);
-  }, [formId, options]);
+    queueMicrotask(() => {
+      const saved = getFormData<T>(formId, { userId, expiresIn });
+      setRecoverableData(saved);
+    });
+  }, [formId, userId, expiresIn]);
 
   const recover = useCallback((): T | null => {
     if (recoverableData) {

@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { addDays, format } from "date-fns";
 import { sendContentRequestEmail } from "@/lib/email";
 
-// ============================================
 // TASK EXECUTION LOGIC
-// ============================================
 
 interface TaskResult {
   success: boolean;
@@ -243,9 +241,7 @@ async function executeTask(
   }
 }
 
-// ============================================
 // POST - Run task manually
-// ============================================
 
 export async function POST(
   req: NextRequest,

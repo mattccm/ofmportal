@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState, createContext, useContext, useCallback } from "react";
+import { useEffect, useState, createContext, useContext, useCallback, useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -49,6 +49,8 @@ function resolveTheme(theme: Theme): ResolvedTheme {
   return theme;
 }
 
+const emptySubscribe = () => () => {};
+
 // Script to inject into head for SSR flash prevention
 const themeScript = `
 (function() {
@@ -91,45 +93,18 @@ export function ThemeProvider({
   enableSystem = true,
   disableTransitionOnChange = false,
 }: ThemeProviderProps) {
-  const [mounted, setMounted] = useState(false);
-  const [theme, setThemeState] = useState<Theme>(defaultTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>("light");
-
-  // Initialize on mount
-  useEffect(() => {
-    const stored = getStoredTheme();
-    const system = getSystemTheme();
-    const resolved = resolveTheme(stored);
-
-    setThemeState(stored);
-    setSystemTheme(system);
-    setResolvedTheme(resolved);
-    setMounted(true);
-
-    // Apply initial theme
-    applyTheme(resolved, disableTransitionOnChange);
-  }, [disableTransitionOnChange]);
-
-  // Watch system preference changes
-  useEffect(() => {
-    if (!enableSystem) return;
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      const newSystemTheme = e.matches ? "dark" : "light";
-      setSystemTheme(newSystemTheme);
-
-      if (theme === "system") {
-        setResolvedTheme(newSystemTheme);
-        applyTheme(newSystemTheme, disableTransitionOnChange);
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme, enableSystem, disableTransitionOnChange]);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+  const [theme, setThemeState] = useState<Theme>(() =>
+    typeof window === "undefined" ? defaultTheme : getStoredTheme()
+  );
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
+    typeof window === "undefined" ? resolveTheme(defaultTheme) : resolveTheme(getStoredTheme())
+  );
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
 
   const applyTheme = useCallback(
     (resolved: ResolvedTheme, skipTransition: boolean = false) => {
@@ -157,6 +132,31 @@ export function ThemeProvider({
     },
     []
   );
+
+  // Apply initial theme on mount
+  useEffect(() => {
+    applyTheme(resolveTheme(getStoredTheme()), disableTransitionOnChange);
+  }, [disableTransitionOnChange, applyTheme]);
+
+  // Watch system preference changes
+  useEffect(() => {
+    if (!enableSystem) return;
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      const newSystemTheme = e.matches ? "dark" : "light";
+      setSystemTheme(newSystemTheme);
+
+      if (theme === "system") {
+        setResolvedTheme(newSystemTheme);
+        applyTheme(newSystemTheme, disableTransitionOnChange);
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, [theme, enableSystem, disableTransitionOnChange, applyTheme]);
 
   const setTheme = useCallback(
     (newTheme: Theme) => {

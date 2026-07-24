@@ -52,32 +52,31 @@ export function useCelebration(
 ): UseCelebrationReturn {
   const { persist = true, maxPerSession = 5, cooldownMs = 2000 } = options;
 
-  const [state, setState] = useState<CelebrationState>(() => ({
-    activeCelebration: null,
-    isOpen: false,
-    shownCelebrations: new Set(),
-  }));
+  const [state, setState] = useState<CelebrationState>(() => {
+    let shownCelebrations = new Set<string>();
+
+    // Load persisted shown celebrations
+    if (persist && typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as string[];
+          shownCelebrations = new Set(parsed);
+        }
+      } catch (error) {
+        console.warn("Failed to load celebration history:", error);
+      }
+    }
+
+    return {
+      activeCelebration: null,
+      isOpen: false,
+      shownCelebrations,
+    };
+  });
 
   const [sessionCount, setSessionCount] = useState(0);
   const [lastCelebrationTime, setLastCelebrationTime] = useState(0);
-
-  // Load persisted shown celebrations on mount
-  useEffect(() => {
-    if (!persist) return;
-
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as string[];
-        setState((prev) => ({
-          ...prev,
-          shownCelebrations: new Set(parsed),
-        }));
-      }
-    } catch (error) {
-      console.warn("Failed to load celebration history:", error);
-    }
-  }, [persist]);
 
   // Persist shown celebrations when they change
   useEffect(() => {

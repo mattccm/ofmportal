@@ -5,12 +5,10 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { deserializeTemplate, TemplateField } from "@/lib/templates";
+import { deserializeTemplate } from "@/lib/templates";
 import { EditTemplateClient } from "./edit-template-client";
 
-// ============================================
 // DATA FETCHING
-// ============================================
 
 async function getTemplate(id: string, agencyId: string) {
   const template = await db.requestTemplate.findFirst({
@@ -33,9 +31,7 @@ async function getTemplate(id: string, agencyId: string) {
   };
 }
 
-// ============================================
 // PAGE COMPONENT
-// ============================================
 
 interface EditTemplatePageProps {
   params: Promise<{ id: string }>;

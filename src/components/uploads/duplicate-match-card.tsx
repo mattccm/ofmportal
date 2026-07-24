@@ -10,11 +10,8 @@ import {
   Music,
   File,
   Calendar,
-  HardDrive,
   Check,
   X,
-  ChevronDown,
-  ChevronUp,
   Fingerprint,
   Scan,
   FileText,
@@ -36,7 +33,6 @@ import { formatFileSize } from "@/lib/file-utils";
 import type {
   DuplicateMatch,
   DuplicateOverrideReason,
-  OVERRIDE_REASON_LABELS,
 } from "@/types/content-fingerprint";
 import {
   formatMatchType,

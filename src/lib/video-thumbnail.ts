@@ -72,8 +72,8 @@ export async function extractVideoThumbnail(
       try {
         // Calculate dimensions maintaining aspect ratio
         const aspectRatio = video.videoWidth / video.videoHeight;
-        let width = Math.min(video.videoWidth, maxWidth);
-        let height = width / aspectRatio;
+        const width = Math.min(video.videoWidth, maxWidth);
+        const height = width / aspectRatio;
 
         // Set canvas size
         canvas.width = width;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession, type Session } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -14,7 +14,7 @@ import {
 import { isAdminOrHigher, PermissionUser } from "@/lib/permissions";
 
 // Helper to convert session user to PermissionUser
-function sessionToPermissionUser(session: any): PermissionUser {
+function sessionToPermissionUser(session: Session): PermissionUser {
   return {
     id: session.user.id,
     role: session.user.role,
@@ -23,7 +23,7 @@ function sessionToPermissionUser(session: any): PermissionUser {
 }
 
 // GET - List all roles for the agency
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 

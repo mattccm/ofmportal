@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const updateCategorySchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
@@ -20,9 +18,7 @@ const updateCategorySchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
 });
 
-// ============================================
 // GET - Get a single category with templates
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -102,9 +98,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // PATCH - Update a category
-// ============================================
 
 export async function PATCH(
   req: NextRequest,
@@ -207,9 +201,7 @@ export async function PATCH(
   }
 }
 
-// ============================================
 // DELETE - Delete a category
-// ============================================
 
 export async function DELETE(
   req: NextRequest,

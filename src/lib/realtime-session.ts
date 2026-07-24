@@ -4,7 +4,6 @@
 import {
   SessionState,
   SessionEvent,
-  SessionEventType,
   ReviewSession,
   ReviewSessionParticipantWithUser,
   ReviewSessionVoteWithUser,
@@ -22,10 +21,8 @@ import {
   SessionSummary,
 } from "@/types/review-session";
 
-// ============================================
 // In-Memory Session Store (for real-time sync)
 // In production, use Redis or similar
-// ============================================
 
 interface SessionStoreEntry {
   state: SessionState;
@@ -156,9 +153,7 @@ class SessionStore {
 // Global session store instance
 export const sessionStore = new SessionStore();
 
-// ============================================
 // Event Emitters
-// ============================================
 
 export function emitParticipantJoined(
   sessionId: string,
@@ -258,9 +253,7 @@ export function emitSessionUpdate(sessionId: string, state: SessionState): void 
   sessionStore.broadcast(sessionId, event);
 }
 
-// ============================================
 // Vote Summary Calculator
-// ============================================
 
 export function calculateVoteSummary(
   votes: ReviewSessionVoteWithUser[],
@@ -329,9 +322,7 @@ export function calculateVoteSummary(
   };
 }
 
-// ============================================
 // Progress Calculator
-// ============================================
 
 export function calculateSessionProgress(
   session: ReviewSession,
@@ -374,9 +365,7 @@ export function calculateSessionProgress(
   };
 }
 
-// ============================================
 // Session State Builder
-// ============================================
 
 export function buildSessionState(
   session: ReviewSession,
@@ -415,9 +404,7 @@ export function buildSessionState(
   };
 }
 
-// ============================================
 // SSE Stream Creator
-// ============================================
 
 export function createSSEStream(sessionId: string): ReadableStream {
   let unsubscribe: (() => void) | null = null;
@@ -465,9 +452,7 @@ export function createSSEStream(sessionId: string): ReadableStream {
   });
 }
 
-// ============================================
 // Session Summary Generator
-// ============================================
 
 export function generateSessionSummary(
   session: ReviewSession,
@@ -539,9 +524,7 @@ export function generateSessionSummary(
   };
 }
 
-// ============================================
 // Polling Fallback for SSE
-// ============================================
 
 export interface PollResponse {
   state: SessionState | null;
@@ -560,9 +543,7 @@ export function getPollingState(
   };
 }
 
-// ============================================
 // Client-Side Hooks Types
-// ============================================
 
 export interface UseReviewSessionOptions {
   sessionId: string;

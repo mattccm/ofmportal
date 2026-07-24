@@ -5,9 +5,7 @@ import { createContext, useContext } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // HEADING LEVEL CONTEXT
-// ============================================
 
 /**
  * Context for managing heading hierarchy automatically.
@@ -48,9 +46,7 @@ export function HeadingSection({ children, level }: HeadingSectionProps) {
   );
 }
 
-// ============================================
 // HEADING VARIANTS
-// ============================================
 
 const headingVariants = cva("font-bold tracking-tight text-foreground", {
   variants: {
@@ -82,9 +78,7 @@ const headingVariants = cva("font-bold tracking-tight text-foreground", {
   },
 });
 
-// ============================================
 // HEADING COMPONENT
-// ============================================
 
 interface HeadingProps
   extends React.HTMLAttributes<HTMLHeadingElement>,
@@ -150,9 +144,7 @@ export function Heading({
   );
 }
 
-// ============================================
 // SPECIFIC HEADING LEVELS
-// ============================================
 
 type SpecificHeadingProps = Omit<HeadingProps, "as">;
 
@@ -180,9 +172,7 @@ export function H6(props: SpecificHeadingProps) {
   return <Heading as={6} size="base" {...props} />;
 }
 
-// ============================================
 // PAGE TITLE
-// ============================================
 
 interface PageTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
   /** The main title */
@@ -228,9 +218,7 @@ export function PageTitle({
   );
 }
 
-// ============================================
 // SECTION TITLE
-// ============================================
 
 interface SectionTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
   children: React.ReactNode;
@@ -267,9 +255,7 @@ export function SectionTitle({
   );
 }
 
-// ============================================
 // CARD TITLE
-// ============================================
 
 interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
   children: React.ReactNode;
@@ -301,9 +287,7 @@ export function CardTitle({
   );
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export { headingVariants };
 export default Heading;

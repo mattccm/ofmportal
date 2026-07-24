@@ -4,9 +4,7 @@ import * as React from "react";
 import { createContext, useContext, useCallback, useRef, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type AnnouncementPoliteness = 'polite' | 'assertive' | 'off';
 
@@ -30,9 +28,7 @@ interface LiveAnnouncerContextValue {
   recentAnnouncements: Announcement[];
 }
 
-// ============================================
 // CONTEXT
-// ============================================
 
 const LiveAnnouncerContext = createContext<LiveAnnouncerContextValue | null>(null);
 
@@ -52,9 +48,7 @@ export function useLiveAnnouncer() {
   return context;
 }
 
-// ============================================
 // PROVIDER
-// ============================================
 
 interface LiveAnnouncerProviderProps {
   children: React.ReactNode;
@@ -184,9 +178,7 @@ export function LiveAnnouncerProvider({
   );
 }
 
-// ============================================
 // LIVE REGION COMPONENT
-// ============================================
 
 interface LiveRegionProps {
   politeness: 'polite' | 'assertive';
@@ -223,9 +215,7 @@ function LiveRegion({ politeness, message, className }: LiveRegionProps) {
   );
 }
 
-// ============================================
 // STANDALONE LIVE REGIONS
-// ============================================
 
 interface AriaLiveRegionProps {
   children: React.ReactNode;
@@ -306,9 +296,7 @@ export function AriaStatus({
   );
 }
 
-// ============================================
 // HOOKS FOR COMMON PATTERNS
-// ============================================
 
 /**
  * Hook for announcing loading states
@@ -349,7 +337,7 @@ export function useFormAnnouncement() {
       announce('Submitting form...');
     },
     announceSubmitted: () => {
-      announce('Form submitted successfully');
+      announce('Form submitted');
     },
     announceSubmitError: (message?: string) => {
       announceAssertive(message || 'Failed to submit form. Please try again.');
@@ -402,8 +390,6 @@ export function useListAnnouncement() {
   };
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export default LiveAnnouncerProvider;

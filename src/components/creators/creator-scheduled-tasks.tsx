@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { format, isToday, isFuture, isPast, addDays } from "date-fns";
+import { format, isToday, isFuture, addDays } from "date-fns";
 import {
   CalendarDays,
   Clock,
   Plus,
-  ChevronRight,
   FilePlus,
   Bell,
   Archive,
@@ -24,7 +23,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -40,20 +38,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   ScheduledTask,
   ScheduledTaskType,
   ScheduledTaskStatus,
-  TASK_TYPE_LABELS,
   RECURRENCE_LABELS,
   STATUS_LABELS,
 } from "@/types/scheduled-tasks";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Template {
   id: string;
@@ -74,9 +68,7 @@ interface CreatorScheduledTasksProps {
   onScheduleNew?: () => void;
 }
 
-// ============================================
 // TASK TYPE ICON
-// ============================================
 
 const TaskTypeIcon: React.FC<{ type: ScheduledTaskType; className?: string }> = ({
   type,
@@ -98,9 +90,7 @@ const TaskTypeIcon: React.FC<{ type: ScheduledTaskType; className?: string }> = 
   }
 };
 
-// ============================================
 // STATUS INDICATOR
-// ============================================
 
 const StatusIndicator: React.FC<{ status: ScheduledTaskStatus }> = ({ status }) => {
   const config: Record<
@@ -144,9 +134,7 @@ const StatusIndicator: React.FC<{ status: ScheduledTaskStatus }> = ({ status }) 
   );
 };
 
-// ============================================
 // TIMELINE VIEW
-// ============================================
 
 interface TimelineViewProps {
   tasks: ScheduledTask[];
@@ -357,7 +345,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                               ? `Created ${task.results.createdRequestIds.length} request(s)`
                               : task.results.sentReminderCount
                               ? `Sent ${task.results.sentReminderCount} reminder(s)`
-                              : "Completed successfully"}
+                              : "Done"}
                           </span>
                         </div>
                       </div>
@@ -382,9 +370,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
   );
 };
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function CreatorScheduledTasks({
   creatorId,
@@ -449,7 +435,7 @@ export function CreatorScheduledTasks({
 
       if (!response.ok) throw new Error("Failed to run task");
 
-      toast.success("Task executed successfully");
+      toast.success("Task ran");
       fetchTasks();
     } catch (error) {
       console.error("Error running task:", error);

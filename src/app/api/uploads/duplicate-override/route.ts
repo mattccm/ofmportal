@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
-import type { DuplicateOverrideReason } from "@/types/content-fingerprint";
 
 // Schema for override request
 const overrideSchema = z.object({

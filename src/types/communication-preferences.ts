@@ -1,7 +1,5 @@
-// ============================================
 // COMMUNICATION PREFERENCES TYPES
 // For Creator Communication Preferences System
-// ============================================
 
 /**
  * Available contact methods for creators

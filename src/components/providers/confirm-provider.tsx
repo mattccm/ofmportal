@@ -3,9 +3,7 @@
 import * as React from "react";
 import { ConfirmDialog, type ConfirmDialogVariant } from "@/components/ui/confirm-dialog";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface ConfirmOptions {
   title: string;
@@ -43,22 +41,17 @@ interface ConfirmContextValue {
   }) => Promise<boolean>;
 }
 
-// ============================================
 // CONTEXT
-// ============================================
 
 const ConfirmContext = React.createContext<ConfirmContextValue | null>(null);
 
-// ============================================
 // PROVIDER COMPONENT
-// ============================================
 
 interface ConfirmState {
   open: boolean;
   loading: boolean;
   options: ConfirmOptions;
   content: React.ReactNode;
-  resolve: ((value: boolean) => void) | null;
 }
 
 const initialState: ConfirmState = {
@@ -72,15 +65,16 @@ const initialState: ConfirmState = {
     variant: "default",
   },
   content: null,
-  resolve: null,
 };
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<ConfirmState>(initialState);
+  const resolveRef = React.useRef<((value: boolean) => void) | null>(null);
 
   const confirm = React.useCallback(
     (options: ConfirmOptions): Promise<boolean> => {
       return new Promise<boolean>((resolve) => {
+        resolveRef.current = resolve;
         setState({
           open: true,
           loading: false,
@@ -92,7 +86,6 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             variant: options.variant || "default",
           },
           content: options.content || null,
-          resolve,
         });
       });
     },
@@ -181,18 +174,20 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleConfirm = React.useCallback(async () => {
-    if (state.resolve) {
-      state.resolve(true);
+    if (resolveRef.current) {
+      resolveRef.current(true);
+      resolveRef.current = null;
     }
-    setState((prev) => ({ ...prev, open: false, resolve: null }));
-  }, [state.resolve]);
+    setState((prev) => ({ ...prev, open: false }));
+  }, []);
 
   const handleCancel = React.useCallback(() => {
-    if (state.resolve) {
-      state.resolve(false);
+    if (resolveRef.current) {
+      resolveRef.current(false);
+      resolveRef.current = null;
     }
-    setState((prev) => ({ ...prev, open: false, resolve: null }));
-  }, [state.resolve]);
+    setState((prev) => ({ ...prev, open: false }));
+  }, []);
 
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
@@ -234,9 +229,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ============================================
 // HOOK
-// ============================================
 
 export function useConfirmDialog() {
   const context = React.useContext(ConfirmContext);

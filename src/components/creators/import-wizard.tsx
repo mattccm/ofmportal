@@ -44,7 +44,6 @@ import { cn } from "@/lib/utils";
 import {
   ColumnMapper,
   ColumnMapping,
-  CreatorField,
   CREATOR_FIELDS,
   autoDetectMapping,
 } from "./column-mapper";

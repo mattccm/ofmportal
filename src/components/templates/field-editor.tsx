@@ -43,7 +43,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { cn } from "@/lib/utils";
 
 // Helper to safely parse error response
@@ -75,9 +74,7 @@ import {
   FIELD_TYPE_CONFIG,
 } from "@/lib/template-types";
 
-// ============================================
 // FIELD TYPE ICONS
-// ============================================
 
 const fieldTypeIcons: Record<FieldType, React.ElementType> = {
   text: Type,
@@ -89,9 +86,7 @@ const fieldTypeIcons: Record<FieldType, React.ElementType> = {
   file: Upload,
 };
 
-// ============================================
 // FIELD EDITOR PROPS
-// ============================================
 
 interface FieldEditorProps {
   field: TemplateField;
@@ -105,9 +100,7 @@ interface FieldEditorProps {
   isDragging?: boolean;
 }
 
-// ============================================
 // FIELD EDITOR COMPONENT
-// ============================================
 
 export function FieldEditor({
   field,
@@ -454,9 +447,7 @@ export function FieldEditor({
   );
 }
 
-// ============================================
 // OPTIONS EDITOR (for Select fields)
-// ============================================
 
 interface OptionsEditorProps {
   options: SelectOption[];
@@ -548,9 +539,7 @@ function OptionsEditor({ options, onChange }: OptionsEditorProps) {
   );
 }
 
-// ============================================
 // RICH CONTENT EDITOR
-// ============================================
 
 export interface RichContentEditorProps {
   richContent?: RichContent;
@@ -1269,9 +1258,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
   );
 }
 
-// ============================================
 // FILE OPTIONS EDITOR
-// ============================================
 
 interface FileOptionsEditorProps {
   acceptedFileTypes?: string[];
@@ -1457,9 +1444,7 @@ function FileOptionsEditor({
   );
 }
 
-// ============================================
 // VALIDATION PANEL
-// ============================================
 
 interface ValidationPanelProps {
   open: boolean;
@@ -1611,9 +1596,7 @@ function ValidationPanel({
   );
 }
 
-// ============================================
 // CONDITIONAL VISIBILITY PANEL
-// ============================================
 
 interface ConditionalVisibilityPanelProps {
   open: boolean;
@@ -1751,9 +1734,7 @@ function ConditionalVisibilityPanel({
   );
 }
 
-// ============================================
 // FIELD TYPE PALETTE
-// ============================================
 
 interface FieldTypePaletteProps {
   onAddField: (type: FieldType) => void;

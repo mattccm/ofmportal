@@ -2,17 +2,16 @@
 
 import * as React from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { Eye, EyeOff, Clock, User, Users, UserCheck, ExternalLink, Monitor, Smartphone, Tablet } from "lucide-react";
+import { Eye, EyeOff, Clock, Users, UserCheck, Monitor, Smartphone, Tablet } from "lucide-react";
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ViewReceipt, RequestViewData } from "@/types/read-receipts";
+import { ViewReceipt } from "@/types/read-receipts";
 import {
   getViewReceipts,
   subscribeToViewReceipts,
@@ -20,12 +19,9 @@ import {
   getViewKey,
   formatViewDuration,
   getDeviceType,
-  generateId,
 } from "@/lib/realtime-simulation";
 
-// ============================================================================
 // Tooltip Wrapper
-// ============================================================================
 
 function ViewTooltip({
   children,
@@ -58,9 +54,7 @@ function ViewTooltip({
   );
 }
 
-// ============================================================================
 // Device Icon Component
-// ============================================================================
 
 function DeviceIcon({ deviceType }: { deviceType?: string }) {
   if (!deviceType) return <Monitor className="h-3.5 w-3.5 text-muted-foreground" />;
@@ -74,9 +68,7 @@ function DeviceIcon({ deviceType }: { deviceType?: string }) {
   return icons[deviceType] || icons.desktop;
 }
 
-// ============================================================================
 // Hook for tracking request views
-// ============================================================================
 
 interface UseRequestViewTrackerOptions {
   requestId: string;
@@ -175,8 +167,7 @@ export function useRequestViewTracker({
 
   // Categorize views
   const { creatorViewed, teamViews } = React.useMemo(() => {
-    // In a real app, you'd check user roles
-    // For now, we'll assume the first viewer is the creator
+    // Treat the earliest viewer as the creator
     const sorted = [...views].sort(
       (a, b) => new Date(a.viewedAt).getTime() - new Date(b.viewedAt).getTime()
     );
@@ -200,9 +191,7 @@ export function useRequestViewTracker({
   };
 }
 
-// ============================================================================
 // Request View Status Badge
-// ============================================================================
 
 interface RequestViewStatusProps {
   requestId: string;
@@ -342,9 +331,7 @@ export function RequestViewStatus({
   );
 }
 
-// ============================================================================
 // Request View Tracker Panel
-// ============================================================================
 
 interface RequestViewTrackerProps {
   requestId: string;
@@ -527,9 +514,7 @@ export function RequestViewTracker({
   );
 }
 
-// ============================================================================
 // Request View Inline Indicator
-// ============================================================================
 
 interface RequestViewInlineProps {
   requestId: string;
@@ -575,9 +560,7 @@ export function RequestViewInline({
   );
 }
 
-// ============================================================================
 // Auto View Tracker (invisible component that just tracks)
-// ============================================================================
 
 interface AutoViewTrackerProps {
   requestId: string;

@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// ============================================
 // GET /api/mentions/[id] - Get a single mention
-// ============================================
 
 export async function GET(
   request: NextRequest,
@@ -51,9 +49,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // PATCH /api/mentions/[id] - Update a mention (mark as read)
-// ============================================
 
 export async function PATCH(
   request: NextRequest,
@@ -110,9 +106,7 @@ export async function PATCH(
   }
 }
 
-// ============================================
 // DELETE /api/mentions/[id] - Delete a mention
-// ============================================
 
 export async function DELETE(
   request: NextRequest,

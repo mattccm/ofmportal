@@ -25,9 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type AlertVariant = "default" | "destructive" | "warning" | "info" | "success";
 
@@ -58,9 +56,7 @@ export interface AlertDialogEnhancedProps {
   closeOnOutsideClick?: boolean;
 }
 
-// ============================================
 // VARIANT CONFIGURATION
-// ============================================
 
 const variantConfig: Record<
   AlertVariant,
@@ -109,9 +105,7 @@ const variantConfig: Record<
   },
 };
 
-// ============================================
 // ALERT DIALOG ENHANCED COMPONENT
-// ============================================
 
 export function AlertDialogEnhanced({
   open,
@@ -264,9 +258,7 @@ export function AlertDialogEnhanced({
   );
 }
 
-// ============================================
 // DANGER ZONE ALERT - FOR CRITICAL DESTRUCTIVE ACTIONS
-// ============================================
 
 export interface DangerZoneAlertProps {
   open: boolean;
@@ -335,9 +327,7 @@ export function DangerZoneAlert({
   );
 }
 
-// ============================================
 // CLEAR DATA ALERT - FOR CLEARING ALL DATA
-// ============================================
 
 export interface ClearDataAlertProps {
   open: boolean;
@@ -398,9 +388,7 @@ export function ClearDataAlert({
   );
 }
 
-// ============================================
 // MULTI-ACTION ALERT - FOR MULTIPLE CHOICES
-// ============================================
 
 export interface MultiActionAlertProps {
   open: boolean;

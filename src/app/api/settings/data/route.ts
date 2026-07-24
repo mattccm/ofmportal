@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { RequestStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -23,15 +24,6 @@ interface StorageBreakdown {
   size: number;
   count: number;
   color: string;
-}
-
-// Helper function to format bytes
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
 // GET - Fetch storage stats, retention policy, or jobs
@@ -75,16 +67,13 @@ export async function GET(request: NextRequest) {
         };
 
         let totalUsed = BigInt(0);
-        let completedCount = 0;
         let failedCount = 0;
 
         for (const upload of uploads) {
           const size = upload.fileSize;
           totalUsed += size;
 
-          if (upload.uploadStatus === "COMPLETED") {
-            completedCount++;
-          } else if (upload.uploadStatus === "FAILED") {
+          if (upload.uploadStatus === "FAILED") {
             failedCount++;
           }
 
@@ -349,7 +338,7 @@ export async function POST(request: NextRequest) {
         cutoffDate.setDate(cutoffDate.getDate() - policy.retentionDays);
 
         // Build status filter based on policy
-        const statusFilter: string[] = [];
+        const statusFilter: RequestStatus[] = [];
         if (policy.applyTo.completedRequests) statusFilter.push("APPROVED");
         if (policy.applyTo.cancelledRequests) statusFilter.push("CANCELLED");
         if (policy.applyTo.archivedRequests) statusFilter.push("ARCHIVED");
@@ -366,7 +355,7 @@ export async function POST(request: NextRequest) {
         const requests = await db.contentRequest.findMany({
           where: {
             agencyId,
-            status: { in: statusFilter as any[] },
+            status: { in: statusFilter },
             updatedAt: { lt: cutoffDate },
             creatorId: policy.excludeCreators.length > 0
               ? { notIn: policy.excludeCreators }
@@ -391,7 +380,7 @@ export async function POST(request: NextRequest) {
         const totalCount = await db.contentRequest.count({
           where: {
             agencyId,
-            status: { in: statusFilter as any[] },
+            status: { in: statusFilter },
             updatedAt: { lt: cutoffDate },
             creatorId: policy.excludeCreators.length > 0
               ? { notIn: policy.excludeCreators }
@@ -407,7 +396,7 @@ export async function POST(request: NextRequest) {
           where: {
             request: {
               agencyId,
-              status: { in: statusFilter as any[] },
+              status: { in: statusFilter },
               updatedAt: { lt: cutoffDate },
               creatorId: policy.excludeCreators.length > 0
                 ? { notIn: policy.excludeCreators }

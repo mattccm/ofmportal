@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ReactNode, Suspense } from "react";
+import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useIsMobile, useIsTablet } from "@/hooks/use-media-query";
 import { Sidebar } from "./sidebar";

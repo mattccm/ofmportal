@@ -3,9 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type StatusLevel = "operational" | "degraded" | "partial_outage" | "major_outage";
 
@@ -19,9 +17,7 @@ export interface StatusIndicatorProps {
   tooltipContent?: string;
 }
 
-// ============================================
 // STATUS CONFIGURATION
-// ============================================
 
 const STATUS_CONFIG: Record<
   StatusLevel,
@@ -76,9 +72,7 @@ const SIZE_CONFIG = {
   },
 };
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function StatusIndicator({
   status,
@@ -128,9 +122,7 @@ export function StatusIndicator({
   );
 }
 
-// ============================================
 // SERVICE STATUS BADGE
-// ============================================
 
 export interface ServiceStatusBadgeProps {
   serviceName: string;
@@ -197,9 +189,7 @@ export function ServiceStatusBadge({
   );
 }
 
-// ============================================
 // OVERALL STATUS BANNER
-// ============================================
 
 export interface OverallStatusBannerProps {
   status: StatusLevel;
@@ -257,8 +247,6 @@ export function OverallStatusBanner({
   );
 }
 
-// ============================================
 // EXPORT STATUS CONFIG FOR USE IN OTHER COMPONENTS
-// ============================================
 
 export { STATUS_CONFIG };

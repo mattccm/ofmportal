@@ -195,9 +195,7 @@ export interface StoreFingerprintResponse {
   duplicateCheckResult?: DuplicateCheckResult;
 }
 
-// ============================================
 // DUPLICATE ATTEMPT TRACKING
-// ============================================
 
 export type DuplicateMatchTypeEnum = "EXACT" | "NEAR" | "SIMILAR";
 export type DuplicateActionEnum = "BLOCKED" | "WARNED" | "ALLOWED" | "OVERRIDDEN";

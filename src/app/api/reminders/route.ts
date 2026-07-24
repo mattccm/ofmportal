@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const listRemindersSchema = z.object({
   status: z.enum(["PENDING", "SENT", "FAILED"]).optional(),
@@ -23,9 +21,7 @@ const bulkActionSchema = z.object({
   rescheduleDate: z.string().optional(),
 });
 
-// ============================================
 // GET - List all reminders for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -125,9 +121,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Bulk actions on reminders
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

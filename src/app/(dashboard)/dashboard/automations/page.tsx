@@ -7,7 +7,6 @@ import {
   Search,
   Filter,
   Play,
-  Pause,
   Trash2,
   Edit,
   Copy,
@@ -26,16 +25,12 @@ import {
   FileText,
   Upload,
   Bell,
-  Users,
   X,
-  ArrowRight,
-  Settings,
-  Eye,
   TestTube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -64,9 +59,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 type TriggerType = "request_created" | "upload_submitted" | "due_date_approaching" | "status_changed";
 type ActionType = "send_notification" | "send_email" | "send_sms" | "assign_team_member" | "update_status" | "add_tag";
@@ -116,9 +109,7 @@ interface AutomationTemplate {
   actions: Action[];
 }
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 const TRIGGER_OPTIONS: { value: TriggerType; label: string; description: string; icon: React.ElementType }[] = [
   { value: "request_created", label: "Request Created", description: "When a new content request is created", icon: FileText },
@@ -222,7 +213,7 @@ const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     trigger: { type: "request_created", config: {} },
     conditions: [],
     actions: [
-      { id: "1", type: "send_notification", config: { message: "New content request created successfully" } },
+      { id: "1", type: "send_notification", config: { message: "New content request created" } },
     ],
   },
   {
@@ -240,9 +231,7 @@ const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
   },
 ];
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
@@ -256,9 +245,7 @@ function getActionInfo(type: ActionType) {
   return ACTION_OPTIONS.find(a => a.value === type) || ACTION_OPTIONS[0];
 }
 
-// ============================================
 // COMPONENTS
-// ============================================
 
 function AutomationCard({
   automation,
@@ -676,9 +663,7 @@ function ActionBuilder({
   );
 }
 
-// ============================================
 // MAIN PAGE COMPONENT
-// ============================================
 
 export default function AutomationsPage() {
   const [automations, setAutomations] = useState<Automation[]>([]);
@@ -874,7 +859,7 @@ export default function AutomationsPage() {
       const data = await response.json();
       setTestResult({
         success: response.ok,
-        message: data.message || (response.ok ? "Test completed successfully" : "Test failed"),
+        message: data.message || (response.ok ? "Test passed" : "Test failed"),
       });
     } catch (error) {
       setTestResult({

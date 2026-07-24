@@ -24,9 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { cn } from "@/lib/utils";
 import type { Template, TemplateField, FieldType } from "@/lib/template-types";
 
-// ============================================
 // HELPERS
-// ============================================
 
 // Helper function to strip HTML tags from text
 function stripHtml(html: string | null | undefined): string {
@@ -34,9 +32,7 @@ function stripHtml(html: string | null | undefined): string {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TemplatePreviewCardProps {
   template: Template;
@@ -47,9 +43,7 @@ interface TemplatePreviewCardProps {
   className?: string;
 }
 
-// ============================================
 // FIELD TYPE CONFIGURATION
-// ============================================
 
 const FIELD_TYPE_CONFIG: Record<
   FieldType,
@@ -138,9 +132,7 @@ const URGENCY_CONFIG: Record<
   },
 };
 
-// ============================================
 // TEMPLATE PREVIEW CARD COMPONENT
-// ============================================
 
 export function TemplatePreviewCard({
   template,
@@ -327,9 +319,7 @@ export function TemplatePreviewCard({
   );
 }
 
-// ============================================
 // FIELD PREVIEW ITEM
-// ============================================
 
 interface FieldPreviewItemProps {
   field: TemplateField;
@@ -463,9 +453,7 @@ function FieldPreviewItem({ field, isExpanded, onToggle }: FieldPreviewItemProps
   );
 }
 
-// ============================================
 // COMPACT TEMPLATE PREVIEW (for inline use)
-// ============================================
 
 interface CompactTemplatePreviewProps {
   template: Template;

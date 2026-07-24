@@ -65,10 +65,19 @@ export async function POST(
       );
     }
 
-    // Validate it's an image
-    if (!thumbnailFile.type.startsWith("image/")) {
+    // Validate it's a safe image type (no SVG which can contain scripts)
+    const ALLOWED_THUMBNAIL_TYPES = ["image/jpeg", "image/png", "image/webp"];
+    if (!ALLOWED_THUMBNAIL_TYPES.includes(thumbnailFile.type)) {
       return NextResponse.json(
-        { error: "Thumbnail must be an image file" },
+        { error: "Thumbnail must be a JPEG, PNG, or WebP image" },
+        { status: 400 }
+      );
+    }
+
+    // Validate thumbnail size (max 5MB)
+    if (thumbnailFile.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Thumbnail must be under 5MB" },
         { status: 400 }
       );
     }

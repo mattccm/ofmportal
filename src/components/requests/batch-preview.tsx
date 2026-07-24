@@ -32,7 +32,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   AlertTriangle,
-  Calendar,
   Edit2,
   Trash2,
   CheckCircle,
@@ -41,7 +40,6 @@ import {
   ChevronUp,
   AlertCircle,
 } from "lucide-react";
-import { format } from "date-fns";
 import type { Creator } from "./batch-creator-selector";
 
 export interface BatchRequestItem {
@@ -71,12 +69,39 @@ const URGENCY_OPTIONS = [
   { value: "URGENT", label: "Urgent", class: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" },
 ] as const;
 
+const SortHeader = ({
+  field,
+  label,
+  sortField,
+  sortDirection,
+  onToggle,
+}: {
+  field: "name" | "dueDate" | "urgency";
+  label: string;
+  sortField: "name" | "dueDate" | "urgency" | null;
+  sortDirection: "asc" | "desc";
+  onToggle: (field: "name" | "dueDate" | "urgency") => void;
+}) => (
+  <button
+    onClick={() => onToggle(field)}
+    className="flex items-center gap-1 hover:text-foreground transition-colors"
+  >
+    {label}
+    {sortField === field && (
+      sortDirection === "asc" ? (
+        <ChevronUp className="h-3 w-3" />
+      ) : (
+        <ChevronDown className="h-3 w-3" />
+      )
+    )}
+  </button>
+);
+
 export function BatchPreview({
   items,
   templateName,
   onItemUpdate,
   onItemRemove,
-  onReorder,
 }: BatchPreviewProps) {
   const [editingItem, setEditingItem] = useState<BatchRequestItem | null>(null);
   const [editDialog, setEditDialog] = useState(false);
@@ -199,29 +224,6 @@ export function BatchPreview({
     return URGENCY_OPTIONS.find((o) => o.value === urgency) || URGENCY_OPTIONS[1];
   };
 
-  // Sort header component
-  const SortHeader = ({
-    field,
-    label,
-  }: {
-    field: "name" | "dueDate" | "urgency";
-    label: string;
-  }) => (
-    <button
-      onClick={() => toggleSort(field)}
-      className="flex items-center gap-1 hover:text-foreground transition-colors"
-    >
-      {label}
-      {sortField === field && (
-        sortDirection === "asc" ? (
-          <ChevronUp className="h-3 w-3" />
-        ) : (
-          <ChevronDown className="h-3 w-3" />
-        )
-      )}
-    </button>
-  );
-
   return (
     <div className="space-y-4">
       {/* Summary Header */}
@@ -290,14 +292,32 @@ export function BatchPreview({
             <TableRow className="bg-muted/50">
               <TableHead className="w-[40px]">#</TableHead>
               <TableHead>
-                <SortHeader field="name" label="Creator" />
+                <SortHeader
+                  field="name"
+                  label="Creator"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onToggle={toggleSort}
+                />
               </TableHead>
               <TableHead>Title</TableHead>
               <TableHead>
-                <SortHeader field="dueDate" label="Due Date" />
+                <SortHeader
+                  field="dueDate"
+                  label="Due Date"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onToggle={toggleSort}
+                />
               </TableHead>
               <TableHead>
-                <SortHeader field="urgency" label="Priority" />
+                <SortHeader
+                  field="urgency"
+                  label="Priority"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onToggle={toggleSort}
+                />
               </TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>

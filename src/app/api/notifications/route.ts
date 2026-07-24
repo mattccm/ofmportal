@@ -14,9 +14,7 @@ import {
 } from "@/lib/notifications";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const getNotificationsQuerySchema = z.object({
   limit: z.coerce.number().min(1).max(100).optional().default(20),
@@ -47,9 +45,7 @@ const deleteNotificationsSchema = z.object({
   notificationIds: z.array(z.string()).min(1),
 });
 
-// ============================================
 // GET - Fetch user's notifications
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -107,9 +103,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // PATCH - Mark notifications as read
-// ============================================
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -130,23 +124,22 @@ export async function PATCH(req: NextRequest) {
     } else if ("notificationIds" in validatedData) {
       const { notificationIds, markAsUnread: shouldMarkUnread } = validatedData;
 
-      // Mark specific notifications as read or unread
-      // Note: In a production app, you'd want to verify ownership of each notification
+      // Mark specific notifications as read or unread (with ownership verification)
       if (shouldMarkUnread) {
         // Mark as unread
         if (notificationIds.length === 1) {
-          const success = await markAsUnread(notificationIds[0]);
+          const success = await markAsUnread(notificationIds[0], session.user.id);
           markedCount = success ? 1 : 0;
         } else {
-          markedCount = await markMultipleAsUnread(notificationIds);
+          markedCount = await markMultipleAsUnread(notificationIds, session.user.id);
         }
       } else {
         // Mark as read
         if (notificationIds.length === 1) {
-          const success = await markAsRead(notificationIds[0]);
+          const success = await markAsRead(notificationIds[0], session.user.id);
           markedCount = success ? 1 : 0;
         } else {
-          markedCount = await markMultipleAsRead(notificationIds);
+          markedCount = await markMultipleAsRead(notificationIds, session.user.id);
         }
       }
     }
@@ -171,9 +164,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Delete notifications
-// ============================================
 
 export async function DELETE(req: NextRequest) {
   try {

@@ -3,9 +3,7 @@
 import * as React from "react";
 import { useCallback, useEffect, useRef } from "react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface FocusTrapProps {
   children: React.ReactNode;
@@ -27,9 +25,7 @@ interface FocusTrapProps {
   className?: string;
 }
 
-// ============================================
 // FOCUSABLE ELEMENTS SELECTOR
-// ============================================
 
 const FOCUSABLE_ELEMENTS = [
   'a[href]',
@@ -44,9 +40,7 @@ const FOCUSABLE_ELEMENTS = [
   'details > summary',
 ].join(', ');
 
-// ============================================
 // HOOKS
-// ============================================
 
 /**
  * Hook to manage focus within a container
@@ -197,9 +191,7 @@ export function useFocusTrap(
   };
 }
 
-// ============================================
 // FOCUS TRAP COMPONENT
-// ============================================
 
 /**
  * Focus trap component that keeps focus within its children.
@@ -304,9 +296,7 @@ export function FocusTrap({
   );
 }
 
-// ============================================
 // FOCUS SCOPE - More flexible alternative
-// ============================================
 
 interface FocusScopeProps {
   children: React.ReactNode;
@@ -416,8 +406,6 @@ export function FocusScope({
   );
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export default FocusTrap;

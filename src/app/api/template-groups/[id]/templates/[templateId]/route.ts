@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// ============================================
 // DELETE - Remove a template from a group
-// ============================================
 
 export async function DELETE(
   req: NextRequest,

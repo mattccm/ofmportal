@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { scheduleRemindersForAgency } from "@/lib/auto-reminder-scheduler";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const overdueFrequencyEnum = z.enum([
   "NONE",
@@ -52,9 +50,7 @@ const bulkUpdateSchema = z.object({
   rescheduleExisting: z.boolean().default(false),
 });
 
-// ============================================
 // GET - List all reminder rules for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -100,9 +96,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create a new reminder rule
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -191,9 +185,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // PUT - Update an existing rule or bulk update
-// ============================================
 
 export async function PUT(req: NextRequest) {
   try {
@@ -300,9 +292,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Delete a reminder rule
-// ============================================
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -374,9 +364,7 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// ============================================
 // HELPER: Handle bulk update
-// ============================================
 
 async function handleBulkUpdate(
   session: { user: { id: string; agencyId: string; role: string } },

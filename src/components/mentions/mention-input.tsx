@@ -14,9 +14,7 @@ import { MentionAutocomplete } from "./mention-autocomplete";
 import { useMentionInput } from "@/hooks/use-mentions";
 import type { MentionSuggestion } from "@/types/mentions";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface MentionInputRef {
   focus: () => void;
@@ -55,9 +53,7 @@ export interface MentionInputProps {
   maxLength?: number;
 }
 
-// ============================================
 // MENTION INPUT COMPONENT
-// ============================================
 
 export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
   function MentionInput(
@@ -140,9 +136,11 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
 
     // Update dropdown position when autocomplete opens
     useEffect(() => {
-      if (inputState.isOpen) {
+      if (!inputState.isOpen) return;
+      const frame = requestAnimationFrame(() => {
         setDropdownPosition(calculateDropdownPosition());
-      }
+      });
+      return () => cancelAnimationFrame(frame);
     }, [inputState.isOpen, calculateDropdownPosition]);
 
     // Handle text area change
@@ -308,9 +306,6 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
             isLoading={isLoadingSuggestions}
             recentMentions={recentMentions}
             onSelect={handleSuggestionSelect}
-            onHover={(index) => {
-              // Could update selected index on hover if desired
-            }}
             position={dropdownPosition ?? undefined}
             className="top-full mt-1"
           />
@@ -320,9 +315,7 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
   }
 );
 
-// ============================================
 // SIMPLE MENTION INPUT (Uncontrolled convenience wrapper)
-// ============================================
 
 interface SimpleMentionInputProps {
   onSubmit: (text: string, mentionIds: string[]) => void;

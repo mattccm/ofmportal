@@ -20,16 +20,13 @@ import {
   CheckCircle,
   XCircle,
   Moon,
-  Sun,
   Calendar,
   Globe,
   Languages,
-  ExternalLink,
 } from "lucide-react";
 import {
   type CommunicationPreferences,
   type ContactMethod,
-  CONTACT_METHODS,
   getContactMethodInfo,
   isCreatorAvailable,
   getNextAvailableTime,
@@ -42,9 +39,7 @@ import {
   detectLocalTimezone,
 } from "@/lib/timezone-utils";
 
-// ============================================
 // ICON MAP
-// ============================================
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   Mail: <Mail className="h-4 w-4" />,
@@ -66,9 +61,7 @@ const ICON_MAP_SM: Record<string, React.ReactNode> = {
   Phone: <Phone className="h-3.5 w-3.5" />,
 };
 
-// ============================================
 // TYPES
-// ============================================
 
 interface CommunicationStatusProps {
   preferences: CommunicationPreferences;
@@ -79,9 +72,7 @@ interface CommunicationStatusProps {
   className?: string;
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function CommunicationStatus({
   preferences,
@@ -180,9 +171,7 @@ export function CommunicationStatus({
     }
   };
 
-  // ============================================
   // COMPACT VIEW
-  // ============================================
 
   if (compact) {
     return (
@@ -253,9 +242,7 @@ export function CommunicationStatus({
     );
   }
 
-  // ============================================
   // FULL VIEW
-  // ============================================
 
   return (
     <TooltipProvider>
@@ -344,7 +331,7 @@ export function CommunicationStatus({
                   </p>
                   {activeQuietPeriod.autoReply && (
                     <p className="text-xs text-amber-700 dark:text-amber-500 mt-1 italic">
-                      "{activeQuietPeriod.autoReply}"
+                      &quot;{activeQuietPeriod.autoReply}&quot;
                     </p>
                   )}
                 </div>
@@ -548,7 +535,7 @@ export function CommunicationStatus({
           {preferences.communicationNotes && (
             <div className="pt-2 border-t">
               <p className="text-xs text-muted-foreground italic">
-                "{preferences.communicationNotes}"
+                &quot;{preferences.communicationNotes}&quot;
               </p>
             </div>
           )}
@@ -558,9 +545,7 @@ export function CommunicationStatus({
   );
 }
 
-// ============================================
 // AVAILABILITY BADGE COMPONENT
-// ============================================
 
 interface AvailabilityBadgeProps {
   preferences: CommunicationPreferences;
@@ -637,9 +622,7 @@ export function AvailabilityBadge({
   );
 }
 
-// ============================================
 // CONTACT METHOD BADGE COMPONENT
-// ============================================
 
 interface ContactMethodBadgeProps {
   method: ContactMethod;

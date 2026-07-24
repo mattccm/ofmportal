@@ -10,7 +10,6 @@ import {
   Phone,
   Calendar,
   FileText,
-  Upload,
   CheckCircle,
   Clock,
   TrendingUp,

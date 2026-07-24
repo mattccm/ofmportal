@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
-import { Play, Users } from "lucide-react";
+import { Play } from "lucide-react";
 import { CreateSessionModal } from "./CreateSessionModal";
 import {
   CreateSessionRequest,

@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 
-// ============================================
+function emptySubscribe() {
+  return () => {};
+}
+
+function getServerFalse(): boolean {
+  return false;
+}
+
 // CAMERA ACCESS HOOK
-// ============================================
 
 export interface CameraOptions {
   facingMode?: "user" | "environment";
@@ -94,10 +100,8 @@ export function useCamera(options: CameraOptions = {}) {
 
   const switchCamera = useCallback(async () => {
     stopCamera();
-    const newFacingMode =
-      options.facingMode === "user" ? "environment" : "user";
     return startCamera();
-  }, [options.facingMode, stopCamera, startCamera]);
+  }, [stopCamera, startCamera]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -106,7 +110,7 @@ export function useCamera(options: CameraOptions = {}) {
         state.stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []);
+  }, [state.stream]);
 
   return {
     ...state,
@@ -118,23 +122,23 @@ export function useCamera(options: CameraOptions = {}) {
   };
 }
 
-// ============================================
 // VIBRATION API HOOK
-// ============================================
 
 export interface VibrationOptions {
   enabled?: boolean;
 }
 
+function getVibrationSupported(): boolean {
+  return typeof navigator !== "undefined" && "vibrate" in navigator;
+}
+
 export function useVibration(options: VibrationOptions = {}) {
   const { enabled = true } = options;
-  const [isSupported, setIsSupported] = useState(false);
-
-  useEffect(() => {
-    setIsSupported(
-      typeof navigator !== "undefined" && "vibrate" in navigator
-    );
-  }, []);
+  const isSupported = useSyncExternalStore(
+    emptySubscribe,
+    getVibrationSupported,
+    getServerFalse
+  );
 
   const vibrate = useCallback(
     (pattern: number | number[]) => {
@@ -170,9 +174,7 @@ export function useVibration(options: VibrationOptions = {}) {
   };
 }
 
-// ============================================
 // SHARE API HOOK
-// ============================================
 
 export interface ShareData {
   title?: string;
@@ -186,16 +188,25 @@ export interface ShareResult {
   error?: Error;
 }
 
-export function useShare() {
-  const [isSupported, setIsSupported] = useState(false);
-  const [canShareFiles, setCanShareFiles] = useState(false);
+function getShareSupported(): boolean {
+  return typeof navigator !== "undefined" && "share" in navigator;
+}
 
-  useEffect(() => {
-    if (typeof navigator !== "undefined") {
-      setIsSupported("share" in navigator);
-      setCanShareFiles("canShare" in navigator);
-    }
-  }, []);
+function getCanShareFiles(): boolean {
+  return typeof navigator !== "undefined" && "canShare" in navigator;
+}
+
+export function useShare() {
+  const isSupported = useSyncExternalStore(
+    emptySubscribe,
+    getShareSupported,
+    getServerFalse
+  );
+  const canShareFiles = useSyncExternalStore(
+    emptySubscribe,
+    getCanShareFiles,
+    getServerFalse
+  );
 
   const share = useCallback(
     async (data: ShareData): Promise<ShareResult> => {
@@ -278,9 +289,7 @@ export function useShare() {
   };
 }
 
-// ============================================
 // ONLINE/OFFLINE DETECTION HOOK
-// ============================================
 
 export interface NetworkState {
   isOnline: boolean;
@@ -360,9 +369,7 @@ export function useOnlineStatus() {
   };
 }
 
-// ============================================
 // DEVICE DETECTION HOOK
-// ============================================
 
 export interface DeviceInfo {
   isMobile: boolean;
@@ -377,106 +384,115 @@ export interface DeviceInfo {
   hasTouch: boolean;
 }
 
-export function useDeviceInfo(): DeviceInfo {
-  const [info, setInfo] = useState<DeviceInfo>({
-    isMobile: false,
-    isTablet: false,
-    isDesktop: true,
-    isIOS: false,
-    isAndroid: false,
-    isPWA: false,
-    hasNotch: false,
-    prefersReducedMotion: false,
-    prefersDarkMode: false,
-    hasTouch: false,
-  });
+const DEFAULT_DEVICE_INFO: DeviceInfo = {
+  isMobile: false,
+  isTablet: false,
+  isDesktop: true,
+  isIOS: false,
+  isAndroid: false,
+  isPWA: false,
+  hasNotch: false,
+  prefersReducedMotion: false,
+  prefersDarkMode: false,
+  hasTouch: false,
+};
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+let deviceInfoSnapshot: DeviceInfo | null = null;
 
-    const ua = navigator.userAgent;
+function computeDeviceInfo(): DeviceInfo {
+  const ua = navigator.userAgent;
 
-    const isMobile =
-      /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
-      window.innerWidth < 768;
+  const isMobile =
+    /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+    window.innerWidth < 768;
 
-    const isTablet =
-      /iPad/i.test(ua) ||
-      (window.innerWidth >= 768 && window.innerWidth < 1024 && "ontouchstart" in window);
+  const isTablet =
+    /iPad/i.test(ua) ||
+    (window.innerWidth >= 768 && window.innerWidth < 1024 && "ontouchstart" in window);
 
-    const isIOS =
-      /iPad|iPhone|iPod/.test(ua) &&
-      !(window as Window & { MSStream?: unknown }).MSStream;
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) &&
+    !(window as Window & { MSStream?: unknown }).MSStream;
 
-    const isAndroid = /Android/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
 
-    const isPWA =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  const isPWA =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-    // Check for notch (iPhone X and later)
-    const hasNotch =
-      isIOS &&
-      window.screen.height >= 812 &&
-      !window.matchMedia("(orientation: landscape)").matches;
+  // Check for notch (iPhone X and later)
+  const hasNotch =
+    isIOS &&
+    window.screen.height >= 812 &&
+    !window.matchMedia("(orientation: landscape)").matches;
 
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
 
-    const prefersDarkMode = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
+  const prefersDarkMode = window.matchMedia(
+    "(prefers-color-scheme: dark)"
+  ).matches;
 
-    const hasTouch =
-      "ontouchstart" in window ||
-      navigator.maxTouchPoints > 0;
+  const hasTouch =
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0;
 
-    setInfo({
-      isMobile,
-      isTablet,
-      isDesktop: !isMobile && !isTablet,
-      isIOS,
-      isAndroid,
-      isPWA,
-      hasNotch,
-      prefersReducedMotion,
-      prefersDarkMode,
-      hasTouch,
-    });
-
-    // Listen for preference changes
-    const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const reducedMotionQuery = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    );
-
-    const handleDarkModeChange = (e: MediaQueryListEvent) => {
-      setInfo((prev) => ({ ...prev, prefersDarkMode: e.matches }));
-    };
-
-    const handleReducedMotionChange = (e: MediaQueryListEvent) => {
-      setInfo((prev) => ({ ...prev, prefersReducedMotion: e.matches }));
-    };
-
-    darkModeQuery.addEventListener("change", handleDarkModeChange);
-    reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
-
-    return () => {
-      darkModeQuery.removeEventListener("change", handleDarkModeChange);
-      reducedMotionQuery.removeEventListener(
-        "change",
-        handleReducedMotionChange
-      );
-    };
-  }, []);
-
-  return info;
+  return {
+    isMobile,
+    isTablet,
+    isDesktop: !isMobile && !isTablet,
+    isIOS,
+    isAndroid,
+    isPWA,
+    hasNotch,
+    prefersReducedMotion,
+    prefersDarkMode,
+    hasTouch,
+  };
 }
 
-// ============================================
+function getDeviceInfoSnapshot(): DeviceInfo {
+  if (!deviceInfoSnapshot) {
+    deviceInfoSnapshot = computeDeviceInfo();
+  }
+  return deviceInfoSnapshot;
+}
+
+function getServerDeviceInfo(): DeviceInfo {
+  return DEFAULT_DEVICE_INFO;
+}
+
+function subscribeToDeviceInfo(listener: () => void) {
+  // Listen for preference changes
+  const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const reducedMotionQuery = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  );
+
+  const handleChange = () => {
+    deviceInfoSnapshot = computeDeviceInfo();
+    listener();
+  };
+
+  darkModeQuery.addEventListener("change", handleChange);
+  reducedMotionQuery.addEventListener("change", handleChange);
+
+  return () => {
+    darkModeQuery.removeEventListener("change", handleChange);
+    reducedMotionQuery.removeEventListener("change", handleChange);
+  };
+}
+
+export function useDeviceInfo(): DeviceInfo {
+  return useSyncExternalStore(
+    subscribeToDeviceInfo,
+    getDeviceInfoSnapshot,
+    getServerDeviceInfo
+  );
+}
+
 // SCREEN ORIENTATION HOOK
-// ============================================
 
 export type Orientation = "portrait" | "landscape";
 
@@ -553,9 +569,7 @@ export function useScreenOrientation() {
   };
 }
 
-// ============================================
 // SAFE AREA INSETS HOOK
-// ============================================
 
 export interface SafeAreaInsets {
   top: number;
@@ -607,27 +621,29 @@ export function useSafeAreaInsets(): SafeAreaInsets {
     };
 
     // Create a temporary element to measure CSS env values
-    const measureDiv = document.createElement("div");
-    measureDiv.style.cssText = `
-      position: fixed;
-      top: env(safe-area-inset-top, 0px);
-      right: env(safe-area-inset-right, 0px);
-      bottom: env(safe-area-inset-bottom, 0px);
-      left: env(safe-area-inset-left, 0px);
-      pointer-events: none;
-      visibility: hidden;
-    `;
-    document.body.appendChild(measureDiv);
+    queueMicrotask(() => {
+      const measureDiv = document.createElement("div");
+      measureDiv.style.cssText = `
+        position: fixed;
+        top: env(safe-area-inset-top, 0px);
+        right: env(safe-area-inset-right, 0px);
+        bottom: env(safe-area-inset-bottom, 0px);
+        left: env(safe-area-inset-left, 0px);
+        pointer-events: none;
+        visibility: hidden;
+      `;
+      document.body.appendChild(measureDiv);
 
-    const rect = measureDiv.getBoundingClientRect();
-    setInsets({
-      top: rect.top,
-      right: window.innerWidth - rect.right,
-      bottom: window.innerHeight - rect.bottom,
-      left: rect.left,
+      const rect = measureDiv.getBoundingClientRect();
+      setInsets({
+        top: rect.top,
+        right: window.innerWidth - rect.right,
+        bottom: window.innerHeight - rect.bottom,
+        left: rect.left,
+      });
+
+      document.body.removeChild(measureDiv);
     });
-
-    document.body.removeChild(measureDiv);
 
     window.addEventListener("resize", updateInsets);
     window.addEventListener("orientationchange", updateInsets);
@@ -641,9 +657,7 @@ export function useSafeAreaInsets(): SafeAreaInsets {
   return insets;
 }
 
-// ============================================
 // BATTERY STATUS HOOK
-// ============================================
 
 interface BatteryManager {
   charging: boolean;
@@ -720,9 +734,7 @@ export function useBatteryStatus(): BatteryState {
   return state;
 }
 
-// ============================================
 // COMBINED MOBILE FEATURES HOOK
-// ============================================
 
 export function useMobileFeatures() {
   const camera = useCamera();

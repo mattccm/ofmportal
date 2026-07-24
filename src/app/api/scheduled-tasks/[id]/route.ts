@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 const updateTaskSchema = z.object({
   name: z.string().min(1).optional(),
@@ -21,9 +19,7 @@ const updateTaskSchema = z.object({
   bundleId: z.string().optional().nullable(),
 });
 
-// ============================================
 // GET - Get single task
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -82,9 +78,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // PUT - Update task
-// ============================================
 
 export async function PUT(
   req: NextRequest,
@@ -215,9 +209,7 @@ export async function PUT(
   }
 }
 
-// ============================================
 // PATCH - Partial update (status changes, etc.)
-// ============================================
 
 export async function PATCH(
   req: NextRequest,
@@ -226,9 +218,7 @@ export async function PATCH(
   return PUT(req, { params });
 }
 
-// ============================================
 // DELETE - Delete task
-// ============================================
 
 export async function DELETE(
   req: NextRequest,

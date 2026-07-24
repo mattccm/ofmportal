@@ -1,9 +1,7 @@
 // Template Groups Types
 // Organize request templates by platform (Instagram, Twitter, TikTok, OnlyFans, Fansly, etc.)
 
-// ============================================
 // PLATFORM TYPES
-// ============================================
 
 export type Platform =
   | "instagram"
@@ -15,9 +13,7 @@ export type Platform =
   | "reddit"
   | "custom";
 
-// ============================================
 // TEMPLATE GROUP INTERFACE
-// ============================================
 
 export interface TemplateGroup {
   id: string;
@@ -46,9 +42,7 @@ export interface TemplateInGroup {
   isActive: boolean;
 }
 
-// ============================================
 // PLATFORM CONFIGURATION
-// ============================================
 
 export interface PlatformConfig {
   label: string;
@@ -117,9 +111,7 @@ export const PLATFORM_CONFIG: Record<Platform, PlatformConfig> = {
   },
 };
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 export function getPlatformConfig(platform: Platform): PlatformConfig {
   return PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.custom;
@@ -141,9 +133,7 @@ export function isValidPlatform(value: string): value is Platform {
   return Object.keys(PLATFORM_CONFIG).includes(value);
 }
 
-// ============================================
 // FORM DATA TYPES
-// ============================================
 
 export interface TemplateGroupFormData {
   name: string;
@@ -177,9 +167,7 @@ export interface UpdateTemplateGroupInput {
   sortOrder?: number;
 }
 
-// ============================================
 // API RESPONSE TYPES
-// ============================================
 
 export interface TemplateGroupsResponse {
   groups: TemplateGroup[];
@@ -190,9 +178,7 @@ export interface TemplateGroupResponse {
   group: TemplateGroupWithTemplates;
 }
 
-// ============================================
 // RECENT & FAVORITES
-// ============================================
 
 export interface RecentlyUsedGroup {
   groupId: string;
@@ -204,9 +190,7 @@ export interface FavoriteGroup {
   favoritedAt: Date;
 }
 
-// ============================================
 // DRAG AND DROP
-// ============================================
 
 export interface DragItem {
   type: "template" | "group";

@@ -4,9 +4,7 @@ import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface VirtualizedListProps<T> {
   items: T[];
@@ -47,9 +45,7 @@ interface VirtualizedTableProps<T> {
   onSelectionChange?: (id: string, selected: boolean) => void;
 }
 
-// ============================================
 // VIRTUALIZED LIST COMPONENT
-// ============================================
 
 export function VirtualizedList<T>({
   items,
@@ -165,9 +161,7 @@ export function VirtualizedList<T>({
   );
 }
 
-// ============================================
 // VIRTUALIZED TABLE COMPONENT
-// ============================================
 
 export function VirtualizedTable<T extends { id: string }>({
   items,
@@ -309,9 +303,7 @@ export function VirtualizedTable<T extends { id: string }>({
   );
 }
 
-// ============================================
 // HOOK FOR INFINITE SCROLL WITH PAGINATION
-// ============================================
 
 interface UseInfiniteScrollOptions {
   initialPage?: number;

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { subDays, startOfDay, format, startOfWeek, endOfWeek } from "date-fns";
+import { subDays, startOfDay, format, startOfWeek } from "date-fns";
 
 // GET - Fetch creator performance analytics
 export async function GET(

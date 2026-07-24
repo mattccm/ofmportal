@@ -147,14 +147,10 @@ export function FeedbackWidget() {
     setError(null);
 
     try {
-      // In a real app, you would upload the screenshot first and get a URL
-      // For now, we'll skip screenshot upload
       let screenshotUrl: string | undefined;
 
       if (screenshot) {
-        // TODO: Implement screenshot upload to storage
-        // For now, we'll create a data URL for demo purposes
-        // In production, upload to S3/R2 and get the URL
+        // Screenshot upload isn't wired up yet
         console.log("Screenshot would be uploaded:", screenshot.name);
       }
 
@@ -409,7 +405,7 @@ export function FeedbackWidget() {
               <div className="space-y-2">
                 <h3 className="text-xl font-semibold">Thank You!</h3>
                 <p className="text-muted-foreground">
-                  Your feedback has been submitted successfully. We truly appreciate you taking the time to help us improve.
+                  Thanks for the feedback — we really appreciate you taking the time to help us improve.
                 </p>
               </div>
               <Button

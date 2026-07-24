@@ -7,6 +7,7 @@ import {
   generateStorageKey,
   getUploadPresignedUrl,
   isAllowedFileType,
+  isAllowedFileExtension,
   MAX_FILE_SIZE,
 } from "@/lib/storage";
 import { handleCreatorResponse } from "@/lib/auto-reminder-scheduler";
@@ -53,10 +54,17 @@ export async function POST(req: NextRequest) {
 
       creatorId = contentRequest.creatorId;
 
-      // Validate file type and size
+      // Validate file type, extension, and size
       if (!isAllowedFileType(validatedData.fileType)) {
         return NextResponse.json(
           { error: "File type not allowed" },
+          { status: 400 }
+        );
+      }
+
+      if (!isAllowedFileExtension(validatedData.fileName)) {
+        return NextResponse.json(
+          { error: "File extension not allowed" },
           { status: 400 }
         );
       }
@@ -148,10 +156,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Validate file type and size
+      // Validate file type, extension, and size
       if (!isAllowedFileType(validatedData.fileType)) {
         return NextResponse.json(
           { error: "File type not allowed" },
+          { status: 400 }
+        );
+      }
+
+      if (!isAllowedFileExtension(validatedData.fileName)) {
+        return NextResponse.json(
+          { error: "File extension not allowed" },
           { status: 400 }
         );
       }

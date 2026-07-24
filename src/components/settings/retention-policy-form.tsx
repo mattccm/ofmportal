@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  Calendar,
   Clock,
   Archive,
   Trash2,

@@ -5,9 +5,7 @@
  * Includes screen reader announcements, focus management, and keyboard navigation helpers.
  */
 
-// ============================================
 // TYPES
-// ============================================
 
 export type LiveRegionPoliteness = 'polite' | 'assertive' | 'off';
 
@@ -27,9 +25,7 @@ export interface FocusOptions {
   delay?: number;
 }
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -54,11 +50,9 @@ const TABBABLE_SELECTOR = [
   '[contenteditable="true"]:not([tabindex="-1"])',
 ].join(', ');
 
-// ============================================
 // SCREEN READER ANNOUNCEMENTS
-// ============================================
 
-let liveRegion: HTMLElement | null = null;
+const liveRegion: HTMLElement | null = null;
 
 /**
  * Creates or returns the live region element for announcements
@@ -157,9 +151,7 @@ export function announcePolite(message: string, options?: Omit<AnnounceOptions, 
   return announce(message, { ...options, politeness: 'polite' });
 }
 
-// ============================================
 // FOCUS MANAGEMENT
-// ============================================
 
 /**
  * Gets all focusable elements within a container
@@ -287,9 +279,7 @@ export function saveFocus(): () => void {
   };
 }
 
-// ============================================
 // KEYBOARD NAVIGATION HELPERS
-// ============================================
 
 export type ArrowDirection = 'horizontal' | 'vertical' | 'both';
 
@@ -448,9 +438,7 @@ export function createRovingTabindex(
   };
 }
 
-// ============================================
 // ACCESSIBILITY UTILITIES
-// ============================================
 
 /**
  * Generates a unique ID for accessibility purposes
@@ -560,9 +548,7 @@ export function createDescription(
   };
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export const a11y = {
   announce,

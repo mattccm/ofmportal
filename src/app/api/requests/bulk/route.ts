@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let result: { success: boolean; affected: number; errors?: string[] } = {
+    const result: { success: boolean; affected: number; errors?: string[] } = {
       success: true,
       affected: 0,
     };

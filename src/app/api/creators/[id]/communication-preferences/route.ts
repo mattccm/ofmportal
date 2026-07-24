@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 
-// ============================================
 // COMMUNICATION PREFERENCES API
-// ============================================
 
 // Validation schemas
 const contactDetailsSchema = z.object({

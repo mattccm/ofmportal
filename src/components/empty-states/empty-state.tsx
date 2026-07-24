@@ -7,9 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface EmptyStateAction {
   label: string;
@@ -46,9 +44,7 @@ export interface EmptyStateProps {
   children?: React.ReactNode;
 }
 
-// ============================================
 // GRADIENT CONFIGS
-// ============================================
 
 const ICON_GRADIENTS = {
   primary: "from-primary/20 to-violet-500/20",
@@ -93,9 +89,7 @@ const SIZES = {
   },
 };
 
-// ============================================
 // ILLUSTRATION PATTERNS (SVG backgrounds)
-// ============================================
 
 function IllustrationPattern({ variant }: { variant: "primary" | "success" | "muted" }) {
   const colors = {
@@ -129,9 +123,7 @@ function IllustrationPattern({ variant }: { variant: "primary" | "success" | "mu
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function EmptyState({
   icon: Icon,
@@ -237,9 +229,7 @@ export function EmptyState({
   return content;
 }
 
-// ============================================
 // ACTION BUTTON HELPER
-// ============================================
 
 interface ActionButtonProps {
   action: EmptyStateAction;
@@ -290,8 +280,6 @@ function ActionButton({ action, size, isPrimary }: ActionButtonProps) {
   );
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export default EmptyState;

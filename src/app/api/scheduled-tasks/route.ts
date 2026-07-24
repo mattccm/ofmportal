@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { startOfDay, endOfDay } from "date-fns";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 const scheduledTaskSchema = z.object({
   taskType: z.enum(["CREATE_REQUEST", "APPLY_BUNDLE", "SEND_REMINDER", "SEND_BULK_EMAIL"]),
@@ -22,9 +20,7 @@ const scheduledTaskSchema = z.object({
   bundleId: z.string().optional(),
 });
 
-// ============================================
 // GET - List scheduled tasks
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -109,9 +105,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create scheduled task
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

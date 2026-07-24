@@ -39,16 +39,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   Platform,
-  TemplateGroup,
   TemplateGroupWithTemplates,
   TemplateInGroup,
   PLATFORM_CONFIG,
   getAllPlatforms,
 } from "@/types/template-groups";
 
-// ============================================
 // ICON MAP
-// ============================================
 
 const PLATFORM_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   Instagram,
@@ -65,9 +62,7 @@ function getPlatformIcon(iconName: string) {
   return PLATFORM_ICONS[iconName] || Folder;
 }
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TemplateGroupSelectorProps {
   value?: string;
@@ -89,9 +84,7 @@ interface RecentlyUsed {
   usedAt: Date;
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function TemplateGroupSelector({
   value,
@@ -454,9 +447,7 @@ export function TemplateGroupSelector({
   );
 }
 
-// ============================================
 // PLATFORM GROUP LIST
-// ============================================
 
 interface PlatformGroupListProps {
   groupsByPlatform: Record<Platform, TemplateGroupWithTemplates[]>;
@@ -539,9 +530,7 @@ function PlatformGroupList({
   );
 }
 
-// ============================================
 // GROUP ITEM
-// ============================================
 
 interface GroupItemProps {
   group: TemplateGroupWithTemplates;
@@ -661,9 +650,7 @@ function GroupItem({
   );
 }
 
-// ============================================
 // RECENT LIST
-// ============================================
 
 interface RecentListProps {
   items: RecentlyUsed[];
@@ -741,9 +728,7 @@ function RecentList({ items, groups, onSelectGroup, onSelectTemplate }: RecentLi
   );
 }
 
-// ============================================
 // FAVORITES LIST
-// ============================================
 
 interface FavoritesListProps {
   groups: TemplateGroupWithTemplates[];
@@ -780,9 +765,7 @@ function FavoritesList({
   );
 }
 
-// ============================================
 // COMPACT SELECTOR (for inline use)
-// ============================================
 
 interface CompactGroupSelectorProps {
   value?: string;

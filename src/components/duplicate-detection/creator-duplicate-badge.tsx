@@ -29,9 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { CreatorDuplicateStats } from "@/types/content-fingerprint";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface CreatorDuplicateBadgeProps {
   creatorId: string;
@@ -50,9 +48,7 @@ interface BadgeContentProps {
   variant: "badge" | "compact" | "detailed";
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function getSeverityConfig(severity: "low" | "medium" | "high") {
   switch (severity) {
@@ -116,9 +112,7 @@ function formatDate(date: Date): string {
   }).format(new Date(date));
 }
 
-// ============================================
 // BADGE CONTENT COMPONENT
-// ============================================
 
 function BadgeContent({ stats, variant }: BadgeContentProps) {
   const severityConfig = getSeverityConfig(
@@ -213,9 +207,7 @@ function BadgeContent({ stats, variant }: BadgeContentProps) {
   );
 }
 
-// ============================================
 // POPOVER CONTENT
-// ============================================
 
 function PopoverDetails({
   stats,
@@ -293,9 +285,7 @@ function PopoverDetails({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function CreatorDuplicateBadge({
   creatorId,
@@ -411,9 +401,7 @@ export function CreatorDuplicateBadge({
   );
 }
 
-// ============================================
 // INLINE BADGE (for tables and lists)
-// ============================================
 
 export function CreatorDuplicateInlineBadge({
   totalAttempts,

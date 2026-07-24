@@ -17,9 +17,7 @@ import { useOffline } from '@/hooks/use-offline';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-// ============================================
 // Types
-// ============================================
 
 interface OfflineBannerProps {
   position?: 'top' | 'bottom';
@@ -34,9 +32,7 @@ interface OfflineFeature {
   description: string;
 }
 
-// ============================================
 // Constants
-// ============================================
 
 const OFFLINE_FEATURES: OfflineFeature[] = [
   {
@@ -58,9 +54,7 @@ const OFFLINE_FEATURES: OfflineFeature[] = [
 
 const DISMISS_KEY = 'offline-banner-dismissed';
 
-// ============================================
 // Main Component
-// ============================================
 
 export function OfflineBanner({
   position = 'top',
@@ -124,9 +118,7 @@ export function OfflineBanner({
     return null;
   }
 
-  // ============================================
   // Reconnected Banner
-  // ============================================
 
   if (showReconnected && !isOffline) {
     return (
@@ -169,9 +161,7 @@ export function OfflineBanner({
     );
   }
 
-  // ============================================
   // Offline Banner
-  // ============================================
 
   return (
     <div
@@ -304,9 +294,7 @@ export function OfflineBanner({
   );
 }
 
-// ============================================
 // Minimal Offline Banner
-// ============================================
 
 interface MinimalOfflineBannerProps {
   className?: string;
@@ -335,9 +323,7 @@ export function MinimalOfflineBanner({ className }: MinimalOfflineBannerProps) {
   );
 }
 
-// ============================================
 // Floating Offline Indicator
-// ============================================
 
 interface FloatingOfflineIndicatorProps {
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';

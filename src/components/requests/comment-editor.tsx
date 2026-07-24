@@ -20,9 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface TeamMember {
   id: string;
@@ -47,9 +45,7 @@ interface CommentEditorProps {
   autoFocus?: boolean;
 }
 
-// ============================================
 // MENTION DROPDOWN COMPONENT
-// ============================================
 
 interface MentionDropdownProps {
   members: TeamMember[];
@@ -104,9 +100,7 @@ function MentionDropdown({
   );
 }
 
-// ============================================
 // FORMATTING TOOLBAR
-// ============================================
 
 interface FormattingToolbarProps {
   onFormat: (format: string) => void;
@@ -171,9 +165,7 @@ function FormattingToolbar({ onFormat, onMentionClick }: FormattingToolbarProps)
   );
 }
 
-// ============================================
 // MAIN COMMENT EDITOR COMPONENT
-// ============================================
 
 export function CommentEditor({
   teamMembers,

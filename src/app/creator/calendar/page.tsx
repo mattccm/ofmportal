@@ -14,7 +14,6 @@ import {
   Calendar as CalendarIcon,
   Clock,
   AlertTriangle,
-  CheckCircle2,
   ArrowRight,
 } from "lucide-react";
 import {

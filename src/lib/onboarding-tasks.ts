@@ -12,9 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// ============================================
 // TASK TYPES
-// ============================================
 
 export interface OnboardingTask {
   /** Unique task identifier */
@@ -61,9 +59,7 @@ export interface AgencyChecklistState {
   isComplete: boolean;
 }
 
-// ============================================
 // TASK DEFINITIONS
-// ============================================
 
 export const AGENCY_CHECKLIST_TASKS: OnboardingTask[] = [
   {
@@ -156,9 +152,7 @@ export const CHECKLIST_TASK_IDS = {
   SETUP_BRANDING: "setup_branding",
 } as const;
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 /**
  * Get a task by ID
@@ -210,9 +204,7 @@ export function isChecklistComplete(completedTaskIds: string[]): boolean {
   return AGENCY_CHECKLIST_TASKS.every((task) => completedTaskIds.includes(task.id));
 }
 
-// ============================================
 // AUTO-DETECTION QUERY HELPERS
-// ============================================
 
 /**
  * Database queries to auto-detect task completion

@@ -26,10 +26,9 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import {
   Mail,
   MessageSquare,
@@ -65,14 +64,11 @@ import { COMMON_TIMEZONES } from "@/types/timezone";
 import {
   detectLocalTimezone,
   getCurrentTimeInTimezone,
-  formatTime,
   getTimezoneAbbreviation,
   getAllTimezones,
 } from "@/lib/timezone-utils";
 
-// ============================================
 // ICON MAP
-// ============================================
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   Mail: <Mail className="h-4 w-4" />,
@@ -84,9 +80,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Phone: <Phone className="h-4 w-4" />,
 };
 
-// ============================================
 // TYPES
-// ============================================
 
 interface CommunicationPreferencesFormProps {
   creatorId: string;
@@ -103,9 +97,7 @@ interface QuietPeriodFormData {
   autoReply: string;
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function CommunicationPreferencesForm({
   creatorId,
@@ -298,9 +290,7 @@ export function CommunicationPreferencesForm({
     lang.toLowerCase().includes(languageSearch.toLowerCase())
   );
 
-  // ============================================
   // RENDER
-  // ============================================
 
   return (
     <div className={cn("space-y-6", compact && "space-y-4")}>
@@ -623,7 +613,7 @@ export function CommunicationPreferencesForm({
                     )}
                     {period.autoReply && (
                       <p className="text-xs text-muted-foreground italic">
-                        Auto-reply: "{period.autoReply}"
+                        Auto-reply: &quot;{period.autoReply}&quot;
                       </p>
                     )}
                   </div>

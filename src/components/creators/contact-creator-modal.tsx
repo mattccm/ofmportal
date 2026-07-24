@@ -15,13 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -42,7 +37,6 @@ import {
   Loader2,
   Copy,
   ExternalLink,
-  Calendar,
   CheckCircle,
   XCircle,
   Moon,
@@ -63,9 +57,7 @@ import {
   detectLocalTimezone,
 } from "@/lib/timezone-utils";
 
-// ============================================
 // ICON MAP
-// ============================================
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   Mail: <Mail className="h-4 w-4" />,
@@ -77,9 +69,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Phone: <Phone className="h-4 w-4" />,
 };
 
-// ============================================
 // MESSAGE TEMPLATES
-// ============================================
 
 interface MessageTemplate {
   id: string;
@@ -163,9 +153,7 @@ Best regards,
   },
 ];
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ContactCreatorModalProps {
   open: boolean;
@@ -190,9 +178,7 @@ interface ContactCreatorModalProps {
   }) => Promise<void>;
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function ContactCreatorModal({
   open,
@@ -345,7 +331,7 @@ export function ContactCreatorModal({
         });
       }
 
-      toast.success("Message sent successfully");
+      toast.success("Message sent");
       onOpenChange(false);
 
       // Reset form
@@ -429,7 +415,7 @@ export function ContactCreatorModal({
                   </p>
                   {activeQuietPeriod?.autoReply && (
                     <p className="text-xs text-amber-700 dark:text-amber-500 mt-1 italic">
-                      Auto-reply: "{activeQuietPeriod.autoReply}"
+                      Auto-reply: &quot;{activeQuietPeriod.autoReply}&quot;
                     </p>
                   )}
                 </div>
@@ -665,7 +651,7 @@ export function ContactCreatorModal({
           {preferences.communicationNotes && (
             <div className="flex items-start gap-2 text-sm text-muted-foreground p-2 rounded-lg bg-muted/30">
               <Info className="h-4 w-4 mt-0.5" />
-              <span className="italic">"{preferences.communicationNotes}"</span>
+              <span className="italic">&quot;{preferences.communicationNotes}&quot;</span>
             </div>
           )}
         </TooltipProvider>

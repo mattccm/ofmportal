@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -31,13 +30,11 @@ import {
   Filter,
   SortAsc,
   MoreHorizontal,
-  ChevronRight,
   Image as ImageIcon,
   Video,
   Music,
   FileText,
   Tag,
-  Calendar,
   TrendingUp,
   Archive,
   Trash2,
@@ -46,7 +43,6 @@ import {
   Eye,
   Check,
   X,
-  Plus,
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

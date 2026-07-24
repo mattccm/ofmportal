@@ -36,9 +36,7 @@ import { DeleteConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TemplateCategory {
   id: string;
@@ -72,9 +70,7 @@ function stripHtmlAndTruncate(html: string | null | undefined, maxLength: number
   return text.substring(0, maxLength).trim() + "...";
 }
 
-// ============================================
 // TEMPLATE CARD COMPONENT
-// ============================================
 
 export function TemplateCard({
   id,
@@ -294,9 +290,7 @@ export function TemplateCard({
   );
 }
 
-// ============================================
 // TEMPLATE CARD SKELETON
-// ============================================
 
 export function TemplateCardSkeleton() {
   return (
@@ -325,9 +319,7 @@ export function TemplateCardSkeleton() {
   );
 }
 
-// ============================================
 // EMPTY STATE
-// ============================================
 
 interface EmptyTemplatesProps {
   searchQuery?: string;

@@ -99,10 +99,10 @@ export default function PortalSetupPage({
         return;
       }
 
-      toast.success("Account set up successfully!");
+      toast.success("You're all set");
       router.push(`/login?email=${encodeURIComponent(creator!.email)}`);
     } catch {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Couldn't finish setting up your account. Please try again.");
       setSubmitting(false);
     }
   };

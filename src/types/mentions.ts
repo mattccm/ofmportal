@@ -1,6 +1,4 @@
-// ============================================
 // MENTION TYPES
-// ============================================
 
 /**
  * Represents a mention of a user in a comment
@@ -122,9 +120,7 @@ export interface SuggestionsResponse {
   suggestions: MentionSuggestion[];
 }
 
-// ============================================
 // MENTION DISPLAY TYPES
-// ============================================
 
 /**
  * Mention display segment in rendered text

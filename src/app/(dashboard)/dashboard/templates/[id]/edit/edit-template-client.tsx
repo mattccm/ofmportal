@@ -6,17 +6,13 @@ import { TemplateBuilder } from "@/components/templates/template-builder";
 import { Template, TemplateFormData } from "@/lib/template-types";
 import { toast } from "sonner";
 
-// ============================================
 // PROPS
-// ============================================
 
 interface EditTemplateClientProps {
   template: Template & { categoryId?: string | null };
 }
 
-// ============================================
 // CLIENT COMPONENT
-// ============================================
 
 export function EditTemplateClient({ template }: EditTemplateClientProps) {
   const router = useRouter();

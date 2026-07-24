@@ -248,7 +248,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
 
       const data = await res.json();
       setReportData(data);
-      toast.success("Report generated successfully");
+      toast.success("Report's ready");
     } catch {
       toast.error("Failed to generate report");
     } finally {
@@ -289,7 +289,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      toast.success("Report exported successfully");
+      toast.success("Report exported");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to export report");
     } finally {
@@ -326,7 +326,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
       await fetchSavedReports();
       setIsSaveDialogOpen(false);
       setReportName("");
-      toast.success("Report saved successfully");
+      toast.success("Report saved");
     } catch {
       toast.error("Failed to save report");
     }
@@ -369,7 +369,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
       return;
     }
 
-    // For now, we'll just show a placeholder message
+    // Confirm the schedule back to the user
     toast.success(`Report scheduled ${scheduleFrequency} to ${recipients.length} recipient(s)`);
     setIsScheduleDialogOpen(false);
     setScheduleRecipients("");

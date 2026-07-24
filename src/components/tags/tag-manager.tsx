@@ -4,7 +4,6 @@ import * as React from "react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -41,20 +40,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { TagBadge, TagList } from "./tag-badge";
+import { TagBadge } from "./tag-badge";
 import {
   Tag,
   TagInput,
   PRESET_TAG_COLORS,
-  getContrastColor,
   isValidHexColor,
   getRandomPresetColor,
   BulkTagAction,
 } from "@/lib/tag-types";
 
-// ============================================
 // TAG INPUT WITH AUTOCOMPLETE
-// ============================================
 
 interface TagInputAutocompleteProps {
   value: Tag[];
@@ -277,9 +273,7 @@ export function TagInputAutocomplete({
   );
 }
 
-// ============================================
 // COLOR PICKER
-// ============================================
 
 interface ColorPickerProps {
   value: string;
@@ -357,9 +351,7 @@ function ColorPicker({ value, onChange, className }: ColorPickerProps) {
   );
 }
 
-// ============================================
 // CREATE/EDIT TAG DIALOG
-// ============================================
 
 interface TagDialogProps {
   open: boolean;
@@ -479,9 +471,7 @@ function TagDialog({ open, onOpenChange, tag, onSave }: TagDialogProps) {
   );
 }
 
-// ============================================
 // TAG FILTER SIDEBAR
-// ============================================
 
 interface TagFilterProps {
   tags: Tag[];
@@ -627,9 +617,7 @@ export function TagFilter({
   );
 }
 
-// ============================================
 // BULK TAG DIALOG
-// ============================================
 
 interface BulkTagDialogProps {
   open: boolean;
@@ -814,9 +802,7 @@ export function BulkTagDialog({
   );
 }
 
-// ============================================
 // TAG MANAGER (FULL ADMIN VIEW)
-// ============================================
 
 interface TagManagerProps {
   className?: string;

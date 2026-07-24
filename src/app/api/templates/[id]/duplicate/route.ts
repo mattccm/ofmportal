@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { TemplateField, deserializeTemplate } from "@/lib/templates";
+import { TemplateField } from "@/lib/templates";
 
-// ============================================
 // POST - Duplicate template
-// ============================================
 
 export async function POST(
   request: NextRequest,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { handleCreatorResponse } from "@/lib/auto-reminder-scheduler";
 import { validateCreatorSession } from "@/lib/portal-auth";
+import { dispatchWebhookEvent } from "@/lib/webhooks";
 
 export async function POST(
   req: NextRequest,
@@ -49,6 +50,15 @@ export async function POST(
         status: "SUBMITTED",
         submittedAt: new Date(),
       },
+    });
+
+    // Fire webhook for request submission
+    dispatchWebhookEvent(request.agencyId, "request.submitted", {
+      requestId: id,
+      title: request.title,
+      creatorId: creator.id,
+      creatorName: creator.name,
+      uploadCount,
     });
 
     // Auto-cancel pending reminders when creator submits

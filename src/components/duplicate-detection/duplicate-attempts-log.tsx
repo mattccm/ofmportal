@@ -21,7 +21,6 @@ import {
   ArrowUpDown,
   RefreshCw,
   Eye,
-  ExternalLink,
   TrendingUp,
   Users,
   Copy,
@@ -63,9 +62,7 @@ import type {
   DuplicateAttemptListResponse,
 } from "@/types/content-fingerprint";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface FilterState {
   search: string;
@@ -80,9 +77,7 @@ interface DuplicateAttemptsLogProps {
   initialData?: DuplicateAttemptListResponse;
 }
 
-// ============================================
 // HELPER COMPONENTS
-// ============================================
 
 function MatchTypeBadge({ matchType }: { matchType: DuplicateMatchTypeEnum }) {
   const styles = {
@@ -187,9 +182,7 @@ function SimilarityBadge({ similarity }: { similarity: number }) {
   );
 }
 
-// ============================================
 // EXPANDED ROW DETAILS
-// ============================================
 
 function ExpandedRowDetails({ attempt }: { attempt: DuplicateAttempt }) {
   const formatFileSize = (bytes: number) => {
@@ -306,9 +299,7 @@ function ExpandedRowDetails({ attempt }: { attempt: DuplicateAttempt }) {
   );
 }
 
-// ============================================
 // STATS COMPONENT
-// ============================================
 
 function StatsCards({
   stats,
@@ -368,9 +359,7 @@ function StatsCards({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps) {
   const [data, setData] = React.useState<DuplicateAttemptListResponse | null>(initialData || null);

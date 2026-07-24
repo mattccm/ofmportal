@@ -45,9 +45,7 @@ import {
   setMinutes,
 } from "date-fns";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type CalendarEventType = "request" | "deadline" | "reminder";
 export type ViewMode = "month" | "week" | "day";
@@ -79,9 +77,7 @@ interface CalendarViewProps {
   initialView?: ViewMode;
 }
 
-// ============================================
 // EVENT TYPE ICONS
-// ============================================
 
 const eventTypeIcons: Record<CalendarEventType, typeof FileText> = {
   request: FileText,
@@ -89,9 +85,7 @@ const eventTypeIcons: Record<CalendarEventType, typeof FileText> = {
   reminder: Bell,
 };
 
-// ============================================
 // CALENDAR VIEW COMPONENT
-// ============================================
 
 export function CalendarView({
   events,
@@ -112,9 +106,7 @@ export function CalendarView({
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [, setIsTouchDragging] = useState(false);
 
-  // ============================================
   // NAVIGATION
-  // ============================================
 
   const navigatePrevious = useCallback(() => {
     switch (viewMode) {
@@ -148,9 +140,7 @@ export function CalendarView({
     setCurrentDate(new Date());
   }, []);
 
-  // ============================================
   // DRAG AND DROP HANDLERS
-  // ============================================
 
   const handleDragStart = useCallback((e: React.DragEvent, event: CalendarEvent) => {
     e.dataTransfer.setData("text/plain", event.id);
@@ -180,9 +170,7 @@ export function CalendarView({
     setDragOverDate(null);
   }, [onEventReschedule]);
 
-  // ============================================
   // TOUCH GESTURE HANDLERS
-  // ============================================
 
   const handleTouchStart = useCallback((e: React.TouchEvent, event?: CalendarEvent) => {
     const touch = e.touches[0];
@@ -243,9 +231,7 @@ export function CalendarView({
     setDraggedEvent(null);
   }, [navigatePrevious, navigateNext]);
 
-  // ============================================
   // EVENT HELPERS
-  // ============================================
 
   const getEventsForDate = useCallback((date: Date): CalendarEvent[] => {
     return events.filter(event => {
@@ -261,9 +247,7 @@ export function CalendarView({
     });
   }, [events]);
 
-  // ============================================
   // RENDER HELPERS
-  // ============================================
 
   const renderEventCard = (event: CalendarEvent, compact = false) => {
     const Icon = eventTypeIcons[event.type];
@@ -358,9 +342,7 @@ export function CalendarView({
     );
   };
 
-  // ============================================
   // MONTH VIEW
-  // ============================================
 
   const renderMonthView = () => {
     const monthStart = startOfMonth(currentDate);
@@ -485,9 +467,7 @@ export function CalendarView({
     );
   };
 
-  // ============================================
   // WEEK VIEW
-  // ============================================
 
   const renderWeekView = () => {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
@@ -576,9 +556,7 @@ export function CalendarView({
     );
   };
 
-  // ============================================
   // DAY VIEW
-  // ============================================
 
   const renderDayView = () => {
     const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -642,9 +620,7 @@ export function CalendarView({
     );
   };
 
-  // ============================================
   // MAIN RENDER
-  // ============================================
 
   return (
     <div

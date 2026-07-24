@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Copy, Check, Clipboard } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import { Button, ButtonProps } from "@/components/ui/button";
 import {
   Tooltip,

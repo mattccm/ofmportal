@@ -15,7 +15,6 @@ import {
   MoreHorizontal,
   Play,
   Eye,
-  Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,12 +37,9 @@ import { toast } from "sonner";
 import {
   ScheduledTask,
   ScheduledTaskType,
-  TASK_TYPE_LABELS,
 } from "@/types/scheduled-tasks";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface UpcomingTasksWidgetProps {
   className?: string;
@@ -51,9 +47,7 @@ interface UpcomingTasksWidgetProps {
   showCalendar?: boolean;
 }
 
-// ============================================
 // TASK TYPE ICON
-// ============================================
 
 const TaskTypeIcon: React.FC<{ type: ScheduledTaskType; className?: string }> = ({
   type,
@@ -75,9 +69,7 @@ const TaskTypeIcon: React.FC<{ type: ScheduledTaskType; className?: string }> = 
   }
 };
 
-// ============================================
 // MINI CALENDAR
-// ============================================
 
 interface MiniCalendarProps {
   tasks: ScheduledTask[];
@@ -161,9 +153,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ tasks, onDateClick }) => {
   );
 };
 
-// ============================================
 // TASK ITEM
-// ============================================
 
 interface TaskItemProps {
   task: ScheduledTask;
@@ -247,9 +237,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onRunNow, onView }) => {
   );
 };
 
-// ============================================
 // LOADING SKELETON
-// ============================================
 
 const TaskItemSkeleton: React.FC = () => (
   <div className="flex items-center gap-3 p-3 rounded-lg border">
@@ -261,9 +249,7 @@ const TaskItemSkeleton: React.FC = () => (
   </div>
 );
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function UpcomingTasksWidget({
   className,
@@ -306,7 +292,7 @@ export function UpcomingTasksWidget({
 
       if (!response.ok) throw new Error("Failed to run task");
 
-      toast.success("Task executed successfully");
+      toast.success("Task done");
       fetchTasks();
     } catch (error) {
       console.error("Error running task:", error);
@@ -426,9 +412,7 @@ export function UpcomingTasksWidget({
   );
 }
 
-// ============================================
 // COMPACT VERSION FOR SIDEBARS
-// ============================================
 
 interface CompactTasksWidgetProps {
   className?: string;

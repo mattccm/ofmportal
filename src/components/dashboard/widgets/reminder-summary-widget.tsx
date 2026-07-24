@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import {
   Bell,
   ChevronRight,
@@ -20,9 +20,7 @@ import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Reminder {
   id: string;
@@ -47,9 +45,7 @@ interface ReminderSummary {
   reminders: Reminder[];
 }
 
-// ============================================
 // HELPERS
-// ============================================
 
 function getTypeConfig(type: string) {
   switch (type) {
@@ -78,9 +74,7 @@ function getTypeConfig(type: string) {
   }
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function ReminderSummaryWidget({ config, size }: WidgetProps) {
   // Use batched widget data from context (single API call for all widgets)
@@ -98,7 +92,7 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
       });
 
       if (response.ok) {
-        toast.success("Reminder sent successfully");
+        toast.success("Reminder sent");
         refresh();
       } else {
         throw new Error("Failed to send reminder");

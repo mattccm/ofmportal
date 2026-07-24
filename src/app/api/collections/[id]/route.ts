@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 const updateCollectionSchema = z.object({
   name: z.string().min(1, "Name is required").max(100).optional(),
@@ -22,9 +20,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// ============================================
 // GET - Get single collection with items
-// ============================================
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
@@ -158,9 +154,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ============================================
 // PATCH - Update collection
-// ============================================
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
@@ -243,9 +237,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ============================================
 // DELETE - Delete collection
-// ============================================
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {

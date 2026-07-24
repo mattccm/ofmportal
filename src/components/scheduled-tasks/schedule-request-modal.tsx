@@ -60,9 +60,7 @@ import {
   CreateScheduledTaskRequest,
 } from "@/types/scheduled-tasks";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Template {
   id: string;
@@ -88,9 +86,7 @@ interface ScheduleRequestModalProps {
 
 type Step = "type" | "target" | "schedule" | "config" | "review";
 
-// ============================================
 // TASK TYPE SELECTION
-// ============================================
 
 interface TaskTypeOption {
   type: ScheduledTaskType;
@@ -121,9 +117,7 @@ const taskTypes: TaskTypeOption[] = [
   },
 ];
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function ScheduleRequestModal({
   open,

@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { MentionSuggestion } from "@/types/mentions";
 
-// ============================================
 // GET /api/mentions/suggestions - Get mention suggestions
-// ============================================
 
 export async function GET(request: NextRequest) {
   try {

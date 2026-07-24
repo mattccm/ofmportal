@@ -2,8 +2,6 @@ import { db } from "./db";
 import {
   differenceInMinutes,
   differenceInHours,
-  differenceInBusinessDays,
-  isWeekend,
   setHours,
   setMinutes,
   addDays,
@@ -15,8 +13,8 @@ import {
   format,
   eachDayOfInterval,
 } from "date-fns";
-import { toZonedTime, fromZonedTime } from "date-fns-tz";
-import type { DateRangeParams, DateRange } from "./analytics";
+import { toZonedTime } from "date-fns-tz";
+import type { DateRangeParams } from "./analytics";
 
 // Re-export types from response-time-types for convenience
 export {

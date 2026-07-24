@@ -22,9 +22,7 @@ import {
   Bell,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface RecentActivitySidebarProps {
   /** Maximum number of activities to show */
@@ -52,9 +50,7 @@ interface ActivityGroup {
   activities: ActivityItemData[];
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function groupActivitiesByTime(activities: ActivityItemData[]): ActivityGroup[] {
   const now = new Date();
@@ -113,9 +109,7 @@ function groupActivitiesByTime(activities: ActivityItemData[]): ActivityGroup[] 
   return result;
 }
 
-// ============================================
 // COLLAPSIBLE GROUP COMPONENT
-// ============================================
 
 interface ActivityGroupSectionProps {
   group: ActivityGroup;
@@ -167,9 +161,7 @@ function ActivityGroupSection({
   );
 }
 
-// ============================================
 // MAIN SIDEBAR COMPONENT
-// ============================================
 
 export function RecentActivitySidebar({
   maxItems = 20,
@@ -417,9 +409,7 @@ export function RecentActivitySidebar({
   );
 }
 
-// ============================================
 // FLOATING ACTIVITY BUTTON
-// ============================================
 
 interface FloatingActivityButtonProps {
   onClick: () => void;
@@ -461,9 +451,7 @@ export function FloatingActivityButton({
   );
 }
 
-// ============================================
 // ACTIVITY PANEL WRAPPER (combines button + panel)
-// ============================================
 
 interface ActivityPanelProps {
   maxItems?: number;

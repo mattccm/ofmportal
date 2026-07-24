@@ -2,39 +2,22 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { Suspense } from "react";
 import Link from "next/link";
 import {
   FileText,
   Plus,
-  Search,
-  Filter,
-  SortAsc,
   Sparkles,
   Tag,
-  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import {
-  TemplateCard,
-  TemplateCardSkeleton,
-  EmptyTemplates,
-} from "@/components/templates/template-card";
-import { TemplateField, deserializeTemplate } from "@/lib/templates";
+
+
+
+
+import { TemplateField } from "@/lib/templates";
 import { TemplatesClient } from "./templates-client";
 
-// ============================================
 // DATA FETCHING
-// ============================================
 
 async function getTemplates(agencyId: string) {
   const templates = await db.requestTemplate.findMany({
@@ -107,9 +90,7 @@ async function getTemplateStats(agencyId: string) {
   return { totalTemplates, activeTemplates, totalUsage };
 }
 
-// ============================================
 // PAGE COMPONENT
-// ============================================
 
 export default async function TemplatesPage() {
   const session = await getServerSession(authOptions);

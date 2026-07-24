@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton, SkeletonAvatar, SkeletonBadge, SkeletonText } from "@/components/ui/skeleton"
 import { StatsGridSkeleton } from "../stat-skeleton"
 import { ActionCardSkeleton, AlertCardSkeleton } from "../card-skeleton"
-import { ActivityFeedSkeleton, ListItemSkeleton } from "../list-skeleton"
+import { ActivityFeedSkeleton } from "../list-skeleton"
 import { CreatorPerformanceSkeleton } from "../profile-skeleton"
 
 interface DashboardSkeletonProps {

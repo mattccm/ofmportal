@@ -5,9 +5,7 @@ import { z } from "zod";
 import { previewScheduleForNewRequest } from "@/lib/auto-reminder-scheduler";
 import { format } from "date-fns";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 const previewSchema = z.object({
   creatorId: z.string().min(1),
@@ -15,9 +13,7 @@ const previewSchema = z.object({
   dueDate: z.string().min(1),
 });
 
-// ============================================
 // POST - Preview reminder schedule for a new request
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

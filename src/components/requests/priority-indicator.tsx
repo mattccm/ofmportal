@@ -1,16 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Clock, AlertCircle, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type Priority,
-  type UrgencyLevel,
   getPriorityConfig,
   getDeadlineInfo,
   getUrgencyLevelClasses,
-  formatTimeRemainingText,
 } from "@/lib/deadline-utils";
 
 interface PriorityIndicatorProps {

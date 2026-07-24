@@ -518,7 +518,7 @@ export function BulkStatusDialog({
                 <div>
                   <p className="font-semibold">
                     {failureCount === 0
-                      ? "All requests updated successfully"
+                      ? "All requests updated"
                       : successCount === 0
                         ? "Failed to update requests"
                         : "Partial success"}

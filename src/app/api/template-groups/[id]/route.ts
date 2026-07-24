@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const platformSchema = z.enum([
   "instagram",
@@ -34,9 +32,7 @@ const updateGroupSchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
 });
 
-// ============================================
 // GET - Get a single template group
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -127,9 +123,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // PATCH - Update a template group
-// ============================================
 
 export async function PATCH(
   req: NextRequest,
@@ -231,9 +225,7 @@ export async function PATCH(
   }
 }
 
-// ============================================
 // DELETE - Delete a template group
-// ============================================
 
 export async function DELETE(
   req: NextRequest,

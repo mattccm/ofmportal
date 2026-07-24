@@ -599,9 +599,7 @@ export function useCreatorComparison() {
   };
 }
 
-// ============================================
 // PANEL STATE MANAGEMENT HOOK
-// ============================================
 
 export interface UseCreatorContextPanelOptions {
   /** Initial creator ID (optional) */

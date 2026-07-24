@@ -4,11 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Package, Sparkles } from "lucide-react";
 import { BundlesClient } from "./bundles-client";
-import type { TemplateField } from "@/lib/template-types";
 
-// ============================================
 // DATA FETCHING
-// ============================================
 
 async function getBundles(agencyId: string) {
   const bundles = await db.requestBundle.findMany({
@@ -158,9 +155,7 @@ async function getBundleStats(agencyId: string) {
   return { totalBundles, onboardingBundles, autoTriggerBundles };
 }
 
-// ============================================
 // PAGE COMPONENT
-// ============================================
 
 export default async function BundlesPage() {
   const session = await getServerSession(authOptions);

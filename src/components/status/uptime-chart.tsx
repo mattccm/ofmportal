@@ -5,9 +5,7 @@ import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { StatusLevel, STATUS_CONFIG } from "./status-indicator";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface DayStatus {
   date: Date;
@@ -23,9 +21,7 @@ export interface UptimeChartProps {
   className?: string;
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString("en-US", {
@@ -56,9 +52,7 @@ function calculateOverallUptime(days: DayStatus[]): number {
   return Math.round((totalUptime / days.length) * 100) / 100;
 }
 
-// ============================================
 // UPTIME BAR COMPONENT
-// ============================================
 
 interface UptimeBarProps {
   day: DayStatus;
@@ -117,9 +111,7 @@ function UptimeBar({ day, isHovered, onHover, onLeave }: UptimeBarProps) {
   );
 }
 
-// ============================================
 // MAIN UPTIME CHART COMPONENT
-// ============================================
 
 export function UptimeChart({
   days,
@@ -196,9 +188,7 @@ export function UptimeChart({
   );
 }
 
-// ============================================
 // COMPACT UPTIME DISPLAY
-// ============================================
 
 export interface CompactUptimeProps {
   uptime: number;
@@ -228,9 +218,7 @@ export function CompactUptime({
   );
 }
 
-// ============================================
 // SERVICE UPTIME ROW
-// ============================================
 
 export interface ServiceUptimeRowProps {
   serviceName: string;

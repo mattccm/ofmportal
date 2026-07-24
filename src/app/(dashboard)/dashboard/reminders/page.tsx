@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { Bell, Clock, Settings, History, Sparkles } from "lucide-react";
 import { RemindersClient } from "./reminders-client";
 
-// ============================================
 // DATA FETCHING
-// ============================================
 
 async function getReminderTemplates(agencyId: string) {
   return db.reminderConfig.findMany({
@@ -106,9 +104,7 @@ async function getAgencySettings(agencyId: string) {
   return agency?.settings || {};
 }
 
-// ============================================
 // PAGE COMPONENT
-// ============================================
 
 export default async function RemindersPage() {
   const session = await getServerSession(authOptions);

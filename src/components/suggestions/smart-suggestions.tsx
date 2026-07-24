@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 import { cn } from "@/lib/utils";
 import { SuggestionCard, InlineSuggestion } from "./suggestion-card";
 import {
@@ -12,6 +18,12 @@ import {
 } from "@/lib/suggestions";
 import { Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Hydration-safe check so suggestions only render on the client,
+// where dismissed state from localStorage is available
+const subscribeToNothing = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 interface SmartSuggestionsProps {
   /**
@@ -74,18 +86,23 @@ export function SmartSuggestions({
   onDismiss,
   onSuggestionsChange,
 }: SmartSuggestionsProps) {
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const isClient = useSyncExternalStore(
+    subscribeToNothing,
+    getClientSnapshot,
+    getServerSnapshot
+  );
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [dismissedIds, setDismissedIds] = useState<string[]>(() =>
+    getDismissedSuggestions()
+  );
 
-  // Load dismissed suggestions and generate new ones
-  useEffect(() => {
-    const dismissed = getDismissedSuggestions();
-    setDismissedIds(dismissed);
+  // Generate suggestions from context and dismissed state
+  const suggestions = useMemo(() => {
+    if (!isClient) return [];
 
     const fullContext: SuggestionContext = {
       ...context,
-      dismissedSuggestions: dismissed,
+      dismissedSuggestions: dismissedIds,
     };
 
     let newSuggestions = getSuggestionsForPage(fullContext);
@@ -95,23 +112,23 @@ export function SmartSuggestions({
       newSuggestions = newSuggestions.slice(0, maxSuggestions);
     }
 
-    setSuggestions(newSuggestions);
-    onSuggestionsChange?.(newSuggestions);
-  }, [context, maxSuggestions, onSuggestionsChange]);
+    return newSuggestions;
+  }, [isClient, context, dismissedIds, maxSuggestions]);
+
+  useEffect(() => {
+    if (isClient) {
+      onSuggestionsChange?.(suggestions);
+    }
+  }, [isClient, suggestions, onSuggestionsChange]);
 
   // Handle dismissing a suggestion
   const handleDismiss = useCallback(
     (suggestionId: string) => {
       dismissSuggestion(suggestionId);
       setDismissedIds((prev) => [...prev, suggestionId]);
-      setSuggestions((prev) => {
-        const updated = prev.filter((s) => s.id !== suggestionId);
-        onSuggestionsChange?.(updated);
-        return updated;
-      });
       onDismiss?.(suggestionId);
     },
-    [onDismiss, onSuggestionsChange]
+    [onDismiss]
   );
 
   // Don't render if no suggestions
@@ -241,17 +258,23 @@ export function ServerSuggestions({
   title,
   className,
 }: ServerSuggestionsProps) {
-  const [suggestions, setSuggestions] = useState<Suggestion[]>(initialSuggestions);
+  const isClient = useSyncExternalStore(
+    subscribeToNothing,
+    getClientSnapshot,
+    getServerSnapshot
+  );
+  const [dismissedIds, setDismissedIds] = useState<string[]>(() =>
+    getDismissedSuggestions()
+  );
 
   // Filter out already dismissed suggestions on client
-  useEffect(() => {
-    const dismissed = getDismissedSuggestions();
-    setSuggestions(initialSuggestions.filter((s) => !dismissed.includes(s.id)));
-  }, [initialSuggestions]);
+  const suggestions = isClient
+    ? initialSuggestions.filter((s) => !dismissedIds.includes(s.id))
+    : initialSuggestions;
 
   const handleDismiss = useCallback((suggestionId: string) => {
     dismissSuggestion(suggestionId);
-    setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
+    setDismissedIds((prev) => [...prev, suggestionId]);
   }, []);
 
   if (suggestions.length === 0) {

@@ -15,9 +15,7 @@ import {
 import { SmilePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TeamMember {
   id: string;
@@ -33,9 +31,7 @@ interface CommentReactionsProps {
   teamMembers: TeamMember[];
 }
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 // Common emoji reactions organized by category
 const REACTION_CATEGORIES = [
@@ -60,9 +56,7 @@ const REACTION_CATEGORIES = [
 // Quick access emojis for the compact picker
 const QUICK_REACTIONS = ["👍", "❤️", "😄", "🎉", "👀", "🚀"];
 
-// ============================================
 // EMOJI PICKER COMPONENT
-// ============================================
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void;
@@ -100,9 +94,7 @@ function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   );
 }
 
-// ============================================
 // REACTION BADGE COMPONENT
-// ============================================
 
 interface ReactionBadgeProps {
   emoji: string;
@@ -158,9 +150,7 @@ function ReactionBadge({
   );
 }
 
-// ============================================
 // MAIN COMMENT REACTIONS COMPONENT
-// ============================================
 
 export function CommentReactions({
   reactions,
@@ -234,9 +224,7 @@ export function CommentReactions({
   );
 }
 
-// ============================================
 // STANDALONE REACTION PICKER (for use outside comments)
-// ============================================
 
 interface ReactionPickerProps {
   onSelect: (emoji: string) => void;
@@ -269,9 +257,7 @@ export function ReactionPicker({ onSelect, trigger }: ReactionPickerProps) {
   );
 }
 
-// ============================================
 // REACTION SUMMARY (for displaying reaction counts)
-// ============================================
 
 interface ReactionSummaryProps {
   reactions: Record<string, string[]>;

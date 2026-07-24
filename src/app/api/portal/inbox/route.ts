@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Find or create the creator's conversation with the team
-    let conversation = await db.conversation.findFirst({
+    const conversation = await db.conversation.findFirst({
       where: {
         type: "CREATOR",
         creatorId: creator.id,

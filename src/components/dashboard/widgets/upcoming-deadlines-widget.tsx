@@ -2,17 +2,14 @@
 
 import Link from "next/link";
 import { format, differenceInDays, isToday, isTomorrow } from "date-fns";
-import { Calendar, ChevronRight, CheckCircle, AlertTriangle, Clock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Calendar, ChevronRight, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
 import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface UpcomingDeadline {
   id: string;
@@ -26,9 +23,7 @@ interface UpcomingDeadline {
   };
 }
 
-// ============================================
 // HELPERS
-// ============================================
 
 function getUrgencyConfig(dueDate: Date) {
   const now = new Date();
@@ -84,9 +79,7 @@ function getUrgencyConfig(dueDate: Date) {
   };
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function UpcomingDeadlinesWidget({ config, size }: WidgetProps) {
   // Use batched widget data from context (single API call for all widgets)

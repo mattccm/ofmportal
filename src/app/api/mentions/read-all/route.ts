@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// ============================================
 // POST /api/mentions/read-all - Mark all mentions as read
-// ============================================
 
 export async function POST(request: NextRequest) {
   try {

@@ -407,7 +407,13 @@ export function DonutChart({
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  let currentOffset = 0;
+  const segmentOffsets = data.reduce<number[]>(
+    (offsets, item) => [
+      ...offsets,
+      offsets[offsets.length - 1] + circumference * (item.count / total),
+    ],
+    [0]
+  );
 
   return (
     <div className={cn("relative", className)} style={{ width: size, height: size }}>
@@ -427,8 +433,7 @@ export function DonutChart({
         {data.map((item, index) => {
           const percentage = item.count / total;
           const dashLength = circumference * percentage;
-          const dashOffset = circumference - currentOffset;
-          currentOffset += dashLength;
+          const dashOffset = circumference - segmentOffsets[index];
 
           const config = STATUS_CONFIG[item.status];
 

@@ -4,12 +4,10 @@ import * as React from "react"
 import { Camera, Upload, X, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Avatar } from "@/components/ui/avatar"
 import {
   generateInitials,
   getAvatarGradientStyle,
   validateAvatarFile,
-  compressAvatarImage,
   type AvatarUser,
 } from "@/lib/avatar"
 
@@ -47,6 +45,7 @@ function CropDialog({
   onCancel: () => void
 }) {
   const [crop, setCrop] = React.useState<CropArea>({ x: 0, y: 0, scale: 1 })
+  const [imageSize, setImageSize] = React.useState<{ width: number; height: number } | null>(null)
   const [isDragging, setIsDragging] = React.useState(false)
   const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 })
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
@@ -61,6 +60,7 @@ function CropDialog({
     const img = new Image()
     img.onload = () => {
       imageRef.current = img
+      setImageSize({ width: img.width, height: img.height })
       // Center the image initially
       const scale = Math.max(PREVIEW_SIZE / img.width, PREVIEW_SIZE / img.height)
       setCrop({
@@ -253,9 +253,8 @@ function CropDialog({
             min="0"
             max="100"
             value={(() => {
-              const img = imageRef.current
-              if (!img) return 50
-              const minScale = Math.max(PREVIEW_SIZE / img.width, PREVIEW_SIZE / img.height)
+              if (!imageSize) return 50
+              const minScale = Math.max(PREVIEW_SIZE / imageSize.width, PREVIEW_SIZE / imageSize.height)
               const maxScale = minScale * 3
               return ((crop.scale - minScale) / (maxScale - minScale)) * 100
             })()}
@@ -494,7 +493,7 @@ export function AvatarUpload({
           {displayUrl ? (
             <img
               src={displayUrl}
-              alt={displayName}
+              alt={`${displayName} profile photo`}
               className="w-full h-full object-cover"
             />
           ) : (

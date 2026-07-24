@@ -12,13 +12,11 @@ import {
   Unlock,
   Smartphone,
   Monitor,
-  Globe,
   Eye,
   EyeOff,
   Plus,
   Trash2,
   RefreshCw,
-  LogOut,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -366,7 +364,7 @@ export default function SecuritySettingsPage() {
       setLastPasswordChange(data.lastChanged);
       setShowPasswordDialog(false);
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      toast.success("Password changed successfully");
+      toast.success("Password updated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to change password");
     } finally {

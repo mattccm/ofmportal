@@ -79,9 +79,7 @@ import { AutosaveStatusBadge } from "@/components/forms/autosave-indicator";
 import { RecoveryDialog } from "@/components/forms/recovery-dialog";
 import { clearFormData } from "@/lib/form-storage";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TemplateCategory {
   id: string;
@@ -99,9 +97,7 @@ interface TemplateBuilderProps {
   onDelete?: () => Promise<void>;
 }
 
-// ============================================
 // SORTABLE FIELD ITEM
-// ============================================
 
 interface SortableFieldItemProps {
   field: TemplateField;
@@ -157,9 +153,7 @@ function SortableFieldItem({
   );
 }
 
-// ============================================
 // PREVIEW FIELD
-// ============================================
 
 interface PreviewFieldProps {
   field: TemplateField;
@@ -263,9 +257,7 @@ function PreviewField({ field, value, onChange }: PreviewFieldProps) {
   );
 }
 
-// ============================================
 // TEMPLATE BUILDER
-// ============================================
 
 // Generate form ID for autosave
 const getTemplateFormId = (templateId?: string) =>
@@ -380,7 +372,7 @@ export function TemplateBuilder({
       setDefaultDueDays(recovered.defaultDueDays || 7);
       setDefaultUrgency(recovered.defaultUrgency || "NORMAL");
       setIsActive(recovered.isActive ?? true);
-      toast.success("Template data restored successfully");
+      toast.success("Draft restored");
     }
   };
 

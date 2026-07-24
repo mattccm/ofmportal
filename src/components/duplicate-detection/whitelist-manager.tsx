@@ -17,12 +17,9 @@ import {
   CheckCircle2,
   X,
   Upload,
-  Tag,
   Calendar,
-  User,
   Filter,
   MoreVertical,
-  Download,
   Eye,
   Sparkles,
   Package,
@@ -48,7 +45,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -77,9 +73,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { WhitelistedContent } from "@/types/content-fingerprint";
 
-// ============================================
 // TYPES
-// ============================================
 
 type WhitelistCategory = "branding" | "stock" | "template" | "other";
 
@@ -103,9 +97,7 @@ interface WhitelistFormData {
   file: File | null;
 }
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 const CATEGORY_CONFIG: Record<
   WhitelistCategory,
@@ -137,9 +129,7 @@ const CATEGORY_CONFIG: Record<
   },
 };
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -155,16 +145,21 @@ function formatDate(date: Date): string {
   }).format(new Date(date));
 }
 
-function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith("image/")) return ImageIcon;
-  if (mimeType.startsWith("video/")) return Video;
-  if (mimeType.startsWith("text/") || mimeType.includes("document")) return FileText;
-  return File;
+const FILE_TYPE_ICONS = {
+  image: ImageIcon,
+  video: Video,
+  document: FileText,
+  file: File,
+};
+
+function getFileIconKey(mimeType: string): keyof typeof FILE_TYPE_ICONS {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("text/") || mimeType.includes("document")) return "document";
+  return "file";
 }
 
-// ============================================
 // ADD WHITELIST DIALOG
-// ============================================
 
 function AddWhitelistDialog({ open, onOpenChange, onAdd }: AddWhitelistDialogProps) {
   const [formData, setFormData] = React.useState<WhitelistFormData>({
@@ -401,9 +396,7 @@ function AddWhitelistDialog({ open, onOpenChange, onAdd }: AddWhitelistDialogPro
   );
 }
 
-// ============================================
 // WHITELIST ITEM CARD
-// ============================================
 
 function WhitelistItemCard({
   item,
@@ -416,7 +409,7 @@ function WhitelistItemCard({
   onDelete: () => void;
   onView: () => void;
 }) {
-  const FileIcon = getFileIcon(item.mimeType);
+  const FileIcon = FILE_TYPE_ICONS[getFileIconKey(item.mimeType)];
   const categoryConfig = CATEGORY_CONFIG[item.category];
 
   return (
@@ -501,15 +494,12 @@ function WhitelistItemCard({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function WhitelistManager({
   initialItems = [],
   onAdd,
   onRemove,
-  onUpdate,
 }: WhitelistManagerProps) {
   const [items, setItems] = React.useState<WhitelistedContent[]>(initialItems);
   const [isLoading, setIsLoading] = React.useState(!initialItems.length);

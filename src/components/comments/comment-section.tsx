@@ -10,11 +10,9 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { MentionInput, RenderMentions } from "@/components/mentions";
 import type { MentionInputRef } from "@/components/mentions";
-import { textToMentionSegments, extractMentionIds } from "@/lib/mention-parser";
+import { textToMentionSegments } from "@/lib/mention-parser";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Comment {
   id: string;
@@ -37,9 +35,7 @@ interface CommentSectionProps {
   currentUserId?: string;
 }
 
-// ============================================
 // COMMENT SECTION COMPONENT
-// ============================================
 
 export function CommentSection({
   requestId,
@@ -222,9 +218,7 @@ export function CommentSection({
   );
 }
 
-// ============================================
 // COMMENT ITEM COMPONENT
-// ============================================
 
 interface CommentItemProps {
   comment: Comment;

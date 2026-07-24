@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import {
   AlertTriangle,
   RefreshCw,
-  Home,
   Mail,
   ChevronDown,
   ChevronUp,

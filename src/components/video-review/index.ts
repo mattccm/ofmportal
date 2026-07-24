@@ -1,5 +1,4 @@
 // Video Review Components
-// ============================================
 
 export { TimestampMarker, TimelineMarkers } from "./timestamp-marker";
 export { TimestampForm } from "./timestamp-form";

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { formatDistanceToNow, format, addDays } from "date-fns";
 import {
   Package,
@@ -13,9 +13,6 @@ import {
   Trash2,
   Layers,
   Clock,
-  CheckCircle,
-  XCircle,
-  GripVertical,
   Calendar,
   AlertTriangle,
   Zap,
@@ -25,7 +22,6 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
-  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +36,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -74,9 +69,7 @@ import type {
   BundlePreviewRequest,
 } from "@/types/request-bundles";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Template {
   id: string;
@@ -103,9 +96,7 @@ interface BundleManagerProps {
   className?: string;
 }
 
-// ============================================
 // URGENCY CONFIG
-// ============================================
 
 const URGENCY_CONFIG: Record<UrgencyLevel, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   LOW: { label: "Low", color: "text-slate-500", icon: Clock },
@@ -114,9 +105,7 @@ const URGENCY_CONFIG: Record<UrgencyLevel, { label: string; color: string; icon:
   URGENT: { label: "Urgent", color: "text-red-500", icon: Zap },
 };
 
-// ============================================
 // BUNDLE CARD COMPONENT
-// ============================================
 
 interface BundleCardProps {
   bundle: BundleWithTemplates;
@@ -332,9 +321,7 @@ function BundleCard({
   );
 }
 
-// ============================================
 // BUNDLE EDITOR DIALOG
-// ============================================
 
 interface BundleEditorProps {
   open: boolean;
@@ -749,7 +736,7 @@ function BundleEditor({
                 Preview: Requests to be created
               </h4>
               <p className="text-xs text-muted-foreground">
-                Based on today's date as the start date
+                Based on today&apos;s date as the start date
               </p>
 
               <div className="space-y-2">
@@ -809,9 +796,7 @@ function BundleEditor({
   );
 }
 
-// ============================================
 // EMPTY STATE
-// ============================================
 
 function EmptyBundles({ onCreateClick }: { onCreateClick: () => void }) {
   return (
@@ -832,9 +817,7 @@ function EmptyBundles({ onCreateClick }: { onCreateClick: () => void }) {
   );
 }
 
-// ============================================
 // MAIN BUNDLE MANAGER COMPONENT
-// ============================================
 
 export function BundleManager({
   bundles,

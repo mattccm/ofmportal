@@ -25,9 +25,7 @@ import { Button } from "@/components/ui/button";
 import { AuditLogTable, FilterState } from "@/components/audit/audit-log-table";
 import { BackToTop } from "@/components/ui/back-to-top";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface AuditUser {
   id: string;
@@ -69,9 +67,7 @@ interface AuditLogResponse {
   filters: Filters;
 }
 
-// ============================================
 // STATS COMPONENT
-// ============================================
 
 function AuditStats({
   total,
@@ -129,9 +125,7 @@ function AuditStats({
   );
 }
 
-// ============================================
 // MAIN PAGE COMPONENT
-// ============================================
 
 export default function AuditLogPage() {
   const { data: session, status } = useSession();

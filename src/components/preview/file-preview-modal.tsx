@@ -107,7 +107,9 @@ export function FilePreviewModal({
   const hasMultipleFiles = files.length > 1;
 
   // Reset state when modal opens/closes
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setCurrentIndex(initialIndex);
       setIsLoading(true);
@@ -115,7 +117,7 @@ export function FilePreviewModal({
       setIsDismissing(false);
       setIsSwiping(false);
     }
-  }, [open, initialIndex]);
+  }
 
   // Handle image load
   const handleContentLoad = useCallback(() => {
@@ -208,6 +210,21 @@ export function FilePreviewModal({
     setIsSwiping(false);
   }, [swipeOffset, hasMultipleFiles, goToNext, goToPrevious, onOpenChange]);
 
+  const handleDownload = useCallback(() => {
+    if (onDownload && currentFile) {
+      onDownload(currentFile);
+    } else if (currentFile?.url) {
+      // Default download behavior
+      const link = document.createElement("a");
+      link.href = currentFile.url;
+      link.download = currentFile.originalName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Download started");
+    }
+  }, [currentFile, onDownload]);
+
   // Keyboard navigation
   useEffect(() => {
     if (!open) return;
@@ -253,22 +270,7 @@ export function FilePreviewModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, hasMultipleFiles, goToPrevious, goToNext, onOpenChange]);
-
-  const handleDownload = useCallback(() => {
-    if (onDownload && currentFile) {
-      onDownload(currentFile);
-    } else if (currentFile?.url) {
-      // Default download behavior
-      const link = document.createElement("a");
-      link.href = currentFile.url;
-      link.download = currentFile.originalName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("Download started");
-    }
-  }, [currentFile, onDownload]);
+  }, [open, hasMultipleFiles, goToPrevious, goToNext, onOpenChange, handleDownload]);
 
   const handleShare = useCallback(async () => {
     if (onShare && currentFile) {

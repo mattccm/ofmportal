@@ -9,18 +9,14 @@ import {
   isRemindersPausedForCreator,
 } from "@/lib/auto-reminder-scheduler";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const pauseSchema = z.object({
   reason: z.string().optional(),
   resumeAt: z.string().datetime().optional(),
 });
 
-// ============================================
 // GET - Get pause status for a creator
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -72,9 +68,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // POST - Pause reminders for a creator
-// ============================================
 
 export async function POST(
   req: NextRequest,
@@ -149,9 +143,7 @@ export async function POST(
   }
 }
 
-// ============================================
 // DELETE - Resume reminders for a creator
-// ============================================
 
 export async function DELETE(
   req: NextRequest,

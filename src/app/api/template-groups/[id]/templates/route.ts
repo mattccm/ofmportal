@@ -4,17 +4,13 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const addTemplatesSchema = z.object({
   templateIds: z.array(z.string()).min(1, "At least one template is required"),
 });
 
-// ============================================
 // GET - Get all templates in a group
-// ============================================
 
 export async function GET(
   req: NextRequest,
@@ -93,9 +89,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // POST - Add templates to a group
-// ============================================
 
 export async function POST(
   req: NextRequest,
@@ -216,9 +210,7 @@ export async function POST(
   }
 }
 
-// ============================================
 // PUT - Replace all templates in a group
-// ============================================
 
 export async function PUT(
   req: NextRequest,

@@ -77,7 +77,7 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
         throw new Error(data.error || "Failed to delete group");
       }
 
-      toast.success("Group deleted successfully");
+      toast.success("Group deleted");
       onDelete(group.id);
       setShowDeleteDialog(false);
     } catch (error) {

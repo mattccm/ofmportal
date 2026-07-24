@@ -16,7 +16,6 @@ import {
   Wifi,
   Settings,
   Trash2,
-  Database,
   HardDrive,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -36,9 +35,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 
-// ============================================
 // Types
-// ============================================
 
 interface OfflineCapability {
   icon: React.ReactNode;
@@ -47,9 +44,7 @@ interface OfflineCapability {
   available: boolean;
 }
 
-// ============================================
 // Helper Functions
-// ============================================
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -59,9 +54,7 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// ============================================
 // Main Page Component
-// ============================================
 
 export default function OfflinePage() {
   const {

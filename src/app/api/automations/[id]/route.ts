@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Automation {
   id: string;
@@ -31,9 +29,7 @@ interface Automation {
   updatedAt: string;
 }
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const updateAutomationSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -90,9 +86,7 @@ const testActionSchema = z.object({
   action: z.literal("test"),
 });
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 async function getAutomations(agencyId: string): Promise<Automation[]> {
   const agency = await db.agency.findUnique({
@@ -137,9 +131,7 @@ async function saveAutomations(
   });
 }
 
-// ============================================
 // GET - Fetch single automation
-// ============================================
 
 export async function GET(
   request: NextRequest,
@@ -173,9 +165,7 @@ export async function GET(
   }
 }
 
-// ============================================
 // PATCH - Update automation
-// ============================================
 
 export async function PATCH(
   request: NextRequest,
@@ -260,9 +250,7 @@ export async function PATCH(
   }
 }
 
-// ============================================
 // POST - Test automation (dry run)
-// ============================================
 
 export async function POST(
   request: NextRequest,
@@ -343,9 +331,7 @@ export async function POST(
   }
 }
 
-// ============================================
 // DELETE - Delete automation
-// ============================================
 
 export async function DELETE(
   request: NextRequest,

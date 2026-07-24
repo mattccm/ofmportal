@@ -17,7 +17,6 @@ import {
   Ban,
   CheckCircle2,
   Eye,
-  Download,
   ExternalLink,
   Percent,
   Layers,
@@ -36,9 +35,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { DuplicateAttempt, DuplicateMatchTypeEnum } from "@/types/content-fingerprint";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface DuplicateComparisonViewProps {
   attempt: DuplicateAttempt | null;
@@ -57,9 +54,7 @@ interface FilePreviewProps {
   hash?: string;
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -78,11 +73,18 @@ function formatDate(date: Date): string {
   }).format(new Date(date));
 }
 
-function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith("image/")) return FileImage;
-  if (mimeType.startsWith("video/")) return FileVideo;
-  if (mimeType.startsWith("text/") || mimeType.includes("document")) return FileText;
-  return File;
+const FILE_TYPE_ICONS = {
+  image: FileImage,
+  video: FileVideo,
+  document: FileText,
+  file: File,
+};
+
+function getFileIconKey(mimeType: string): keyof typeof FILE_TYPE_ICONS {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("text/") || mimeType.includes("document")) return "document";
+  return "file";
 }
 
 function getMatchTypeConfig(matchType: DuplicateMatchTypeEnum) {
@@ -126,9 +128,7 @@ function getMatchTypeConfig(matchType: DuplicateMatchTypeEnum) {
   }
 }
 
-// ============================================
 // FILE PREVIEW COMPONENT
-// ============================================
 
 function FilePreview({
   fileName,
@@ -139,7 +139,7 @@ function FilePreview({
   label,
   hash,
 }: FilePreviewProps) {
-  const FileIcon = getFileIcon(fileType);
+  const FileIcon = FILE_TYPE_ICONS[getFileIconKey(fileType)];
   const isImage = fileType.startsWith("image/");
   const isVideo = fileType.startsWith("video/");
 
@@ -266,9 +266,7 @@ function FilePreview({
   );
 }
 
-// ============================================
 // SIMILARITY INDICATOR
-// ============================================
 
 function SimilarityIndicator({
   similarity,
@@ -335,9 +333,7 @@ function SimilarityIndicator({
   );
 }
 
-// ============================================
 // MATCH DETAILS
-// ============================================
 
 function MatchDetails({
   attempt,
@@ -393,9 +389,7 @@ function MatchDetails({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function DuplicateComparisonView({
   attempt,

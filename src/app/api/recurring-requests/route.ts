@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { calculateNextRunDate } from "@/types/recurring-requests";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 const requestSettingsSchema = z.object({
   titleTemplate: z.string().min(1, "Title template is required"),
@@ -35,9 +33,7 @@ const createRecurringRequestSchema = z.object({
   requestSettings: requestSettingsSchema,
 });
 
-// ============================================
 // GET - List recurring requests
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -151,9 +147,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create recurring request
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

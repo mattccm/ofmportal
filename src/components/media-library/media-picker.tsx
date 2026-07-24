@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -32,7 +31,6 @@ import {
   Grid3X3,
   List,
   Clock,
-  Star,
   FolderOpen,
   Image as ImageIcon,
   Video,
@@ -40,7 +38,6 @@ import {
   FileText,
   Check,
   X,
-  TrendingUp,
   Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

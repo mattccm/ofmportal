@@ -9,13 +9,10 @@ import {
   startOfMonth,
   endOfMonth,
   subDays,
-  differenceInDays,
   differenceInHours,
 } from "date-fns";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface WidgetConfig {
   id: string;
@@ -27,9 +24,7 @@ interface WidgetConfig {
   settings?: Record<string, unknown>;
 }
 
-// ============================================
 // GET - Fetch widget-specific data
-// ============================================
 
 export async function GET(request: NextRequest) {
   try {
@@ -88,9 +83,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Save widget layout
-// ============================================
 
 export async function POST(request: NextRequest) {
   try {
@@ -132,9 +125,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 async function getCurrentPreferences(userId: string): Promise<Record<string, unknown>> {
   const user = await db.user.findUnique({
@@ -156,9 +147,7 @@ async function getWidgetLayout(userId: string) {
   return NextResponse.json({ layout });
 }
 
-// ============================================
 // WIDGET DATA FETCHERS
-// ============================================
 
 async function getPendingRequests(agencyId: string) {
   const requests = await db.contentRequest.findMany({
@@ -589,10 +578,8 @@ async function getReminderSummary(agencyId: string) {
   });
 }
 
-// ============================================
 // BATCHED WIDGET DATA - Fetches all widgets in one request
 // This significantly reduces database connection usage
-// ============================================
 
 async function getAllWidgetData(agencyId: string) {
   const now = new Date();

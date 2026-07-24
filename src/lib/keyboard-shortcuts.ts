@@ -1,8 +1,6 @@
 "use client";
 
-// ============================================
 // TYPES
-// ============================================
 
 export type ShortcutCategory = "navigation" | "actions" | "search" | "content" | "general";
 
@@ -22,9 +20,7 @@ export interface ShortcutGroup {
   shortcuts: ShortcutDefinition[];
 }
 
-// ============================================
 // SHORTCUT DEFINITIONS
-// ============================================
 
 export const NAVIGATION_SHORTCUTS: ShortcutDefinition[] = [
   {
@@ -258,9 +254,7 @@ export const GENERAL_SHORTCUTS: ShortcutDefinition[] = [
   },
 ];
 
-// ============================================
 // GROUPED SHORTCUTS
-// ============================================
 
 export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
@@ -295,9 +289,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
 ];
 
-// ============================================
 // ALL SHORTCUTS (flat list)
-// ============================================
 
 export const ALL_SHORTCUTS: ShortcutDefinition[] = [
   ...NAVIGATION_SHORTCUTS,
@@ -307,9 +299,7 @@ export const ALL_SHORTCUTS: ShortcutDefinition[] = [
   ...GENERAL_SHORTCUTS,
 ];
 
-// ============================================
 // UTILITY FUNCTIONS
-// ============================================
 
 /**
  * Get platform-aware modifier key label
@@ -446,9 +436,7 @@ export function groupShortcutsByCategory(
   return grouped;
 }
 
-// ============================================
 // ACTION HANDLERS REGISTRY
-// ============================================
 
 export type ShortcutHandler = () => void;
 
@@ -502,9 +490,7 @@ export function createShortcutHandlers(
   };
 }
 
-// ============================================
 // KEYBOARD SYMBOLS FOR DISPLAY
-// ============================================
 
 export const KEY_SYMBOLS: Record<string, string> = {
   cmd: "\u2318",

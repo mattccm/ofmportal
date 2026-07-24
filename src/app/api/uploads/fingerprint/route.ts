@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import type {
-  StoreFingerprintRequest,
   StoreFingerprintResponse,
 } from "@/types/content-fingerprint";
 

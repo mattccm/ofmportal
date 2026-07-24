@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// ============================================
 // GET /api/mentions/unread - Get unread mentions count
-// ============================================
 
 export async function GET(request: NextRequest) {
   try {

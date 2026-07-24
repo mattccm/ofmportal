@@ -18,9 +18,7 @@ import {
   isWithinBusinessHours,
 } from "@/lib/timezone-utils";
 
-// ============================================
 // CONTEXT TYPES
-// ============================================
 
 interface TimezoneContextType {
   /** Current active timezone */
@@ -47,9 +45,7 @@ interface TimezoneContextType {
   refreshPreferences: () => Promise<void>;
 }
 
-// ============================================
 // CONTEXT & HOOKS
-// ============================================
 
 const TimezoneContext = createContext<TimezoneContextType | null>(null);
 
@@ -74,17 +70,13 @@ export function useTimezone() {
   return context;
 }
 
-// ============================================
 // LOCAL STORAGE KEYS
-// ============================================
 
 const TIMEZONE_STORAGE_KEY = "uploadportal_timezone";
 const PREFERENCES_STORAGE_KEY = "uploadportal_timezone_preferences";
 const BUSINESS_HOURS_STORAGE_KEY = "uploadportal_business_hours";
 
-// ============================================
 // PROVIDER COMPONENT
-// ============================================
 
 interface TimezoneProviderProps {
   children: React.ReactNode;
@@ -113,9 +105,7 @@ export function TimezoneProvider({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ============================================
   // INITIALIZATION
-  // ============================================
 
   useEffect(() => {
     const initializeTimezone = () => {
@@ -136,7 +126,7 @@ export function TimezoneProvider({
             const detected = detectLocalTimezone();
             setTimezoneState(detected);
           }
-        } else if (preferences.autoDetect) {
+        } else if (initialPreferences?.autoDetect ?? DEFAULT_TIMEZONE_PREFERENCES.autoDetect) {
           // Auto-detect on first load if enabled
           const detected = detectLocalTimezone();
           setTimezoneState(detected);
@@ -156,11 +146,9 @@ export function TimezoneProvider({
     };
 
     initializeTimezone();
-  }, []);
+  }, [initialPreferences?.autoDetect]);
 
-  // ============================================
   // TIMEZONE MANAGEMENT
-  // ============================================
 
   const setTimezone = useCallback((newTimezone: string) => {
     if (!isValidTimezone(newTimezone)) {
@@ -191,9 +179,7 @@ export function TimezoneProvider({
     }));
   }, []);
 
-  // ============================================
   // PREFERENCES MANAGEMENT
-  // ============================================
 
   const updatePreferences = useCallback(
     async (updates: Partial<TimezonePreferences>) => {
@@ -240,9 +226,7 @@ export function TimezoneProvider({
     [preferences, saveEndpoint]
   );
 
-  // ============================================
   // BUSINESS HOURS MANAGEMENT
-  // ============================================
 
   const updateBusinessHours = useCallback(
     async (updates: Partial<BusinessHours>) => {
@@ -275,9 +259,7 @@ export function TimezoneProvider({
     [businessHours, saveEndpoint]
   );
 
-  // ============================================
   // UTILITY FUNCTIONS
-  // ============================================
 
   const isBusinessHoursNow = useCallback(() => {
     return isWithinBusinessHours(new Date(), businessHours);
@@ -311,9 +293,7 @@ export function TimezoneProvider({
     }
   }, [saveEndpoint]);
 
-  // ============================================
   // CONTEXT VALUE
-  // ============================================
 
   const contextValue: TimezoneContextType = {
     timezone,
@@ -336,9 +316,7 @@ export function TimezoneProvider({
   );
 }
 
-// ============================================
 // UTILITY HOOKS
-// ============================================
 
 /**
  * Hook to get formatted dates in user's timezone
@@ -351,40 +329,30 @@ export function useFormattedDate(
   }
 ) {
   const { timezone, preferences } = useTimezone();
-  const [formatted, setFormatted] = useState<string>("");
 
-  useEffect(() => {
-    if (!date) {
-      setFormatted("");
-      return;
-    }
+  if (!date) {
+    return "";
+  }
 
-    const inputDate = new Date(date);
-    const { format = "datetime", relative = false } = options || {};
+  const inputDate = new Date(date);
+  const { format = "datetime", relative = false } = options || {};
 
-    if (relative) {
-      setFormatted(getRelativeTime(inputDate));
-    } else {
-      switch (format) {
-        case "date":
-          setFormatted(formatDate(inputDate, timezone, preferences.dateFormat));
-          break;
-        case "time":
-          setFormatted(formatTime(inputDate, timezone, { hour12: !preferences.use24HourFormat }));
-          break;
-        default:
-          setFormatted(
-            formatDateTime(inputDate, timezone, {
-              dateStyle: "medium",
-              timeStyle: "short",
-              hour12: !preferences.use24HourFormat,
-            })
-          );
-      }
-    }
-  }, [date, timezone, preferences.dateFormat, preferences.use24HourFormat, options]);
+  if (relative) {
+    return getRelativeTime(inputDate);
+  }
 
-  return formatted;
+  switch (format) {
+    case "date":
+      return formatDate(inputDate, timezone, preferences.dateFormat);
+    case "time":
+      return formatTime(inputDate, timezone, { hour12: !preferences.use24HourFormat });
+    default:
+      return formatDateTime(inputDate, timezone, {
+        dateStyle: "medium",
+        timeStyle: "short",
+        hour12: !preferences.use24HourFormat,
+      });
+  }
 }
 
 /**

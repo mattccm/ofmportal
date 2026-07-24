@@ -3,9 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface SkipLinkProps {
   href: string;
@@ -21,9 +19,7 @@ interface SkipLinksProps {
   className?: string;
 }
 
-// ============================================
 // SKIP LINK COMPONENT
-// ============================================
 
 /**
  * Individual skip link that becomes visible when focused.
@@ -89,9 +85,7 @@ export function SkipLink({ href, children, className }: SkipLinkProps) {
   );
 }
 
-// ============================================
 // SKIP LINKS CONTAINER
-// ============================================
 
 /**
  * Container for multiple skip links.
@@ -132,9 +126,7 @@ export function SkipLinks({ links, className }: SkipLinksProps) {
   );
 }
 
-// ============================================
 // LANDMARK TARGETS
-// ============================================
 
 interface MainContentProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
@@ -177,8 +169,6 @@ export function MainNav({ children, className, ...props }: MainNavProps) {
   );
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export default SkipLinks;

@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { UploadApprovalStatus, RequestStatus } from "@prisma/client";
 import {
-  type BulkOperationType,
   isUndoWindowValid,
 } from "@/lib/bulk-operations";
 

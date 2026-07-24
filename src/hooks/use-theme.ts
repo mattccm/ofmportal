@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -71,6 +71,14 @@ function getServerResolvedSnapshot(): ResolvedTheme {
   return "light";
 }
 
+function getMountedSnapshot(): boolean {
+  return true;
+}
+
+function getServerMountedSnapshot(): boolean {
+  return false;
+}
+
 // Initialize on client
 if (typeof window !== "undefined") {
   currentTheme = getStoredTheme();
@@ -130,12 +138,14 @@ export function useTheme() {
     getServerResolvedSnapshot
   );
 
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribe,
+    getMountedSnapshot,
+    getServerMountedSnapshot
+  );
 
   // Handle system preference changes
   useEffect(() => {
-    setMounted(true);
-
     // Initialize theme on mount
     const stored = getStoredTheme();
     if (stored !== currentTheme || resolveTheme(stored) !== currentResolvedTheme) {
@@ -182,21 +192,16 @@ export function useTheme() {
 /**
  * Hook to watch system preference
  */
+function subscribeToSystemTheme(listener: () => void) {
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  mediaQuery.addEventListener("change", listener);
+  return () => mediaQuery.removeEventListener("change", listener);
+}
+
 export function useSystemTheme() {
-  const [systemTheme, setSystemThemeState] = useState<ResolvedTheme>("light");
-
-  useEffect(() => {
-    setSystemThemeState(getSystemTheme());
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemThemeState(e.matches ? "dark" : "light");
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  return systemTheme;
+  return useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemTheme,
+    getServerResolvedSnapshot
+  );
 }

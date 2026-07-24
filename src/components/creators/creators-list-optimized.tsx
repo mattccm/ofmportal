@@ -37,9 +37,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/cache";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Creator {
   id: string;
@@ -73,9 +71,7 @@ interface CreatorsListOptimizedProps {
   favoriteIds?: string[];
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function getInviteStatusBadge(status: string, compact = false) {
   const configs: Record<string, { class: string; label: string; shortLabel: string }> = {
@@ -106,9 +102,7 @@ function getInviteStatusBadge(status: string, compact = false) {
   );
 }
 
-// ============================================
 // FETCH FUNCTION
-// ============================================
 
 async function fetchCreators(params: {
   page: number;
@@ -133,9 +127,7 @@ async function fetchCreators(params: {
   return response.json();
 }
 
-// ============================================
 // OPTIMIZED CREATORS LIST COMPONENT
-// ============================================
 
 export function CreatorsListOptimized({
   initialData,

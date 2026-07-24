@@ -2,8 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Bell, Settings, CheckCheck, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime";
+import { channelNames, isRealtimeAvailable, type RealtimePayload } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,32 +21,30 @@ import {
   type NotificationItemData,
 } from "./notification-item";
 
-// ============================================
 // CONSTANTS
-// ============================================
 
 const POLL_INTERVAL = 30000; // 30 seconds
 const MAX_NOTIFICATIONS = 5; // Max notifications to show in dropdown
 
-// ============================================
 // NOTIFICATION BELL COMPONENT
-// ============================================
 
 interface NotificationBellProps {
   className?: string;
 }
 
 export function NotificationBell({ className }: NotificationBellProps) {
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItemData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
 
-  // ============================================
   // FETCH FUNCTIONS
-  // ============================================
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -79,9 +80,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
     }
   }, []);
 
-  // ============================================
   // POLLING
-  // ============================================
 
   useEffect(() => {
     // Initial fetch
@@ -112,9 +111,28 @@ export function NotificationBell({ className }: NotificationBellProps) {
     }
   }, [isOpen, fetchNotifications]);
 
-  // ============================================
+  // REALTIME
+
+  // Subscribe to this user's notification channel for instant updates.
+  // Falls back to the polling above when Realtime isn't configured.
+  const handleRealtimeNotification = useCallback(
+    (payload: RealtimePayload) => {
+      if (payload.type !== "notification") return;
+      fetchUnreadCount();
+      if (isOpenRef.current) {
+        fetchNotifications();
+      }
+    },
+    [fetchUnreadCount, fetchNotifications]
+  );
+
+  useSupabaseRealtime({
+    channelName: userId ? channelNames.userNotifications(userId) : "",
+    onMessage: handleRealtimeNotification,
+    enabled: !!userId && isRealtimeAvailable(),
+  });
+
   // ACTIONS
-  // ============================================
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -166,9 +184,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
     setIsOpen(false);
   };
 
-  // ============================================
   // RENDER
-  // ============================================
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>

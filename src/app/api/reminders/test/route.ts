@@ -7,9 +7,7 @@ import { sendReminderSms } from "@/lib/sms";
 import { z } from "zod";
 import { format } from "date-fns";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const testReminderSchema = z.object({
   channel: z.enum(["EMAIL", "SMS"]).default("EMAIL"),
@@ -20,9 +18,7 @@ const testReminderSchema = z.object({
   testPhone: z.string().optional(),
 });
 
-// ============================================
 // POST - Send a test reminder
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

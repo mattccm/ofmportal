@@ -1,7 +1,5 @@
-// ============================================
 // TIMEZONE UTILITIES
 // Using Intl.DateTimeFormat API
-// ============================================
 
 import {
   TimezoneEntry,
@@ -12,9 +10,7 @@ import {
   COMMON_TIMEZONES,
 } from "@/types/timezone";
 
-// ============================================
 // TIMEZONE DETECTION & INFORMATION
-// ============================================
 
 /**
  * Detect user's local timezone from browser
@@ -201,9 +197,7 @@ export function searchTimezones(query: string): TimezoneEntry[] {
   );
 }
 
-// ============================================
 // DATE CONVERSION
-// ============================================
 
 /**
  * Convert a date from one timezone to another
@@ -252,9 +246,7 @@ export function getCurrentTimeInTimezone(timezone: string): Date {
   return new Date(tzString);
 }
 
-// ============================================
 // DATE FORMATTING
-// ============================================
 
 /**
  * Format a date for display in a specific timezone
@@ -388,9 +380,7 @@ export function toISOStringInTimezone(date: Date | string | number, timezone: st
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offset}`;
 }
 
-// ============================================
 // RELATIVE TIME
-// ============================================
 
 /**
  * Get relative time string (e.g., "2 hours ago", "in 3 days")
@@ -514,9 +504,7 @@ export function getSmartRelativeDate(
   return dateStr;
 }
 
-// ============================================
 // BUSINESS HOURS
-// ============================================
 
 /**
  * Check if current time is within business hours
@@ -552,7 +540,7 @@ export function getNextBusinessHoursStart(businessHours: BusinessHours): Date {
   const now = getCurrentTimeInTimezone(businessHours.timezone);
   const [startHour, startMinute] = businessHours.start.split(":").map(Number);
 
-  let checkDate = new Date(now);
+  const checkDate = new Date(now);
   checkDate.setHours(startHour, startMinute, 0, 0);
 
   // If we're past today's start time, move to next day
@@ -577,7 +565,7 @@ export function getNextBusinessHoursEnd(businessHours: BusinessHours): Date {
   const now = getCurrentTimeInTimezone(businessHours.timezone);
   const [endHour, endMinute] = businessHours.end.split(":").map(Number);
 
-  let checkDate = new Date(now);
+  const checkDate = new Date(now);
   checkDate.setHours(endHour, endMinute, 0, 0);
 
   // If we're past today's end time or not a work day, find next work day
@@ -601,7 +589,7 @@ export function addBusinessHours(
 ): Date {
   const start = new Date(startDate);
   let remainingHours = hoursToAdd;
-  let currentDate = new Date(start);
+  const currentDate = new Date(start);
 
   const [startHour, startMinute] = businessHours.start.split(":").map(Number);
   const [endHour, endMinute] = businessHours.end.split(":").map(Number);
@@ -676,9 +664,7 @@ export function getBusinessDaysBetween(
   return count;
 }
 
-// ============================================
 // DUE DATE HELPERS
-// ============================================
 
 /**
  * Check if a due date is overdue

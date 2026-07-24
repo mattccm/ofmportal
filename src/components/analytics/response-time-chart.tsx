@@ -95,7 +95,7 @@ export function ResponseTimeChart({
 
           {/* Chart area */}
           <div className="ml-14 h-full flex items-end gap-1">
-            {chartData.map((point, index) => {
+            {chartData.map((point) => {
               const firstResponseHeight = point.avgFirstResponseHours > 0
                 ? (point.avgFirstResponseHours / maxValue) * 100
                 : 0;
@@ -373,8 +373,6 @@ export function SLAComplianceChart({
   title = "SLA Compliance",
   className,
 }: SLAComplianceChartProps) {
-  const total = data.metSLA + data.atRiskSLA + data.breachedSLA;
-
   const renderDonut = (
     compliance: number,
     label: string
@@ -515,6 +513,27 @@ interface ResponseTimeMetricsCardProps {
   className?: string;
 }
 
+const TrendIcon = ({ value, inverse = false }: { value: number | null; inverse?: boolean }) => {
+  if (value === null) return null;
+  const isPositive = inverse ? value < 0 : value > 0;
+  const Icon = value === 0 ? Minus : value > 0 ? TrendingUp : TrendingDown;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-xs",
+        value === 0
+          ? "text-muted-foreground"
+          : isPositive
+          ? "text-emerald-600"
+          : "text-red-600"
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {Math.abs(value)}%
+    </span>
+  );
+};
+
 export function ResponseTimeMetricsCard({
   metrics,
   previousMetrics,
@@ -525,27 +544,6 @@ export function ResponseTimeMetricsCard({
     if (!previous || previous === 0) return null;
     const change = ((current - previous) / previous) * 100;
     return Math.round(change * 10) / 10;
-  };
-
-  const TrendIcon = ({ value, inverse = false }: { value: number | null; inverse?: boolean }) => {
-    if (value === null) return null;
-    const isPositive = inverse ? value < 0 : value > 0;
-    const Icon = value === 0 ? Minus : value > 0 ? TrendingUp : TrendingDown;
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center gap-0.5 text-xs",
-          value === 0
-            ? "text-muted-foreground"
-            : isPositive
-            ? "text-emerald-600"
-            : "text-red-600"
-        )}
-      >
-        <Icon className="h-3 w-3" />
-        {Math.abs(value)}%
-      </span>
-    );
   };
 
   return (

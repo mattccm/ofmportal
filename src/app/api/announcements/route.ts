@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const createAnnouncementSchema = z.object({
   title: z.string().min(1).max(200),
@@ -39,9 +37,7 @@ const dismissAnnouncementSchema = z.object({
   announcementId: z.string(),
 });
 
-// ============================================
 // GET - Fetch announcements
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -154,9 +150,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create announcement
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -225,9 +219,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // PUT - Update announcement
-// ============================================
 
 export async function PUT(req: NextRequest) {
   try {
@@ -313,9 +305,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// ============================================
 // PATCH - Dismiss announcement for user
-// ============================================
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -375,9 +365,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ============================================
 // DELETE - Delete announcement
-// ============================================
 
 export async function DELETE(req: NextRequest) {
   try {

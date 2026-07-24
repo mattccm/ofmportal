@@ -20,8 +20,6 @@ import {
   User,
   ChevronDown,
   Sparkles,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { useBranding } from "@/components/providers/branding-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";

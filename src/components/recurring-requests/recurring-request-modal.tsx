@@ -12,7 +12,6 @@ import {
   User,
   FileText,
   Repeat,
-  Info,
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -55,9 +54,7 @@ import {
   RequestSettings,
 } from "@/types/recurring-requests";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Template {
   id: string;
@@ -89,9 +86,7 @@ interface RecurringRequestModalProps {
 
 type Step = "schedule" | "target" | "template" | "settings" | "review";
 
-// ============================================
 // STEP CONFIG
-// ============================================
 
 const STEPS: { id: Step; label: string; description: string }[] = [
   { id: "schedule", label: "Schedule", description: "Set frequency and timing" },
@@ -101,9 +96,7 @@ const STEPS: { id: Step; label: string; description: string }[] = [
   { id: "review", label: "Review", description: "Review and confirm" },
 ];
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function RecurringRequestModal({
   open,

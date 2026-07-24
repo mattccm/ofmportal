@@ -4,9 +4,7 @@ import * as React from "react";
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface KeyboardOnlyContextValue {
   /** Whether the user is currently navigating with keyboard */
@@ -17,9 +15,7 @@ interface KeyboardOnlyContextValue {
   disableKeyboardMode: () => void;
 }
 
-// ============================================
 // CONTEXT
-// ============================================
 
 const KeyboardOnlyContext = createContext<KeyboardOnlyContextValue>({
   isKeyboardUser: false,
@@ -31,9 +27,7 @@ export function useKeyboardOnly() {
   return useContext(KeyboardOnlyContext);
 }
 
-// ============================================
 // PROVIDER
-// ============================================
 
 interface KeyboardOnlyProviderProps {
   children: React.ReactNode;
@@ -96,9 +90,7 @@ export function KeyboardOnlyProvider({ children }: KeyboardOnlyProviderProps) {
   );
 }
 
-// ============================================
 // KEYBOARD ONLY CONTENT
-// ============================================
 
 interface KeyboardOnlyProps {
   children: React.ReactNode;
@@ -132,9 +124,7 @@ export function KeyboardOnly({
   return <div className={className}>{children}</div>;
 }
 
-// ============================================
 // KEYBOARD FOCUS RING
-// ============================================
 
 interface KeyboardFocusRingProps {
   children: React.ReactNode;
@@ -178,9 +168,7 @@ export function KeyboardFocusRing({
   );
 }
 
-// ============================================
 // FOCUS VISIBLE WRAPPER
-// ============================================
 
 interface FocusVisibleProps {
   children: React.ReactNode;
@@ -208,9 +196,7 @@ export function FocusVisible({ children, className }: FocusVisibleProps) {
   );
 }
 
-// ============================================
 // KEYBOARD SHORTCUTS INDICATOR
-// ============================================
 
 interface KeyboardShortcutProps {
   keys: string[];
@@ -250,8 +236,6 @@ export function KeyboardShortcut({ keys, className }: KeyboardShortcutProps) {
   );
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export default KeyboardOnly;

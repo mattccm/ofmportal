@@ -4,7 +4,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -20,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MessageSquare,
   AlertCircle,
@@ -33,8 +32,6 @@ import {
   ArrowUpRight,
   Pencil,
   Eraser,
-  Palette,
-  X,
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,9 +45,7 @@ import {
   TIMESTAMP_TYPE_COLORS,
 } from "@/types/video-timestamps";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TimestampFormProps {
   uploadId: string;
@@ -72,9 +67,7 @@ interface AnnotationCanvasProps {
   existingAnnotation?: TimestampAnnotation;
 }
 
-// ============================================
 // ANNOTATION CANVAS
-// ============================================
 
 function AnnotationCanvas({
   tool,
@@ -370,9 +363,7 @@ function AnnotationCanvas({
   );
 }
 
-// ============================================
 // TIMESTAMP FORM
-// ============================================
 
 const ANNOTATION_COLORS = [
   "#ef4444", // red

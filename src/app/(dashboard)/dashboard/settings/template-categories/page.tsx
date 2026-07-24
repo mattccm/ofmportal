@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
-  GripVertical,
   Layers,
   Settings,
 } from "lucide-react";
@@ -16,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -41,9 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteConfirmDialog } from "@/components/ui/confirm-dialog";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TemplateCategory {
   id: string;
@@ -57,9 +53,7 @@ interface TemplateCategory {
   updatedAt: string;
 }
 
-// ============================================
 // PRESET COLORS
-// ============================================
 
 const PRESET_COLORS = [
   "#E4405F", // Instagram pink
@@ -76,9 +70,7 @@ const PRESET_COLORS = [
   "#6B7280", // Gray
 ];
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export default function TemplateCategoriesPage() {
   const [categories, setCategories] = React.useState<TemplateCategory[]>([]);
@@ -277,9 +269,7 @@ export default function TemplateCategoriesPage() {
   );
 }
 
-// ============================================
 // CATEGORY CARD
-// ============================================
 
 interface CategoryCardProps {
   category: TemplateCategory;
@@ -358,9 +348,7 @@ function CategoryCard({ category, onEdit, onDelete }: CategoryCardProps) {
   );
 }
 
-// ============================================
 // CATEGORY FORM DIALOG
-// ============================================
 
 interface CategoryFormDialogProps {
   open: boolean;
@@ -499,9 +487,7 @@ function CategoryFormDialog({
   );
 }
 
-// ============================================
 // EMPTY STATE
-// ============================================
 
 function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
   return (

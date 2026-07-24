@@ -55,7 +55,8 @@ export function PrintableWrapper({
   onBeforePrint,
   onAfterPrint,
 }: PrintableWrapperProps) {
-  const wrapperId = id || React.useId();
+  const generatedId = React.useId();
+  const wrapperId = id || generatedId;
   const printDate = format(new Date(), "MMMM d, yyyy 'at' h:mm a");
 
   return (

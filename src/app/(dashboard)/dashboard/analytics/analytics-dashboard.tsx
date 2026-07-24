@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,6 @@ import {
   Clock,
   Users,
   BarChart3,
-  TrendingUp,
   Calendar,
   Sparkles,
   RefreshCw,

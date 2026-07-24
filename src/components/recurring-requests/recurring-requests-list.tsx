@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { format, formatDistanceToNow, isPast } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import {
   Repeat,
   Plus,
   Search,
-  Filter,
   Play,
   Pause,
   Edit,
@@ -19,7 +18,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  ChevronRight,
   Zap,
   RefreshCw,
   History,
@@ -31,9 +29,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Select,
@@ -53,7 +48,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -70,9 +64,7 @@ import {
 } from "@/types/recurring-requests";
 import { RecurringRequestModal } from "./recurring-request-modal";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface Template {
   id: string;
@@ -98,9 +90,7 @@ interface RecurringRequestsListProps {
   creatorGroups: CreatorGroup[];
 }
 
-// ============================================
 // STATUS BADGE
-// ============================================
 
 function StatusBadge({ isActive, nextRunAt }: { isActive: boolean; nextRunAt?: Date | null }) {
   if (!isActive) {
@@ -128,9 +118,7 @@ function StatusBadge({ isActive, nextRunAt }: { isActive: boolean; nextRunAt?: D
   );
 }
 
-// ============================================
 // FREQUENCY BADGE
-// ============================================
 
 function FrequencyBadge({ frequency, dayOfWeek, dayOfMonth }: {
   frequency: RecurrenceFrequency;
@@ -155,9 +143,7 @@ function FrequencyBadge({ frequency, dayOfWeek, dayOfMonth }: {
   );
 }
 
-// ============================================
 // EXECUTION HISTORY DIALOG
-// ============================================
 
 function ExecutionHistoryDialog({
   open,
@@ -290,9 +276,7 @@ function ExecutionHistoryDialog({
   );
 }
 
-// ============================================
 // RECURRING REQUEST CARD
-// ============================================
 
 function RecurringRequestCard({
   recurringRequest,
@@ -455,9 +439,7 @@ function RecurringRequestCard({
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function RecurringRequestsList({
   templates,

@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { extractMentionIds } from "@/lib/mention-parser";
 import { MentionContextType } from "@prisma/client";
 
-// ============================================
 // GET /api/mentions - List mentions for current user
-// ============================================
 
 export async function GET(request: NextRequest) {
   try {
@@ -149,9 +147,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ============================================
 // POST /api/mentions - Create mentions from content
-// ============================================
 
 export async function POST(request: NextRequest) {
   try {

@@ -1,16 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Trophy, ChevronRight, Upload, CheckCircle, Clock, Medal, Users } from "lucide-react";
+import { Trophy, ChevronRight, Upload, CheckCircle, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
 import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface CreatorStats {
   id: string;
@@ -22,9 +20,7 @@ interface CreatorStats {
   rank: number;
 }
 
-// ============================================
 // RANK CONFIG
-// ============================================
 
 const RANK_CONFIG = [
   { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-600", ring: "ring-amber-400" },
@@ -32,9 +28,7 @@ const RANK_CONFIG = [
   { bg: "bg-amber-50 dark:bg-amber-900/20", text: "text-amber-700", ring: "ring-amber-600" },
 ];
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function TopCreatorsWidget({ config, size }: WidgetProps) {
   // Use batched widget data from context (single API call for all widgets)

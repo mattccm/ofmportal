@@ -7,7 +7,6 @@ import {
   Mail,
   ArrowLeft,
   Loader2,
-  CheckCircle,
   Circle,
   Search,
   Sparkles,
@@ -27,7 +26,6 @@ import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";

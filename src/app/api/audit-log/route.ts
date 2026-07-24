@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const getAuditLogQuerySchema = z.object({
   page: z.coerce.number().min(1).optional().default(1),
@@ -22,9 +20,7 @@ const getAuditLogQuerySchema = z.object({
   export: z.enum(["csv"]).optional(),
 });
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 function escapeCSVField(field: string | null | undefined): string {
   if (field === null || field === undefined) return "";
@@ -40,9 +36,7 @@ function formatDateForCSV(date: Date): string {
   return date.toISOString();
 }
 
-// ============================================
 // GET - Fetch audit logs with pagination, filtering, and search
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {

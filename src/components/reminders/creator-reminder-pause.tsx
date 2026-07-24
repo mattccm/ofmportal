@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, addDays, addWeeks } from "date-fns";
+import { format, addDays } from "date-fns";
 import {
   Pause,
   Play,
@@ -14,7 +14,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,9 +38,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface PauseStatus {
   isPaused: boolean;
@@ -70,9 +67,7 @@ const PAUSE_PRESETS = [
   { label: "Custom...", days: -1 },
 ];
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function CreatorReminderPause({
   creatorId,
@@ -311,9 +306,7 @@ export function CreatorReminderPause({
   );
 }
 
-// ============================================
 // PAUSE DIALOG CONTENT
-// ============================================
 
 function PauseDialogContent({
   creatorName,

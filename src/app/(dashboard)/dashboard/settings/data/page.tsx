@@ -13,7 +13,6 @@ import {
   Loader2,
   ArrowLeft,
   RefreshCw,
-  Archive,
   Sparkles,
   FileDown,
   CheckCircle2,
@@ -40,7 +39,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -216,7 +214,7 @@ export default function DataManagementPage() {
         throw new Error(error.error || "Failed to save policy");
       }
 
-      toast.success("Retention policy saved successfully");
+      toast.success("Retention policy saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save policy");
     } finally {
@@ -268,7 +266,7 @@ export default function DataManagementPage() {
       const data = await response.json();
       setCleanupJobs((prev) => [data.job, ...prev]);
       setShowCleanupDialog(false);
-      toast.success("Cleanup job started successfully");
+      toast.success("Cleanup started");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to start cleanup");
     } finally {

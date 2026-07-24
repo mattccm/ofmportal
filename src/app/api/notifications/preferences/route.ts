@@ -8,9 +8,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
 } from "@/types/notification-preferences";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const categoryChannelSettingsSchema = z.object({
   inApp: z.boolean(),
@@ -52,9 +50,7 @@ const notificationPreferencesSchema = z.object({
   ]),
 });
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 /**
  * Get notification preferences from user's preferences JSON field
@@ -130,9 +126,7 @@ async function saveUserNotificationPreferences(
   });
 }
 
-// ============================================
 // GET - Fetch user's notification preferences
-// ============================================
 
 export async function GET() {
   try {
@@ -157,9 +151,7 @@ export async function GET() {
   }
 }
 
-// ============================================
 // PUT - Update user's notification preferences
-// ============================================
 
 export async function PUT(req: NextRequest) {
   try {
@@ -210,9 +202,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// ============================================
 // PATCH - Partially update notification preferences
-// ============================================
 
 export async function PATCH(req: NextRequest) {
   try {

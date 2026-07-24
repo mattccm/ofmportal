@@ -8,9 +8,7 @@ import { Loader2, Clock, User } from "lucide-react";
 import type { MentionSuggestion } from "@/types/mentions";
 import { highlightMatch } from "@/lib/mention-parser";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface MentionAutocompleteProps {
   suggestions: MentionSuggestion[];
@@ -24,9 +22,7 @@ interface MentionAutocompleteProps {
   className?: string;
 }
 
-// ============================================
 // MENTION AUTOCOMPLETE COMPONENT
-// ============================================
 
 export function MentionAutocomplete({
   suggestions,
@@ -144,9 +140,7 @@ export function MentionAutocomplete({
   );
 }
 
-// ============================================
 // SUGGESTION ITEM COMPONENT
-// ============================================
 
 interface SuggestionItemProps {
   suggestion: MentionSuggestion;
@@ -229,9 +223,7 @@ const SuggestionItem = forwardRef<HTMLButtonElement, SuggestionItemProps>(
   }
 );
 
-// ============================================
 // HIGHLIGHTED TEXT COMPONENT
-// ============================================
 
 interface HighlightedTextProps {
   segments: { text: string; highlighted: boolean }[];

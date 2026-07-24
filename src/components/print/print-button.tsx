@@ -241,7 +241,7 @@ function PageSetupHintsDialog({ open, onOpenChange }: PageSetupHintsDialogProps)
             <ul className="text-sm text-muted-foreground space-y-2">
               <li className="flex items-start gap-2">
                 <span className="font-medium text-foreground">Paper Size:</span>
-                A4 or Letter (8.5" x 11")
+                A4 or Letter (8.5&quot; x 11&quot;)
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-medium text-foreground">Orientation:</span>
@@ -249,7 +249,7 @@ function PageSetupHintsDialog({ open, onOpenChange }: PageSetupHintsDialogProps)
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-medium text-foreground">Margins:</span>
-                Default or Normal (0.75" - 1")
+                Default or Normal (0.75&quot; - 1&quot;)
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-medium text-foreground">Scale:</span>
@@ -280,13 +280,13 @@ function PageSetupHintsDialog({ open, onOpenChange }: PageSetupHintsDialogProps)
             <h4 className="font-medium text-sm">Browser Tips</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>
-                <span className="font-medium">Chrome/Edge:</span> Use "More settings" for all options
+                <span className="font-medium">Chrome/Edge:</span> Use &quot;More settings&quot; for all options
               </li>
               <li>
-                <span className="font-medium">Firefox:</span> Check "Print backgrounds" in Page Setup
+                <span className="font-medium">Firefox:</span> Check &quot;Print backgrounds&quot; in Page Setup
               </li>
               <li>
-                <span className="font-medium">Safari:</span> Enable "Print backgrounds" in print dialog
+                <span className="font-medium">Safari:</span> Enable &quot;Print backgrounds&quot; in print dialog
               </li>
             </ul>
           </div>

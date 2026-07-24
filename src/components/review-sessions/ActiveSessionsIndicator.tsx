@@ -8,12 +8,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+
+
 import { Circle, Radio, Users, Clock, ChevronRight } from "lucide-react";
 import { ActiveSessionIndicator } from "@/types/review-session";
 import { formatDistanceToNow } from "date-fns";

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { sendCreatorInviteEmail } from "@/lib/email";
 import crypto from "crypto";
 
 // POST - Resend invite to creator
@@ -87,17 +88,12 @@ export async function POST(
       },
     });
 
-    // TODO: Send actual email using email service
-    // await sendEmail({
-    //   to: creator.email,
-    //   subject: `You're invited to ${creator.agency?.name}'s creator portal`,
-    //   template: "creator-invite",
-    //   data: {
-    //     name: creator.name,
-    //     inviteUrl,
-    //     agencyName: creator.agency?.name,
-    //   },
-    // });
+    await sendCreatorInviteEmail({
+      to: creator.email,
+      creatorName: creator.name,
+      agencyName: creator.agency?.name || "Your Agency",
+      inviteLink: inviteUrl,
+    });
 
     return NextResponse.json({
       message: "Invitation resent successfully",

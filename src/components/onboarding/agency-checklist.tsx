@@ -35,9 +35,7 @@ import {
   Rocket,
 } from "lucide-react";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface AgencyChecklistProps {
   className?: string;
@@ -54,23 +52,37 @@ interface TaskItemProps {
   onComplete: (taskId: string) => void;
 }
 
-// ============================================
 // CONFETTI ANIMATION COMPONENT
-// ============================================
+
+interface ConfettiPiece {
+  left: number;
+  delay: number;
+  duration: number;
+  rotation: number;
+}
 
 function Confetti({ show }: { show: boolean }) {
+  const [pieces] = useState<ConfettiPiece[]>(() =>
+    Array.from({ length: 20 }, () => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      duration: 1 + Math.random() * 1,
+      rotation: Math.random() * 360,
+    }))
+  );
+
   if (!show) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
-      {[...Array(20)].map((_, i) => (
+      {pieces.map((piece, i) => (
         <div
           key={i}
           className="absolute animate-confetti"
           style={{
-            left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 0.5}s`,
-            animationDuration: `${1 + Math.random() * 1}s`,
+            left: `${piece.left}%`,
+            animationDelay: `${piece.delay}s`,
+            animationDuration: `${piece.duration}s`,
           }}
         >
           <div
@@ -82,7 +94,7 @@ function Confetti({ show }: { show: boolean }) {
               i % 4 === 3 && "bg-green-400"
             )}
             style={{
-              transform: `rotate(${Math.random() * 360}deg)`,
+              transform: `rotate(${piece.rotation}deg)`,
             }}
           />
         </div>
@@ -91,9 +103,7 @@ function Confetti({ show }: { show: boolean }) {
   );
 }
 
-// ============================================
 // TASK ITEM COMPONENT
-// ============================================
 
 function TaskItem({ task, isCompleted, isAutoDetected, onComplete }: TaskItemProps) {
   const Icon = task.icon;
@@ -189,9 +199,7 @@ function TaskItem({ task, isCompleted, isAutoDetected, onComplete }: TaskItemPro
   );
 }
 
-// ============================================
 // COMPLETION CELEBRATION
-// ============================================
 
 function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
   return (
@@ -234,9 +242,7 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function AgencyChecklist({
   className,
@@ -251,9 +257,7 @@ export function AgencyChecklist({
   const [showConfetti, setShowConfetti] = useState(false);
   const [justCompleted, setJustCompleted] = useState(false);
 
-  // ============================================
   // DATA FETCHING
-  // ============================================
 
   const fetchChecklistStatus = useCallback(async () => {
     try {
@@ -283,9 +287,7 @@ export function AgencyChecklist({
     fetchChecklistStatus();
   }, [fetchChecklistStatus]);
 
-  // ============================================
   // HANDLERS
-  // ============================================
 
   const handleTaskComplete = async (taskId: string) => {
     try {
@@ -356,9 +358,7 @@ export function AgencyChecklist({
     }
   };
 
-  // ============================================
   // RENDER STATES
-  // ============================================
 
   // Don't render if dismissed or loading
   if (isLoading) {

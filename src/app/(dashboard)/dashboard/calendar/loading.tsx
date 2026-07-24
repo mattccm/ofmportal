@@ -1,4 +1,3 @@
-import { GenericPageSkeleton } from "@/components/skeletons/page-skeletons/generic-skeleton"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 

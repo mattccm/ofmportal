@@ -15,12 +15,8 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { BrandingForm } from "@/components/settings/branding-form";
-import { toast } from "sonner";
 import { DEFAULT_BRANDING, type BrandingSettings } from "@/lib/branding";
 
 export default function BrandingSettingsPage() {

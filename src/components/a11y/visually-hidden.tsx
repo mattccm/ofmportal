@@ -3,9 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface VisuallyHiddenProps extends React.HTMLAttributes<HTMLSpanElement> {
   children: React.ReactNode;
@@ -15,9 +13,7 @@ interface VisuallyHiddenProps extends React.HTMLAttributes<HTMLSpanElement> {
   as?: keyof React.JSX.IntrinsicElements;
 }
 
-// ============================================
 // VISUALLY HIDDEN COMPONENT
-// ============================================
 
 /**
  * Visually hides content while keeping it accessible to screen readers.
@@ -65,9 +61,7 @@ export function VisuallyHidden({
   );
 }
 
-// ============================================
 // SCREEN READER ONLY TEXT
-// ============================================
 
 interface SrOnlyProps {
   children: React.ReactNode;
@@ -82,9 +76,7 @@ export function SrOnly({ children, className }: SrOnlyProps) {
   return <span className={cn("sr-only", className)}>{children}</span>;
 }
 
-// ============================================
 // ACCESSIBLE ICON WRAPPER
-// ============================================
 
 interface AccessibleIconProps {
   children: React.ReactNode;
@@ -132,8 +124,6 @@ export function AccessibleIcon({
   );
 }
 
-// ============================================
 // EXPORTS
-// ============================================
 
 export default VisuallyHidden;

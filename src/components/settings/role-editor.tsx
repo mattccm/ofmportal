@@ -12,14 +12,11 @@ import {
   BarChart2,
   ChevronDown,
   ChevronRight,
-  Check,
-  X,
   Save,
   Loader2,
   AlertTriangle,
   Info,
   Eye,
-  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,36 +48,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+
+
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Role,
   Permission,
+  FieldPermission,
   PermissionAction,
   PermissionResource,
   PermissionCategory,
   CreatorVisibility,
   DataFieldVisibility,
   TeamMemberVisibility,
-  PERMISSION_ACTIONS,
   PERMISSION_RESOURCES,
   PERMISSION_CATEGORIES,
   permissionsToMatrix,
   matrixToPermissions,
-  PermissionMatrix,
 } from "@/types/permissions";
 
 // Icon mapping for categories
@@ -206,7 +197,6 @@ export function CategoryPermissionEditor({
         const isExpanded = expandedCategories.has(category.id);
         const { count, total } = getCategoryPermissionCount(category);
         const allEnabled = count === total;
-        const someEnabled = count > 0 && count < total;
 
         return (
           <Card key={category.id} className={cn(
@@ -455,7 +445,7 @@ export function DataFieldVisibilitySettings({
   const [expanded, setExpanded] = useState(true);
 
   // Helper to get field value (handles both boolean and FieldPermission)
-  const getFieldValue = (field: any): { view: boolean; edit: boolean } => {
+  const getFieldValue = (field: boolean | FieldPermission | undefined): { view: boolean; edit: boolean } => {
     if (typeof field === "boolean") {
       return { view: field, edit: field };
     }
@@ -712,7 +702,7 @@ export function TeamMemberVisibilitySettings({
               <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                 <div>
                   <Label htmlFor="see-member-activity" className="cursor-pointer">See Member Activity</Label>
-                  <p className="text-xs text-muted-foreground">Can view other members' activity logs</p>
+                  <p className="text-xs text-muted-foreground">Can view other members&apos; activity logs</p>
                 </div>
                 <Switch
                   id="see-member-activity"
@@ -815,10 +805,9 @@ interface RolePreviewProps {
 }
 
 export function RolePreview({ role }: RolePreviewProps) {
-  const permissions = role.permissions || [];
-
   // Count permissions by category
   const categoryCounts = useMemo(() => {
+    const permissions = role.permissions || [];
     const counts: Record<string, number> = {};
     for (const category of PERMISSION_CATEGORIES) {
       counts[category.id] = 0;
@@ -832,7 +821,7 @@ export function RolePreview({ role }: RolePreviewProps) {
     }
 
     return counts;
-  }, [permissions]);
+  }, [role.permissions]);
 
   const totalPermissions = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
 
@@ -1016,10 +1005,10 @@ export function RoleEditorDialog({
         color: editedRole.color,
       });
       onOpenChange(false);
-      toast.success(isNew ? "Role created successfully" : "Role updated successfully");
-    } catch (error: any) {
+      toast.success(isNew ? "Role created" : "Role updated");
+    } catch (error) {
       console.error("Role save error:", error);
-      toast.error(error?.message || "Failed to save role");
+      toast.error(error instanceof Error ? error.message : "Failed to save role");
     } finally {
       setIsSaving(false);
     }

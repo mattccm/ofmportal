@@ -35,18 +35,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+
+
 import { toast } from "sonner";
 import { ReminderPreviewCalendar, ScheduledReminder } from "./reminder-preview-calendar";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ReminderRule {
   urgency: "LOW" | "NORMAL" | "HIGH" | "URGENT";
@@ -69,9 +63,7 @@ interface ReminderSettingsPanelProps {
   className?: string;
 }
 
-// ============================================
 // TEST REMINDER COMPONENT
-// ============================================
 
 function TestReminderSection() {
   const [isSending, setIsSending] = React.useState(false);
@@ -97,7 +89,7 @@ function TestReminderSection() {
       if (response.ok) {
         setTestResult({
           success: true,
-          message: data.message || "Test reminder sent successfully!",
+          message: data.message || "Test reminder sent",
         });
         toast.success(data.message || "Test reminder sent!");
       } else {
@@ -200,9 +192,7 @@ function TestReminderSection() {
   );
 }
 
-// ============================================
 // SCHEDULE PREFERENCES COMPONENT
-// ============================================
 
 interface SchedulePreferences {
   quietHoursEnabled: boolean;
@@ -314,7 +304,7 @@ function SchedulePreferencesSection() {
           {prefs.usePreferredTime && (
             <div className="pl-6 space-y-2">
               <Label className="text-xs text-muted-foreground">
-                Send all reminders at this time (creator's local time)
+                Send all reminders at this time (creator&apos;s local time)
               </Label>
               <Input
                 type="time"
@@ -373,7 +363,7 @@ function SchedulePreferencesSection() {
                 className="w-[140px]"
               />
               <p className="text-xs text-muted-foreground">
-                If a creator has multiple requests due, they'll receive one email with all of them instead of multiple emails.
+                If a creator has multiple requests due, they&apos;ll receive one email with all of them instead of multiple emails.
               </p>
             </div>
           )}
@@ -382,7 +372,7 @@ function SchedulePreferencesSection() {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 text-sm">
           <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
           <div className="text-muted-foreground">
-            All times are interpreted in the creator's local timezone when possible.
+            All times are interpreted in the creator&apos;s local timezone when possible.
           </div>
         </div>
       </CardContent>
@@ -390,9 +380,7 @@ function SchedulePreferencesSection() {
   );
 }
 
-// ============================================
 // PREVIEW CALENDAR SECTION
-// ============================================
 
 function PreviewCalendarSection({ rules }: { rules: ReminderRule[] }) {
   const [selectedUrgency, setSelectedUrgency] = React.useState<string>("NORMAL");
@@ -511,9 +499,7 @@ function PreviewCalendarSection({ rules }: { rules: ReminderRule[] }) {
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function ReminderSettingsPanel({ rules, className }: ReminderSettingsPanelProps) {
   return (

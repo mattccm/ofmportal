@@ -1,6 +1,4 @@
-// ============================================
 // TIMEZONE TYPES AND CONSTANTS
-// ============================================
 
 /**
  * Timezone region for grouping

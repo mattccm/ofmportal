@@ -1,18 +1,14 @@
 // Live Review Session Types
 // Real-time collaborative content review system
 
-// ============================================
 // Session Status and Roles
-// ============================================
 
 export type ReviewSessionStatus = "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
 export type SessionParticipantRole = "HOST" | "REVIEWER" | "OBSERVER";
 export type ReviewVoteType = "APPROVE" | "REJECT" | "DISCUSS" | "SKIP";
 export type ChatMessageType = "MESSAGE" | "SYSTEM" | "REACTION" | "VOICE_NOTE";
 
-// ============================================
 // Core Data Types
-// ============================================
 
 export interface ReviewSession {
   id: string;
@@ -89,9 +85,7 @@ export interface ReviewSessionChat {
   };
 }
 
-// ============================================
 // Session Settings
-// ============================================
 
 export interface ReviewSessionSettings {
   allowAnonymousVotes?: boolean;
@@ -129,9 +123,7 @@ export const DEFAULT_SESSION_SETTINGS: ReviewSessionSettings = {
   conflictHighlighting: true,
 };
 
-// ============================================
 // Upload Info for Review
-// ============================================
 
 export interface ReviewUploadInfo {
   id: string;
@@ -149,9 +141,7 @@ export interface ReviewUploadInfo {
   uploadedAt?: Date | null;
 }
 
-// ============================================
 // Session State (for real-time sync)
-// ============================================
 
 export interface SessionState {
   session: ReviewSession;
@@ -220,9 +210,7 @@ export interface SessionProgress {
   avgReviewTimePerItem?: number; // Average seconds per item
 }
 
-// ============================================
 // API Request/Response Types
-// ============================================
 
 export interface CreateSessionRequest {
   name: string;
@@ -276,9 +264,7 @@ export interface EndSessionRequest {
   note?: string;
 }
 
-// ============================================
 // SSE Event Types
-// ============================================
 
 export type SessionEventType =
   | "session_update"
@@ -327,9 +313,7 @@ export interface SessionEndedEvent {
   summary: SessionSummary;
 }
 
-// ============================================
 // Session Summary (end of session stats)
-// ============================================
 
 export interface SessionSummary {
   sessionId: string;
@@ -373,9 +357,7 @@ export interface ParticipantStats {
   participationDuration: number; // seconds
 }
 
-// ============================================
 // UI Component Props Types
-// ============================================
 
 export interface ReviewSessionViewProps {
   sessionId: string;
@@ -420,9 +402,7 @@ export interface CreateSessionModalProps {
   teamMembers: Array<{ id: string; name: string; email: string; avatar?: string | null }>;
 }
 
-// ============================================
 // Utility Types
-// ============================================
 
 export interface SessionInvite {
   sessionId: string;
@@ -443,9 +423,7 @@ export interface ActiveSessionIndicator {
   startedAt: Date;
 }
 
-// ============================================
 // Session Templates
-// ============================================
 
 export interface SessionTemplate {
   id: string;
@@ -483,9 +461,7 @@ export interface CreateSessionTemplateRequest {
   uploadFilters?: SessionTemplateUploadFilters;
 }
 
-// ============================================
 // Voice Notes
-// ============================================
 
 export interface VoiceNote {
   id: string;
@@ -504,9 +480,7 @@ export interface VoiceNoteRequest {
   duration: number;
 }
 
-// ============================================
 // Session Annotations
-// ============================================
 
 export interface SessionAnnotation {
   id: string;
@@ -545,9 +519,7 @@ export interface AnnotationEvent {
   action: "add" | "update" | "delete" | "clear";
 }
 
-// ============================================
 // Session Recording / History
-// ============================================
 
 export interface SessionRecording {
   id: string;
@@ -589,9 +561,7 @@ export interface SessionRecordingMetadata {
   totalVoiceNotes: number;
 }
 
-// ============================================
 // Rejoin Session
-// ============================================
 
 export interface RejoinSessionRequest {
   lastKnownIndex?: number;
@@ -605,9 +575,7 @@ export interface RejoinSessionResponse {
   rejoinedAt: Date;
 }
 
-// ============================================
 // Session Analytics
-// ============================================
 
 export interface SessionAnalytics {
   sessionId: string;
@@ -673,9 +641,7 @@ export interface ConflictItem {
   resolutionMethod?: "majority" | "discussion" | "host_override";
 }
 
-// ============================================
 // Auto-advance Timer
-// ============================================
 
 export interface AutoAdvanceState {
   enabled: boolean;
@@ -690,9 +656,7 @@ export interface AutoAdvanceEvent {
   remaining?: number;
 }
 
-// ============================================
 // Participant Role Management
-// ============================================
 
 export interface ParticipantRoleChangeRequest {
   userId: string;

@@ -30,9 +30,7 @@ import {
 import { toast } from "sonner";
 import { Watcher } from "./watchers-panel";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface TeamMember {
   id: string;
@@ -57,9 +55,7 @@ interface AddWatcherDialogProps {
   onWatcherAdded: (watcher: Watcher) => void;
 }
 
-// ============================================
 // ADD WATCHER DIALOG COMPONENT
-// ============================================
 
 export function AddWatcherDialog({
   open,
@@ -148,7 +144,7 @@ export function AddWatcherDialog({
       const data = await response.json();
       onWatcherAdded(data.watcher);
       onOpenChange(false);
-      toast.success("Watcher added successfully");
+      toast.success("Watcher added");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to add watcher");
     } finally {
@@ -317,9 +313,7 @@ export function AddWatcherDialog({
   );
 }
 
-// ============================================
 // TEAM MEMBER ITEM COMPONENT
-// ============================================
 
 interface TeamMemberItemProps {
   member: TeamMember;
@@ -377,9 +371,7 @@ function TeamMemberItem({
   );
 }
 
-// ============================================
 // NOTIFICATION CHECKBOX COMPONENT
-// ============================================
 
 interface NotificationCheckboxProps {
   id: string;

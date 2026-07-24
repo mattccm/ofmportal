@@ -41,9 +41,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface AuditUser {
   id: string;
@@ -102,9 +100,7 @@ export interface FilterState {
   endDate: string;
 }
 
-// ============================================
 // ACTION TYPE BADGES
-// ============================================
 
 const getActionBadgeStyles = (action: string): { bg: string; text: string; border: string } => {
   const actionLower = action.toLowerCase();
@@ -225,9 +221,7 @@ function EntityTypeBadge({ entityType }: { entityType: string }) {
   );
 }
 
-// ============================================
 // EXPANDED ROW DETAILS
-// ============================================
 
 function ExpandedRowDetails({ log }: { log: AuditLog }) {
   const formatMetadata = (metadata: Record<string, unknown>) => {
@@ -342,9 +336,7 @@ function ExpandedRowDetails({ log }: { log: AuditLog }) {
   );
 }
 
-// ============================================
 // MAIN COMPONENT
-// ============================================
 
 export function AuditLogTable({
   logs,

@@ -5,9 +5,7 @@
  * Handles cached requests, pending uploads, drafts, and user preferences.
  */
 
-// ============================================
 // Types
-// ============================================
 
 export interface CachedRequest {
   id: string;
@@ -83,9 +81,7 @@ export interface OfflineStore {
   preferences: UserPreferences;
 }
 
-// ============================================
 // Database Configuration
-// ============================================
 
 const DB_NAME = 'content-portal-offline-v1';
 const DB_VERSION = 2;
@@ -99,9 +95,7 @@ const STORES = {
   CACHE_META: 'cache-meta',
 } as const;
 
-// ============================================
 // Database Connection
-// ============================================
 
 let db: IDBDatabase | null = null;
 
@@ -188,9 +182,7 @@ export async function closeDatabase(): Promise<void> {
   }
 }
 
-// ============================================
 // Generic Store Operations
-// ============================================
 
 async function getStore(
   storeName: string,
@@ -266,9 +258,7 @@ async function getByIndex<T>(
   });
 }
 
-// ============================================
 // Cached Requests Operations
-// ============================================
 
 export async function saveRequestForOffline(request: CachedRequest): Promise<void> {
   await putInStore(STORES.REQUESTS, {
@@ -299,9 +289,7 @@ export async function clearOfflineRequests(): Promise<void> {
   await clearStore(STORES.REQUESTS);
 }
 
-// ============================================
 // Pending Uploads Operations
-// ============================================
 
 export async function addPendingUpload(upload: Omit<PendingUpload, 'id' | 'createdAt' | 'retryCount' | 'status'>): Promise<string> {
   const id = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -359,9 +347,7 @@ export async function clearPendingUploads(): Promise<void> {
   await clearStore(STORES.UPLOADS);
 }
 
-// ============================================
 // Drafts Operations
-// ============================================
 
 export async function saveDraft(
   draft: Omit<Draft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
@@ -406,9 +392,7 @@ export async function clearDrafts(): Promise<void> {
   await clearStore(STORES.DRAFTS);
 }
 
-// ============================================
 // User Preferences Operations
-// ============================================
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   id: 'user-preferences',
@@ -449,9 +433,7 @@ export async function resetPreferences(): Promise<UserPreferences> {
   return DEFAULT_PREFERENCES;
 }
 
-// ============================================
 // Sync Status Operations
-// ============================================
 
 export async function getSyncStatus(): Promise<SyncStatus> {
   const status = await getByKey<SyncStatus & { id: string }>(
@@ -487,9 +469,7 @@ export async function updateSyncStatus(
   });
 }
 
-// ============================================
 // Generic Offline Data Operations
-// ============================================
 
 export type OfflineDataType = 'requests' | 'uploads' | 'drafts' | 'preferences';
 
@@ -530,9 +510,7 @@ export async function getOfflineData(type: OfflineDataType): Promise<unknown> {
   }
 }
 
-// ============================================
 // Pending Actions Operations
-// ============================================
 
 export interface PendingAction {
   id: string;
@@ -591,9 +569,7 @@ export function clearSyncedActions(ids: string[]): void {
   localStorage.setItem('pending-actions', JSON.stringify(remaining));
 }
 
-// ============================================
 // Cache Management
-// ============================================
 
 export async function getCacheSize(): Promise<number> {
   if ('storage' in navigator && 'estimate' in navigator.storage) {
@@ -638,9 +614,7 @@ export async function pruneExpiredCache(): Promise<number> {
   return pruned;
 }
 
-// ============================================
 // Export/Import for Backup
-// ============================================
 
 export async function exportOfflineData(): Promise<string> {
   const data: OfflineStore = {

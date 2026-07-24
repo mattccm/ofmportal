@@ -12,9 +12,7 @@ import {
   CategorySettings,
 } from "@/types/notification-preferences";
 
-// ============================================
 // PREFERENCE-AWARE NOTIFICATION SERVICE
-// ============================================
 
 /**
  * Get user notification preferences from database
@@ -144,9 +142,7 @@ export function getDeliverySettings(
   return categorySettings;
 }
 
-// ============================================
 // NOTIFICATION SENDING INTERFACES
-// ============================================
 
 export interface NotificationData {
   type: NotificationType;
@@ -170,9 +166,7 @@ export interface SendNotificationResult {
   errors: string[];
 }
 
-// ============================================
 // MAIN NOTIFICATION SENDER
-// ============================================
 
 /**
  * Send a notification to a user, respecting their preferences
@@ -295,10 +289,8 @@ export async function sendNotificationWithPreferences(
     }
   }
 
-  // Push notification (placeholder - would integrate with Web Push API)
+  // Push notification (Web Push delivery not yet implemented)
   if (deliverySettings.channels.push) {
-    // In a real implementation, this would send a push notification
-    // via Web Push API or a service like Firebase Cloud Messaging
     result.push = true;
   }
 
@@ -324,9 +316,7 @@ export async function sendBulkNotificationsWithPreferences(
   return results;
 }
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 /**
  * Generate default email HTML for notifications
@@ -425,9 +415,7 @@ function getNotificationIconColor(type: NotificationType): string {
   }
 }
 
-// ============================================
 // CONVENIENCE NOTIFICATION FUNCTIONS
-// ============================================
 
 /**
  * Send upload submitted notification with preferences

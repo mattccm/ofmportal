@@ -14,7 +14,6 @@ import {
   List,
   ListOrdered,
   Link as LinkIcon,
-  Unlink,
   Heading1,
   Heading2,
   Quote,
@@ -30,9 +29,7 @@ import {
 } from "./popover";
 import { Input } from "./input";
 
-// ============================================
 // TOOLBAR BUTTON
-// ============================================
 
 interface ToolbarButtonProps {
   onClick: () => void;
@@ -67,9 +64,7 @@ function ToolbarButton({
   );
 }
 
-// ============================================
 // LINK POPOVER
-// ============================================
 
 function LinkPopover({ editor }: { editor: Editor | null }) {
   const [url, setUrl] = React.useState("");
@@ -156,9 +151,7 @@ function LinkPopover({ editor }: { editor: Editor | null }) {
   );
 }
 
-// ============================================
 // EDITOR TOOLBAR
-// ============================================
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -271,9 +264,7 @@ function EditorToolbar({ editor }: EditorToolbarProps) {
   );
 }
 
-// ============================================
 // MAIN EDITOR COMPONENT
-// ============================================
 
 interface WysiwygEditorProps {
   value?: string;

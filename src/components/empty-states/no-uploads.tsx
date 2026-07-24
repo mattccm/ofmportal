@@ -3,9 +3,7 @@
 import { Upload, Clock, FileStack, Filter } from "lucide-react";
 import { EmptyState, type EmptyStateProps } from "./empty-state";
 
-// ============================================
 // NO UPLOADS EMPTY STATE
-// ============================================
 
 interface NoUploadsProps {
   /** Optional custom title */

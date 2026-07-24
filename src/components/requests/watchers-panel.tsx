@@ -35,9 +35,7 @@ import {
 import { toast } from "sonner";
 import { AddWatcherDialog } from "./add-watcher-dialog";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface Watcher {
   id: string;
@@ -64,9 +62,7 @@ export interface WatchersPanelProps {
   compact?: boolean;
 }
 
-// ============================================
 // WATCHERS PANEL COMPONENT
-// ============================================
 
 export function WatchersPanel({
   requestId,
@@ -342,9 +338,7 @@ export function WatchersPanel({
   );
 }
 
-// ============================================
 // WATCHER LIST ITEM COMPONENT
-// ============================================
 
 interface WatcherListItemProps {
   watcher: Watcher;
@@ -432,9 +426,7 @@ function WatcherListItem({
   );
 }
 
-// ============================================
 // WATCH BUTTON COMPONENT (for request cards)
-// ============================================
 
 export interface WatchButtonProps {
   requestId: string;

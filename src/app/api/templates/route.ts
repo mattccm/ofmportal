@@ -6,9 +6,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { validateTemplateFields, TemplateField } from "@/lib/templates";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 // Rich content schema for template and field-level examples
 const richContentSchema = z.object({
@@ -75,9 +73,7 @@ const createTemplateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-// ============================================
 // GET - List all templates for agency
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {
@@ -227,9 +223,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ============================================
 // POST - Create new template
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {

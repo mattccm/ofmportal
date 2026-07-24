@@ -12,7 +12,6 @@ import {
   ExternalLink,
   XCircle,
   CheckCircle,
-  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

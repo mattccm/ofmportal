@@ -3,9 +3,7 @@
 import { FileText, Plus, Layers, Filter, Zap } from "lucide-react";
 import { EmptyState, type EmptyStateProps } from "./empty-state";
 
-// ============================================
 // NO TEMPLATES EMPTY STATE
-// ============================================
 
 interface NoTemplatesProps {
   /** Optional custom title */

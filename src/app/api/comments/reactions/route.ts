@@ -4,18 +4,14 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // SCHEMAS
-// ============================================
 
 const reactionSchema = z.object({
   commentId: z.string(),
-  emoji: z.string().min(1).max(10), // Single emoji or emoji sequence
+  emoji: z.string().min(1).max(10).regex(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\uFE0F]+$/u, "Invalid emoji"), // Single emoji or emoji sequence
 });
 
-// ============================================
 // POST - Toggle reaction on a comment
-// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -119,9 +115,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================
 // GET - Get reactions for a comment
-// ============================================
 
 export async function GET(req: NextRequest) {
   try {

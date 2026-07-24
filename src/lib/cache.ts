@@ -3,9 +3,7 @@
  * Reduces database load for frequently accessed data
  */
 
-// ============================================
 // TYPES
-// ============================================
 
 interface CacheEntry<T> {
   data: T;
@@ -18,9 +16,7 @@ interface CacheOptions {
   staleWhileRevalidate?: boolean;
 }
 
-// ============================================
 // MEMORY CACHE
-// ============================================
 
 class MemoryCache {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
@@ -141,9 +137,7 @@ class MemoryCache {
 // Singleton instance
 export const cache = new MemoryCache();
 
-// ============================================
 // CACHE KEY GENERATORS
-// ============================================
 
 export const cacheKeys = {
   // Agency-level caches
@@ -169,9 +163,7 @@ export const cacheKeys = {
   userPreferences: (userId: string) => `user:${userId}:preferences`,
 };
 
-// ============================================
 // CACHE TTL CONSTANTS (in milliseconds)
-// ============================================
 
 export const cacheTTL = {
   // Short-lived (30 seconds) - frequently changing data
@@ -196,9 +188,7 @@ export const cacheTTL = {
   TEMPLATES: 5 * 60 * 1000,
 };
 
-// ============================================
 // CACHE INVALIDATION HELPERS
-// ============================================
 
 export const invalidateCache = {
   /**
@@ -244,9 +234,7 @@ export const invalidateCache = {
   },
 };
 
-// ============================================
 // REACT QUERY CACHE CONFIG
-// ============================================
 
 export const queryClientConfig = {
   defaultOptions: {
@@ -259,9 +247,7 @@ export const queryClientConfig = {
   },
 };
 
-// ============================================
 // QUERY KEYS FOR REACT QUERY
-// ============================================
 
 export const queryKeys = {
   creators: {
@@ -298,9 +284,7 @@ export const queryKeys = {
   },
 };
 
-// ============================================
 // REQUEST DEDUPLICATION (CLIENT-SIDE)
-// ============================================
 
 /**
  * In-flight request deduplication

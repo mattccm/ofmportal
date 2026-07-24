@@ -8,9 +8,7 @@ import { sendContentRequestSms } from "@/lib/sms";
 import { format, addDays } from "date-fns";
 import type { BundleExecutionResult } from "@/types/request-bundles";
 
-// ============================================
 // VALIDATION SCHEMA
-// ============================================
 
 const executeSchema = z.object({
   creatorIds: z.array(z.string()).min(1, "At least one creator is required"),
@@ -28,9 +26,7 @@ const executeSchema = z.object({
     .optional(),
 });
 
-// ============================================
 // POST - Execute bundle
-// ============================================
 
 export async function POST(
   req: NextRequest,

@@ -4,9 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-// ============================================
 // VALIDATION SCHEMAS
-// ============================================
 
 const addItemsSchema = z.object({
   uploadIds: z.array(z.string()).min(1, "At least one upload ID is required"),
@@ -27,9 +25,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// ============================================
 // GET - Get items in collection
-// ============================================
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
@@ -121,9 +117,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ============================================
 // POST - Add items to collection
-// ============================================
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
@@ -240,9 +234,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ============================================
 // PATCH - Reorder items in collection
-// ============================================
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
@@ -300,9 +292,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ============================================
 // DELETE - Remove items from collection
-// ============================================
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {

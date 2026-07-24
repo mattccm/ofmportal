@@ -18,7 +18,6 @@ import {
   ArrowRight,
   FileText,
   Users,
-  Paperclip,
   Image as ImageIcon,
   ExternalLink,
 } from "lucide-react";

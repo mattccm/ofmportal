@@ -28,7 +28,7 @@ interface ActivityPageClientProps {
 
 export function ActivityPageClient({
   initialActivities,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   users,
   stats,
 }: ActivityPageClientProps) {
@@ -72,7 +72,7 @@ export function ActivityPageClient({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success("Activity log exported successfully");
+      toast.success("Activity log exported");
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export activity log");

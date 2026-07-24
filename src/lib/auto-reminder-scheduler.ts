@@ -1,11 +1,9 @@
 import { db } from "./db";
-import { addDays, startOfDay, differenceInDays, format, setHours, setMinutes, isWithinInterval, addHours, differenceInHours } from "date-fns";
+import { addDays, startOfDay, differenceInDays, format, setHours, setMinutes, addHours } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import type { Urgency, OverdueFrequency, NotificationChannel, ReminderTone } from "@prisma/client";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface ReminderScheduleConfig {
   reminderDays: number[];
@@ -93,9 +91,7 @@ const DEFAULT_QUIET_HOURS: QuietHoursConfig = {
   timezone: "America/New_York",
 };
 
-// ============================================
 // CONFIGURATION RESOLUTION
-// ============================================
 
 /**
  * Get reminder configuration for a specific creator and urgency level
@@ -181,9 +177,7 @@ export async function getReminderConfig(
   };
 }
 
-// ============================================
 // REMINDER SCHEDULE CALCULATION
-// ============================================
 
 /**
  * Calculate all reminder dates for a request based on its due date
@@ -267,9 +261,7 @@ function getOverdueInterval(frequency: OverdueFrequency): number {
   }
 }
 
-// ============================================
 // REMINDER SCHEDULING
-// ============================================
 
 /**
  * Schedule reminders for a content request
@@ -480,9 +472,7 @@ export async function previewScheduleForNewRequest(
   };
 }
 
-// ============================================
 // BULK OPERATIONS
-// ============================================
 
 /**
  * Schedule reminders for all pending requests in an agency
@@ -542,9 +532,7 @@ export async function scheduleRemindersForAgency(
   return results;
 }
 
-// ============================================
 // ESCALATION HANDLING
-// ============================================
 
 /**
  * Check and process escalations for overdue reminders
@@ -637,9 +625,7 @@ export async function processEscalations(requestId: string): Promise<void> {
   });
 }
 
-// ============================================
 // UTILITY FUNCTIONS
-// ============================================
 
 /**
  * Format reminder schedule for display
@@ -707,9 +693,7 @@ export async function getRemindersummary(requestId: string): Promise<{
   };
 }
 
-// ============================================
 // QUIET HOURS - Timezone-aware (10pm-8am)
-// ============================================
 
 /**
  * Get quiet hours config for a creator
@@ -824,9 +808,7 @@ export function adjustForQuietHours(
   return { adjustedAt, wasAdjusted: true };
 }
 
-// ============================================
 // SMART BATCHING - Combine reminders for same creator/day
-// ============================================
 
 /**
  * Get all pending reminders for a creator on a specific date
@@ -1003,9 +985,7 @@ export async function createBatchedReminder(
   return individualReminders[0].id;
 }
 
-// ============================================
 // PAUSE/RESUME PER CREATOR
-// ============================================
 
 /**
  * Pause reminders for a specific creator
@@ -1146,9 +1126,7 @@ export async function processAutoResumeReminders(): Promise<number> {
   return toResume.length;
 }
 
-// ============================================
 // RESPONSE DETECTION - Auto-stop reminders
-// ============================================
 
 /**
  * Detect creator response and stop pending reminders

@@ -22,8 +22,6 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  Check,
-  X,
   Loader2,
   AlertTriangle,
   Info,
@@ -67,11 +65,9 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Role,
-  Permission,
   PermissionAction,
   PermissionResource,
   CreatorVisibility,
@@ -678,7 +674,7 @@ function TeamMemberVisibilitySettings({
                 <div>
                   <Label htmlFor="see-member-activity">See Member Activity</Label>
                   <p className="text-xs text-muted-foreground">
-                    Can view other members' activity logs
+                    Can view other members&apos; activity logs
                   </p>
                 </div>
                 <Switch
@@ -963,7 +959,7 @@ function RoleEditorDialog({
         color: editedRole.color,
       });
       onOpenChange(false);
-      toast.success(isNew ? "Role created successfully" : "Role updated successfully");
+      toast.success(isNew ? "Role created" : "Role updated");
     } catch (error) {
       toast.error("Failed to save role");
     } finally {
@@ -1233,7 +1229,7 @@ export function RolesManager({
 
     try {
       await onDeleteRole(roleToDelete.id);
-      toast.success("Role deleted successfully");
+      toast.success("Role deleted");
     } catch {
       toast.error("Failed to delete role");
     } finally {
@@ -1403,7 +1399,7 @@ export function RolesManager({
               Delete Role
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the role "{roleToDelete?.name}"?
+              Are you sure you want to delete the role &quot;{roleToDelete?.name}&quot;?
               Team members assigned to this role will need to be reassigned.
             </DialogDescription>
           </DialogHeader>

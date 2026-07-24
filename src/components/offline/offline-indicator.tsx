@@ -31,9 +31,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-// ============================================
 // Types
-// ============================================
 
 interface OfflineIndicatorProps {
   variant?: 'minimal' | 'compact' | 'full';
@@ -41,9 +39,7 @@ interface OfflineIndicatorProps {
   className?: string;
 }
 
-// ============================================
 // Helper Functions
-// ============================================
 
 function formatRelativeTime(date: Date | null): string {
   if (!date) return 'Never';
@@ -61,20 +57,26 @@ function formatRelativeTime(date: Date | null): string {
   return `${diffDay}d ago`;
 }
 
-function getConnectionIcon(quality: string) {
+function ConnectionIcon({
+  quality,
+  className,
+}: {
+  quality: string;
+  className?: string;
+}) {
   switch (quality) {
     case '4g':
     case 'wifi':
-      return SignalHigh;
+      return <SignalHigh className={className} />;
     case '3g':
-      return SignalMedium;
+      return <SignalMedium className={className} />;
     case '2g':
     case 'slow-2g':
-      return SignalLow;
+      return <SignalLow className={className} />;
     case 'offline':
-      return WifiOff;
+      return <WifiOff className={className} />;
     default:
-      return Signal;
+      return <Signal className={className} />;
   }
 }
 
@@ -97,9 +99,7 @@ function getConnectionLabel(quality: string): string {
   }
 }
 
-// ============================================
 // Main Component
-// ============================================
 
 export function OfflineIndicator({
   variant = 'compact',
@@ -124,12 +124,7 @@ export function OfflineIndicator({
     return null;
   }
 
-  const ConnectionIcon = getConnectionIcon(connectionQuality.effectiveType);
-  const hasIssues = isOffline || pendingActions > 0 || syncError;
-
-  // ============================================
   // Minimal Variant - Just an icon
-  // ============================================
 
   if (variant === 'minimal') {
     return (
@@ -183,9 +178,7 @@ export function OfflineIndicator({
     );
   }
 
-  // ============================================
   // Compact Variant - Icon with badge
-  // ============================================
 
   if (variant === 'compact') {
     return (
@@ -236,9 +229,7 @@ export function OfflineIndicator({
     );
   }
 
-  // ============================================
   // Full Variant - Complete status display
-  // ============================================
 
   return (
     <div
@@ -311,7 +302,10 @@ export function OfflineIndicator({
 
       {/* Connection quality */}
       <div className="flex items-center gap-2 text-sm">
-        <ConnectionIcon className="h-4 w-4 text-muted-foreground" />
+        <ConnectionIcon
+          quality={connectionQuality.effectiveType}
+          className="h-4 w-4 text-muted-foreground"
+        />
         <span className="text-muted-foreground">
           Connection: {getConnectionLabel(connectionQuality.effectiveType)}
         </span>
@@ -341,19 +335,16 @@ export function OfflineIndicator({
   );
 }
 
-// ============================================
 // Status Panel Component
-// ============================================
 
 interface OfflineStatusPanelProps {
   onSync: () => Promise<void>;
   onClose?: () => void;
 }
 
-function OfflineStatusPanel({ onSync, onClose }: OfflineStatusPanelProps) {
+function OfflineStatusPanel({ onSync }: OfflineStatusPanelProps) {
   const {
     isOffline,
-    pendingActions,
     pendingUploads,
     pendingDrafts,
     lastSyncedAt,
@@ -361,8 +352,6 @@ function OfflineStatusPanel({ onSync, onClose }: OfflineStatusPanelProps) {
     syncError,
     connectionQuality,
   } = useOffline();
-
-  const ConnectionIcon = getConnectionIcon(connectionQuality.effectiveType);
 
   return (
     <div className="divide-y divide-border">
@@ -471,8 +460,6 @@ function OfflineStatusPanel({ onSync, onClose }: OfflineStatusPanelProps) {
   );
 }
 
-// ============================================
 // Exports
-// ============================================
 
 export { OfflineStatusPanel };

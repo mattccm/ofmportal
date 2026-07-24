@@ -51,25 +51,30 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Hash and update new password
+    // Hash and update new password, and invalidate other sessions
     const hashedPassword = await hashPassword(newPassword);
 
-    await db.user.update({
-      where: { id: session.user.id },
-      data: { password: hashedPassword },
-    });
-
-    // Log the security event
-    await db.activityLog.create({
-      data: {
-        userId: session.user.id,
-        action: "password.changed",
-        entityType: "User",
-        entityId: session.user.id,
-        ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined,
-        userAgent: req.headers.get("user-agent") || undefined,
-      },
-    });
+    await db.$transaction([
+      db.user.update({
+        where: { id: session.user.id },
+        data: { password: hashedPassword },
+      }),
+      // Invalidate all remember tokens on password change
+      db.rememberToken.deleteMany({
+        where: { userId: session.user.id },
+      }),
+      // Log the security event
+      db.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: "password.changed",
+          entityType: "User",
+          entityId: session.user.id,
+          ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined,
+          userAgent: req.headers.get("user-agent") || undefined,
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       message: "Password changed successfully",

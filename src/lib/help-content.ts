@@ -1,7 +1,5 @@
-// ============================================
 // HELP CONTENT DEFINITIONS
 // Centralized help text for contextual help system
-// ============================================
 
 export interface HelpLink {
   label: string;
@@ -42,9 +40,7 @@ export type HelpCategory =
   | "notifications"
   | "security";
 
-// ============================================
 // DASHBOARD HELP CONTENT
-// ============================================
 
 export const dashboardHelp: Record<string, HelpContent> = {
   // Stats widgets
@@ -157,9 +153,7 @@ export const dashboardHelp: Record<string, HelpContent> = {
   },
 };
 
-// ============================================
 // FORM FIELD HELP CONTENT
-// ============================================
 
 export const formFieldHelp: Record<string, HelpContent> = {
   // Request form fields
@@ -271,9 +265,7 @@ export const formFieldHelp: Record<string, HelpContent> = {
   },
 };
 
-// ============================================
 // SETTINGS HELP CONTENT
-// ============================================
 
 export const settingsHelp: Record<string, HelpContent> = {
   "settings.two-factor": {
@@ -415,9 +407,7 @@ export const settingsHelp: Record<string, HelpContent> = {
   },
 };
 
-// ============================================
 // ANALYTICS HELP CONTENT
-// ============================================
 
 export const analyticsHelp: Record<string, HelpContent> = {
   "analytics.status-breakdown": {
@@ -512,9 +502,7 @@ export const analyticsHelp: Record<string, HelpContent> = {
   },
 };
 
-// ============================================
 // UPLOADS HELP CONTENT
-// ============================================
 
 export const uploadsHelp: Record<string, HelpContent> = {
   "uploads.drag-drop": {
@@ -571,9 +559,7 @@ export const uploadsHelp: Record<string, HelpContent> = {
   },
 };
 
-// ============================================
 // REQUESTS HELP CONTENT
-// ============================================
 
 export const requestsHelp: Record<string, HelpContent> = {
   "requests.status-filter": {
@@ -629,9 +615,7 @@ export const requestsHelp: Record<string, HelpContent> = {
   },
 };
 
-// ============================================
 // TEMPLATES HELP CONTENT
-// ============================================
 
 export const templatesHelp: Record<string, HelpContent> = {
   "templates.create": {
@@ -678,9 +662,7 @@ export const templatesHelp: Record<string, HelpContent> = {
   },
 };
 
-// ============================================
 // CREATORS HELP CONTENT
-// ============================================
 
 export const creatorsHelp: Record<string, HelpContent> = {
   "creators.invite": {
@@ -723,9 +705,7 @@ export const creatorsHelp: Record<string, HelpContent> = {
   },
 };
 
-// ============================================
 // COMBINED HELP CONTENT MAP
-// ============================================
 
 export const allHelpContent: Record<string, HelpContent> = {
   ...dashboardHelp,
@@ -738,9 +718,7 @@ export const allHelpContent: Record<string, HelpContent> = {
   ...creatorsHelp,
 };
 
-// ============================================
 // HELPER FUNCTIONS
-// ============================================
 
 /**
  * Get help content by key

@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { AgencyChecklist } from "./agency-checklist";
+
+function subscribeToStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
 
 interface AgencyChecklistWrapperProps {
   className?: string;
@@ -19,13 +24,12 @@ export function AgencyChecklistWrapper({
   const [shouldShow, setShouldShow] = useState(true);
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    // Check if already dismissed in localStorage (quick check for UX)
-    const localDismissed = localStorage.getItem("agency_checklist_dismissed");
-    if (localDismissed === "true") {
-      setDismissed(true);
-    }
-  }, []);
+  // Check if already dismissed in localStorage (quick check for UX)
+  const localDismissed = useSyncExternalStore(
+    subscribeToStorage,
+    () => localStorage.getItem("agency_checklist_dismissed") === "true",
+    () => false
+  );
 
   const handleDismiss = () => {
     localStorage.setItem("agency_checklist_dismissed", "true");
@@ -34,7 +38,7 @@ export function AgencyChecklistWrapper({
   };
 
   // Don't render if dismissed or explicitly hidden
-  if (!showByDefault || dismissed || !shouldShow) {
+  if (!showByDefault || dismissed || localDismissed || !shouldShow) {
     return null;
   }
 

@@ -6,9 +6,7 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { LoadingIndicator, EndOfListIndicator, ErrorIndicator } from "./infinite-list";
 import { BackToTop } from "@/components/ui/back-to-top";
 
-// ============================================
 // TYPES
-// ============================================
 
 export interface VirtualListItem {
   id: string;
@@ -46,9 +44,7 @@ export interface VirtualListProps<T extends VirtualListItem> {
   gap?: number;
 }
 
-// ============================================
 // VIRTUAL LIST HOOK
-// ============================================
 
 interface UseVirtualListOptions<T extends VirtualListItem> {
   items: T[];
@@ -72,20 +68,22 @@ function useVirtualList<T extends VirtualListItem>(
 
   const [scrollTop, setScrollTop] = React.useState(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const itemHeightsRef = React.useRef<Map<number, number>>(new Map());
+  const [itemHeights, setItemHeights] = React.useState<Map<number, number>>(
+    () => new Map()
+  );
 
   // Calculate total height
-  const getTotalHeight = React.useCallback(() => {
+  const totalHeight = React.useMemo(() => {
     let total = 0;
     for (let i = 0; i < items.length; i++) {
       const height =
         items[i].height ||
-        itemHeightsRef.current.get(i) ||
+        itemHeights.get(i) ||
         estimatedItemHeight;
       total += height + (i < items.length - 1 ? gap : 0);
     }
     return total;
-  }, [items, estimatedItemHeight, gap]);
+  }, [items, itemHeights, estimatedItemHeight, gap]);
 
   // Get item offset
   const getItemOffset = React.useCallback(
@@ -94,26 +92,24 @@ function useVirtualList<T extends VirtualListItem>(
       for (let i = 0; i < index; i++) {
         const height =
           items[i].height ||
-          itemHeightsRef.current.get(i) ||
+          itemHeights.get(i) ||
           estimatedItemHeight;
         offset += height + gap;
       }
       return offset;
     },
-    [items, estimatedItemHeight, gap]
+    [items, itemHeights, estimatedItemHeight, gap]
   );
 
   // Calculate visible items
   const virtualItems = React.useMemo<VirtualItem[]>(() => {
     const result: VirtualItem[] = [];
     let currentOffset = 0;
-    let startIndex = -1;
-    let endIndex = -1;
 
     for (let i = 0; i < items.length; i++) {
       const height =
         items[i].height ||
-        itemHeightsRef.current.get(i) ||
+        itemHeights.get(i) ||
         estimatedItemHeight;
       const itemEnd = currentOffset + height;
 
@@ -122,9 +118,6 @@ function useVirtualList<T extends VirtualListItem>(
       const visibleEnd = scrollTop + containerHeight + overscan * estimatedItemHeight;
 
       if (itemEnd >= visibleStart && currentOffset <= visibleEnd) {
-        if (startIndex === -1) startIndex = i;
-        endIndex = i;
-
         result.push({
           index: i,
           start: currentOffset,
@@ -137,7 +130,7 @@ function useVirtualList<T extends VirtualListItem>(
     }
 
     return result;
-  }, [items, scrollTop, containerHeight, overscan, estimatedItemHeight, gap]);
+  }, [items, itemHeights, scrollTop, containerHeight, overscan, estimatedItemHeight, gap]);
 
   // Handle scroll
   const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -147,7 +140,12 @@ function useVirtualList<T extends VirtualListItem>(
 
   // Measure item height
   const measureItem = React.useCallback((index: number, height: number) => {
-    itemHeightsRef.current.set(index, height);
+    setItemHeights((prev) => {
+      if (prev.get(index) === height) return prev;
+      const next = new Map(prev);
+      next.set(index, height);
+      return next;
+    });
   }, []);
 
   // Scroll to index
@@ -159,7 +157,7 @@ function useVirtualList<T extends VirtualListItem>(
       const offset = getItemOffset(index);
       const itemHeight =
         items[index]?.height ||
-        itemHeightsRef.current.get(index) ||
+        itemHeights.get(index) ||
         estimatedItemHeight;
 
       let scrollPosition: number;
@@ -180,13 +178,13 @@ function useVirtualList<T extends VirtualListItem>(
         behavior: "smooth",
       });
     },
-    [items, containerHeight, estimatedItemHeight, getItemOffset]
+    [items, itemHeights, containerHeight, estimatedItemHeight, getItemOffset]
   );
 
   return {
     containerRef,
     virtualItems,
-    totalHeight: getTotalHeight(),
+    totalHeight,
     handleScroll,
     measureItem,
     scrollToIndex,
@@ -194,9 +192,7 @@ function useVirtualList<T extends VirtualListItem>(
   };
 }
 
-// ============================================
 // VIRTUAL ITEM WRAPPER
-// ============================================
 
 interface VirtualItemWrapperProps {
   index: number;
@@ -239,9 +235,7 @@ function VirtualItemWrapper({
   );
 }
 
-// ============================================
 // VIRTUAL LIST COMPONENT
-// ============================================
 
 export function VirtualList<T extends VirtualListItem>({
   items,
@@ -269,7 +263,6 @@ export function VirtualList<T extends VirtualListItem>({
     totalHeight,
     handleScroll,
     measureItem,
-    scrollToIndex,
   } = useVirtualList({
     items,
     estimatedItemHeight,
@@ -279,7 +272,13 @@ export function VirtualList<T extends VirtualListItem>({
   });
 
   // Infinite scroll hook
-  const infiniteScrollHook = useInfiniteScroll({
+  const {
+    sentinelRef,
+    isLoading: infiniteLoading,
+    isEndReached,
+    error: infiniteError,
+    retry,
+  } = useInfiniteScroll({
     onLoadMore: onLoadMore || (async () => {}),
     hasMore,
     isLoading,
@@ -345,7 +344,7 @@ export function VirtualList<T extends VirtualListItem>({
       {/* Infinite scroll sentinel */}
       {infiniteScroll && (
         <div
-          ref={infiniteScrollHook.sentinelRef}
+          ref={sentinelRef}
           className="h-1 w-full"
           style={{
             position: "absolute",
@@ -357,24 +356,24 @@ export function VirtualList<T extends VirtualListItem>({
       )}
 
       {/* Loading state */}
-      {infiniteScroll && infiniteScrollHook.isLoading && !infiniteScrollHook.error && (
+      {infiniteScroll && infiniteLoading && !infiniteError && (
         <div style={{ position: "sticky", bottom: 0, left: 0, right: 0 }}>
           <LoadingIndicator />
         </div>
       )}
 
       {/* Error state */}
-      {infiniteScroll && infiniteScrollHook.error && (
+      {infiniteScroll && infiniteError && (
         <div style={{ position: "sticky", bottom: 0, left: 0, right: 0 }}>
           <ErrorIndicator
-            error={infiniteScrollHook.error}
-            onRetry={infiniteScrollHook.retry}
+            error={infiniteError}
+            onRetry={retry}
           />
         </div>
       )}
 
       {/* End of list */}
-      {infiniteScroll && infiniteScrollHook.isEndReached && !infiniteScrollHook.error && (
+      {infiniteScroll && isEndReached && !infiniteError && (
         <div style={{ position: "sticky", bottom: 0, left: 0, right: 0 }}>
           <EndOfListIndicator />
         </div>
@@ -386,9 +385,7 @@ export function VirtualList<T extends VirtualListItem>({
   );
 }
 
-// ============================================
 // SIMPLE VIRTUAL LIST (FIXED HEIGHT ITEMS)
-// ============================================
 
 export interface SimpleVirtualListProps<T> {
   items: T[];
@@ -483,9 +480,7 @@ export function SimpleVirtualList<T>({
   );
 }
 
-// ============================================
 // VARIABLE HEIGHT VIRTUAL LIST
-// ============================================
 
 export interface VariableHeightVirtualListProps<T> {
   items: T[];
@@ -510,34 +505,33 @@ export function VariableHeightVirtualList<T>({
 }: VariableHeightVirtualListProps<T>) {
   const [scrollTop, setScrollTop] = React.useState(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const heightsRef = React.useRef<number[]>([]);
-  const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
+  const [heights, setHeights] = React.useState<number[]>([]);
 
   const containerHeight =
     typeof height === "number" ? height : parseInt(height, 10) || 500;
 
   // Initialize heights
   React.useEffect(() => {
-    if (heightsRef.current.length !== items.length) {
-      heightsRef.current = items.map(
-        (_, i) => heightsRef.current[i] || estimatedItemHeight
-      );
-    }
-  }, [items.length, estimatedItemHeight]);
+    setHeights((prev) =>
+      prev.length === items.length
+        ? prev
+        : items.map((_, i) => prev[i] || estimatedItemHeight)
+    );
+  }, [items, estimatedItemHeight]);
 
   // Calculate positions
   const getItemMetadata = React.useCallback(
     (index: number) => {
       let offset = 0;
       for (let i = 0; i < index; i++) {
-        offset += heightsRef.current[i] || estimatedItemHeight;
+        offset += heights[i] || estimatedItemHeight;
       }
       return {
         offset,
-        size: heightsRef.current[index] || estimatedItemHeight,
+        size: heights[index] || estimatedItemHeight,
       };
     },
-    [estimatedItemHeight]
+    [heights, estimatedItemHeight]
   );
 
   // Find start index using binary search
@@ -566,11 +560,11 @@ export function VariableHeightVirtualList<T>({
 
   // Calculate total height
   const totalHeight = React.useMemo(() => {
-    return heightsRef.current.reduce(
+    return heights.reduce(
       (sum, h) => sum + (h || estimatedItemHeight),
       0
     );
-  }, [items.length, estimatedItemHeight]);
+  }, [heights, estimatedItemHeight]);
 
   // Get visible items
   const visibleItems = React.useMemo(() => {
@@ -579,11 +573,11 @@ export function VariableHeightVirtualList<T>({
 
     let currentOffset = 0;
     for (let i = 0; i < startIndex; i++) {
-      currentOffset += heightsRef.current[i] || estimatedItemHeight;
+      currentOffset += heights[i] || estimatedItemHeight;
     }
 
     for (let i = startIndex; i < items.length; i++) {
-      const itemHeight = heightsRef.current[i] || estimatedItemHeight;
+      const itemHeight = heights[i] || estimatedItemHeight;
 
       if (currentOffset > scrollTop + containerHeight + overscan * estimatedItemHeight) {
         break;
@@ -599,7 +593,7 @@ export function VariableHeightVirtualList<T>({
     }
 
     return result;
-  }, [items, scrollTop, containerHeight, overscan, estimatedItemHeight, findStartIndex]);
+  }, [items, heights, scrollTop, containerHeight, overscan, estimatedItemHeight, findStartIndex]);
 
   // Measure item
   const measureItem = React.useCallback(
@@ -607,10 +601,12 @@ export function VariableHeightVirtualList<T>({
       if (!element) return;
 
       const height = element.offsetHeight;
-      if (heightsRef.current[index] !== height) {
-        heightsRef.current[index] = height;
-        forceUpdate();
-      }
+      setHeights((prev) => {
+        if (prev[index] === height) return prev;
+        const next = [...prev];
+        next[index] = height;
+        return next;
+      });
     },
     []
   );

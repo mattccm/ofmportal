@@ -18,16 +18,16 @@ function ResetPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [validating, setValidating] = useState(true);
+  const [validating, setValidating] = useState(!!token);
   const [error, setError] = useState("");
-  const [tokenError, setTokenError] = useState("");
+  const [validationError, setValidationError] = useState("");
   const [success, setSuccess] = useState(false);
   const [userName, setUserName] = useState("");
 
+  const tokenError = token ? validationError : "No reset token provided";
+
   useEffect(() => {
     if (!token) {
-      setTokenError("No reset token provided");
-      setValidating(false);
       return;
     }
 
@@ -38,11 +38,11 @@ function ResetPasswordForm() {
         if (data.valid) {
           setUserName(data.name);
         } else {
-          setTokenError(data.error || "Invalid reset link");
+          setValidationError(data.error || "Invalid reset link");
         }
       })
       .catch(() => {
-        setTokenError("Failed to validate reset link");
+        setValidationError("Failed to validate reset link");
       })
       .finally(() => {
         setValidating(false);
@@ -86,7 +86,7 @@ function ResetPasswordForm() {
         router.push("/login");
       }, 3000);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Couldn't reset your password. Please try again.");
       setLoading(false);
     }
   };
@@ -144,7 +144,7 @@ function ResetPasswordForm() {
             Password reset!
           </h1>
           <p className="text-muted-foreground max-w-sm">
-            Your password has been reset successfully. Redirecting to sign in...
+            Your password has been reset. Taking you to sign in...
           </p>
         </div>
 

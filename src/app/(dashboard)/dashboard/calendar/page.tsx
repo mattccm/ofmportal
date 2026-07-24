@@ -5,9 +5,7 @@ import { db } from "@/lib/db";
 import { CalendarDays, Sparkles } from "lucide-react";
 import { CalendarClient } from "./calendar-client";
 
-// ============================================
 // DATA FETCHING
-// ============================================
 
 async function getCreators(agencyId: string) {
   return db.creator.findMany({
@@ -97,9 +95,7 @@ async function getCalendarStats(agencyId: string) {
   };
 }
 
-// ============================================
 // PAGE COMPONENT
-// ============================================
 
 export default async function CalendarPage() {
   const session = await getServerSession(authOptions);

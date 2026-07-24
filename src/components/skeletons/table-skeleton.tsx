@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Skeleton, SkeletonAvatar, SkeletonBadge, SkeletonText } from "@/components/ui/skeleton"
+import { Skeleton, SkeletonAvatar, SkeletonBadge } from "@/components/ui/skeleton"
 
 interface TableSkeletonProps {
   /**

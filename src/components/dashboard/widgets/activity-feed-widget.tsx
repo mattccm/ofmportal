@@ -19,9 +19,7 @@ import { WidgetCard, type WidgetProps } from "../widget-grid";
 import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
 
-// ============================================
 // TYPES
-// ============================================
 
 interface ActivityItem {
   id: string;
@@ -34,9 +32,7 @@ interface ActivityItem {
   link?: string;
 }
 
-// ============================================
 // HELPERS
-// ============================================
 
 function getActivityIcon(type: string) {
   switch (type) {
@@ -80,9 +76,7 @@ function getActivityColor(type: string) {
   }
 }
 
-// ============================================
 // COMPONENT
-// ============================================
 
 export function ActivityFeedWidget({ config, size }: WidgetProps) {
   // Use batched widget data from context (single API call for all widgets)

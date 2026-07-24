@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -40,12 +41,23 @@ export default function Error({ error, reset }: ErrorProps) {
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
     };
 
-    console.group("Root Error Boundary");
-    console.log("Error Details:", errorLog);
-    console.groupEnd();
+    if (process.env.NODE_ENV === "development") {
+      console.group("Root Error Boundary");
+      console.log("Error Details:", errorLog);
+      console.groupEnd();
+    }
 
-    // TODO: Send to error tracking service
-    // reportError(errorLog);
+    // Report to Sentry
+    Sentry.captureException(error);
+
+    // Send to server-side error logging endpoint
+    fetch("/api/log-error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(errorLog),
+    }).catch(() => {
+      // Silently fail
+    });
   }, [error]);
 
   const handleCopyError = () => {

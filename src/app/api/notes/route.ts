@@ -8,7 +8,6 @@ import {
   createNote,
   extractMentions,
   extractHashtags,
-  type Note,
 } from "@/lib/notes-utils";
 
 // Types for stored notes

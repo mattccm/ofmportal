@@ -28,11 +28,9 @@ import {
   X,
   Star,
   Loader2,
-  PenLine,
   Play,
   Calendar,
   HardDrive,
-  User,
   AlertTriangle,
   Trash2,
 } from "lucide-react";
@@ -268,7 +266,7 @@ export function UploadReviewCard({
 
       if (!response.ok) throw new Error("Failed to approve upload");
 
-      toast.success("Upload approved successfully");
+      toast.success("Approved");
       setApproveDialogOpen(false);
       onReviewComplete?.();
     } catch {

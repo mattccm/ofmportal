@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Play,
@@ -32,6 +32,8 @@ interface VideoPlayerProps {
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
+const emptySubscribe = () => () => {};
+
 export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,13 +48,14 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
   const [playbackSpeed, setPlaybackSpeed] = useState("1");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [isPiPSupported, setIsPiPSupported] = useState(false);
   const hideControlsTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Check PiP support
-  useEffect(() => {
-    setIsPiPSupported(document.pictureInPictureEnabled);
-  }, []);
+  const isPiPSupported = useSyncExternalStore(
+    emptySubscribe,
+    () => document.pictureInPictureEnabled,
+    () => false
+  );
 
   // Handle video events
   useEffect(() => {
@@ -74,7 +77,10 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
       }
     };
 
-    const handlePlay = () => setIsPlaying(true);
+    const handlePlay = () => {
+      setIsPlaying(true);
+      setShowControls(true);
+    };
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => setIsPlaying(false);
 
@@ -109,13 +115,17 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
   }, [isPlaying]);
 
   useEffect(() => {
-    resetControlsTimer();
+    if (isPlaying) {
+      hideControlsTimer.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
     return () => {
       if (hideControlsTimer.current) {
         clearTimeout(hideControlsTimer.current);
       }
     };
-  }, [isPlaying, resetControlsTimer]);
+  }, [isPlaying]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -128,83 +138,6 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle if typing in an input
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
-        return;
-      }
-
-      const video = videoRef.current;
-      if (!video) return;
-
-      switch (e.key) {
-        case " ":
-        case "k":
-          e.preventDefault();
-          togglePlay();
-          break;
-        case "ArrowLeft":
-          e.preventDefault();
-          skip(-10);
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          skip(10);
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          adjustVolume(0.1);
-          break;
-        case "ArrowDown":
-          e.preventDefault();
-          adjustVolume(-0.1);
-          break;
-        case "m":
-          e.preventDefault();
-          toggleMute();
-          break;
-        case "f":
-          e.preventDefault();
-          toggleFullscreen();
-          break;
-        case "p":
-          e.preventDefault();
-          togglePiP();
-          break;
-        case "j":
-          e.preventDefault();
-          skip(-10);
-          break;
-        case "l":
-          e.preventDefault();
-          skip(10);
-          break;
-        case "0":
-        case "1":
-        case "2":
-        case "3":
-        case "4":
-        case "5":
-        case "6":
-        case "7":
-        case "8":
-        case "9":
-          e.preventDefault();
-          const percent = parseInt(e.key) / 10;
-          video.currentTime = duration * percent;
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [duration]);
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
@@ -295,6 +228,84 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
       console.error("PiP error:", err);
     }
   }, [isPiPSupported]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if typing in an input
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      const video = videoRef.current;
+      if (!video) return;
+
+      switch (e.key) {
+        case " ":
+        case "k":
+          e.preventDefault();
+          togglePlay();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          skip(-10);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          skip(10);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          adjustVolume(0.1);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          adjustVolume(-0.1);
+          break;
+        case "m":
+          e.preventDefault();
+          toggleMute();
+          break;
+        case "f":
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case "p":
+          e.preventDefault();
+          togglePiP();
+          break;
+        case "j":
+          e.preventDefault();
+          skip(-10);
+          break;
+        case "l":
+          e.preventDefault();
+          skip(10);
+          break;
+        case "0":
+        case "1":
+        case "2":
+        case "3":
+        case "4":
+        case "5":
+        case "6":
+        case "7":
+        case "8":
+        case "9": {
+          e.preventDefault();
+          const percent = parseInt(e.key) / 10;
+          video.currentTime = duration * percent;
+          break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [duration, togglePlay, skip, adjustVolume, toggleMute, toggleFullscreen, togglePiP]);
 
   const formatTime = useCallback((time: number) => {
     const hours = Math.floor(time / 3600);

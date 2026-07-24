@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState, useCallback, useEffect } from "react";
-import { Camera, Upload, X, RotateCcw, Save, Loader2, Eye, Palette, Mail, Globe, Check } from "lucide-react";
+import { Upload, X, RotateCcw, Save, Loader2, Eye, Palette, Mail, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import {
   DEFAULT_BRANDING,
   isValidHexColor,
-  hexToHsl,
   getContrastColor,
   type BrandingSettings,
 } from "@/lib/branding";
@@ -45,11 +44,13 @@ function ColorPicker({
 }) {
   const [inputValue, setInputValue] = useState(value);
   const [isValid, setIsValid] = useState(true);
+  const [prevValue, setPrevValue] = useState(value);
 
-  useEffect(() => {
+  if (value !== prevValue) {
+    setPrevValue(value);
     setInputValue(value);
     setIsValid(true);
-  }, [value]);
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let newValue = e.target.value;
@@ -291,9 +292,6 @@ function PortalPreview({
   branding: BrandingSettings;
   agencyName?: string;
 }) {
-  const primaryHsl = hexToHsl(branding.primaryColor);
-  const secondaryHsl = hexToHsl(branding.secondaryColor);
-
   return (
     <div className="relative rounded-xl border overflow-hidden bg-gradient-to-br from-slate-50 via-white to-violet-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-violet-950/30">
       {/* Preview Header */}
@@ -481,7 +479,6 @@ export function BrandingForm({
     lastSavedAt,
     hasRecoverableData,
     recoverableData,
-    clearSaved,
     recover,
     dismissRecovery,
   } = useAutosave({
@@ -546,7 +543,7 @@ export function BrandingForm({
       await onSave(branding);
       setHasChanges(false);
       clearFormData(FORM_ID); // Clear autosaved data on successful submit
-      toast.success("Branding saved successfully");
+      toast.success("Branding saved");
     } catch (error) {
       toast.error("Failed to save branding");
     } finally {
