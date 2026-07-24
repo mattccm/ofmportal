@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { KeyboardShortcutsProvider } from "@/components/providers/keyboard-shortcuts-provider";
@@ -20,6 +20,13 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["500", "600", "700"],
+});
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -27,8 +34,8 @@ export const viewport: Viewport = {
   userScalable: true,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#7c3aed" },
-    { media: "(prefers-color-scheme: dark)", color: "#7c3aed" },
+    { media: "(prefers-color-scheme: light)", color: "#2f6a4a" },
+    { media: "(prefers-color-scheme: dark)", color: "#2f6a4a" },
   ],
 };
 
@@ -109,7 +116,7 @@ export const metadata: Metadata = {
       {
         rel: "mask-icon",
         url: "/favicon.svg?v=2",
-        color: "#7c3aed",
+        color: "#2f6a4a",
       },
     ],
   },
@@ -118,7 +125,7 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "msapplication-TileColor": "#7c3aed",
+    "msapplication-TileColor": "#2f6a4a",
     "msapplication-tap-highlight": "no",
   },
 };
@@ -134,7 +141,7 @@ export default function RootLayout({
         <ThemeScript />
       </head>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} ${bricolage.variable} font-sans antialiased`}
       >
         <ThemeProvider
           defaultTheme="system"
