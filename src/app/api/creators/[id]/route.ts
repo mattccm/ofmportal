@@ -246,14 +246,39 @@ export async function DELETE(
       return NextResponse.json({ error: "Creator not found" }, { status: 404 });
     }
 
-    // For now, we'll do a soft-delete by setting inviteStatus to EXPIRED
-    // In a real app, you might have a separate "archived" flag
+    // Archive (default, reversible) vs. hard delete (permanent) via ?hard=true
     const url = new URL(req.url);
     const hardDelete = url.searchParams.get("hard") === "true";
 
     if (hardDelete) {
-      await db.creator.delete({
-        where: { id },
+      // Permanent removal. Models with a real FK to Creator either cascade
+      // (ContentRequest, Upload, CreatorGroupMember, ContentFingerprint,
+      // DuplicateAttempt) or set-null (Conversation, Message), so none block
+      // the delete. Several models store `creatorId` as a plain string WITHOUT
+      // a foreign key (MediaItem, MediaFolder, CreatorReminderOverride,
+      // Favorite, EmailQueueItem) — the DB won't cascade those, so we clean
+      // them up explicitly to avoid orphaned rows. Everything runs in one
+      // transaction so a failure leaves the creator intact.
+      await db.$transaction(async (tx) => {
+        await tx.mediaItem.deleteMany({
+          where: { creatorId: id, agencyId: session.user.agencyId },
+        });
+        await tx.mediaFolder.deleteMany({
+          where: { creatorId: id, agencyId: session.user.agencyId },
+        });
+        await tx.creatorReminderOverride.deleteMany({
+          where: { creatorId: id, agencyId: session.user.agencyId },
+        });
+        await tx.favorite.deleteMany({
+          where: { creatorId: id, agencyId: session.user.agencyId },
+        });
+        await tx.emailQueueItem.deleteMany({
+          where: { creatorId: id },
+        });
+        // Deleting the creator cascades/nulls all FK-backed relations.
+        await tx.creator.delete({
+          where: { id },
+        });
       });
     } else {
       await db.creator.update({

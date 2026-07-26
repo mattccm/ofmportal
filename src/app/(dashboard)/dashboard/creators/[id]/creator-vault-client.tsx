@@ -69,6 +69,7 @@ import {
   Play,
   RefreshCw,
   Settings,
+  Trash2,
 } from "lucide-react";
 import { CopyableEmail } from "@/components/ui/copyable-text";
 import { NotesPanel } from "@/components/notes/notes-panel";
@@ -297,6 +298,10 @@ export function CreatorVaultClient({
   // Dialog states
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const canDeleteCreator = ["OWNER", "ADMIN"].includes(currentUser.role);
   const [previewUpload, setPreviewUpload] = useState<UploadItem | null>(null);
 
   // Analytics state
@@ -399,6 +404,30 @@ export function CreatorVaultClient({
       router.push("/dashboard/creators");
     } catch (error) {
       toast.error("Failed to archive creator");
+    }
+  };
+
+  // Permanently delete creator (and all their content/requests/uploads)
+  const handleDeleteCreator = async () => {
+    if (deleteConfirmText !== creator.name) return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/creators/${creator.id}?hard=true`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Failed to delete creator");
+      }
+
+      toast.success("Creator permanently deleted");
+      router.push("/dashboard/creators");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete creator"
+      );
+      setIsDeleting(false);
     }
   };
 
@@ -516,6 +545,21 @@ export function CreatorVaultClient({
                 <Archive className="h-4 w-4 mr-2" />
                 Archive Creator
               </DropdownMenuItem>
+              {canDeleteCreator && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setDeleteConfirmText("");
+                      setConfirmDeleteOpen(true);
+                    }}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Creator
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1366,6 +1410,60 @@ export function CreatorVaultClient({
             </Button>
             <Button variant="destructive" onClick={handleArchiveCreator}>
               Archive Creator
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog (permanent, irreversible) */}
+      <Dialog
+        open={confirmDeleteOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) return;
+          setConfirmDeleteOpen(open);
+          if (!open) setDeleteConfirmText("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">
+              Permanently delete {creator.name}?
+            </DialogTitle>
+            <DialogDescription>
+              This permanently removes {creator.name} and{" "}
+              <strong>all of their content, requests, uploads, media, and
+              messages</strong>. This action cannot be undone. If you only want
+              to revoke portal access, use Archive instead.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <label htmlFor="delete-confirm" className="text-sm font-medium">
+              Type <span className="font-semibold">{creator.name}</span> to
+              confirm
+            </label>
+            <Input
+              id="delete-confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={creator.name}
+              autoComplete="off"
+              disabled={isDeleting}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDeleteOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteCreator}
+              disabled={isDeleting || deleteConfirmText !== creator.name}
+            >
+              {isDeleting ? "Deleting..." : "Delete Permanently"}
             </Button>
           </DialogFooter>
         </DialogContent>
