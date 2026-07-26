@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { HtmlContent } from "@/components/ui/html-content";
 import type { Template, TemplateField, FieldType } from "@/lib/template-types";
 
 // HELPERS
@@ -162,7 +163,7 @@ export function TemplatePreviewCard({
               <CardTitle className="text-lg">{template.name}</CardTitle>
               {template.description && (
                 <CardDescription className="mt-0.5">
-                  {stripHtml(template.description)}
+                  <HtmlContent html={template.description} prose={false} />
                 </CardDescription>
               )}
             </div>
@@ -483,7 +484,7 @@ export function CompactTemplatePreview({
           <p className="font-medium truncate">{template.name}</p>
           {template.description && (
             <p className="text-sm text-muted-foreground truncate">
-              {template.description}
+              {stripHtml(template.description)}
             </p>
           )}
         </div>

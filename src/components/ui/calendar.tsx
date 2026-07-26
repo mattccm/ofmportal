@@ -69,7 +69,7 @@ export function Calendar({
   const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
   return (
-    <div className={cn("p-3", className)}>
+    <div className={cn("w-72 p-3", className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <Button
@@ -120,7 +120,7 @@ export function Calendar({
               onClick={() => handleSelectDate(date)}
               disabled={isDisabled}
               className={cn(
-                "h-8 w-8 rounded-md text-sm font-normal flex items-center justify-center transition-colors",
+                "h-8 w-full rounded-md text-sm font-normal flex items-center justify-center transition-colors",
                 "hover:bg-accent hover:text-accent-foreground",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 !isCurrentMonth && "text-muted-foreground/50",

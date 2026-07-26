@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   DndContext,
   closestCenter,
@@ -59,6 +60,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
+import { HtmlContent } from "@/components/ui/html-content";
 import { cn } from "@/lib/utils";
 import {
   TemplateField,
@@ -686,44 +688,67 @@ export function TemplateBuilder({
             />
 
             {/* Category Selection */}
-            {categories.length > 0 && (
+            {!categoriesLoading && (
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Tag className="h-4 w-4" />
                   Category
                 </Label>
-                <Select
-                  value={categoryId || "uncategorized"}
-                  onValueChange={(v) => setCategoryId(v === "uncategorized" ? null : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="uncategorized">
-                      <div className="flex items-center gap-2">
-                        <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                        Uncategorized
-                      </div>
-                    </SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        <div className="flex items-center gap-2">
-                          {cat.color && (
-                            <div
-                              className="h-3 w-3 rounded-full"
-                              style={{ backgroundColor: cat.color }}
-                            />
-                          )}
-                          {cat.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Categorize templates to organize them and control team member access
-                </p>
+                {categories.length > 0 ? (
+                  <>
+                    <Select
+                      value={categoryId || "uncategorized"}
+                      onValueChange={(v) => setCategoryId(v === "uncategorized" ? null : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="uncategorized">
+                          <div className="flex items-center gap-2">
+                            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                            Uncategorized
+                          </div>
+                        </SelectItem>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            <div className="flex items-center gap-2">
+                              {cat.color && (
+                                <div
+                                  className="h-3 w-3 rounded-full"
+                                  style={{ backgroundColor: cat.color }}
+                                />
+                              )}
+                              {cat.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Categorize templates to organize them and control team member access.{" "}
+                      <Link
+                        href="/dashboard/settings/template-categories"
+                        target="_blank"
+                        className="text-primary underline-offset-2 hover:underline"
+                      >
+                        Manage categories
+                      </Link>
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No categories yet.{" "}
+                    <Link
+                      href="/dashboard/settings/template-categories"
+                      target="_blank"
+                      className="text-primary underline-offset-2 hover:underline"
+                    >
+                      Create a category
+                    </Link>{" "}
+                    (e.g. Instagram, Reddit, OnlyFans) to organize your templates.
+                  </p>
+                )}
               </div>
             )}
 
@@ -786,7 +811,10 @@ export function TemplateBuilder({
               <CardHeader className="border-b">
                 <CardTitle className="text-lg">{name || "Untitled Template"}</CardTitle>
                 {description && (
-                  <p className="text-sm text-muted-foreground">{description}</p>
+                  <HtmlContent
+                    html={description}
+                    className="text-sm text-muted-foreground"
+                  />
                 )}
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
