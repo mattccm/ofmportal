@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ReactNode, Suspense, lazy, memo } from "react";
+import { ReactNode, memo } from "react";
 import { ResponsiveLayout } from "./responsive-layout";
 import { SearchProvider } from "@/components/search";
 import { QuickActionsProvider } from "@/components/quick-actions";
@@ -12,12 +12,6 @@ import { CelebrationProvider } from "@/components/celebrations";
 import { DashboardTour } from "@/components/help/dashboard-tour";
 import { OfflineIndicator } from "@/components/offline/offline-indicator";
 import { useRouteCleanup } from "@/hooks/use-route-cleanup";
-
-const ActivityPanel = lazy(() =>
-  import("@/components/activity").then((mod) => ({
-    default: mod.ActivityPanel,
-  }))
-);
 
 interface DashboardLayoutClientProps {
   children: ReactNode;
@@ -31,7 +25,7 @@ interface DashboardLayoutClientProps {
  *
  * Provider hierarchy (outer to inner):
  * 1. SearchProvider - Global search (Cmd+K)
- * 2. QuickActionsProvider - FAB quick actions
+ * 2. QuickActionsProvider - Quick action context + dialogs (floating FAB disabled)
  * 3. AnnouncementsProvider - Banner announcements
  * 4. CreatorContextProvider - Creator context panel
  */
@@ -45,7 +39,7 @@ export const DashboardLayoutClient = memo(function DashboardLayoutClient({
     <ProviderErrorBoundary providerName="SearchProvider">
       <SearchProvider>
         <ProviderErrorBoundary providerName="QuickActionsProvider">
-          <QuickActionsProvider>
+          <QuickActionsProvider showFab={false}>
             <ProviderErrorBoundary providerName="AnnouncementsProvider">
               <AnnouncementsProvider>
                 <ProviderErrorBoundary providerName="CreatorContextProvider">
@@ -56,12 +50,6 @@ export const DashboardLayoutClient = memo(function DashboardLayoutClient({
                           <PageErrorBoundary>
                             {children}
                           </PageErrorBoundary>
-                          {/* Lazy load activity panel with Suspense */}
-                          <Suspense fallback={null}>
-                            <WidgetErrorBoundary>
-                              <ActivityPanel maxItems={20} compact={false} />
-                            </WidgetErrorBoundary>
-                          </Suspense>
                         </ResponsiveLayout>
                         {/* First-visit guided tour (shows once, dashboard home only) */}
                         <WidgetErrorBoundary>
