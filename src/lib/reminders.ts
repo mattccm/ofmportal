@@ -55,7 +55,7 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
     const batches = await getAllBatchedRemindersForDate(agencyId, today);
     for (const batch of batches) {
       if (batch.requests.length >= 2) {
-        await processBatchedReminder(batch, today);
+        await processBatchedReminder(batch, today, agencyId);
       }
     }
   }
@@ -135,6 +135,7 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
           dueDate,
           daysUntilDue,
           portalLink,
+          agencyId: request.agencyId,
         });
       } else if (reminder.channel === "SMS" && request.creator.phone) {
         await sendReminderSms({
@@ -198,7 +199,8 @@ async function processScheduledReminders(today: Date, endOfDay: Date) {
  */
 async function processBatchedReminder(
   batch: Awaited<ReturnType<typeof getAllBatchedRemindersForDate>>[number],
-  today: Date
+  today: Date,
+  agencyId: string
 ) {
   // Check if reminder should be sent
   const sendCheck = await shouldSendReminder(
@@ -236,6 +238,7 @@ async function processBatchedReminder(
           urgency: r.urgency,
         })),
         portalLink,
+        agencyId,
       });
     } else if (batch.channel === "SMS" && batch.creatorPhone) {
       await sendBatchedReminderSms({
@@ -381,6 +384,7 @@ async function processLegacyReminders(today: Date) {
             dueDate,
             daysUntilDue,
             portalLink,
+            agencyId: agency.id,
           });
         } catch (error) {
           console.error("Failed to send reminder email:", error);

@@ -93,6 +93,7 @@ export async function POST(
       creatorName: creator.name,
       agencyName: creator.agency?.name || "Your Agency",
       inviteLink: inviteUrl,
+      agencyId: session.user.agencyId,
     });
 
     return NextResponse.json({

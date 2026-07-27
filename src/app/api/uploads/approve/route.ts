@@ -158,6 +158,8 @@ export async function POST(req: NextRequest) {
           to: request.creator.email,
           creatorName: request.creator.name,
           requestTitle: request.title,
+          portalLink: `${process.env.APP_URL}/portal/${request.creator.id}/requests/${requestId}`,
+          agencyId: session.user.agencyId,
         });
 
         if (

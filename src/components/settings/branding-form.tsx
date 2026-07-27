@@ -406,12 +406,12 @@ function EmailPreview({
   agencyName?: string;
 }) {
   return (
-    <div className="rounded-xl border overflow-hidden bg-white dark:bg-slate-900">
-      {/* Email Header */}
-      <div
-        className="px-6 py-4"
-        style={{ backgroundColor: branding.primaryColor }}
-      >
+    <div className="rounded-xl border overflow-hidden bg-white">
+      {/* Brand accent bar */}
+      <div className="h-1" style={{ backgroundColor: branding.primaryColor }} />
+
+      {/* Email Header (light, logo or agency name) */}
+      <div className="px-6 py-4 border-b border-slate-100">
         {branding.logoLight && branding.emailLogoEnabled ? (
           <img
             src={branding.logoLight}
@@ -419,36 +419,42 @@ function EmailPreview({
             className="h-8 w-auto object-contain"
           />
         ) : (
-          <p className="text-white font-semibold">
+          <p
+            className="text-lg font-bold"
+            style={{ color: branding.primaryColor }}
+          >
             {branding.emailFromName || agencyName || "Upload Portal"}
           </p>
         )}
       </div>
 
       {/* Email Body */}
-      <div className="px-6 py-4 space-y-3">
-        <p className="font-semibold text-foreground">
-          New Content Request
+      <div className="px-6 py-5 space-y-3">
+        <p className="text-lg font-bold text-slate-900">
+          New content request
         </p>
-        <p className="text-sm text-muted-foreground">
-          Hi Creator,
+        <p className="text-sm text-slate-600">Hi Creator,</p>
+        <p className="text-sm text-slate-600">
+          You have a new content request waiting for you. Open your portal to
+          view the details and upload your content.
         </p>
-        <p className="text-sm text-muted-foreground">
-          You have a new content request waiting for you. Please log in to your
-          portal to view the details and upload your content.
-        </p>
-        <button
-          className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-          style={{ backgroundColor: branding.primaryColor }}
-        >
-          View Request
-        </button>
+        <div className="pt-1">
+          <button
+            className="px-6 py-2.5 rounded-lg text-sm font-semibold"
+            style={{
+              backgroundColor: branding.primaryColor,
+              color: getContrastColor(branding.primaryColor),
+            }}
+          >
+            View request
+          </button>
+        </div>
       </div>
 
       {/* Email Footer */}
-      <div className="px-6 py-3 border-t bg-muted/30">
-        <p className="text-xs text-muted-foreground">
-          {branding.emailSignature || "Sent via Upload Portal"}
+      <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+        <p className="text-xs text-slate-500">
+          {branding.emailSignature || `Sent by ${agencyName || "your agency"}`}
         </p>
       </div>
 
@@ -842,8 +848,13 @@ export function BrandingForm({
                     id="emailFromName"
                     value={branding.emailFromName}
                     onChange={(e) => updateField("emailFromName", e.target.value)}
-                    placeholder="Your Agency Name"
+                    placeholder={agencyName || "Your Agency Name"}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Shown as the sender on every email your creators receive.
+                    Leave blank to use your agency name
+                    {agencyName ? ` (${agencyName})` : ""}.
+                  </p>
                 </div>
 
                 <div className="space-y-2">

@@ -102,6 +102,7 @@ export async function POST(
           dueDate,
           daysUntilDue,
           portalLink,
+          agencyId: session.user.agencyId,
         });
 
         await db.reminder.update({

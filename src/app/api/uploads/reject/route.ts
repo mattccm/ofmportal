@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
           requestTitle: request.title,
           feedback: reason,
           portalLink,
+          agencyId: session.user.agencyId,
         });
 
         if (

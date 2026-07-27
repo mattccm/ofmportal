@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
         to: user.email,
         creatorName: user.name,
         resetLink,
+        agencyId: user.agencyId ?? undefined,
       });
 
       return NextResponse.json({
@@ -110,6 +111,7 @@ export async function POST(req: NextRequest) {
         to: creator.email,
         creatorName: creator.name,
         resetLink,
+        agencyId: creator.agencyId,
       });
 
       return NextResponse.json({

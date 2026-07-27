@@ -165,6 +165,7 @@ export async function POST(req: NextRequest) {
               daysUntilDue,
               portalLink,
               customMessage: validatedData.message,
+              agencyId: session.user.agencyId,
             });
             channels.push("email");
           }

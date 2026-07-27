@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
           daysUntilDue: testDaysUntilDue,
           portalLink: testPortalLink,
           isTest: true,
+          agencyId: session.user.agencyId,
         });
         result.success = true;
       } else if (channel === "SMS") {

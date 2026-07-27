@@ -86,6 +86,7 @@ export async function POST(
       to: creator.email,
       creatorName: creator.name,
       resetLink: resetUrl,
+      agencyId: session.user.agencyId,
     });
 
     return NextResponse.json({

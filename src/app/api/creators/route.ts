@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
         creatorName: creator.name,
         agencyName: session.user.agencyName,
         inviteLink,
+        agencyId: session.user.agencyId,
       });
     } catch (emailError) {
       console.error("Failed to send invite email:", emailError);

@@ -1,4 +1,11 @@
 import { Resend } from "resend";
+import { db } from "./db";
+import {
+  DEFAULT_BRANDING,
+  isValidHexColor,
+  getContrastColor,
+  type BrandingSettings,
+} from "./branding";
 
 // Lazy initialization to avoid errors when API key is not configured
 let resend: Resend | null = null;
@@ -14,8 +21,6 @@ function getResendClient(): Resend | null {
 }
 
 const FROM_EMAIL = process.env.EMAIL_FROM || "noreply@portal.of-m.com";
-const APP_NAME = process.env.APP_NAME || "CCM Creator Portal";
-const COMPANY_NAME = "Content Creation Management Pty Ltd";
 
 /** Escape HTML entities to prevent injection in email templates */
 function escapeHtml(str: string): string {
@@ -27,19 +32,265 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
+// EMAIL BRANDING
+// Transactional emails are branded as the agency: the header shows the
+// agency logo (falling back to the agency name), the agency's primary brand
+// colour drives the accent bar and call-to-action buttons, and the "From"
+// display name is the agency's configurable sender name. Branding is stored
+// on the agency (name + logo + settings.branding); this loader resolves the
+// values used by every email builder below.
+
+interface EmailBranding {
+  agencyName: string;
+  /** Display name used for the email "From" header */
+  fromName: string;
+  /** Absolute logo URL (http/https/data:) or null to fall back to the name */
+  logoUrl: string | null;
+  primaryColor: string;
+  /** Readable text colour to sit on top of primaryColor buttons */
+  buttonTextColor: string;
+  signature: string | null;
+  supportEmail: string | null;
+  replyTo: string | null;
+}
+
+const FALLBACK_BRANDING: EmailBranding = {
+  agencyName: DEFAULT_BRANDING.emailFromName,
+  fromName: DEFAULT_BRANDING.emailFromName,
+  logoUrl: null,
+  primaryColor: DEFAULT_BRANDING.primaryColor,
+  buttonTextColor: getContrastColor(DEFAULT_BRANDING.primaryColor),
+  signature: DEFAULT_BRANDING.emailSignature,
+  supportEmail: null,
+  replyTo: null,
+};
+
+/** Only absolute URLs render in email clients; relative paths must be dropped. */
+function usableLogoUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return /^(https?:|data:)/i.test(url) ? url : null;
+}
+
+/**
+ * Load the agency's email branding. When agencyId is omitted (e.g. background
+ * jobs that don't carry it) the sole agency is used — this is a single-agency
+ * tool. Falls back to sensible defaults if branding can't be loaded so email
+ * sending never throws on branding alone.
+ */
+async function loadEmailBranding(
+  agencyId?: string,
+  fallbackName?: string
+): Promise<EmailBranding> {
+  try {
+    const agency = agencyId
+      ? await db.agency.findUnique({
+          where: { id: agencyId },
+          select: { name: true, logo: true, settings: true },
+        })
+      : await db.agency.findFirst({
+          select: { name: true, logo: true, settings: true },
+        });
+
+    if (!agency) {
+      return { ...FALLBACK_BRANDING, agencyName: fallbackName || FALLBACK_BRANDING.agencyName, fromName: fallbackName || FALLBACK_BRANDING.fromName };
+    }
+
+    const settings = (agency.settings as Record<string, unknown>) || {};
+    const branding = (settings.branding as Partial<BrandingSettings>) || {};
+
+    const primaryColor =
+      branding.primaryColor && isValidHexColor(branding.primaryColor)
+        ? branding.primaryColor
+        : DEFAULT_BRANDING.primaryColor;
+
+    const senderName =
+      (branding.emailFromName && branding.emailFromName.trim()) || agency.name;
+
+    const logoUrl =
+      branding.emailLogoEnabled === false
+        ? null
+        : usableLogoUrl(branding.logoLight || agency.logo);
+
+    return {
+      agencyName: agency.name,
+      fromName: senderName,
+      logoUrl,
+      primaryColor,
+      buttonTextColor: getContrastColor(primaryColor),
+      signature:
+        (branding.emailSignature && branding.emailSignature.trim()) || null,
+      supportEmail: branding.supportEmail || null,
+      replyTo: branding.emailReplyTo || null,
+    };
+  } catch (error) {
+    console.error("Failed to load email branding:", error);
+    return {
+      ...FALLBACK_BRANDING,
+      agencyName: fallbackName || FALLBACK_BRANDING.agencyName,
+      fromName: fallbackName || FALLBACK_BRANDING.fromName,
+    };
+  }
+}
+
+// SHARED EMAIL TEMPLATE
+// Table-based, fully inline-styled layout that renders reliably across email
+// clients on a light background: a brand-coloured accent bar, a header with
+// the agency logo (or name), a readable content area, and a branded footer.
+
+const FONT_STACK =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+const TEXT = {
+  heading: "#18181b",
+  body: "#3f3f46",
+  muted: "#71717a",
+  faint: "#a1a1aa",
+};
+
+/** Standard body paragraph */
+function p(html: string): string {
+  return `<p style="margin:0 0 16px;font-family:${FONT_STACK};font-size:15px;line-height:1.65;color:${TEXT.body};">${html}</p>`;
+}
+
+/** Small, muted note paragraph */
+function note(html: string): string {
+  return `<p style="margin:0 0 12px;font-family:${FONT_STACK};font-size:13px;line-height:1.6;color:${TEXT.muted};">${html}</p>`;
+}
+
+/** Rounded pill used to signal status (approved / changes / overdue) */
+function statusPill(label: string, color: string, background: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr><td style="padding:6px 14px;background-color:${background};border-radius:999px;font-family:${FONT_STACK};font-size:12px;font-weight:600;letter-spacing:0.02em;text-transform:uppercase;color:${color};">${escapeHtml(label)}</td></tr></table>`;
+}
+
+/** Light-grey information card */
+function infoCard(innerHtml: string): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;background-color:#f9fafb;border:1px solid #eef0f2;border-radius:10px;"><tr><td style="padding:18px 20px;">${innerHtml}</td></tr></table>`;
+}
+
+/** Bulletproof, brand-coloured call-to-action button */
+function ctaButton(url: string, label: string, branding: EmailBranding): string {
+  const safeUrl = escapeHtml(url);
+  return `<div style="text-align:center;margin:28px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${branding.primaryColor}" style="border-radius:8px;"><a href="${safeUrl}" target="_blank" style="display:inline-block;padding:14px 34px;font-family:${FONT_STACK};font-size:15px;font-weight:600;line-height:1;color:${branding.buttonTextColor};text-decoration:none;border-radius:8px;">${escapeHtml(label)}</a></td></tr></table></div>`;
+}
+
+/** Copy-and-paste fallback for the CTA link */
+function linkFallback(url: string): string {
+  const safeUrl = escapeHtml(url);
+  return `<p style="margin:0 0 8px;font-family:${FONT_STACK};font-size:13px;color:${TEXT.muted};">Or paste this link into your browser:</p><p style="margin:0 0 16px;padding:12px 14px;background-color:#f4f4f7;border-radius:8px;font-family:${FONT_STACK};font-size:13px;line-height:1.5;color:#52525b;word-break:break-all;">${safeUrl}</p>`;
+}
+
+/**
+ * Wrap pre-built (already-escaped) content HTML in the branded shell.
+ * `heading` and any interpolated values must already be safe.
+ */
+function renderEmail(options: {
+  subject: string;
+  branding: EmailBranding;
+  heading: string;
+  content: string;
+}): string {
+  const { subject, branding, heading, content } = options;
+  const safeAgency = escapeHtml(branding.agencyName);
+  const year = new Date().getFullYear();
+
+  const headerInner = branding.logoUrl
+    ? `<img src="${escapeHtml(branding.logoUrl)}" alt="${safeAgency}" height="36" style="display:block;height:36px;max-height:36px;width:auto;border:0;line-height:100%;outline:none;text-decoration:none;">`
+    : `<span style="font-family:${FONT_STACK};font-size:19px;font-weight:700;letter-spacing:-0.01em;color:${branding.primaryColor};">${safeAgency}</span>`;
+
+  const signatureLine = branding.signature
+    ? escapeHtml(branding.signature)
+    : `Sent by ${safeAgency}`;
+
+  const supportLine = branding.supportEmail
+    ? `<p style="margin:8px 0 0;font-family:${FONT_STACK};font-size:12px;line-height:1.5;color:${TEXT.faint};">Need a hand? Email <a href="mailto:${escapeHtml(branding.supportEmail)}" style="color:${branding.primaryColor};text-decoration:none;">${escapeHtml(branding.supportEmail)}</a>.</p>`
+    : "";
+
+  const headingHtml = `<h1 style="margin:0 0 20px;font-family:${FONT_STACK};font-size:22px;line-height:1.3;font-weight:700;color:${TEXT.heading};">${escapeHtml(heading)}</h1>`;
+
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>${escapeHtml(subject)}</title>
+  </head>
+  <body style="margin:0;padding:0;width:100%;background-color:#f4f4f7;-webkit-text-size-adjust:100%;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(subject)}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f7;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="height:4px;line-height:4px;font-size:0;background-color:${branding.primaryColor};">&nbsp;</td>
+            </tr>
+            <tr>
+              <td style="padding:28px 40px 22px;border-bottom:1px solid #f1f1f4;">${headerInner}</td>
+            </tr>
+            <tr>
+              <td style="padding:32px 40px;">
+                ${headingHtml}
+                ${content}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 40px 30px;border-top:1px solid #f1f1f4;background-color:#fbfbfc;">
+                <p style="margin:0;font-family:${FONT_STACK};font-size:13px;line-height:1.5;color:${TEXT.muted};">${signatureLine}</p>
+                ${supportLine}
+              </td>
+            </tr>
+          </table>
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+            <tr>
+              <td style="padding:16px 40px;text-align:center;">
+                <p style="margin:0;font-family:${FONT_STACK};font-size:12px;line-height:1.5;color:${TEXT.faint};">&copy; ${year} ${safeAgency}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  /** Display name for the "From" header, e.g. the agency name */
+  fromName?: string;
+  replyTo?: string;
 }
 
-export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
+/** Build the RFC 5322 "From" value: `Agency Name <address>` */
+function buildFrom(fromName?: string): string {
+  // EMAIL_FROM may be a bare address or already `Name <addr>`; extract the addr.
+  const match = FROM_EMAIL.match(/<([^>]+)>/);
+  const address = match ? match[1] : FROM_EMAIL;
+
+  if (!fromName) return address;
+  // Strip characters that would break the header, then quote the display name.
+  const clean = fromName.replace(/["\\\r\n<>]/g, "").trim();
+  if (!clean) return address;
+  return `"${clean}" <${address}>`;
+}
+
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+  fromName,
+  replyTo,
+}: SendEmailOptions) {
   const client = getResendClient();
 
   if (!client) {
     console.log("[MOCK EMAIL] Would be sent:", {
       to,
+      from: buildFrom(fromName),
       subject,
       preview: html.substring(0, 100) + "...",
     });
@@ -48,11 +299,12 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
 
   try {
     const result = await client.emails.send({
-      from: FROM_EMAIL,
+      from: buildFrom(fromName),
       to,
       subject,
       html,
       text,
+      ...(replyTo ? { replyTo } : {}),
     });
 
     return { success: true, data: result };
@@ -129,19 +381,19 @@ function convertToHtml(text: string): string {
   // Convert newlines to paragraphs
   const paragraphs = html.split(/\n\n+/);
   html = paragraphs
-    .map((p) => {
+    .map((para) => {
       // Don't wrap if it's already a block element
       if (
-        p.startsWith("<h1") ||
-        p.startsWith("<h2") ||
-        p.startsWith("<ul") ||
-        p.startsWith("<ol") ||
-        p.startsWith("<blockquote") ||
-        p.startsWith("<hr")
+        para.startsWith("<h1") ||
+        para.startsWith("<h2") ||
+        para.startsWith("<ul") ||
+        para.startsWith("<ol") ||
+        para.startsWith("<blockquote") ||
+        para.startsWith("<hr")
       ) {
-        return p;
+        return para;
       }
-      return `<p style="margin: 0 0 1em 0;">${p.replace(/\n/g, "<br>")}</p>`;
+      return `<p style="margin: 0 0 1em 0;">${para.replace(/\n/g, "<br>")}</p>`;
     })
     .join("");
 
@@ -224,75 +476,63 @@ export function renderBulkEmail(
   return { subject: processedSubject, html, text: processedBody };
 }
 
-// Email templates
+// TRANSACTIONAL EMAIL TEMPLATES
+// Each builder loads the agency branding and renders through the shared shell,
+// so the emails are consistently branded as the agency.
 
 export async function sendCreatorInviteEmail({
   to,
   creatorName,
   agencyName,
   inviteLink,
+  agencyId,
 }: {
   to: string;
   creatorName: string;
   agencyName: string;
   inviteLink: string;
+  agencyId?: string;
 }) {
-  const subject = `${agencyName} has invited you to ${APP_NAME}`;
+  const branding = await loadEmailBranding(agencyId, agencyName);
+  const displayAgency = branding.agencyName;
+  const subject = `${displayAgency} invited you to your creator portal`;
   const safeCreatorName = escapeHtml(creatorName);
-  const safeAgencyName = escapeHtml(agencyName);
+  const safeAgencyName = escapeHtml(displayAgency);
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${escapeHtml(subject)}</title>
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">Welcome to ${APP_NAME}!</h1>
-        </div>
-
-        <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-          <p>Hi ${safeCreatorName},</p>
-
-          <p><strong>${safeAgencyName}</strong> has invited you to join their content portal. This is where you'll upload your content for review and approval.</p>
-
-          <p>Click the button below to set up your account:</p>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${inviteLink}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Set Up Your Account</a>
-          </div>
-
-          <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
-          <p style="background: #f5f5f5; padding: 12px; border-radius: 4px; word-break: break-all; font-size: 14px; color: #666;">${inviteLink}</p>
-
-          <p style="color: #666; font-size: 14px;">This link will expire in 7 days.</p>
-
-          <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
-
-          <p style="color: #999; font-size: 12px; margin: 0;">
-            If you didn't expect this invitation, you can safely ignore this email.
-          </p>
-        </div>
-      </body>
-    </html>
+  const content = `
+    ${p(`Hi ${safeCreatorName},`)}
+    ${p(`We're thrilled to be working with you. To make collaborating simple, we've set up a private portal just for you &mdash; it's where we'll share what we need, and where you'll upload your content and track approvals, all in one place.`)}
+    ${p(`Setting up your account takes less than a minute. Click below to get started:`)}
+    ${ctaButton(inviteLink, "Set up my account", branding)}
+    ${linkFallback(inviteLink)}
+    ${note(`For your security, this invitation link expires in 7 days.`)}
+    ${p(`We can't wait to see what you create.<br><span style="color:${TEXT.muted};">&mdash; The ${safeAgencyName} team</span>`)}
+    ${note(`If you weren't expecting this invitation, you can safely ignore this email.`)}
   `;
+
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: `Welcome, ${creatorName}`,
+    content,
+  });
 
   const text = `
 Hi ${creatorName},
 
-${agencyName} has invited you to join their content portal on ${APP_NAME}.
+We're thrilled to be working with you. We've set up a private portal where we'll share what we need and where you can upload your content and track approvals, all in one place.
 
 Set up your account here: ${inviteLink}
 
-This link will expire in 7 days.
+For your security, this invitation link expires in 7 days.
 
-If you didn't expect this invitation, you can safely ignore this email.
+We can't wait to see what you create.
+— The ${displayAgency} team
+
+If you weren't expecting this invitation, you can safely ignore this email.
   `.trim();
 
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendContentRequestEmail({
@@ -302,6 +542,7 @@ export async function sendContentRequestEmail({
   requestTitle,
   dueDate,
   portalLink,
+  agencyId,
 }: {
   to: string;
   creatorName: string;
@@ -309,38 +550,30 @@ export async function sendContentRequestEmail({
   requestTitle: string;
   dueDate: string;
   portalLink: string;
+  agencyId?: string;
 }) {
+  const branding = await loadEmailBranding(agencyId, agencyName);
   const subject = `New content request: ${requestTitle}`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
-          <h2 style="margin: 0 0 20px 0; color: #333;">New Content Request</h2>
-
-          <p>Hi ${escapeHtml(creatorName)},</p>
-
-          <p><strong>${escapeHtml(agencyName)}</strong> has a new content request for you:</p>
-
-          <div style="background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="margin: 0 0 10px 0; color: #333;">${escapeHtml(requestTitle)}</h3>
-            <p style="margin: 0; color: #666;">Due: <strong>${escapeHtml(dueDate)}</strong></p>
-          </div>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${portalLink}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">View Request & Upload</a>
-          </div>
-        </div>
-      </body>
-    </html>
+  const content = `
+    ${p(`Hi ${escapeHtml(creatorName)},`)}
+    ${p(`We have a new content request ready for you:`)}
+    ${infoCard(`
+      <p style="margin:0 0 6px;font-family:${FONT_STACK};font-size:16px;font-weight:600;color:${TEXT.heading};">${escapeHtml(requestTitle)}</p>
+      <p style="margin:0;font-family:${FONT_STACK};font-size:14px;color:${TEXT.muted};">Due <strong style="color:${TEXT.body};">${escapeHtml(dueDate)}</strong></p>
+    `)}
+    ${p(`Head to your portal to see the details and upload your content.`)}
+    ${ctaButton(portalLink, "View request & upload", branding)}
   `;
 
-  return sendEmail({ to, subject, html });
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: "New content request",
+    content,
+  });
+
+  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendReminderEmail({
@@ -352,6 +585,7 @@ export async function sendReminderEmail({
   portalLink,
   customMessage,
   isTest,
+  agencyId,
 }: {
   to: string;
   creatorName: string;
@@ -361,85 +595,80 @@ export async function sendReminderEmail({
   portalLink: string;
   customMessage?: string;
   isTest?: boolean;
+  agencyId?: string;
 }) {
-  const urgencyText =
-    daysUntilDue < 0
-      ? `${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) !== 1 ? "s" : ""} overdue`
-      : daysUntilDue === 0
-        ? "due today"
-        : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? "s" : ""}`;
+  const branding = await loadEmailBranding(agencyId);
+  const isOverdue = daysUntilDue < 0;
+  const isDueToday = daysUntilDue === 0;
+
+  const urgencyText = isOverdue
+    ? `${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) !== 1 ? "s" : ""} overdue`
+    : isDueToday
+      ? "due today"
+      : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? "s" : ""}`;
 
   const testPrefix = isTest ? "[TEST] " : "";
   const subject = `${testPrefix}Reminder: "${requestTitle}" is ${urgencyText}`;
-  const isOverdue = daysUntilDue < 0;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: ${isOverdue ? "#fef2f2" : "#f8f9fa"}; padding: 20px; border-radius: 10px; border-left: 4px solid ${isOverdue ? "#ef4444" : "#667eea"};">
-          <h2 style="margin: 0 0 20px 0; color: ${isOverdue ? "#dc2626" : "#333"};">
-            ${isOverdue ? "Content Overdue" : "Content Reminder"}
-          </h2>
+  const pill = isOverdue
+    ? statusPill("Overdue", "#b91c1c", "#fef2f2")
+    : isDueToday
+      ? statusPill("Due today", "#b45309", "#fffbeb")
+      : statusPill("Reminder", branding.primaryColor, "#f4f4f7");
 
-          <p>Hi ${escapeHtml(creatorName)},</p>
-
-          ${customMessage ? `<p>${escapeHtml(customMessage)}</p>` : ""}
-
-          <p>This is a friendly reminder that your content for <strong>"${escapeHtml(requestTitle)}"</strong> is <strong>${urgencyText}</strong>.</p>
-
-          <div style="background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <p style="margin: 0; color: #666;">Due date: <strong>${escapeHtml(dueDate)}</strong></p>
-          </div>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${portalLink}" style="background: ${isOverdue ? "#dc2626" : "#667eea"}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Upload Content Now</a>
-          </div>
-        </div>
-      </body>
-    </html>
+  const content = `
+    ${pill}
+    ${p(`Hi ${escapeHtml(creatorName)},`)}
+    ${customMessage ? p(escapeHtml(customMessage)) : ""}
+    ${p(`This is a friendly reminder that your content for <strong>"${escapeHtml(requestTitle)}"</strong> is <strong>${escapeHtml(urgencyText)}</strong>.`)}
+    ${infoCard(`
+      <p style="margin:0;font-family:${FONT_STACK};font-size:14px;color:${TEXT.muted};">Due date: <strong style="color:${TEXT.body};">${escapeHtml(dueDate)}</strong></p>
+    `)}
+    ${ctaButton(portalLink, "Upload content now", branding)}
   `;
 
-  return sendEmail({ to, subject, html });
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: isOverdue ? "Your content is overdue" : "A quick reminder",
+    content,
+  });
+
+  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendContentApprovedEmail({
   to,
   creatorName,
   requestTitle,
+  portalLink,
+  agencyId,
 }: {
   to: string;
   creatorName: string;
   requestTitle: string;
+  portalLink?: string;
+  agencyId?: string;
 }) {
+  const branding = await loadEmailBranding(agencyId);
   const subject = `Your content for "${requestTitle}" has been approved`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: #f0fdf4; padding: 20px; border-radius: 10px; border-left: 4px solid #22c55e;">
-          <h2 style="margin: 0 0 20px 0; color: #16a34a;">Content Approved</h2>
-
-          <p>Hi ${escapeHtml(creatorName)},</p>
-
-          <p>Your content for <strong>"${escapeHtml(requestTitle)}"</strong> has been approved.</p>
-
-          <p>Thank you for your submission.</p>
-        </div>
-      </body>
-    </html>
+  const content = `
+    ${statusPill("Approved", "#15803d", "#f0fdf4")}
+    ${p(`Hi ${escapeHtml(creatorName)},`)}
+    ${p(`Great news &mdash; your submission for <strong>"${escapeHtml(requestTitle)}"</strong> has been approved.`)}
+    ${p(`Thank you for the great work. We really appreciate it!`)}
+    ${portalLink ? ctaButton(portalLink, "View in portal", branding) : ""}
   `;
 
-  return sendEmail({ to, subject, html });
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: "Your content was approved",
+    content,
+  });
+
+  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendRevisionRequestEmail({
@@ -448,45 +677,37 @@ export async function sendRevisionRequestEmail({
   requestTitle,
   feedback,
   portalLink,
+  agencyId,
 }: {
   to: string;
   creatorName: string;
   requestTitle: string;
   feedback: string;
   portalLink: string;
+  agencyId?: string;
 }) {
-  const subject = `Revision needed for "${requestTitle}"`;
+  const branding = await loadEmailBranding(agencyId);
+  const subject = `Changes requested for "${requestTitle}"`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
-          <h2 style="margin: 0 0 20px 0; color: #b45309;">Revision Requested</h2>
-
-          <p>Hi ${escapeHtml(creatorName)},</p>
-
-          <p>We've reviewed your content for <strong>"${escapeHtml(requestTitle)}"</strong> and have some feedback:</p>
-
-          <div style="background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(feedback)}</p>
-          </div>
-
-          <p>Please make the necessary changes and resubmit.</p>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${portalLink}" style="background: #f59e0b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">View Feedback & Resubmit</a>
-          </div>
-        </div>
-      </body>
-    </html>
+  const content = `
+    ${statusPill("Changes requested", "#b45309", "#fffbeb")}
+    ${p(`Hi ${escapeHtml(creatorName)},`)}
+    ${p(`Thanks for your submission for <strong>"${escapeHtml(requestTitle)}"</strong>. Before we can approve it, we'd love a few changes:`)}
+    ${infoCard(`
+      <p style="margin:0;font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:${TEXT.body};white-space:pre-wrap;">${escapeHtml(feedback)}</p>
+    `)}
+    ${p(`Once you've made the updates, just re-upload and we'll take another look.`)}
+    ${ctaButton(portalLink, "View feedback & resubmit", branding)}
   `;
 
-  return sendEmail({ to, subject, html });
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: "A few changes needed",
+    content,
+  });
+
+  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendNewRequestEmail({
@@ -494,49 +715,33 @@ export async function sendNewRequestEmail({
   creatorName,
   requestTitle,
   portalLink,
+  agencyId,
 }: {
   to: string;
   creatorName: string;
   requestTitle: string;
   portalLink: string;
+  agencyId?: string;
 }) {
+  const branding = await loadEmailBranding(agencyId);
   const subject = `New content request: ${requestTitle}`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">New Content Request</h1>
-        </div>
-
-        <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-          <p>Hi ${escapeHtml(creatorName)},</p>
-
-          <p>You have a new content request waiting for you:</p>
-
-          <div style="background: #f8f9fa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="margin: 0 0 10px 0; color: #333;">${escapeHtml(requestTitle)}</h3>
-            <p style="margin: 0; color: #666;">Click below to view details and upload your content.</p>
-          </div>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${portalLink}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">View Request</a>
-          </div>
-
-          <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
-
-          <p style="color: #999; font-size: 12px; margin: 0;">
-            You're receiving this email because you're a creator on ${APP_NAME}.
-          </p>
-        </div>
-      </body>
-    </html>
+  const content = `
+    ${p(`Hi ${escapeHtml(creatorName)},`)}
+    ${p(`You have a new content request waiting for you:`)}
+    ${infoCard(`
+      <p style="margin:0 0 6px;font-family:${FONT_STACK};font-size:16px;font-weight:600;color:${TEXT.heading};">${escapeHtml(requestTitle)}</p>
+      <p style="margin:0;font-family:${FONT_STACK};font-size:14px;color:${TEXT.muted};">Open your portal to view the details and upload your content.</p>
+    `)}
+    ${ctaButton(portalLink, "View request", branding)}
   `;
+
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: "New content request",
+    content,
+  });
 
   const text = `
 Hi ${creatorName},
@@ -546,61 +751,43 @@ You have a new content request: ${requestTitle}
 View the request and upload your content: ${portalLink}
   `.trim();
 
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendPasswordResetEmail({
   to,
   creatorName,
   resetLink,
+  agencyId,
 }: {
   to: string;
   creatorName: string;
   resetLink: string;
+  agencyId?: string;
 }) {
-  const subject = `Reset your ${APP_NAME} password`;
+  const branding = await loadEmailBranding(agencyId);
+  const subject = `Reset your ${branding.agencyName} portal password`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${subject}</title>
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">Reset Your Password</h1>
-        </div>
-
-        <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-          <p>Hi ${escapeHtml(creatorName)},</p>
-
-          <p>We received a request to reset your password for ${APP_NAME}. Click the button below to set a new password:</p>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetLink}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Reset Password</a>
-          </div>
-
-          <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
-          <p style="background: #f5f5f5; padding: 12px; border-radius: 4px; word-break: break-all; font-size: 14px; color: #666;">${resetLink}</p>
-
-          <p style="color: #666; font-size: 14px;">This link will expire in 24 hours.</p>
-
-          <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
-
-          <p style="color: #999; font-size: 12px; margin: 0;">
-            If you didn't request a password reset, you can safely ignore this email. Your password won't be changed.
-          </p>
-        </div>
-      </body>
-    </html>
+  const content = `
+    ${p(`Hi ${escapeHtml(creatorName)},`)}
+    ${p(`We received a request to reset the password for your ${escapeHtml(branding.agencyName)} portal account. Click below to choose a new one:`)}
+    ${ctaButton(resetLink, "Reset password", branding)}
+    ${linkFallback(resetLink)}
+    ${note(`This link will expire in 24 hours.`)}
+    ${note(`If you didn't request a password reset, you can safely ignore this email &mdash; your password won't be changed.`)}
   `;
+
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: "Reset your password",
+    content,
+  });
 
   const text = `
 Hi ${creatorName},
 
-We received a request to reset your password for ${APP_NAME}.
+We received a request to reset the password for your ${branding.agencyName} portal account.
 
 Reset your password here: ${resetLink}
 
@@ -609,7 +796,7 @@ This link will expire in 24 hours.
 If you didn't request a password reset, you can safely ignore this email.
   `.trim();
 
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendBatchedReminderEmail({
@@ -617,6 +804,7 @@ export async function sendBatchedReminderEmail({
   creatorName,
   requests,
   portalLink,
+  agencyId,
 }: {
   to: string;
   creatorName: string;
@@ -627,7 +815,9 @@ export async function sendBatchedReminderEmail({
     urgency: string;
   }>;
   portalLink: string;
+  agencyId?: string;
 }) {
+  const branding = await loadEmailBranding(agencyId);
   const overdueCount = requests.filter((r) => r.daysUntilDue < 0).length;
   const dueTodayCount = requests.filter((r) => r.daysUntilDue === 0).length;
   const upcomingCount = requests.filter((r) => r.daysUntilDue > 0).length;
@@ -647,10 +837,10 @@ export async function sendBatchedReminderEmail({
     .map((req) => {
       const urgencyColor =
         req.daysUntilDue < 0
-          ? "#ef4444"
+          ? "#dc2626"
           : req.daysUntilDue === 0
-            ? "#f59e0b"
-            : "#667eea";
+            ? "#d97706"
+            : branding.primaryColor;
       const statusText =
         req.daysUntilDue < 0
           ? `${Math.abs(req.daysUntilDue)} days overdue`
@@ -659,45 +849,32 @@ export async function sendBatchedReminderEmail({
             : `Due in ${req.daysUntilDue} days`;
 
       return `
-        <div style="background: white; border: 1px solid #e5e5e5; border-left: 4px solid ${urgencyColor}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-          <h4 style="margin: 0 0 8px 0; color: #333;">${escapeHtml(req.title)}</h4>
-          <p style="margin: 0; font-size: 14px;">
-            <span style="color: ${urgencyColor}; font-weight: 600;">${statusText}</span>
-            <span style="color: #666;"> - Due: ${escapeHtml(req.dueDate)}</span>
-          </p>
-        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;background-color:#f9fafb;border:1px solid #eef0f2;border-left:4px solid ${urgencyColor};border-radius:8px;">
+          <tr><td style="padding:14px 18px;">
+            <p style="margin:0 0 4px;font-family:${FONT_STACK};font-size:15px;font-weight:600;color:${TEXT.heading};">${escapeHtml(req.title)}</p>
+            <p style="margin:0;font-family:${FONT_STACK};font-size:13px;">
+              <span style="color:${urgencyColor};font-weight:600;">${statusText}</span>
+              <span style="color:${TEXT.muted};"> &middot; Due ${escapeHtml(req.dueDate)}</span>
+            </p>
+          </td></tr>
+        </table>
       `;
     })
     .join("");
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: ${overdueCount > 0 ? "#fef2f2" : "#f8f9fa"}; padding: 20px; border-radius: 10px; border-left: 4px solid ${overdueCount > 0 ? "#ef4444" : "#667eea"};">
-          <h2 style="margin: 0 0 20px 0; color: ${overdueCount > 0 ? "#dc2626" : "#333"};">
-            ${requests.length} Content Requests Pending
-          </h2>
-
-          <p>Hi ${escapeHtml(creatorName)},</p>
-
-          <p>Here's a summary of your pending content requests:</p>
-
-          <div style="margin: 20px 0;">
-            ${requestListHtml}
-          </div>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${portalLink}" style="background: ${overdueCount > 0 ? "#dc2626" : "#667eea"}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">View All Requests</a>
-          </div>
-        </div>
-      </body>
-    </html>
+  const content = `
+    ${p(`Hi ${escapeHtml(creatorName)},`)}
+    ${p(`Here's a summary of your pending content requests:`)}
+    <div style="margin:0 0 8px;">${requestListHtml}</div>
+    ${ctaButton(portalLink, "View all requests", branding)}
   `;
 
-  return sendEmail({ to, subject, html });
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: `You have ${requests.length} items to wrap up`,
+    content,
+  });
+
+  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
