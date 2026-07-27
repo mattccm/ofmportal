@@ -392,8 +392,6 @@ export function ChatWindow({
             <React.Fragment key={dateStr}>
               <DateSeparator date={new Date(dateStr)} />
               {dayMessages
-                .slice()
-                .reverse()
                 .map((message, index, arr) => {
                   const isOwn = message.senderId === currentUserId;
                   const prevMessage = arr[index - 1];

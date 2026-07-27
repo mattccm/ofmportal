@@ -45,6 +45,7 @@ export async function validateCreatorSession(
     where: {
       sessionToken: sessionToken,
       inviteStatus: "ACCEPTED",
+      archivedAt: null,
       sessionExpiry: {
         gt: new Date(),
       },

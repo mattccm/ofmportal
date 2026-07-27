@@ -12,6 +12,8 @@ const updateProfileSchema = z.object({
   bio: z.string().optional(),
   emailNotifications: z.boolean().optional(),
   smsNotifications: z.boolean().optional(),
+  // Set true when the creator finishes (or skips) first-time onboarding.
+  onboardingCompleted: z.boolean().optional(),
 });
 
 // GET - Get creator profile
@@ -35,6 +37,7 @@ export async function GET(req: NextRequest) {
         contentPreferences: true,
         lastLoginAt: true,
         createdAt: true,
+        onboardingCompletedAt: true,
       },
     });
 
@@ -52,6 +55,7 @@ export async function GET(req: NextRequest) {
       ...creator,
       emailNotifications: notifications.email !== false,
       smsNotifications: notifications.sms === true,
+      onboardingCompleted: !!creator.onboardingCompletedAt,
     });
   } catch (error) {
     console.error("Error fetching creator profile:", error);
@@ -113,6 +117,10 @@ export async function PUT(req: NextRequest) {
         ...(updates.avatar !== undefined && { avatar: updates.avatar }),
         ...(contentPreferencesUpdate !== undefined && {
           contentPreferences: contentPreferencesUpdate,
+        }),
+        // Mark onboarding complete the first time the creator finishes/skips it.
+        ...(updates.onboardingCompleted === true && {
+          onboardingCompletedAt: new Date(),
         }),
       },
       select: {

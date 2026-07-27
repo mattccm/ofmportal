@@ -478,9 +478,8 @@ function NewConversationDialog({
   // Search for users or creators
   React.useEffect(() => {
     const search = async () => {
-      if (!searchQuery.trim()) {
+      if (searchType === "team" && !searchQuery.trim()) {
         setUsers([]);
-        setCreators([]);
         return;
       }
 
@@ -493,10 +492,11 @@ function NewConversationDialog({
             setUsers(data.users?.filter((u: { id: string }) => u.id !== currentUserId) || []);
           }
         } else {
-          const response = await fetch(`/api/creators?search=${encodeURIComponent(searchQuery)}&limit=10`);
+          const q = searchQuery.trim() ? `search=${encodeURIComponent(searchQuery)}&` : "";
+          const response = await fetch(`/api/creators?${q}limit=50`);
           if (response.ok) {
             const data = await response.json();
-            setCreators(data.creators || []);
+            setCreators(data.data || []);
           }
         }
       } catch (error) {

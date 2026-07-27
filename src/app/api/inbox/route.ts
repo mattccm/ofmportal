@@ -84,7 +84,6 @@ export async function GET(request: NextRequest) {
         // Has unread if current user hasn't read it and they didn't send it
         hasUnread =
           lastMessage.senderId !== userId &&
-          lastMessage.creatorId !== null && // Or it's from a creator
           !readBy.some((r) => r.userId === userId);
       }
 

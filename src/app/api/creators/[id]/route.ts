@@ -124,6 +124,8 @@ const updateCreatorSchema = z.object({
   timezone: z.string().optional(),
   notes: z.string().optional().nullable(),
   contentPreferences: z.record(z.string(), z.unknown()).optional(),
+  // Archive lifecycle toggle: true archives, false unarchives (restores) the creator.
+  archived: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -172,7 +174,7 @@ export async function PATCH(
     }
 
     // Build update data with proper typing for JSON fields
-    const { contentPreferences, ...otherData } = validatedData;
+    const { contentPreferences, archived, ...otherData } = validatedData;
     const updateData: Prisma.CreatorUpdateInput = {
       ...otherData,
       email: validatedData.email?.toLowerCase(),
@@ -180,6 +182,11 @@ export async function PATCH(
 
     if (contentPreferences !== undefined) {
       updateData.contentPreferences = contentPreferences as unknown as Prisma.InputJsonValue;
+    }
+
+    // Archive / unarchive toggle (reversible). Leaves inviteStatus untouched.
+    if (archived !== undefined) {
+      updateData.archivedAt = archived ? new Date() : null;
     }
 
     const updatedCreator = await db.creator.update({
@@ -281,11 +288,12 @@ export async function DELETE(
         });
       });
     } else {
+      // Archive: mark as archived (reversible). Leave inviteStatus alone so the
+      // real invite state is preserved for when the creator is unarchived.
       await db.creator.update({
         where: { id },
         data: {
-          inviteStatus: "EXPIRED",
-          inviteToken: null,
+          archivedAt: new Date(),
         },
       });
     }

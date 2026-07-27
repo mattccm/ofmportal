@@ -8,6 +8,42 @@ export type UploadWithRequest = Upload & {
   request: ContentRequest & { creator: Creator };
 };
 
+// A single field definition from ContentRequest.fields (stored as JSON).
+// A "file" field is an upload slot the creator submits content into.
+interface RequestFieldDef {
+  id: string;
+  type: string;
+  required?: boolean;
+}
+
+function isFileField(value: unknown): value is RequestFieldDef {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as RequestFieldDef).type === "file" &&
+    typeof (value as RequestFieldDef).id === "string"
+  );
+}
+
+/**
+ * The set of file-field (upload slot) ids that MUST have an approved upload
+ * before a request can roll up to APPROVED.
+ *
+ * A request's `fields` JSON is an array of `{ id, label, type, required }`.
+ * The upload slots are the `type === "file"` entries; a slot is mandatory when
+ * `required === true`. If a template marks no file field as required we treat
+ * every file field as a required slot (matching the field-review rollup, which
+ * requires every file field to be approved). Ad-hoc requests with no file
+ * fields return an empty array, so callers fall back to raw upload counts.
+ */
+export function getRequiredFileFieldIds(fields: unknown): string[] {
+  if (!Array.isArray(fields)) return [];
+  const fileFields = fields.filter(isFileField);
+  const requiredFileFields = fileFields.filter((f) => f.required === true);
+  const slots = requiredFileFields.length > 0 ? requiredFileFields : fileFields;
+  return slots.map((f) => f.id);
+}
+
 // The API serializes fileSize (a BigInt column) down to a number.
 type SerializedUpload = Omit<Upload, "fileSize"> & { fileSize: number };
 

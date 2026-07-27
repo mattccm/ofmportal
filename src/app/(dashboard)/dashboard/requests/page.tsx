@@ -47,6 +47,7 @@ export default async function RequestsPage() {
   let requests: Awaited<ReturnType<typeof getRequests>>;
   let creators: Awaited<ReturnType<typeof getCreators>>;
   let teamMembers: Awaited<ReturnType<typeof getTeamMembers>>;
+  let loadError = false;
   try {
     [requests, creators, teamMembers] = await Promise.all([
       getRequests(session.user.agencyId),
@@ -58,6 +59,9 @@ export default async function RequestsPage() {
     requests = [];
     creators = [];
     teamMembers = [];
+    // Signal the client so it renders an error + retry instead of a false
+    // "No requests yet" empty state when the server-side fetch failed.
+    loadError = true;
   }
 
   // Convert dates to strings for serialization
@@ -76,6 +80,7 @@ export default async function RequestsPage() {
       creators={creators}
       currentUserId={session.user.id}
       teamMembers={teamMembers}
+      initialError={loadError}
     />
   );
 }

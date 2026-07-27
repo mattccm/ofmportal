@@ -611,35 +611,54 @@ export default function CreatorOnboardingPage() {
     setProfile((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Persist the onboarding-complete flag (and optionally profile fields) to the
+  // server. Uses the real creator session token. Returns true on success.
+  const persistOnboardingComplete = useCallback(
+    async (includeProfile: boolean): Promise<boolean> => {
+      const token = localStorage.getItem("creatorToken");
+      if (!token) {
+        router.push("/login");
+        return false;
+      }
+
+      const body: Record<string, unknown> = { onboardingCompleted: true };
+      if (includeProfile) {
+        body.name = profile.name;
+        body.phone = profile.phone;
+        body.timezone = profile.timezone;
+        body.avatar = profile.avatar;
+        body.emailNotifications = profile.emailNotifications;
+        body.smsNotifications = profile.smsNotifications;
+      }
+
+      const response = await fetch(`/api/portal/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-creator-token": token,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save onboarding");
+      }
+
+      localStorage.setItem("creatorOnboardingComplete", "true");
+      return true;
+    },
+    [profile, router]
+  );
+
   // Handle onboarding completion
   const handleComplete = useCallback(async () => {
     if (!creatorId) return;
 
     setIsSaving(true);
     try {
-      // Save profile to server
-      const response = await fetch(`/api/portal/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-creator-token': creatorId,
-        },
-        body: JSON.stringify({
-          name: profile.name,
-          phone: profile.phone,
-          timezone: profile.timezone,
-          avatar: profile.avatar,
-          emailNotifications: profile.emailNotifications,
-          smsNotifications: profile.smsNotifications,
-        }),
-      });
+      const ok = await persistOnboardingComplete(true);
+      if (!ok) return;
 
-      if (!response.ok) {
-        throw new Error('Failed to save profile');
-      }
-
-      // Mark onboarding as complete
-      localStorage.setItem("creatorOnboardingComplete", "true");
       localStorage.setItem("creatorName", profile.name);
       localStorage.setItem("creatorTimezone", profile.timezone);
 
@@ -651,35 +670,52 @@ export default function CreatorOnboardingPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [creatorId, profile, router]);
+  }, [creatorId, profile, router, persistOnboardingComplete]);
 
   // Handle skip onboarding
-  const handleSkip = useCallback(() => {
+  const handleSkip = useCallback(async () => {
     if (!creatorId) return;
 
-    localStorage.setItem("creatorOnboardingComplete", "true");
-    toast.success("You can always update your settings later.");
-    router.push("/creator/dashboard");
-  }, [creatorId, router]);
+    try {
+      await persistOnboardingComplete(false);
+      toast.success("You can always update your settings later.");
+      router.push("/creator/dashboard");
+    } catch (error) {
+      console.error("Error skipping onboarding:", error);
+      toast.error("Something went wrong. Please try again.");
+    }
+  }, [creatorId, router, persistOnboardingComplete]);
 
   // Handle tutorial completion
-  const handleTutorialComplete = useCallback(() => {
+  const handleTutorialComplete = useCallback(async () => {
     setShowTutorial(false);
-    if (creatorId) {
+    if (!creatorId) return;
+
+    try {
+      await persistOnboardingComplete(false);
       localStorage.setItem("creatorTutorialComplete", "true");
       toast.success("Great job! You're all set to start.");
       router.push("/creator/dashboard");
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      toast.error("Something went wrong. Please try again.");
     }
-  }, [creatorId, router]);
+  }, [creatorId, router, persistOnboardingComplete]);
 
   // Handle tutorial skip
-  const handleTutorialSkip = useCallback(() => {
+  const handleTutorialSkip = useCallback(async () => {
     setShowTutorial(false);
-    if (creatorId) {
+    if (!creatorId) return;
+
+    try {
+      await persistOnboardingComplete(false);
       toast.success("You can restart the tutorial anytime from settings.");
       router.push("/creator/dashboard");
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      toast.error("Something went wrong. Please try again.");
     }
-  }, [creatorId, router]);
+  }, [creatorId, router, persistOnboardingComplete]);
 
   // Tutorial steps (shown after onboarding wizard)
   const tutorialSteps: TutorialStep[] = [

@@ -239,7 +239,12 @@ function LoginForm() {
           localStorage.setItem("creatorId", creatorData.creatorId);
           localStorage.setItem("creatorName", creatorData.name);
           localStorage.setItem("creatorEmail", creatorData.email);
-          localStorage.setItem("creatorOnboardingComplete", "true");
+          // Reflect the server's onboarding state (first-time creators still need it)
+          const onboardingComplete = creatorData.onboardingCompleted === true;
+          localStorage.setItem(
+            "creatorOnboardingComplete",
+            onboardingComplete ? "true" : "false"
+          );
 
           // Also store in cookies for iOS PWA persistence (localStorage can be cleared on app close)
           const maxAge = 30 * 24 * 60 * 60; // 30 days
@@ -285,8 +290,10 @@ function LoginForm() {
             // Ignore debug log failures
           }
 
-          // Redirect to creator dashboard
-          router.push("/creator/dashboard");
+          // First-time creators go through onboarding before the dashboard
+          router.push(
+            onboardingComplete ? "/creator/dashboard" : "/portal/onboarding"
+          );
           return;
         }
 

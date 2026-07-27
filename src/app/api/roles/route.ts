@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession, type Session } from "next-auth";
+import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -266,6 +267,114 @@ export async function PUT(request: NextRequest) {
         { error: "Role ID is required" },
         { status: 400 }
       );
+    }
+
+    // Default (system) roles have no DB row until they are edited. When a
+    // default role is saved, materialize an agency-level override into the
+    // CustomRole table (keyed by name, flagged isSystem) so the edit persists
+    // and is resolved for users on that role.
+    const defaultRole = DEFAULT_ROLES.find(
+      (r) => r.id === String(id).toLowerCase()
+    );
+
+    if (defaultRole) {
+      // The Owner role is fully locked and cannot be modified.
+      if (defaultRole.id === "owner") {
+        return NextResponse.json(
+          { error: "The Owner role cannot be modified" },
+          { status: 403 }
+        );
+      }
+
+      // Validate permissions if provided
+      if (permissions) {
+        const validation = validateRolePermissions(permissions);
+        if (!validation.valid) {
+          return NextResponse.json(
+            { error: validation.errors.join(", ") },
+            { status: 400 }
+          );
+        }
+      }
+
+      const materialized = await db.customRole.upsert({
+        where: {
+          agencyId_name: {
+            agencyId: session.user.agencyId,
+            name: defaultRole.name,
+          },
+        },
+        create: {
+          agencyId: session.user.agencyId,
+          name: defaultRole.name,
+          isSystem: true,
+          description:
+            description !== undefined
+              ? description || null
+              : defaultRole.description ?? null,
+          permissions: (permissions ??
+            defaultRole.permissions) as unknown as Prisma.InputJsonValue,
+          creatorVisibility: (creatorVisibility ??
+            defaultRole.creatorVisibility) as unknown as Prisma.InputJsonValue,
+          dataFieldVisibility: (dataFieldVisibility ??
+            defaultRole.dataFieldVisibility) as unknown as Prisma.InputJsonValue,
+          teamMemberVisibility: (teamMemberVisibility ??
+            defaultRole.teamMemberVisibility) as unknown as Prisma.InputJsonValue,
+          color:
+            color !== undefined ? color || null : defaultRole.color ?? null,
+        },
+        update: {
+          ...(permissions && {
+            permissions: permissions as unknown as Prisma.InputJsonValue,
+          }),
+          ...(description !== undefined && { description: description || null }),
+          ...(creatorVisibility && {
+            creatorVisibility:
+              creatorVisibility as unknown as Prisma.InputJsonValue,
+          }),
+          ...(dataFieldVisibility && {
+            dataFieldVisibility:
+              dataFieldVisibility as unknown as Prisma.InputJsonValue,
+          }),
+          ...(teamMemberVisibility && {
+            teamMemberVisibility:
+              teamMemberVisibility as unknown as Prisma.InputJsonValue,
+          }),
+          ...(color !== undefined && { color: color || null }),
+        },
+      });
+
+      // Log the activity
+      await db.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: "role.updated",
+          entityType: "CustomRole",
+          entityId: materialized.id,
+          metadata: {
+            roleName: materialized.name,
+            systemRole: defaultRole.id,
+            changes: Object.keys(body).filter((k) => k !== "id"),
+          },
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        role: {
+          id: defaultRole.id,
+          name: materialized.name,
+          description: materialized.description,
+          permissions: materialized.permissions,
+          creatorVisibility: materialized.creatorVisibility,
+          dataFieldVisibility: materialized.dataFieldVisibility,
+          teamMemberVisibility: materialized.teamMemberVisibility,
+          isSystem: true,
+          color: materialized.color,
+          createdAt: materialized.createdAt,
+          updatedAt: materialized.updatedAt,
+        },
+      });
     }
 
     // Check if role exists and belongs to this agency

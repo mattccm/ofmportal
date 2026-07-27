@@ -79,6 +79,7 @@ export default async function CreatorsPage() {
     phone: string | null;
     avatar: string | null;
     inviteStatus: string;
+    isArchived: boolean;
     lastLoginAt: Date | null;
     _count: { requests: number; uploads: number };
     requests: { id: string }[];
@@ -96,6 +97,7 @@ export default async function CreatorsPage() {
       phone: creator.phone,
       avatar: creator.avatar,
       inviteStatus: creator.inviteStatus,
+      isArchived: creator.archivedAt !== null,
       lastLoginAt: creator.lastLoginAt,
       _count: creator._count,
       requests: creator.requests,

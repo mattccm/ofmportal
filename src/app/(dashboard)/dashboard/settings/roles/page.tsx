@@ -401,20 +401,22 @@ export default function RolesSettingsPage() {
   const canManageRoles =
     session?.user?.role === "OWNER" || session?.user?.role === "ADMIN";
 
-  // Combine default and custom roles
+  // Combine default and custom roles.
+  // The API returns default roles (with any materialized edits applied) plus
+  // custom roles, so prefer the server copy and fall back to the hard-coded
+  // default definitions only for anything the server did not return.
   const allRoles = useMemo(() => {
-    const defaultRolesWithDates = DEFAULT_ROLES.map((r) => ({
-      ...r,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })) as Role[];
+    const byId = new Map<string, Role>();
 
-    // Filter out default roles that might be duplicated
-    const customRolesFiltered = roles.filter(
-      (r) => !DEFAULT_ROLES.some((dr) => dr.id === r.id)
-    );
+    for (const r of DEFAULT_ROLES) {
+      byId.set(r.id, { ...r, createdAt: new Date(), updatedAt: new Date() } as Role);
+    }
 
-    return [...defaultRolesWithDates, ...customRolesFiltered];
+    for (const r of roles) {
+      byId.set(r.id, r);
+    }
+
+    return Array.from(byId.values());
   }, [roles]);
 
   // Filter roles by search

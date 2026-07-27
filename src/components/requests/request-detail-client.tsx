@@ -367,6 +367,37 @@ export function RequestDetailClient({
   const requirements = request.requirements;
   const fields = request.fields;
 
+  // Completion progress based on the request's upload slots (file fields) vs
+  // what's actually been uploaded/approved — so the sidebar shows an accurate
+  // "X/Y uploaded · X/Y approved" instead of only a vague status word.
+  const fileFields = (fields || []).filter((f) => f.type === "file");
+  const requiredFileFields = fileFields.filter((f) => f.required);
+  // Track required slots when any are marked required, otherwise every file
+  // field; ad-hoc requests with no file fields fall back to raw upload counts.
+  const slotFields =
+    requiredFileFields.length > 0 ? requiredFileFields : fileFields;
+
+  let totalSlots: number;
+  let uploadedSlots: number;
+  let approvedSlots: number;
+  if (slotFields.length > 0) {
+    totalSlots = slotFields.length;
+    uploadedSlots = slotFields.filter((f) =>
+      request.uploads.some((u) => u.fieldId === f.id)
+    ).length;
+    approvedSlots = slotFields.filter((f) =>
+      request.uploads.some((u) => u.fieldId === f.id && u.status === "APPROVED")
+    ).length;
+  } else {
+    totalSlots = request.uploads.length;
+    uploadedSlots = request.uploads.length;
+    approvedSlots = request.uploads.filter((u) => u.status === "APPROVED").length;
+  }
+  const hasCompletionData = totalSlots > 0;
+  const approvedPct = hasCompletionData
+    ? Math.round((approvedSlots / totalSlots) * 100)
+    : 0;
+
   // Prepare request data for clone dialog
   const requestForClone = {
     id: request.id,
@@ -650,6 +681,34 @@ export function RequestDetailClient({
                   size="md"
                 />
               </div>
+              {hasCompletionData && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Completion</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Uploaded</span>
+                        <span className="font-medium">
+                          {uploadedSlots}/{totalSlots}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Approved</span>
+                        <span className="font-medium">
+                          {approvedSlots}/{totalSlots}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-green-500 transition-all"
+                          style={{ width: `${approvedPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
               <Separator />
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Created</p>

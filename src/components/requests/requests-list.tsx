@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,7 @@ import {
   UserPlus,
   ChevronDown,
   ListChecks,
+  RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -150,6 +153,57 @@ interface RequestsListProps {
   creators: Creator[];
   currentUserId: string;
   teamMembers?: TeamMember[];
+  /** True when the server-side fetch failed, so the client shows an error + retry. */
+  initialError?: boolean;
+}
+
+// Loading placeholder shown only while a fetch is in flight with no data to
+// display yet — never the "No requests yet" empty state during loading.
+function RequestsListSkeleton() {
+  return (
+    <Card className="card-elevated">
+      <CardHeader>
+        <Skeleton variant="title" className="w-40" />
+        <Skeleton variant="text" className="w-24 mt-2" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 p-3 rounded-lg border">
+            <Skeleton variant="circle" className="h-5 w-5" />
+            <div className="flex-1 space-y-2">
+              <Skeleton variant="text" className="w-1/3" />
+              <Skeleton variant="text" className="w-1/4" />
+            </div>
+            <Skeleton variant="badge" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Shown when a load fails and there is no data to fall back on, instead of a
+// misleading empty state.
+function RequestsListError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Card className="card-elevated">
+      <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+        <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+          <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-foreground">Couldn&apos;t load requests</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Something went wrong while fetching your requests. Please try again.
+          </p>
+        </div>
+        <Button variant="outline" onClick={onRetry}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Retry
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
 const QUICK_FILTERS = [
@@ -256,8 +310,14 @@ function getDueDateStatus(dueDate: string | null) {
 type SortOption = "priority" | "deadline" | "created" | "title";
 type GroupOption = "none" | "priority" | "status";
 
-export function RequestsList({ initialRequests, creators, currentUserId, teamMembers = [] }: RequestsListProps) {
+export function RequestsList({ initialRequests, creators, currentUserId, teamMembers = [], initialError = false }: RequestsListProps) {
+  const router = useRouter();
   const [requests, setRequests] = useState<ContentRequest[]>(initialRequests);
+  // Tracks the freshness of `requests` so the UI can distinguish "loading" and
+  // "failed" from a genuine, completed empty result.
+  const [loadState, setLoadState] = useState<"success" | "loading" | "error">(
+    initialError ? "error" : "success"
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -545,11 +605,9 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
         data.errors.forEach((error: string) => toast.error(error));
       }
 
-      // Refresh requests
-      const refreshResponse = await fetch("/api/requests");
-      if (refreshResponse.ok) {
-        setRequests(await refreshResponse.json());
-      }
+      // Refresh requests with fresh server data and sync the server component.
+      await loadRequests();
+      router.refresh();
 
       setSelectedIds(new Set());
       setBulkActionDialog({ open: false, action: null, title: "", description: "" });
@@ -582,11 +640,9 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
 
       toast.success("Request updated");
 
-      // Refresh requests
-      const refreshResponse = await fetch("/api/requests");
-      if (refreshResponse.ok) {
-        setRequests(await refreshResponse.json());
-      }
+      // Refresh requests with fresh server data and sync the server component.
+      await loadRequests();
+      router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to perform action");
     } finally {
@@ -611,8 +667,9 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
       toast.success("Request deleted permanently");
       setDeleteDialog({ open: false, requestId: null, requestTitle: "" });
 
-      // Remove from local state
+      // Remove from local state and sync the server component.
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete request");
     } finally {
@@ -679,18 +736,40 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
     setBulkStatusDialog({ open: true, actionType });
   }, []);
 
-  // Refresh requests after bulk action
-  const refreshRequests = useCallback(async () => {
+  // Unified fetch of the freshest requests list. Tracks load state so the UI
+  // can show a skeleton while loading and an error + retry on failure, and
+  // correctly unwraps the paginated `{ data, pagination }` API response.
+  // On failure the previous data is intentionally kept, so a failed refresh
+  // never blanks an already-populated list into the empty state.
+  const loadRequests = useCallback(async () => {
+    setLoadState("loading");
     try {
-      const refreshResponse = await fetch("/api/requests");
-      if (refreshResponse.ok) {
-        setRequests(await refreshResponse.json());
+      const response = await fetch("/api/requests?limit=100", {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load requests (${response.status})`);
       }
-      setSelectedIds(new Set());
+      const payload = await response.json();
+      const data = Array.isArray(payload) ? payload : payload?.data;
+      if (!Array.isArray(data)) {
+        throw new Error("Unexpected requests response shape");
+      }
+      setRequests(data);
+      setLoadState("success");
+      return true;
     } catch (error) {
-      console.error("Failed to refresh requests:", error);
+      console.error("Failed to load requests:", error);
+      setLoadState("error");
+      return false;
     }
   }, []);
+
+  // Refresh requests after bulk action
+  const refreshRequests = useCallback(async () => {
+    await loadRequests();
+    setSelectedIds(new Set());
+  }, [loadRequests]);
 
   // Select all visible requests
   const selectAllVisible = useCallback(() => {
@@ -1050,8 +1129,14 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
         </Card>
       )}
 
-      {/* Empty State */}
-      {filteredRequests.length === 0 ? (
+      {/* List states: loading skeleton, load error, empty, or the list itself.
+          The empty state renders only on a completed, successful, genuinely
+          empty fetch — never during loading and never on a failed load. */}
+      {loadState === "loading" && requests.length === 0 ? (
+        <RequestsListSkeleton />
+      ) : loadState === "error" && requests.length === 0 ? (
+        <RequestsListError onRetry={() => { void loadRequests(); }} />
+      ) : filteredRequests.length === 0 ? (
         <NoRequests
           isFiltered={hasActiveFilters}
           onClearFilters={clearFilters}
@@ -1734,11 +1819,10 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
           onOpenChange={(open) => setCloneDialog({ ...cloneDialog, open })}
           onCloneSuccess={(clonedRequestIds) => {
             toast.success(`Successfully created ${clonedRequestIds.length} cloned request(s)`);
-            // Refresh requests
-            fetch("/api/requests")
-              .then((res) => res.json())
-              .then((data) => setRequests(data))
-              .catch(console.error);
+            // Re-fetch fresh data so the new clone(s) appear, and refresh the
+            // server component so a later navigation isn't served stale/empty.
+            void loadRequests();
+            router.refresh();
           }}
         />
       )}

@@ -360,6 +360,10 @@ model Creator {
   // Content preferences
   contentPreferences Json @default("{}")
 
+  // Lifecycle
+  archivedAt            DateTime? // Set when the creator is archived (soft-hidden, reversible)
+  onboardingCompletedAt DateTime? // Set when the creator finishes first-time portal onboarding
+
   // Relations
   requests           ContentRequest[]
   uploads            Upload[]
@@ -379,6 +383,7 @@ model Creator {
   @@index([lastLoginAt])
   @@index([name])
   @@index([createdAt])
+  @@index([archivedAt])
   // Composite index for common queries (agency + status + sort)
   @@index([agencyId, inviteStatus, createdAt])
 }

@@ -57,7 +57,36 @@ export async function GET() {
       // Use default role based on user.role
       const defaultRole = getRole(user.role);
       if (defaultRole) {
-        role = defaultRole;
+        // Prefer an agency-level materialized override of this default role
+        // (created when an admin edits a system role) so those edits apply.
+        const override = await db.customRole.findFirst({
+          where: {
+            agencyId: session.user.agencyId,
+            isSystem: true,
+            name: {
+              equals: defaultRole.name,
+              mode: "insensitive",
+            },
+          },
+        });
+
+        if (override) {
+          role = {
+            id: defaultRole.id,
+            name: defaultRole.name,
+            description: override.description || defaultRole.description,
+            permissions: override.permissions as unknown as Permission[],
+            creatorVisibility: override.creatorVisibility as unknown as CreatorVisibility,
+            dataFieldVisibility: override.dataFieldVisibility as unknown as DataFieldVisibility,
+            teamMemberVisibility: override.teamMemberVisibility as unknown as TeamMemberVisibility,
+            isSystem: true,
+            color: override.color || defaultRole.color,
+            createdAt: override.createdAt,
+            updatedAt: override.updatedAt,
+          };
+        } else {
+          role = defaultRole;
+        }
       }
     }
 

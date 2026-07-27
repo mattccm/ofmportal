@@ -40,6 +40,7 @@ interface Creator {
   phone: string | null;
   avatar: string | null;
   inviteStatus: string;
+  isArchived: boolean;
   lastLoginAt: Date | null;
   _count: {
     requests: number;
@@ -84,17 +85,65 @@ function getInviteStatusBadge(status: string, compact = false) {
   );
 }
 
+// Renders the status badge for a creator: a distinct "Archived" badge when the
+// creator is archived, otherwise their invite status badge.
+function getCreatorStatusBadge(creator: Creator, compact = false) {
+  if (creator.isArchived) {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-800/60 dark:text-gray-300 dark:border-gray-700"
+      >
+        Archived
+      </Badge>
+    );
+  }
+  return getInviteStatusBadge(creator.inviteStatus, compact);
+}
+
 // CREATORS LIST COMPONENT
 
 export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) {
+  const [view, setView] = React.useState<"active" | "archived">("active");
+
+  const activeCreators = React.useMemo(
+    () => creators.filter((c) => !c.isArchived),
+    [creators]
+  );
+  const archivedCreators = React.useMemo(
+    () => creators.filter((c) => c.isArchived),
+    [creators]
+  );
+  const displayCreators = view === "archived" ? archivedCreators : activeCreators;
+
   return (
     <>
+      {/* Active / Archived filter */}
+      <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit mb-3">
+        <Button
+          size="sm"
+          variant={view === "active" ? "secondary" : "ghost"}
+          className="h-8"
+          onClick={() => setView("active")}
+        >
+          Active ({activeCreators.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={view === "archived" ? "secondary" : "ghost"}
+          className="h-8"
+          onClick={() => setView("archived")}
+        >
+          Archived ({archivedCreators.length})
+        </Button>
+      </div>
+
       {/* Mobile Card View */}
       <div className="block md:hidden space-y-3">
         <p className="text-sm text-muted-foreground px-1">
-          {creators.length} creator{creators.length !== 1 ? "s" : ""} in your agency
+          {displayCreators.length} {view} creator{displayCreators.length !== 1 ? "s" : ""}
         </p>
-        {creators.map((creator) => (
+        {displayCreators.map((creator) => (
           <Card
             key={creator.id}
             className="card-elevated relative overflow-hidden"
@@ -146,7 +195,7 @@ export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) 
 
                   {/* Status & Last Active */}
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                    {getInviteStatusBadge(creator.inviteStatus, true)}
+                    {getCreatorStatusBadge(creator, true)}
                     <span className="text-xs text-muted-foreground">
                       {creator.lastLoginAt
                         ? `Active ${formatDistanceToNow(creator.lastLoginAt, { addSuffix: true })}`
@@ -163,9 +212,9 @@ export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) 
       {/* Desktop Table View */}
       <Card className="card-elevated hidden md:block">
         <CardHeader>
-          <CardTitle>All Creators</CardTitle>
+          <CardTitle>{view === "archived" ? "Archived Creators" : "All Creators"}</CardTitle>
           <CardDescription>
-            {creators.length} creator{creators.length !== 1 ? "s" : ""} in your agency
+            {displayCreators.length} {view} creator{displayCreators.length !== 1 ? "s" : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -182,7 +231,7 @@ export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {creators.map((creator) => (
+              {displayCreators.map((creator) => (
                 <TableRow key={creator.id} className="group">
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -217,7 +266,7 @@ export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) 
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{getInviteStatusBadge(creator.inviteStatus)}</TableCell>
+                  <TableCell>{getCreatorStatusBadge(creator)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       <FileText className="h-4 w-4 text-muted-foreground" />

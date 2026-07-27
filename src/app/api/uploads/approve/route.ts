@@ -6,6 +6,7 @@ import { z } from "zod";
 import { sendContentApprovedEmail } from "@/lib/email";
 import { sendContentApprovedSms } from "@/lib/sms";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
+import { getRequiredFileFieldIds } from "@/lib/upload-finalize";
 
 const approveSchema = z.object({
   uploadIds: z.array(z.string()).min(1),
@@ -67,8 +68,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // All approved when nothing is still awaiting review
-      // (REJECTED uploads don't block approval)
+      // A request is fully approved only when EVERY required upload slot
+      // (file field) has at least one approved upload. Approving a single
+      // upload must NOT flip the whole request to APPROVED while other
+      // required slots are still empty or unreviewed.
+      //
+      //   1. No upload may still be awaiting review (PENDING).
+      //   2. Every required file field must have an APPROVED upload — compared
+      //      against the required *slot* set, not just the Upload rows that
+      //      happen to exist, so a missing required slot blocks approval.
+      // REJECTED uploads don't count as approved and don't block approval when
+      // the slot they belong to is optional.
+      const requiredFieldIds = getRequiredFileFieldIds(request.fields);
+
       const pendingUploads = await tx.upload.count({
         where: {
           requestId,
@@ -76,8 +88,31 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      const approvedUploads = await tx.upload.findMany({
+        where: {
+          requestId,
+          status: "APPROVED",
+        },
+        select: { fieldId: true },
+      });
+      const approvedFieldIds = new Set(
+        approvedUploads
+          .map((u) => u.fieldId)
+          .filter((id): id is string => id !== null)
+      );
+
+      const allRequiredApproved = requiredFieldIds.every((id) =>
+        approvedFieldIds.has(id)
+      );
+
+      // For ad-hoc requests with no file-field slots, requiredFieldIds is empty
+      // (allRequiredApproved is vacuously true); we then fall back to requiring
+      // that at least one upload exists and nothing is left pending.
+      const requestFullyApproved =
+        approvedUploads.length > 0 && pendingUploads === 0 && allRequiredApproved;
+
       let requestApproved = false;
-      if (pendingUploads === 0) {
+      if (requestFullyApproved) {
         const requestTransition = await tx.contentRequest.updateMany({
           where: {
             id: requestId,

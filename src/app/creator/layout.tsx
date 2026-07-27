@@ -348,6 +348,15 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
           });
           if (response.ok) {
             const data = await response.json();
+
+            // First-time creators must complete onboarding before entering the portal.
+            if (data.onboardingCompleted === false) {
+              localStorage.setItem("creatorOnboardingComplete", "false");
+              router.replace("/portal/onboarding");
+              return;
+            }
+            localStorage.setItem("creatorOnboardingComplete", "true");
+
             // Update localStorage with fresh data
             if (data.name) localStorage.setItem("creatorName", data.name);
             if (data.avatar) {

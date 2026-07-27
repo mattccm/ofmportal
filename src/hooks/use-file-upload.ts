@@ -106,6 +106,55 @@ async function generateAndUploadThumbnail(
   }
 }
 
+// Smooths the *displayed* transfer speed (and the ETA derived from it) with an
+// exponential moving average, so the MB/s and time-remaining readouts don't
+// flicker on every progress tick. The raw upload is untouched — this only
+// affects the numbers shown to the user.
+//
+// Progress events fire irregularly and dividing a byte delta by a tiny time
+// delta produces wild spikes; we ignore samples closer together than
+// MIN_SAMPLE_MS and blend the rest into a running average.
+interface SpeedSmoother {
+  update: (
+    bytesUploaded: number,
+    totalBytes: number
+  ) => { speed: number; timeRemaining: number };
+}
+
+function createSpeedSmoother(): SpeedSmoother {
+  const EMA_ALPHA = 0.25; // weight of the newest sample (lower = smoother)
+  const MIN_SAMPLE_MS = 350; // don't sample faster than this
+
+  let lastBytes = 0;
+  let lastTime = Date.now();
+  let smoothed = 0; // bytes/sec, 0 until the first real sample
+  let lastSpeed = 0;
+  let lastRemaining = 0;
+
+  return {
+    update(bytesUploaded, totalBytes) {
+      const now = Date.now();
+      const elapsedMs = now - lastTime;
+
+      if (elapsedMs >= MIN_SAMPLE_MS) {
+        const bytesDiff = bytesUploaded - lastBytes;
+        if (bytesDiff >= 0) {
+          const instant = bytesDiff / (elapsedMs / 1000);
+          smoothed =
+            smoothed > 0 ? EMA_ALPHA * instant + (1 - EMA_ALPHA) * smoothed : instant;
+          lastSpeed = smoothed;
+          const remaining = Math.max(totalBytes - bytesUploaded, 0);
+          lastRemaining = smoothed > 0 ? remaining / smoothed : 0;
+        }
+        lastBytes = bytesUploaded;
+        lastTime = now;
+      }
+
+      return { speed: lastSpeed, timeRemaining: lastRemaining };
+    },
+  };
+}
+
 export function useFileUpload({
   requestId,
   maxConcurrent = 3,
@@ -212,22 +261,13 @@ export function useFileUpload({
       )
     );
 
-    return new Promise((resolve, reject) => {
-      let lastLoaded = 0;
-      let lastTime = Date.now();
+    const smoother = createSpeedSmoother();
 
+    return new Promise((resolve, reject) => {
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {
           const progress = Math.round((e.loaded / e.total) * 100);
-          const now = Date.now();
-          const timeDiff = (now - lastTime) / 1000;
-          const bytesDiff = e.loaded - lastLoaded;
-          const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
-          const remaining = e.total - e.loaded;
-          const timeRemaining = speed > 0 ? remaining / speed : 0;
-
-          lastLoaded = e.loaded;
-          lastTime = now;
+          const { speed, timeRemaining } = smoother.update(e.loaded, e.total);
 
           setQueue((prev) =>
             prev.map((f) =>
@@ -241,15 +281,30 @@ export function useFileUpload({
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
+          // Pull the created upload id out of the response so we can attach a
+          // thumbnail (and report it to the caller).
+          let uploadId: string | undefined;
+          try {
+            uploadId = JSON.parse(xhr.responseText)?.uploadId;
+          } catch {
+            // Non-JSON body — thumbnail generation just won't run.
+          }
+
           setQueue((prev) =>
             prev.map((f) =>
               f.id === queuedFile.id
-                ? { ...f, status: "completed" as UploadStatus, progress: 100, xhr: undefined }
+                ? { ...f, status: "completed" as UploadStatus, progress: 100, uploadId, xhr: undefined }
                 : f
             )
           );
           toast.success(`${queuedFile.file.name} uploaded`);
-          onUploadComplete?.({ ...queuedFile, status: "completed" });
+
+          // Generate and upload a thumbnail for videos (async, non-blocking).
+          if (isVideoFile(queuedFile.file) && uploadId) {
+            generateAndUploadThumbnail(queuedFile.file, uploadId, headers, token);
+          }
+
+          onUploadComplete?.({ ...queuedFile, status: "completed", uploadId });
           resolve();
         } else {
           reject(new Error(`Upload failed with status ${xhr.status}`));
@@ -278,9 +333,8 @@ export function useFileUpload({
 
     const controller = new AbortController();
 
-    // Track speed / ETA the same way the single-shot path does.
-    let lastLoaded = 0;
-    let lastTime = Date.now();
+    // Smooth the displayed speed / ETA (display only — see createSpeedSmoother).
+    const smoother = createSpeedSmoother();
 
     setQueue((prev) =>
       prev.map((f) =>
@@ -305,14 +359,7 @@ export function useFileUpload({
           );
         },
         onProgress: ({ bytesUploaded, totalBytes, percent }) => {
-          const now = Date.now();
-          const timeDiff = (now - lastTime) / 1000;
-          const bytesDiff = bytesUploaded - lastLoaded;
-          const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
-          const remaining = totalBytes - bytesUploaded;
-          const timeRemaining = speed > 0 ? remaining / speed : 0;
-          lastLoaded = bytesUploaded;
-          lastTime = now;
+          const { speed, timeRemaining } = smoother.update(bytesUploaded, totalBytes);
 
           setQueue((prev) =>
             prev.map((f) =>
@@ -451,21 +498,12 @@ export function useFileUpload({
           )
         );
 
-        let lastLoaded = 0;
-        let lastTime = Date.now();
+        const smoother = createSpeedSmoother();
 
         xhr.upload.addEventListener("progress", (e) => {
           if (e.lengthComputable) {
             const progress = Math.round((e.loaded / e.total) * 100);
-            const now = Date.now();
-            const timeDiff = (now - lastTime) / 1000;
-            const bytesDiff = e.loaded - lastLoaded;
-            const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
-            const remaining = e.total - e.loaded;
-            const timeRemaining = speed > 0 ? remaining / speed : 0;
-
-            lastLoaded = e.loaded;
-            lastTime = now;
+            const { speed, timeRemaining } = smoother.update(e.loaded, e.total);
 
             setQueue((prev) =>
               prev.map((f) =>

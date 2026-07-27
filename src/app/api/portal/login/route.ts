@@ -58,11 +58,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find creator with ACCEPTED status
+    // Find creator with ACCEPTED status (archived creators are denied access)
     const creator = await db.creator.findFirst({
       where: {
         email: email.toLowerCase(),
         inviteStatus: "ACCEPTED",
+        archivedAt: null,
       },
     });
 
@@ -109,6 +110,7 @@ export async function POST(req: NextRequest) {
       creatorId: creator.id,
       name: creator.name,
       email: creator.email,
+      onboardingCompleted: !!creator.onboardingCompletedAt,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

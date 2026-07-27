@@ -99,6 +99,7 @@ interface Creator {
   phone: string | null;
   avatar: string | null;
   inviteStatus: string;
+  archivedAt: Date | null;
   timezone: string;
   preferredContact: string;
   createdAt: Date;
@@ -391,6 +392,8 @@ export function CreatorVaultClient({
     }
   };
 
+  const isArchived = creator.archivedAt !== null;
+
   // Archive creator
   const handleArchiveCreator = async () => {
     try {
@@ -404,6 +407,25 @@ export function CreatorVaultClient({
       router.push("/dashboard/creators");
     } catch (error) {
       toast.error("Failed to archive creator");
+    }
+  };
+
+  // Unarchive (restore) creator
+  const handleUnarchiveCreator = async () => {
+    try {
+      const response = await fetch(`/api/creators/${creator.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: false }),
+      });
+
+      if (!response.ok) throw new Error("Failed to unarchive creator");
+
+      setCreator((prev) => ({ ...prev, archivedAt: null }));
+      toast.success("Creator restored");
+      router.refresh();
+    } catch (error) {
+      toast.error("Failed to unarchive creator");
     }
   };
 
@@ -538,13 +560,20 @@ export function CreatorVaultClient({
                 <Download className="h-4 w-4 mr-2" />
                 Export All Content
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setConfirmArchiveOpen(true)}
-                className="text-red-600 focus:text-red-600"
-              >
-                <Archive className="h-4 w-4 mr-2" />
-                Archive Creator
-              </DropdownMenuItem>
+              {isArchived ? (
+                <DropdownMenuItem onClick={handleUnarchiveCreator}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Unarchive Creator
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => setConfirmArchiveOpen(true)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  Archive Creator
+                </DropdownMenuItem>
+              )}
               {canDeleteCreator && (
                 <>
                   <DropdownMenuSeparator />
@@ -597,12 +626,21 @@ export function CreatorVaultClient({
                       size="lg"
                     />
                   </h1>
-                  <Badge
-                    variant="outline"
-                    className={INVITE_STATUS_CONFIG[creator.inviteStatus]?.class}
-                  >
-                    {INVITE_STATUS_CONFIG[creator.inviteStatus]?.label}
-                  </Badge>
+                  {isArchived ? (
+                    <Badge
+                      variant="outline"
+                      className="bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-800/60 dark:text-gray-300 dark:border-gray-700"
+                    >
+                      Archived
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className={INVITE_STATUS_CONFIG[creator.inviteStatus]?.class}
+                    >
+                      {INVITE_STATUS_CONFIG[creator.inviteStatus]?.label}
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
