@@ -327,6 +327,7 @@ async function getQuickStats(agencyId: string) {
     activeCreators,
     pendingRequests,
     awaitingReview,
+    requestsNeedingReviewGroups,
     dueThisWeek,
     overdueItems,
     // Last week stats for trends
@@ -339,6 +340,12 @@ async function getQuickStats(agencyId: string) {
       where: { agencyId, status: { in: ["PENDING", "IN_PROGRESS"] } },
     }),
     db.upload.count({
+      where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
+    }),
+    // Distinct requests that have at least one completed upload awaiting a
+    // decision — grouped so the number of rows equals the requests-needing-review count.
+    db.upload.groupBy({
+      by: ["requestId"],
       where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
     }),
     db.contentRequest.count({
@@ -383,6 +390,7 @@ async function getQuickStats(agencyId: string) {
       activeCreators,
       pendingRequests,
       awaitingReview,
+      requestsNeedingReview: requestsNeedingReviewGroups.length,
       dueThisWeek,
       overdueItems,
       trends: {
@@ -598,6 +606,7 @@ async function getAllWidgetData(agencyId: string) {
     activeCreators,
     pendingRequests,
     awaitingReview,
+    requestsNeedingReviewGroups,
     dueThisWeek,
     overdueItems,
     prevActiveCreators,
@@ -628,6 +637,12 @@ async function getAllWidgetData(agencyId: string) {
       where: { agencyId, status: { in: ["PENDING", "IN_PROGRESS"] } },
     }),
     db.upload.count({
+      where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
+    }),
+    // Distinct requests that have at least one completed upload awaiting a
+    // decision — grouped so the row count equals the requests-needing-review total.
+    db.upload.groupBy({
+      by: ["requestId"],
       where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
     }),
     db.contentRequest.count({
@@ -802,6 +817,7 @@ async function getAllWidgetData(agencyId: string) {
       activeCreators,
       pendingRequests,
       awaitingReview,
+      requestsNeedingReview: requestsNeedingReviewGroups.length,
       dueThisWeek,
       overdueItems,
       trends: {

@@ -20,6 +20,9 @@ import {
   FileText,
   Upload,
   MessageSquare,
+  MessagesSquare,
+  ChevronDown,
+  ChevronUp,
   Copy,
   GitBranch,
   ExternalLink,
@@ -33,6 +36,10 @@ import { format, formatDistanceToNow } from "date-fns";
 import { UploadsList } from "@/components/uploads/uploads-list";
 import { RequestActions } from "@/components/requests/request-actions";
 import { CommentSection } from "@/components/comments/comment-section";
+import {
+  FieldReviewControls,
+  type FieldSubmission,
+} from "@/components/requests/field-review-controls";
 import { CloneRequestDialog } from "@/components/requests/clone-request-dialog";
 import { WatchersPanel, type Watcher } from "@/components/requests/watchers-panel";
 import { CopyableId, CopyableEmail } from "@/components/ui/copyable-text";
@@ -97,6 +104,7 @@ interface CommentItem {
   message: string;
   createdAt: Date;
   isInternal: boolean;
+  fieldId?: string | null;
   user: {
     id: string;
     name: string | null;
@@ -142,6 +150,7 @@ interface Request {
   reviewedAt: Date | null;
   requirements: (Record<string, string> & { _richContent?: RichContentData }) | null;
   fields: TemplateField[] | null;
+  fieldSubmissions?: Record<string, FieldSubmission> | null;
   creator: Creator;
   template: {
     id: string;
@@ -322,6 +331,23 @@ export function RequestDetailClient({
       ),
     }));
   }, []);
+
+  // Handle per-section (per-field) review without page reload. Updates the
+  // field's submission (rejection reason) and reflects any resulting change to
+  // the overall request status.
+  const handleFieldReviewed = useCallback(
+    (fieldId: string, submission: FieldSubmission, requestStatus: string) => {
+      setRequest((prev) => ({
+        ...prev,
+        status: requestStatus || prev.status,
+        fieldSubmissions: {
+          ...(prev.fieldSubmissions || {}),
+          [fieldId]: submission,
+        },
+      }));
+    },
+    []
+  );
 
   // Fetch clone history on mount (skip in edit mode)
   useEffect(() => {
@@ -575,42 +601,20 @@ export function RequestDetailClient({
             </Card>
           )}
 
-          {/* File fields with their uploads */}
-          {fields && fields.filter(f => f.type === "file").map((field) => {
-            const fieldUploads = request.uploads.filter(u => u.fieldId === field.id);
-            return (
-              <Card key={field.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Upload className="h-5 w-5" />
-                        {field.label}
-                      </CardTitle>
-                      <CardDescription>
-                        {fieldUploads.length} file{fieldUploads.length !== 1 ? "s" : ""} uploaded
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Show examples/instructions if available */}
-                  {field.richContent && (
-                    <FieldExamplesDisplay
-                      richContent={field.richContent}
-                      fieldLabel={field.label}
-                      variant="card"
-                    />
-                  )}
-                  <UploadsList
-                    uploads={fieldUploads}
-                    requestId={request.id}
-                    onStatusChange={handleUploadStatusChange}
-                  />
-                </CardContent>
-              </Card>
-            );
-          })}
+          {/* File fields with their uploads, per-section review + comments */}
+          {fields && fields.filter(f => f.type === "file").map((field) => (
+            <FileFieldCard
+              key={field.id}
+              field={field}
+              requestId={request.id}
+              uploads={request.uploads.filter(u => u.fieldId === field.id)}
+              comments={request.comments.filter(c => c.fieldId === field.id)}
+              submission={request.fieldSubmissions?.[field.id]}
+              currentUserId={userId}
+              onUploadStatusChange={handleUploadStatusChange}
+              onFieldReviewed={handleFieldReviewed}
+            />
+          ))}
 
           {/* Ungrouped uploads (uploads without a fieldId) */}
           {request.uploads.filter(u => !u.fieldId).length > 0 && (
@@ -638,18 +642,23 @@ export function RequestDetailClient({
             </Card>
           )}
 
-          {/* Comments */}
+          {/* General comments (section-specific comments live on each section) */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
                 Comments
               </CardTitle>
+              <CardDescription>
+                General discussion. Use a section&apos;s own thread for
+                feedback on a specific upload slot.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <CommentSection
                 requestId={request.id}
-                comments={request.comments}
+                comments={request.comments.filter((c) => !c.fieldId)}
+                currentUserId={userId}
               />
             </CardContent>
           </Card>
@@ -909,5 +918,110 @@ export function RequestDetailClient({
         onCloneSuccess={handleCloneSuccess}
       />
     </div>
+  );
+}
+
+// PER-FIELD (SECTION) CARD
+
+interface FileFieldCardProps {
+  field: TemplateField;
+  requestId: string;
+  uploads: UploadItem[];
+  comments: CommentItem[];
+  submission?: FieldSubmission;
+  currentUserId: string;
+  onUploadStatusChange: (uploadId: string, newStatus: string) => void;
+  onFieldReviewed: (
+    fieldId: string,
+    submission: FieldSubmission,
+    requestStatus: string
+  ) => void;
+}
+
+function FileFieldCard({
+  field,
+  requestId,
+  uploads,
+  comments,
+  submission,
+  currentUserId,
+  onUploadStatusChange,
+  onFieldReviewed,
+}: FileFieldCardProps) {
+  const [showComments, setShowComments] = useState(comments.length > 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              {field.label}
+            </CardTitle>
+            <CardDescription>
+              {uploads.length} file{uploads.length !== 1 ? "s" : ""} uploaded
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Show examples/instructions if available */}
+        {field.richContent && (
+          <FieldExamplesDisplay
+            richContent={field.richContent}
+            fieldLabel={field.label}
+            variant="card"
+          />
+        )}
+
+        {/* Per-section review + rejection reason */}
+        <FieldReviewControls
+          requestId={requestId}
+          fieldId={field.id}
+          submission={submission}
+          hasUploads={uploads.length > 0}
+          onReviewed={onFieldReviewed}
+        />
+
+        <UploadsList
+          uploads={uploads}
+          requestId={requestId}
+          onStatusChange={onUploadStatusChange}
+        />
+
+        {/* Per-section comment thread */}
+        <div className="border-t pt-3">
+          <button
+            type="button"
+            onClick={() => setShowComments((v) => !v)}
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <MessagesSquare className="h-4 w-4" />
+            <span>
+              Section comments
+              {comments.length > 0 ? ` (${comments.length})` : ""}
+            </span>
+            {showComments ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+          {showComments && (
+            <div className="mt-3">
+              <CommentSection
+                requestId={requestId}
+                fieldId={field.id}
+                comments={comments}
+                currentUserId={currentUserId}
+                compact
+                placeholder={`Comment on "${field.label}"... Type @ to mention someone`}
+              />
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

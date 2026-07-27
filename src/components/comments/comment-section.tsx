@@ -31,8 +31,13 @@ interface Comment {
 interface CommentSectionProps {
   requestId: string;
   uploadId?: string;
+  /** Optional template field/section this thread is scoped to. */
+  fieldId?: string;
   comments: Comment[];
   currentUserId?: string;
+  /** Tightens spacing/rows for inline per-section threads. */
+  compact?: boolean;
+  placeholder?: string;
 }
 
 // COMMENT SECTION COMPONENT
@@ -40,8 +45,11 @@ interface CommentSectionProps {
 export function CommentSection({
   requestId,
   uploadId,
+  fieldId,
   comments: initialComments,
   currentUserId,
+  compact = false,
+  placeholder,
 }: CommentSectionProps) {
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState("");
@@ -74,6 +82,7 @@ export function CommentSection({
         body: JSON.stringify({
           requestId,
           uploadId,
+          fieldId,
           message: newComment,
           isInternal,
           mentions: mentionIds,
@@ -124,26 +133,32 @@ export function CommentSection({
       setNewComment(text);
       setMentionIds(mentions);
       // Trigger form submit
-      const form = document.getElementById("comment-form") as HTMLFormElement;
+      const form = document.getElementById(
+        fieldId ? `comment-form-${fieldId}` : "comment-form"
+      ) as HTMLFormElement;
       if (form) {
         form.requestSubmit();
       }
     },
-    []
+    [fieldId]
   );
 
+  const formId = fieldId ? `comment-form-${fieldId}` : "comment-form";
+
   return (
-    <div className="space-y-6">
+    <div className={compact ? "space-y-4" : "space-y-6"}>
       {/* New Comment Form */}
-      <form id="comment-form" onSubmit={handleSubmit} className="space-y-3">
+      <form id={formId} onSubmit={handleSubmit} className="space-y-3">
         <div className="relative">
           <MentionInput
             ref={mentionInputRef}
             value={newComment}
             onChange={handleCommentChange}
             onSubmit={handleMentionSubmit}
-            placeholder="Add a comment... Type @ to mention someone"
-            rows={3}
+            placeholder={
+              placeholder || "Add a comment... Type @ to mention someone"
+            }
+            rows={compact ? 2 : 3}
             disabled={submitting}
             className="pr-10"
           />

@@ -172,8 +172,32 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    // A request "needs review" when it has at least one completed upload still
+    // awaiting an approval decision. One groupBy over just this page's requests
+    // keeps the per-request pending count efficient (no N+1).
+    const pageRequestIds = requests.map((r) => r.id);
+    const pendingReviewGroups = pageRequestIds.length
+      ? await db.upload.groupBy({
+          by: ["requestId"],
+          where: {
+            requestId: { in: pageRequestIds },
+            status: "PENDING",
+            uploadStatus: "COMPLETED",
+          },
+          _count: { _all: true },
+        })
+      : [];
+    const pendingReviewByRequest = new Map(
+      pendingReviewGroups.map((g) => [g.requestId, g._count._all])
+    );
+
+    const requestsWithReview = requests.map((r) => ({
+      ...r,
+      pendingReviewCount: pendingReviewByRequest.get(r.id) ?? 0,
+    }));
+
     return NextResponse.json(
-      createPaginatedResponse(requests, total, pagination)
+      createPaginatedResponse(requestsWithReview, total, pagination)
     );
   } catch (error) {
     console.error("Error fetching requests:", error);

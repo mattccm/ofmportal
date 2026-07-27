@@ -8,6 +8,7 @@ import {
   Eye,
   Calendar,
   AlertTriangle,
+  ClipboardCheck,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -24,6 +25,8 @@ interface QuickStats {
   activeCreators: number;
   pendingRequests: number;
   awaitingReview: number;
+  /** Number of requests with at least one upload awaiting a review decision. */
+  requestsNeedingReview: number;
   dueThisWeek: number;
   overdueItems: number;
   // Optional trend data
@@ -43,6 +46,8 @@ interface StatItem {
   href?: string;
   trend?: number;
   isAlert?: boolean;
+  /** Amber warning emphasis (used for content awaiting review). */
+  isWarning?: boolean;
 }
 
 // TREND INDICATOR
@@ -109,6 +114,15 @@ export function QuickStatsWidget({ config, size }: WidgetProps) {
           trend: stats.trends?.awaitingReview,
         },
         {
+          label: "Needs Review",
+          value: stats.requestsNeedingReview,
+          icon: <ClipboardCheck className="h-4 w-4" />,
+          iconBg: stats.requestsNeedingReview > 0 ? "bg-amber-500/10" : "bg-emerald-500/10",
+          iconColor: stats.requestsNeedingReview > 0 ? "text-amber-600" : "text-emerald-500",
+          href: "/dashboard/requests?filter=needs-review",
+          isWarning: stats.requestsNeedingReview > 0,
+        },
+        {
           label: "Due This Week",
           value: stats.dueThisWeek,
           icon: <Calendar className="h-4 w-4" />,
@@ -130,7 +144,7 @@ export function QuickStatsWidget({ config, size }: WidgetProps) {
 
   // Adjust display based on size
   const displayStats = size === "small" ? statItems.slice(0, 4) : statItems;
-  const gridCols = size === "small" ? "grid-cols-2" : size === "medium" ? "grid-cols-3" : "grid-cols-5";
+  const gridCols = size === "small" ? "grid-cols-2" : size === "medium" ? "grid-cols-3" : "grid-cols-6";
 
   return (
     <WidgetCard
@@ -157,7 +171,8 @@ export function QuickStatsWidget({ config, size }: WidgetProps) {
               className={cn(
                 "flex flex-col p-3 rounded-xl border transition-all duration-200 group",
                 "hover:border-primary/50 hover:shadow-sm",
-                stat.isAlert && "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10"
+                stat.isAlert && "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10",
+                stat.isWarning && "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/10"
               )}
             >
               <div className="flex items-center justify-between mb-2">
@@ -174,7 +189,11 @@ export function QuickStatsWidget({ config, size }: WidgetProps) {
               <div
                 className={cn(
                   "text-2xl font-bold",
-                  stat.isAlert ? "text-red-600 dark:text-red-400" : "text-foreground"
+                  stat.isAlert
+                    ? "text-red-600 dark:text-red-400"
+                    : stat.isWarning
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-foreground"
                 )}
               >
                 {stat.value}

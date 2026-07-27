@@ -90,6 +90,7 @@ interface Comment {
   id: string;
   content: string;
   createdAt: string;
+  fieldId?: string | null;
   user?: {
     name: string;
     image?: string;
@@ -441,6 +442,9 @@ export default function CreatorRequestDetailPage({
   const fileFields = request.fields?.filter(f => f.type === "file") || [];
   const nonFileFields = request.fields?.filter(f => f.type !== "file") || [];
   const hasFileFields = fileFields.length > 0;
+
+  // General comments (section-scoped feedback is shown per section above)
+  const generalComments = comments.filter((c) => !c.fieldId);
 
   // Handler for deleting uploads
   const handleDeleteUpload = async (uploadId: string) => {
@@ -803,25 +807,97 @@ export default function CreatorRequestDetailPage({
         </Card>
       )}
 
+      {/* Per-section feedback: rejection reasons + agency comments on a
+          specific upload slot, so the creator knows exactly what to fix. */}
+      {(() => {
+        const sections = fileFields
+          .map((field) => {
+            const fid = field.id;
+            const submission = fid ? request.fieldSubmissions?.[fid] : undefined;
+            const reason =
+              submission?.status === "NEEDS_REVISION"
+                ? submission.feedback
+                : undefined;
+            const fieldComments = comments.filter(
+              (c) => c.fieldId && c.fieldId === fid
+            );
+            return { field, reason, fieldComments };
+          })
+          .filter((s) => s.reason || s.fieldComments.length > 0);
+
+        if (sections.length === 0) return null;
+
+        return (
+          <div className="space-y-4 pt-4 border-t">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" style={{ color: branding.primaryColor }} />
+              <h2 className="text-lg font-semibold">Feedback by Section</h2>
+            </div>
+            <div className="space-y-3">
+              {sections.map(({ field, reason, fieldComments }) => (
+                <div
+                  key={field.id || field.label}
+                  className="rounded-lg border p-4 space-y-3"
+                >
+                  <p className="text-sm font-semibold">{field.label}</p>
+                  {reason && (
+                    <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+                      <p className="text-sm text-red-700 dark:text-red-300">
+                        <span className="font-medium">Changes requested:</span>{" "}
+                        {reason}
+                      </p>
+                    </div>
+                  )}
+                  {fieldComments.map((comment) => (
+                    <div key={comment.id} className="flex gap-3">
+                      <Avatar
+                        size="sm"
+                        user={{
+                          name: comment.user?.name || "Agency",
+                          image: comment.user?.image,
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="inline-block rounded-2xl rounded-tl-none bg-muted px-4 py-2">
+                          <p className="text-sm whitespace-pre-wrap break-words">
+                            {comment.content}
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {comment.user?.name || "Agency"} ·{" "}
+                          {formatDistanceToNow(new Date(comment.createdAt), {
+                            addSuffix: true,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Comments / Feedback - Collapsible */}
       <div className="space-y-4 pt-4 border-t">
         <div className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5" style={{ color: branding.primaryColor }} />
           <h2 className="text-lg font-semibold">Comments</h2>
-          {comments.length > 0 && (
+          {generalComments.length > 0 && (
             <Badge variant="secondary" className="text-xs">
-              {comments.length}
+              {generalComments.length}
             </Badge>
           )}
         </div>
 
-        {comments.length === 0 ? (
+        {generalComments.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">
             No comments yet. Send a message if you have any questions.
           </p>
         ) : (
           <div className="space-y-4">
-            {comments.map((comment) => (
+            {generalComments.map((comment) => (
               <div
                 key={comment.id}
                 className={cn(

@@ -22,6 +22,22 @@ async function getRequests(agencyId: string) {
   });
 }
 
+// A request "needs review" when it has at least one completed upload still
+// awaiting an approval decision. A single groupBy keeps this O(1) queries
+// instead of counting uploads per request (N+1).
+async function getPendingReviewCounts(agencyId: string) {
+  const grouped = await db.upload.groupBy({
+    by: ["requestId"],
+    where: {
+      request: { agencyId },
+      status: "PENDING",
+      uploadStatus: "COMPLETED",
+    },
+    _count: { _all: true },
+  });
+  return new Map(grouped.map((g) => [g.requestId, g._count._all]));
+}
+
 async function getCreators(agencyId: string) {
   return db.creator.findMany({
     where: { agencyId },
@@ -47,18 +63,21 @@ export default async function RequestsPage() {
   let requests: Awaited<ReturnType<typeof getRequests>>;
   let creators: Awaited<ReturnType<typeof getCreators>>;
   let teamMembers: Awaited<ReturnType<typeof getTeamMembers>>;
+  let pendingReviewCounts: Awaited<ReturnType<typeof getPendingReviewCounts>>;
   let loadError = false;
   try {
-    [requests, creators, teamMembers] = await Promise.all([
+    [requests, creators, teamMembers, pendingReviewCounts] = await Promise.all([
       getRequests(session.user.agencyId),
       getCreators(session.user.agencyId),
       getTeamMembers(session.user.agencyId),
+      getPendingReviewCounts(session.user.agencyId),
     ]);
   } catch (error) {
     console.error("Failed to fetch requests data:", error);
     requests = [];
     creators = [];
     teamMembers = [];
+    pendingReviewCounts = new Map();
     // Signal the client so it renders an error + retry instead of a false
     // "No requests yet" empty state when the server-side fetch failed.
     loadError = true;
@@ -72,6 +91,7 @@ export default async function RequestsPage() {
     updatedAt: request.updatedAt.toISOString(),
     submittedAt: request.submittedAt?.toISOString() || null,
     reviewedAt: request.reviewedAt?.toISOString() || null,
+    pendingReviewCount: pendingReviewCounts.get(request.id) ?? 0,
   }));
 
   return (

@@ -14,36 +14,31 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { commentIds, requestId } = body;
 
-    // Either mark specific comments or all comments on a request
-    let commentsToMark: string[] = [];
+    const userId = session.user.id;
+
+    // Either mark specific comments or all comments on a request. We also collect
+    // the affected requestIds so any related unread notifications can be cleared.
+    let commentsToMark: { id: string; readBy: unknown; userId: string; requestId: string | null }[] = [];
 
     if (commentIds && Array.isArray(commentIds)) {
-      commentsToMark = commentIds;
-    } else if (requestId) {
-      // Get all comment IDs for this request
-      const comments = await db.comment.findMany({
-        where: { requestId },
-        select: { id: true },
+      commentsToMark = await db.comment.findMany({
+        where: { id: { in: commentIds } },
+        select: { id: true, readBy: true, userId: true, requestId: true },
       });
-      commentsToMark = comments.map((c) => c.id);
-    }
-
-    if (commentsToMark.length === 0) {
-      return NextResponse.json({ marked: 0 });
+    } else if (requestId) {
+      commentsToMark = await db.comment.findMany({
+        where: { requestId },
+        select: { id: true, readBy: true, userId: true, requestId: true },
+      });
     }
 
     const now = new Date().toISOString();
-    const userId = session.user.id;
 
     // Update each comment's readBy array
     let markedCount = 0;
-    for (const commentId of commentsToMark) {
-      const comment = await db.comment.findUnique({
-        where: { id: commentId },
-        select: { readBy: true, userId: true },
-      });
-
-      if (!comment) continue;
+    const affectedRequestIds = new Set<string>();
+    for (const comment of commentsToMark) {
+      if (comment.requestId) affectedRequestIds.add(comment.requestId);
 
       // Don't need to mark your own comments as read
       if (comment.userId === userId) continue;
@@ -55,12 +50,30 @@ export async function POST(request: NextRequest) {
 
       // Add this user to readBy
       await db.comment.update({
-        where: { id: commentId },
+        where: { id: comment.id },
         data: {
           readBy: [...readBy, { userId, readAt: now }],
         },
       });
       markedCount++;
+    }
+
+    // Clear any unread comment/mention notifications for this user that point at
+    // the affected requests, so the bell count stays in sync with what's read.
+    if (affectedRequestIds.size > 0) {
+      await Promise.all(
+        Array.from(affectedRequestIds).map((rid) =>
+          db.notification.updateMany({
+            where: {
+              userId,
+              readAt: null,
+              type: { in: ["COMMENT_ADDED", "MENTION"] },
+              link: { contains: `/requests/${rid}` },
+            },
+            data: { readAt: new Date() },
+          })
+        )
+      );
     }
 
     return NextResponse.json({ marked: markedCount });

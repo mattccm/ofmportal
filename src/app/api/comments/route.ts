@@ -11,6 +11,7 @@ import { dispatchWebhookEvent } from "@/lib/webhooks";
 const createCommentSchema = z.object({
   requestId: z.string().optional(),
   uploadId: z.string().optional(),
+  fieldId: z.string().optional(),
   message: z.string().min(1, "Message is required"),
   isInternal: z.boolean().default(false),
   parentId: z.string().optional(),
@@ -148,6 +149,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get("requestId");
     const uploadId = searchParams.get("uploadId");
+    const fieldId = searchParams.get("fieldId");
     const includeReplies = searchParams.get("includeReplies") !== "false";
 
     if (!requestId && !uploadId) {
@@ -178,6 +180,11 @@ export async function GET(req: NextRequest) {
     const whereClause: Record<string, unknown> = {};
     if (requestId) whereClause.requestId = requestId;
     if (uploadId) whereClause.uploadId = uploadId;
+    // Filter by target field/section. "null" narrows to general (request-level)
+    // comments that aren't attached to any specific field.
+    if (fieldId !== null) {
+      whereClause.fieldId = fieldId === "null" ? null : fieldId;
+    }
 
     // Only fetch root-level comments if building tree
     if (includeReplies) {
@@ -311,6 +318,7 @@ export async function POST(req: NextRequest) {
       data: {
         requestId: validatedData.requestId || null,
         uploadId: validatedData.uploadId || null,
+        fieldId: validatedData.fieldId || null,
         userId: session.user.id,
         message: validatedData.message,
         isInternal: validatedData.isInternal,
@@ -332,6 +340,7 @@ export async function POST(req: NextRequest) {
       message: comment.message,
       requestId: comment.requestId,
       uploadId: comment.uploadId,
+      fieldId: comment.fieldId,
       isInternal: comment.isInternal,
       authorId: session.user.id,
       authorName: comment.user.name,

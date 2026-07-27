@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +49,7 @@ import {
   ChevronDown,
   ListChecks,
   RefreshCw,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -123,6 +124,8 @@ interface ContentRequest {
   creator: Creator;
   template: RequestTemplate | null;
   tags?: RequestTag[];
+  /** Number of completed uploads awaiting a review decision (PENDING). */
+  pendingReviewCount?: number;
   _count: {
     uploads: number;
     comments: number;
@@ -207,6 +210,7 @@ function RequestsListError({ onRetry }: { onRetry: () => void }) {
 }
 
 const QUICK_FILTERS = [
+  { id: "needs-review", label: "Needs Review", icon: ClipboardCheck },
   { id: "my-requests", label: "My Requests", icon: User },
   { id: "overdue", label: "Overdue", icon: AlertTriangle },
   { id: "due-today", label: "Due Today", icon: Calendar },
@@ -307,11 +311,29 @@ function getDueDateStatus(dueDate: string | null) {
   return { status: "normal", label: format(date, "MMM d"), class: "text-muted-foreground" };
 }
 
+// Prominent amber marker for requests with uploaded content awaiting a review
+// decision. Uses a semantic warning colour (not the brand accent) so it stands
+// out at a glance. Renders nothing when there is nothing to review.
+function NeedsReviewBadge({ count, className = "" }: { count?: number; className?: string }) {
+  if (!count || count <= 0) return null;
+  return (
+    <Badge
+      variant="outline"
+      className={`gap-1 border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300 ${className}`}
+    >
+      <ClipboardCheck className="h-3 w-3" />
+      Needs review
+      <span className="font-semibold">{count}</span>
+    </Badge>
+  );
+}
+
 type SortOption = "priority" | "deadline" | "created" | "title";
 type GroupOption = "none" | "priority" | "status";
 
 export function RequestsList({ initialRequests, creators, currentUserId, teamMembers = [], initialError = false }: RequestsListProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [requests, setRequests] = useState<ContentRequest[]>(initialRequests);
   // Tracks the freshness of `requests` so the UI can distinguish "loading" and
   // "failed" from a genuine, completed empty result.
@@ -373,6 +395,15 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
     }
   }, []);
 
+  // Apply a quick filter passed in the URL (e.g. the dashboard "Needs Review"
+  // stat links to /dashboard/requests?filter=needs-review).
+  useEffect(() => {
+    const urlFilter = searchParams.get("filter");
+    if (urlFilter && QUICK_FILTERS.some((f) => f.id === urlFilter)) {
+      setQuickFilter(urlFilter);
+    }
+  }, [searchParams]);
+
   // Filter requests
   const filteredRequests = useMemo(() => {
     if (!requests || !Array.isArray(requests)) return [];
@@ -402,7 +433,9 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
     }
 
     // Quick filters
-    if (quickFilter === "overdue") {
+    if (quickFilter === "needs-review") {
+      filtered = filtered.filter((r) => (r.pendingReviewCount ?? 0) > 0);
+    } else if (quickFilter === "overdue") {
       filtered = filtered.filter((r) => r.dueDate && isPast(new Date(r.dueDate)));
     } else if (quickFilter === "due-today") {
       filtered = filtered.filter((r) => r.dueDate && isToday(new Date(r.dueDate)));
@@ -1181,6 +1214,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        <NeedsReviewBadge count={request.pendingReviewCount} />
                         <DeadlineCountdown deadline={request.dueDate} priority={request.urgency as Priority} size="sm" />
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
@@ -1248,6 +1282,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                               </div>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
+                              <NeedsReviewBadge count={request.pendingReviewCount} />
                               <Badge variant="outline" className={getStatusConfig(request.status).class}>
                                 {getStatusConfig(request.status).label}
                               </Badge>
@@ -1428,6 +1463,10 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
 
                           {/* Tags row */}
                           <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <NeedsReviewBadge
+                              count={request.pendingReviewCount}
+                              className="text-[10px]"
+                            />
                             <Badge variant="outline" className={`${statusConfig.class} text-[10px]`}>
                               {statusConfig.label}
                             </Badge>
@@ -1541,7 +1580,11 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
                             >
                               {request.title}
                             </Link>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
+                              <NeedsReviewBadge
+                                count={request.pendingReviewCount}
+                                className="text-xs"
+                              />
                               {request.template && (
                                 <Badge variant="outline" className="text-xs">
                                   {request.template.name}

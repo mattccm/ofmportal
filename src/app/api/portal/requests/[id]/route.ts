@@ -204,6 +204,7 @@ export async function GET(
         id: comment.id,
         content: comment.message,
         createdAt: comment.createdAt.toISOString(),
+        fieldId: comment.fieldId,
         isAgency: !isCreatorComment,
         user: isCreatorComment
           ? { name: creatorInfo?.name || creator.name }

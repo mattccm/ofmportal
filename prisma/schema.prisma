@@ -780,6 +780,10 @@ model Comment {
   uploadId  String?
   upload    Upload?         @relation(fields: [uploadId], references: [id], onDelete: Cascade)
 
+  // Optional target: a specific template field/section of the request
+  // (matches Upload.fieldId and the keys in ContentRequest.fieldSubmissions)
+  fieldId String?
+
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -809,6 +813,7 @@ model Comment {
   @@index([uploadId])
   @@index([parentId])
   @@index([userId])
+  @@index([requestId, fieldId])
 }
 
 // ============================================

@@ -53,6 +53,7 @@ export async function GET(
       id: comment.id,
       content: comment.message,
       createdAt: comment.createdAt.toISOString(),
+      fieldId: comment.fieldId,
       isAgency: true, // Agency user comments
       user: comment.user
         ? {
