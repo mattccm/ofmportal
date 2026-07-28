@@ -141,6 +141,20 @@ export function NotificationBell({ className }: NotificationBellProps) {
   // ACTIONS
 
   const handleMarkAsRead = async (notificationId: string) => {
+    const target = notifications.find((n) => n.id === notificationId);
+    const wasUnread = target ? target.readAt === null : true;
+
+    // Update local state before the round-trip so the badge clears instantly,
+    // even when clicking the item also navigates away and unmounts the bell.
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === notificationId ? { ...n, readAt: new Date() } : n
+      )
+    );
+    if (wasUnread) {
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    }
+
     try {
       const response = await fetch("/api/notifications", {
         method: "PATCH",
@@ -148,22 +162,39 @@ export function NotificationBell({ className }: NotificationBellProps) {
         body: JSON.stringify({ notificationIds: [notificationId] }),
       });
 
-      if (response.ok) {
-        // Update local state
+      if (!response.ok) {
+        // Revert the optimistic update if the server rejected it
         setNotifications((prev) =>
           prev.map((n) =>
-            n.id === notificationId ? { ...n, readAt: new Date() } : n
+            n.id === notificationId ? { ...n, readAt: null } : n
           )
         );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+        if (wasUnread) {
+          setUnreadCount((prev) => prev + 1);
+        }
       }
     } catch (error) {
       console.error("Failed to mark notification as read:", error);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, readAt: null } : n
+        )
+      );
+      if (wasUnread) {
+        setUnreadCount((prev) => prev + 1);
+      }
     }
   };
 
   const handleMarkAllAsRead = async () => {
     setIsMarkingAllRead(true);
+
+    // Snapshot for rollback, then update local state immediately
+    const prevNotifications = notifications;
+    const prevUnreadCount = unreadCount;
+    setNotifications((prev) => prev.map((n) => ({ ...n, readAt: new Date() })));
+    setUnreadCount(0);
+
     try {
       const response = await fetch("/api/notifications", {
         method: "PATCH",
@@ -171,15 +202,14 @@ export function NotificationBell({ className }: NotificationBellProps) {
         body: JSON.stringify({ markAllAsRead: true }),
       });
 
-      if (response.ok) {
-        // Update local state
-        setNotifications((prev) =>
-          prev.map((n) => ({ ...n, readAt: new Date() }))
-        );
-        setUnreadCount(0);
+      if (!response.ok) {
+        setNotifications(prevNotifications);
+        setUnreadCount(prevUnreadCount);
       }
     } catch (error) {
       console.error("Failed to mark all as read:", error);
+      setNotifications(prevNotifications);
+      setUnreadCount(prevUnreadCount);
     } finally {
       setIsMarkingAllRead(false);
     }

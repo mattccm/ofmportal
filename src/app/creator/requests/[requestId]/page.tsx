@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FileDropzone } from "@/components/uploads/file-dropzone";
@@ -174,6 +174,11 @@ export default function CreatorRequestDetailPage({
   const [showDetails, setShowDetails] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
+  // Video thumbnails are generated after the upload finishes, so they aren't
+  // ready the moment the upload POST resolves. Track pending poll timers so we
+  // can always clear them on unmount.
+  const thumbnailPollTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
   const {
     queue: uploadQueue,
     addFiles,
@@ -192,8 +197,11 @@ export default function CreatorRequestDetailPage({
   } = useFileUpload({
     requestId,
     maxConcurrent: 3,
-    onUploadComplete: () => {
+    onUploadComplete: (file) => {
       fetchData();
+      if (file.uploadId && file.file.type.startsWith("video/")) {
+        pollThumbnail(file.uploadId);
+      }
     },
     onAllComplete: () => {},
   });
@@ -222,6 +230,55 @@ export default function CreatorRequestDetailPage({
       setLoading(false);
     }
   }, [requestId]);
+
+  // Poll the thumbnail endpoint until the video's generated thumbnail is
+  // available, then patch it into local state so it renders without a manual
+  // refresh. Bounded attempts with backoff so it always stops.
+  const pollThumbnail = useCallback((uploadId: string) => {
+    const delays = [1000, 1500, 2500, 3000, 3000]; // ~11s across 5 attempts
+    let attempt = 0;
+
+    const schedule = () => {
+      if (attempt >= delays.length) return;
+      const delay = delays[attempt++];
+      const timer = setTimeout(async () => {
+        thumbnailPollTimers.current.delete(timer);
+        let resolved = false;
+        try {
+          const token = localStorage.getItem("creatorToken");
+          const response = await fetch(`/api/uploads/${uploadId}/thumbnail`, {
+            headers: { "x-creator-token": token || "" },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.url) {
+              setUploads((prev) =>
+                prev.map((u) =>
+                  u.id === uploadId ? { ...u, thumbnailUrl: data.url } : u
+                )
+              );
+              resolved = true;
+            }
+          }
+        } catch {
+          // Network error - fall through to retry.
+        }
+        if (!resolved) schedule();
+      }, delay);
+      thumbnailPollTimers.current.add(timer);
+    };
+
+    schedule();
+  }, []);
+
+  // Clear any pending poll timers on unmount.
+  useEffect(() => {
+    const timers = thumbnailPollTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("creatorToken");

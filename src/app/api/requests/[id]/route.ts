@@ -36,6 +36,7 @@ const updateRequestSchema = z.object({
   ]).optional(),
   urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
   dueDate: z.string().nullable().optional(),
+  estimatedMinutes: z.number().int().min(0).nullable().optional(),
   fields: z.array(z.object({
     id: z.string(),
     label: z.string(),
@@ -216,6 +217,9 @@ export async function PATCH(
 
     if (validatedData.dueDate !== undefined) {
       updateData.dueDate = validatedData.dueDate ? new Date(validatedData.dueDate) : null;
+    }
+    if (validatedData.estimatedMinutes !== undefined) {
+      updateData.estimatedMinutes = validatedData.estimatedMinutes;
     }
 
     if (validatedData.fields !== undefined) {

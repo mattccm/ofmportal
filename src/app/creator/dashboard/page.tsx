@@ -20,10 +20,12 @@ import {
   Sparkles,
   Calendar,
   Bell,
+  MessageCircle,
 } from "lucide-react";
 import { format, isPast, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { stripHtml } from "@/components/ui/html-content";
+import { RequestProgress } from "@/components/portal/request-progress";
 
 type RequestStatus =
   | "PENDING"
@@ -45,6 +47,13 @@ interface Request {
     uploads: number;
     comments: number;
   };
+  completion?: {
+    totalSlots: number;
+    uploadedSlots: number;
+    approvedSlots: number;
+  };
+  unreadFeedbackCount?: number;
+  estimatedMinutes?: number | null;
 }
 
 interface Stats {
@@ -449,21 +458,35 @@ export default function CreatorDashboardPage() {
                             >
                               {request.status.replace("_", " ")}
                             </Badge>
+                            {request.unreadFeedbackCount ? (
+                              <Badge
+                                className="shrink-0 gap-1 border-0 text-white"
+                                style={{ backgroundColor: branding.primaryColor }}
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                                {request.unreadFeedbackCount} new
+                              </Badge>
+                            ) : null}
                           </div>
                           {request.description && (
                             <p className="text-sm text-muted-foreground line-clamp-1">
                               {stripHtml(request.description)}
                             </p>
                           )}
-                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <div className="mt-3 space-y-2">
                             {request.dueDate && (
                               <span className={cn(
+                                "inline-flex items-center gap-1 text-xs text-muted-foreground",
                                 isPast(new Date(request.dueDate)) && "text-red-500 font-medium"
                               )}>
+                                <Calendar className="h-3 w-3" />
                                 Due {format(new Date(request.dueDate), "MMM d")}
                               </span>
                             )}
-                            <span>{request._count?.uploads || 0} uploads</span>
+                            <RequestProgress
+                              completion={request.completion}
+                              estimatedMinutes={request.estimatedMinutes}
+                            />
                           </div>
                         </div>
                         <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />

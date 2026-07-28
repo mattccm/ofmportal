@@ -23,7 +23,6 @@ import {
   Grid3X3,
   List,
   ArrowRight,
-  Upload,
   Calendar,
   MessageCircle,
   RefreshCw,
@@ -32,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { isPast, format } from "date-fns";
 import { useBranding } from "@/components/providers/branding-provider";
 import { stripHtml } from "@/components/ui/html-content";
+import { RequestProgress } from "@/components/portal/request-progress";
 
 type RequestStatus =
   | "PENDING"
@@ -59,6 +59,7 @@ interface Request {
     approvedSlots: number;
   };
   unreadFeedbackCount?: number;
+  estimatedMinutes?: number | null;
 }
 
 type FilterTab = "all" | "active" | "completed" | "overdue";
@@ -436,35 +437,26 @@ export default function CreatorRequestsPage() {
                               </p>
                             )}
                             <div className={cn(
-                              "flex items-center gap-4 text-xs text-muted-foreground",
-                              viewMode === "grid" ? "mt-auto pt-3" : "mt-2"
+                              viewMode === "grid" ? "mt-auto pt-3" : "mt-3"
                             )}>
                               {request.dueDate && (
-                                <span className={cn(
-                                  "flex items-center gap-1",
-                                  isPast(new Date(request.dueDate)) &&
-                                  request.status !== "APPROVED" &&
-                                  request.status !== "SUBMITTED" &&
-                                  "text-red-500 font-medium"
-                                )}>
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(request.dueDate), "MMM d")}
-                                </span>
+                                <div className="mb-2">
+                                  <span className={cn(
+                                    "inline-flex items-center gap-1 text-xs text-muted-foreground",
+                                    isPast(new Date(request.dueDate)) &&
+                                    request.status !== "APPROVED" &&
+                                    request.status !== "SUBMITTED" &&
+                                    "text-red-500 font-medium"
+                                  )}>
+                                    <Calendar className="h-3 w-3" />
+                                    Due {format(new Date(request.dueDate), "MMM d")}
+                                  </span>
+                                </div>
                               )}
-                              {request.completion && request.completion.totalSlots > 0 ? (
-                                <span className="flex items-center gap-1">
-                                  <Upload className="h-3 w-3" />
-                                  Uploaded {request.completion.uploadedSlots}/
-                                  {request.completion.totalSlots} · Approved{" "}
-                                  {request.completion.approvedSlots}/
-                                  {request.completion.totalSlots}
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1">
-                                  <Upload className="h-3 w-3" />
-                                  {request._count?.uploads || 0}
-                                </span>
-                              )}
+                              <RequestProgress
+                                completion={request.completion}
+                                estimatedMinutes={request.estimatedMinutes}
+                              />
                             </div>
                           </div>
                           {viewMode === "list" && (

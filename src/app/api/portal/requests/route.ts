@@ -78,10 +78,17 @@ export async function GET(req: NextRequest) {
           c.createdAt.getTime() > lastViewed
       ).length;
 
+      // Time estimate: the agency's set value, else a rough derivation from the
+      // number of deliverables so the creator always sees a ballpark.
+      const estimatedMinutes =
+        request.estimatedMinutes ??
+        (fileFields.length > 0 ? fileFields.length * 15 : 15);
+
       return {
         ...request,
         completion: { totalSlots, uploadedSlots, approvedSlots },
         unreadFeedbackCount,
+        estimatedMinutes,
       };
     });
 

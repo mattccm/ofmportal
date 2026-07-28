@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { MessageSquarePlus, Users, X, User } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -295,7 +296,7 @@ export default function MessagesPage() {
   };
 
   // Create conversation using unified inbox API
-  const handleCreateConversation = async (participantIds: string[], name?: string, creatorId?: string) => {
+  const handleCreateConversation = async (participantIds: string[], name?: string, creatorId?: string): Promise<boolean> => {
     try {
       const body: {
         type: string;
@@ -316,14 +317,21 @@ export default function MessagesPage() {
         body: JSON.stringify(body),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        await fetchConversations();
-        router.push(`/dashboard/messages?conversation=${data.conversation.id}`);
-        setShowNewConversationDialog(false);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error || "Failed to start conversation");
+        return false;
       }
+
+      const data = await response.json();
+      await fetchConversations();
+      router.push(`/dashboard/messages?conversation=${data.conversation.id}`);
+      setShowNewConversationDialog(false);
+      return true;
     } catch (error) {
       console.error("Failed to create conversation:", error);
+      toast.error("Failed to start conversation");
+      return false;
     }
   };
 
@@ -450,7 +458,7 @@ export default function MessagesPage() {
 interface NewConversationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateConversation: (participantIds: string[], name?: string, creatorId?: string) => void;
+  onCreateConversation: (participantIds: string[], name?: string, creatorId?: string) => Promise<boolean>;
   currentUserId: string;
 }
 
@@ -529,15 +537,15 @@ function NewConversationDialog({
 
     // If we selected a creator, create a CREATOR type conversation
     const selectedCreator = selectedUsers.find(u => u.isCreator);
-    if (selectedCreator) {
-      await onCreateConversation([], undefined, selectedCreator.id);
-    } else {
-      await onCreateConversation(
-        selectedUsers.map((u) => u.id),
-        selectedUsers.length > 1 ? groupName || undefined : undefined
-      );
-    }
+    const created = selectedCreator
+      ? await onCreateConversation([], undefined, selectedCreator.id)
+      : await onCreateConversation(
+          selectedUsers.map((u) => u.id),
+          selectedUsers.length > 1 ? groupName || undefined : undefined
+        );
     setIsCreating(false);
+
+    if (!created) return;
 
     // Reset state
     setSelectedUsers([]);

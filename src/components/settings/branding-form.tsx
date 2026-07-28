@@ -95,7 +95,7 @@ function ColorPicker({
               onChange={handleColorPickerChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20">
+            <div className="absolute inset-0 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity pointer-events-none">
               <Palette className="h-4 w-4" style={{ color: contrastColor }} />
             </div>
           </div>

@@ -120,10 +120,11 @@ export async function GET(req: NextRequest) {
           senderEmail: item.bulkEmail.sender?.email,
         });
 
-        const rendered = renderBulkEmail(
+        const rendered = await renderBulkEmail(
           item.bulkEmail.subject,
           item.bulkEmail.body,
           variables,
+          item.bulkEmail.agencyId,
           agencyName
         );
 
@@ -132,6 +133,8 @@ export async function GET(req: NextRequest) {
           subject: rendered.subject,
           html: rendered.html,
           text: rendered.text,
+          fromName: rendered.fromName,
+          replyTo: rendered.replyTo,
         });
 
         await db.emailQueueItem.update({

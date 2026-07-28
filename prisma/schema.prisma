@@ -529,8 +529,9 @@ model ContentRequest {
   fieldSubmissions Json @default("{}")
 
   // Scheduling
-  dueDate DateTime?
-  urgency Urgency   @default(NORMAL)
+  dueDate          DateTime?
+  urgency          Urgency   @default(NORMAL)
+  estimatedMinutes Int? // Agency's estimate of how long this should take the creator
 
   // Status tracking
   status      RequestStatus @default(PENDING)

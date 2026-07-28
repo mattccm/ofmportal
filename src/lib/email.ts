@@ -186,7 +186,8 @@ function linkFallback(url: string): string {
 function renderEmail(options: {
   subject: string;
   branding: EmailBranding;
-  heading: string;
+  /** Optional H1 shown above the content; omit for pre-formatted bodies */
+  heading?: string;
   content: string;
 }): string {
   const { subject, branding, heading, content } = options;
@@ -205,7 +206,9 @@ function renderEmail(options: {
     ? `<p style="margin:8px 0 0;font-family:${FONT_STACK};font-size:12px;line-height:1.5;color:${TEXT.faint};">Need a hand? Email <a href="mailto:${escapeHtml(branding.supportEmail)}" style="color:${branding.primaryColor};text-decoration:none;">${escapeHtml(branding.supportEmail)}</a>.</p>`
     : "";
 
-  const headingHtml = `<h1 style="margin:0 0 20px;font-family:${FONT_STACK};font-size:22px;line-height:1.3;font-weight:700;color:${TEXT.heading};">${escapeHtml(heading)}</h1>`;
+  const headingHtml = heading
+    ? `<h1 style="margin:0 0 20px;font-family:${FONT_STACK};font-size:22px;line-height:1.3;font-weight:700;color:${TEXT.heading};">${escapeHtml(heading)}</h1>`
+    : "";
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -400,32 +403,6 @@ function convertToHtml(text: string): string {
   return html;
 }
 
-/** Wrap rendered content in the branded email template */
-function generateEmailHtml(content: string, agencyName: string): string {
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 20px;">${escapeHtml(agencyName)}</h1>
-        </div>
-        <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-          ${content}
-        </div>
-        <div style="padding: 20px; text-align: center;">
-          <p style="color: #999; font-size: 12px; margin: 0;">
-            Sent via CCM
-          </p>
-        </div>
-      </body>
-    </html>
-  `;
-}
-
 export interface BulkEmailVariableInput {
   creatorName: string;
   creatorEmail: string;
@@ -461,19 +438,40 @@ export function buildBulkEmailVariables(
 
 /**
  * Render a bulk email (subject + body) for one recipient: substitutes
- * variables, converts the body markdown to HTML, and wraps it in the template.
+ * variables, converts the body markdown to HTML, and wraps it in the shared
+ * branded shell so bulk sends carry the same logo, colour, sender name, and
+ * signature as every transactional email. Returns the branded "From" display
+ * name and reply-to for the caller to pass to sendEmail.
  */
-export function renderBulkEmail(
+export async function renderBulkEmail(
   subject: string,
   body: string,
   variables: Record<string, string>,
-  agencyName: string
-): { subject: string; html: string; text: string } {
+  agencyId?: string,
+  fallbackAgencyName?: string
+): Promise<{
+  subject: string;
+  html: string;
+  text: string;
+  fromName: string;
+  replyTo?: string;
+}> {
+  const branding = await loadEmailBranding(agencyId, fallbackAgencyName);
   const processedSubject = processVariables(subject, variables);
   const processedBody = processVariables(body, variables);
-  const html = generateEmailHtml(convertToHtml(processedBody), agencyName);
+  const html = renderEmail({
+    subject: processedSubject,
+    branding,
+    content: convertToHtml(processedBody),
+  });
 
-  return { subject: processedSubject, html, text: processedBody };
+  return {
+    subject: processedSubject,
+    html,
+    text: processedBody,
+    fromName: branding.fromName,
+    replyTo: branding.replyTo ?? undefined,
+  };
 }
 
 // TRANSACTIONAL EMAIL TEMPLATES

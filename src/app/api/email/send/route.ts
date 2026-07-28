@@ -179,11 +179,12 @@ export async function POST(req: NextRequest) {
           senderEmail: sender?.email || session.user.email,
         });
 
-        // Render subject + body through the shared pipeline
-        const rendered = renderBulkEmail(
+        // Render subject + body through the shared branded pipeline
+        const rendered = await renderBulkEmail(
           validatedData.subject,
           validatedData.body,
           variables,
+          session.user.agencyId,
           agency.name
         );
 
@@ -193,6 +194,8 @@ export async function POST(req: NextRequest) {
           subject: rendered.subject,
           html: rendered.html,
           text: rendered.text,
+          fromName: rendered.fromName,
+          replyTo: rendered.replyTo,
         });
 
         // Update queue item

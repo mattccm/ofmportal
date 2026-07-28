@@ -201,6 +201,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Deduplicate participants and always include the current user
+    const participantUserIds = Array.from(
+      new Set<string>([userId, ...((participantIds as string[]) || [])])
+    );
+
+    // For DIRECT conversations, reuse an existing thread between the two users
+    if (type === "DIRECT") {
+      const otherUserIds = participantUserIds.filter((id) => id !== userId);
+      if (otherUserIds.length !== 1) {
+        return NextResponse.json(
+          { error: "Direct conversations require exactly one other participant" },
+          { status: 400 }
+        );
+      }
+
+      const existingDirect = await db.conversation.findFirst({
+        where: {
+          type: "DIRECT",
+          OR: [{ agencyId }, { agencyId: null }],
+          AND: [
+            { participants: { some: { userId } } },
+            { participants: { some: { userId: otherUserIds[0] } } },
+          ],
+        },
+      });
+
+      if (existingDirect) {
+        return NextResponse.json({
+          conversation: existingDirect,
+          existing: true,
+        });
+      }
+    }
+
     // Create conversation
     const conversation = await db.conversation.create({
       data: {
@@ -209,10 +243,7 @@ export async function POST(request: NextRequest) {
         creatorId: type === "CREATOR" ? creatorId : null,
         agencyId,
         participants: {
-          create: [
-            { userId }, // Creator always participates
-            ...(participantIds || []).map((id: string) => ({ userId: id })),
-          ],
+          create: participantUserIds.map((id) => ({ userId: id })),
         },
       },
       include: {

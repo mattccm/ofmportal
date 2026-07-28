@@ -54,6 +54,7 @@ interface Request {
   status: string;
   urgency: string;
   dueDate: Date | null;
+  estimatedMinutes?: number | null;
   createdAt: Date;
   requirements: (Record<string, string> & { _richContent?: RichContent }) | null;
   fields: FullTemplateField[] | null;
@@ -82,6 +83,9 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
     request.dueDate ? format(new Date(request.dueDate), "yyyy-MM-dd") : ""
   );
   const [urgency, setUrgency] = React.useState(request.urgency);
+  const [estimatedMinutes, setEstimatedMinutes] = React.useState(
+    request.estimatedMinutes != null ? String(request.estimatedMinutes) : ""
+  );
   const [status, setStatus] = React.useState(request.status);
   const [fields, setFields] = React.useState<FullTemplateField[]>(request.fields || []);
   const [requestRichContent, setRequestRichContent] = React.useState<RichContent>(
@@ -100,11 +104,12 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
       description !== (request.description || "") ||
       dueDate !== (request.dueDate ? format(new Date(request.dueDate), "yyyy-MM-dd") : "") ||
       urgency !== request.urgency ||
+      estimatedMinutes !== (request.estimatedMinutes != null ? String(request.estimatedMinutes) : "") ||
       status !== request.status ||
       JSON.stringify(fields) !== JSON.stringify(request.fields || []) ||
       JSON.stringify(requestRichContent) !== JSON.stringify(request.requirements?._richContent || {});
     setHasChanges(hasFormChanges);
-  }, [title, description, dueDate, urgency, status, fields, requestRichContent, request]);
+  }, [title, description, dueDate, urgency, estimatedMinutes, status, fields, requestRichContent, request]);
 
   // Field operations
   const addCustomField = () => {
@@ -158,6 +163,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
           description,
           dueDate: dueDate || null,
           urgency,
+          estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes, 10) : null,
           status,
           fields,
           richContent: requestRichContent,
@@ -330,6 +336,22 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="estimatedMinutes">Est. time (min)</Label>
+              <Input
+                id="estimatedMinutes"
+                type="number"
+                min={0}
+                step={5}
+                placeholder="e.g. 30"
+                value={estimatedMinutes}
+                onChange={(e) => setEstimatedMinutes(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Shown to the creator as a guide for how long this should take.
+              </p>
             </div>
 
             <div className="space-y-2">

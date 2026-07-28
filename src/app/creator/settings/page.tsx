@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { ThemeSwitcher } from "@/components/theme/theme-toggle";
 import { useTheme } from "@/components/theme/theme-provider";
 import { clearCreatorSession, setSignedOutFlag } from "@/lib/remember-token";
+import { compressAvatarImage, validateAvatarFile } from "@/lib/avatar";
 
 const TIMEZONES = [
   // UTC-12 to UTC-8
@@ -170,14 +171,25 @@ export default function CreatorSettingsPage() {
     }
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    e.target.value = "";
+    if (!file) return;
+
+    const validation = validateAvatarFile(file);
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid image");
+      return;
+    }
+
+    // Downscale to a small square JPEG before storing. A profile photo never
+    // needs to be large, and this keeps the base64 payload well under the
+    // request-body limit when it is saved.
+    try {
+      const compressed = await compressAvatarImage(file);
+      setPreviewImage(compressed);
+    } catch {
+      toast.error("Failed to process image");
     }
   };
 
@@ -200,6 +212,9 @@ export default function CreatorSettingsPage() {
       });
 
       if (!response.ok) {
+        if (response.status === 413) {
+          throw new Error("That image is too large — please choose a smaller one");
+        }
         throw new Error("Failed to save profile");
       }
 
@@ -207,8 +222,8 @@ export default function CreatorSettingsPage() {
       localStorage.setItem("creatorName", name);
 
       toast.success("Profile saved");
-    } catch {
-      toast.error("Failed to save profile");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save profile");
     } finally {
       setSaving(false);
     }
