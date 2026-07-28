@@ -25,6 +25,8 @@ import {
   ArrowRight,
   Upload,
   Calendar,
+  MessageCircle,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isPast, format } from "date-fns";
@@ -56,6 +58,7 @@ interface Request {
     uploadedSlots: number;
     approvedSlots: number;
   };
+  unreadFeedbackCount?: number;
 }
 
 type FilterTab = "all" | "active" | "completed" | "overdue";
@@ -67,6 +70,7 @@ export default function CreatorRequestsPage() {
   const { branding } = useBranding();
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [requests, setRequests] = useState<Request[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<FilterTab>(
@@ -102,11 +106,19 @@ export default function CreatorRequestsPage() {
 
       const data = await response.json();
       setRequests(data);
+      setLoadError(false);
     } catch (error) {
       console.error("Error fetching requests:", error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
+  };
+
+  const retryFetch = () => {
+    setLoadError(false);
+    setLoading(true);
+    fetchRequests();
   };
 
   const filteredRequests = useMemo(() => {
@@ -232,6 +244,31 @@ export default function CreatorRequestsPage() {
           />
           <p className="text-muted-foreground">Loading requests...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <RefreshCw className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-semibold text-lg mb-1">
+              Couldn&apos;t load your requests
+            </h3>
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto mb-4">
+              Something went wrong while loading. Check your connection and try
+              again.
+            </p>
+            <Button onClick={retryFetch}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -380,6 +417,15 @@ export default function CreatorRequestsPage() {
                               >
                                 {request.status.replace("_", " ")}
                               </Badge>
+                              {request.unreadFeedbackCount ? (
+                                <Badge
+                                  className="shrink-0 text-xs gap-1 border-0 text-white"
+                                  style={{ backgroundColor: branding.primaryColor }}
+                                >
+                                  <MessageCircle className="h-3 w-3" />
+                                  {request.unreadFeedbackCount} new
+                                </Badge>
+                              ) : null}
                             </div>
                             {request.description && (
                               <p className={cn(

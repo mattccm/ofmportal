@@ -30,13 +30,20 @@ export async function GET(req: NextRequest) {
         uploads: {
           select: { fieldId: true, status: true },
         },
+        comments: {
+          where: { isInternal: false },
+          select: {
+            createdAt: true,
+            user: { select: { email: true } },
+          },
+        },
       },
     });
 
     // Completion counts mirror the staff request sidebar: upload slots are the
     // required file fields (or all file fields when none are flagged required);
     // ad-hoc requests with no file fields fall back to raw upload counts.
-    const withCompletion = requests.map(({ uploads, ...request }) => {
+    const withCompletion = requests.map(({ uploads, comments, ...request }) => {
       const fields = (request.fields as unknown as RequestField[]) || [];
       const fileFields = fields.filter((f) => f.type === "file");
       const requiredFileFields = fileFields.filter((f) => f.required);
@@ -60,9 +67,21 @@ export async function GET(req: NextRequest) {
         approvedSlots = uploads.filter((u) => u.status === "APPROVED").length;
       }
 
+      // Unread staff feedback: non-internal comments from real staff (not the
+      // .internal creator pseudo-users) posted since the creator last viewed.
+      const lastViewed = request.lastViewedAt
+        ? new Date(request.lastViewedAt).getTime()
+        : 0;
+      const unreadFeedbackCount = comments.filter(
+        (c) =>
+          !(c.user?.email ?? "").endsWith(".internal") &&
+          c.createdAt.getTime() > lastViewed
+      ).length;
+
       return {
         ...request,
         completion: { totalSlots, uploadedSlots, approvedSlots },
+        unreadFeedbackCount,
       };
     });
 
