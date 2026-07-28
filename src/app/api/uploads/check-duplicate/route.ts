@@ -25,14 +25,26 @@ async function sendDuplicateNotificationEmail(
   originalUploadedAt?: Date,
   originalRequestName?: string
 ): Promise<void> {
-  const { sendEmail } = await import("@/lib/email");
+  const { sendEmail, loadEmailBranding, renderEmail, escapeHtml, p } =
+    await import("@/lib/email");
   const message = `Duplicate upload attempt blocked. Creator tried to upload "${attemptedFileName}" which matches "${originalFileName}" (${Math.round(similarity)}% similar) from ${originalRequestName || "unknown request"}.`;
+
+  const subject = `Duplicate upload detected - ${attemptedFileName}`;
+  const branding = await loadEmailBranding(agencyId);
+  const html = renderEmail({
+    subject,
+    branding,
+    heading: "Duplicate upload blocked",
+    content: p(escapeHtml(message)),
+  });
 
   await sendEmail({
     to: adminEmail,
-    subject: `Duplicate Upload Detected - ${attemptedFileName}`,
-    html: `<p>${message}</p>`,
+    subject,
+    html,
     text: message,
+    fromName: branding.fromName,
+    replyTo: branding.replyTo ?? undefined,
   }).catch((err) => {
     console.error("Failed to send duplicate notification email:", err);
   });

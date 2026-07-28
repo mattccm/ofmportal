@@ -23,7 +23,7 @@ function getResendClient(): Resend | null {
 const FROM_EMAIL = process.env.EMAIL_FROM || "noreply@portal.of-m.com";
 
 /** Escape HTML entities to prevent injection in email templates */
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -77,7 +77,7 @@ function usableLogoUrl(url: string | null | undefined): string | null {
  * tool. Falls back to sensible defaults if branding can't be loaded so email
  * sending never throws on branding alone.
  */
-async function loadEmailBranding(
+export async function loadEmailBranding(
   agencyId?: string,
   fallbackName?: string
 ): Promise<EmailBranding> {
@@ -148,12 +148,12 @@ const TEXT = {
 };
 
 /** Standard body paragraph */
-function p(html: string): string {
+export function p(html: string): string {
   return `<p style="margin:0 0 16px;font-family:${FONT_STACK};font-size:15px;line-height:1.65;color:${TEXT.body};">${html}</p>`;
 }
 
 /** Small, muted note paragraph */
-function note(html: string): string {
+export function note(html: string): string {
   return `<p style="margin:0 0 12px;font-family:${FONT_STACK};font-size:13px;line-height:1.6;color:${TEXT.muted};">${html}</p>`;
 }
 
@@ -163,12 +163,12 @@ function statusPill(label: string, color: string, background: string): string {
 }
 
 /** Light-grey information card */
-function infoCard(innerHtml: string): string {
+export function infoCard(innerHtml: string): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;background-color:#f9fafb;border:1px solid #eef0f2;border-radius:10px;"><tr><td style="padding:18px 20px;">${innerHtml}</td></tr></table>`;
 }
 
 /** Bulletproof, brand-coloured call-to-action button */
-function ctaButton(url: string, label: string, branding: EmailBranding): string {
+export function ctaButton(url: string, label: string, branding: EmailBranding): string {
   const safeUrl = escapeHtml(url);
   return `<div style="text-align:center;margin:28px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${branding.primaryColor}" style="border-radius:8px;"><a href="${safeUrl}" target="_blank" style="display:inline-block;padding:14px 34px;font-family:${FONT_STACK};font-size:15px;font-weight:600;line-height:1;color:${branding.buttonTextColor};text-decoration:none;border-radius:8px;">${escapeHtml(label)}</a></td></tr></table></div>`;
 }
@@ -183,7 +183,7 @@ function linkFallback(url: string): string {
  * Wrap pre-built (already-escaped) content HTML in the branded shell.
  * `heading` and any interpolated values must already be safe.
  */
-function renderEmail(options: {
+export function renderEmail(options: {
   subject: string;
   branding: EmailBranding;
   /** Optional H1 shown above the content; omit for pre-formatted bodies */

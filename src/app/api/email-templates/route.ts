@@ -10,7 +10,7 @@ import {
   renderTemplate,
   getSampleData,
 } from "@/lib/email-templates";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, loadEmailBranding } from "@/lib/email";
 
 // VALIDATION SCHEMAS
 
@@ -301,12 +301,19 @@ export async function PATCH(req: NextRequest) {
       ? renderTemplate(textContent, sampleData)
       : undefined;
 
+    // The template body is a full, user-authored HTML document, so it isn't
+    // wrapped in the branded shell; brand the sender instead so the test send
+    // comes from the agency, matching every other outgoing email.
+    const branding = await loadEmailBranding(session.user.agencyId);
+
     // Send the test email
     const result = await sendEmail({
       to: validatedData.email,
       subject: `[TEST] ${renderedSubject}`,
       html: renderedHtml,
       text: renderedText,
+      fromName: branding.fromName,
+      replyTo: branding.replyTo ?? undefined,
     });
 
     return NextResponse.json({

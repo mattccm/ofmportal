@@ -74,9 +74,15 @@ export default function CreatorMessagesPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ markAllRead: true }),
-          }).catch(() => {
-            // Silently fail - not critical
-          });
+          })
+            .then(() => {
+              // Clear the sidebar Comments badge immediately, without waiting
+              // for its next poll.
+              window.dispatchEvent(new Event("creator-messages:read"));
+            })
+            .catch(() => {
+              // Silently fail - not critical
+            });
         }
       } else {
         setError(true);

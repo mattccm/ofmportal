@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
+import {
+  sendEmail,
+  loadEmailBranding,
+  renderEmail,
+  escapeHtml,
+  p,
+  note,
+  infoCard,
+  ctaButton,
+} from "@/lib/email";
 import { excludePseudoUsers } from "@/lib/staff";
 import crypto from "crypto";
 import { Prisma, UserRole } from "@prisma/client";
@@ -215,46 +224,40 @@ export async function POST(request: NextRequest) {
     const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const loginLink = `${appUrl}/login`;
 
+    const branding = await loadEmailBranding(
+      session.user.agencyId,
+      agency?.name || undefined
+    );
+    const displayAgency = branding.agencyName;
+    const subject = `You've been invited to join ${displayAgency}`;
+
+    const content = `
+      ${p(`Hi ${escapeHtml(name)},`)}
+      ${p(`You've been invited to join <strong>${escapeHtml(displayAgency)}</strong> as a <strong>${escapeHtml(roleName)}</strong>.`)}
+      ${p(`Here are your login credentials:`)}
+      ${infoCard(
+        p(`<strong>Email:</strong> ${escapeHtml(email)}`) +
+          p(`<strong>Temporary password:</strong> ${escapeHtml(tempPassword)}`)
+      )}
+      ${note(`Please change your password after logging in for the first time.`)}
+      ${ctaButton(loginLink, "Log in now", branding)}
+    `;
+
+    const html = renderEmail({
+      subject,
+      branding,
+      heading: "Welcome to the team",
+      content,
+    });
+
     await sendEmail({
       to: email,
-      subject: `You've been invited to join ${agency?.name || "CCM"}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 24px;">Welcome to the Team!</h1>
-            </div>
-
-            <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-              <p>Hi ${name},</p>
-
-              <p>You've been invited to join <strong>${agency?.name || "CCM"}</strong> as a <strong>${roleName}</strong>.</p>
-
-              <p>Here are your login credentials:</p>
-
-              <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${email}</p>
-                <p style="margin: 0;"><strong>Temporary Password:</strong> ${tempPassword}</p>
-              </div>
-
-              <p style="color: #666; font-size: 14px;">Please change your password after logging in for the first time.</p>
-
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${loginLink}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Log In Now</a>
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
+      subject,
+      html,
       text: `
 Hi ${name},
 
-You've been invited to join ${agency?.name || "CCM"} as a ${roleName}.
+You've been invited to join ${displayAgency} as a ${roleName}.
 
 Your login credentials:
 Email: ${email}
@@ -264,6 +267,8 @@ Please change your password after logging in for the first time.
 
 Log in here: ${loginLink}
       `.trim(),
+      fromName: branding.fromName,
+      replyTo: branding.replyTo ?? undefined,
     });
 
     // Log the activity

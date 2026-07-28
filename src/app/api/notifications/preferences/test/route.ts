@@ -3,7 +3,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createNotification, NotificationType } from "@/lib/notifications";
-import { sendEmail } from "@/lib/email";
+import {
+  sendEmail,
+  loadEmailBranding,
+  renderEmail,
+  escapeHtml,
+  p,
+  note,
+} from "@/lib/email";
 import { sendSMS } from "@/lib/sms";
 import {
   NotificationPreferences,
@@ -137,30 +144,24 @@ export async function POST(req: NextRequest) {
     // Send email notification
     if (systemSettings.enabled && systemSettings.channels.email) {
       try {
+        const subject = "Test notification";
+        const branding = await loadEmailBranding(session.user.agencyId);
+        const html = renderEmail({
+          subject,
+          branding,
+          heading: "Test notification",
+          content: `
+            ${p(`Hello ${escapeHtml(user.name || "there")},`)}
+            ${p(`This is a test notification to verify your email notification settings are working correctly.`)}
+            ${note(`If you received this email, your email notifications are configured properly.`)}
+          `,
+        });
         await sendEmail({
           to: user.email,
-          subject: "Test Notification - Upload Portal",
-          html: `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: white; margin: 0; font-size: 24px;">Test Notification</h1>
-              </div>
-              <div style="background: #ffffff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-                <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
-                  Hello ${user.name || "there"},
-                </p>
-                <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
-                  This is a test notification to verify your email notification settings are working correctly.
-                </p>
-                <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
-                  If you received this email, your email notifications are configured properly!
-                </p>
-              </div>
-              <div style="text-align: center; padding: 16px; color: #9ca3af; font-size: 12px;">
-                <p style="margin: 0;">Sent from Upload Portal</p>
-              </div>
-            </div>
-          `,
+          subject,
+          html,
+          fromName: branding.fromName,
+          replyTo: branding.replyTo ?? undefined,
         });
         results.email = true;
       } catch (error) {

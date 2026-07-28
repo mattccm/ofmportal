@@ -23,13 +23,27 @@ export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
     }
   }, []);
 
-  // Initial fetch and polling
   useEffect(() => {
     queueMicrotask(refresh);
 
-    // Poll every 5 minutes (reduced from 60s to save database egress)
+    // Refresh promptly when comments are marked read elsewhere (the Comments
+    // page dispatches this) or when the user returns to the tab. The 5-minute
+    // poll is only a fallback so the badge is never more than a beat stale.
+    const onRead = () => refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("creator-messages:read", onRead);
+    window.addEventListener("focus", onRead);
+    document.addEventListener("visibilitychange", onVisible);
+
     const interval = setInterval(refresh, 300000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("creator-messages:read", onRead);
+      window.removeEventListener("focus", onRead);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [refresh]);
 
   return { count, refresh };

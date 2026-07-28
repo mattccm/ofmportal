@@ -4,7 +4,14 @@ import {
   NotificationType,
   getNotificationCategory,
 } from "./notifications";
-import { sendEmail } from "./email";
+import {
+  sendEmail,
+  loadEmailBranding,
+  renderEmail,
+  escapeHtml,
+  p,
+  ctaButton,
+} from "./email";
 import { sendSms } from "./sms";
 import {
   NotificationPreferences,
@@ -194,6 +201,7 @@ export async function sendNotificationWithPreferences(
       phone: true,
       preferences: true,
       timezone: true,
+      agencyId: true,
     },
   });
 
@@ -261,13 +269,34 @@ export async function sendNotificationWithPreferences(
   // Send email notification
   if (deliverySettings.channels.email && user.email) {
     try {
-      await sendEmail({
-        to: user.email,
-        subject: notification.emailSubject || notification.title,
-        html:
-          notification.emailHtml ||
-          generateDefaultEmailHtml(notification, user.name || "there"),
-      });
+      const subject = notification.emailSubject || notification.title;
+
+      if (notification.emailHtml) {
+        await sendEmail({
+          to: user.email,
+          subject,
+          html: notification.emailHtml,
+        });
+      } else {
+        const branding = await loadEmailBranding(user.agencyId ?? undefined);
+        const html = renderEmail({
+          subject,
+          branding,
+          heading: notification.title,
+          content: renderNotificationContent(
+            notification,
+            user.name || "there",
+            branding
+          ),
+        });
+        await sendEmail({
+          to: user.email,
+          subject,
+          html,
+          fromName: branding.fromName,
+          replyTo: branding.replyTo ?? undefined,
+        });
+      }
       result.email = true;
     } catch (error) {
       console.error("Failed to send email notification:", error);
@@ -319,100 +348,19 @@ export async function sendBulkNotificationsWithPreferences(
 // HELPER FUNCTIONS
 
 /**
- * Generate default email HTML for notifications
+ * Build the branded body content for a default notification email. The agency
+ * shell (logo, colour, sender, footer) is applied by renderEmail.
  */
-function generateDefaultEmailHtml(
+function renderNotificationContent(
   notification: NotificationData,
-  userName: string
+  userName: string,
+  branding: Awaited<ReturnType<typeof loadEmailBranding>>
 ): string {
-  const bgColor = getNotificationBgColor(notification.type);
-  const iconColor = getNotificationIconColor(notification.type);
-
   return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, ${bgColor.from} 0%, ${bgColor.to} 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">${notification.title}</h1>
-        </div>
-        <div style="background: #ffffff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-          <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
-            Hello ${userName},
-          </p>
-          <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
-            ${notification.message}
-          </p>
-          ${
-            notification.link
-              ? `
-          <div style="text-align: center; margin: 24px 0;">
-            <a href="${notification.link}" style="background: ${iconColor}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">View Details</a>
-          </div>
-          `
-              : ""
-          }
-        </div>
-        <div style="text-align: center; padding: 16px; color: #9ca3af; font-size: 12px;">
-          <p style="margin: 0;">Sent from Upload Portal</p>
-        </div>
-      </body>
-    </html>
+    ${p(`Hello ${escapeHtml(userName)},`)}
+    ${p(escapeHtml(notification.message))}
+    ${notification.link ? ctaButton(notification.link, "View details", branding) : ""}
   `;
-}
-
-/**
- * Get background gradient colors for notification type
- */
-function getNotificationBgColor(type: NotificationType): {
-  from: string;
-  to: string;
-} {
-  switch (type) {
-    case NotificationType.UPLOAD_SUBMITTED:
-    case NotificationType.MESSAGE_RECEIVED:
-      return { from: "#3b82f6", to: "#1d4ed8" };
-    case NotificationType.UPLOAD_APPROVED:
-      return { from: "#10b981", to: "#059669" };
-    case NotificationType.UPLOAD_REJECTED:
-      return { from: "#ef4444", to: "#dc2626" };
-    case NotificationType.REQUEST_CREATED:
-    case NotificationType.MENTION:
-      return { from: "#8b5cf6", to: "#7c3aed" };
-    case NotificationType.REQUEST_DUE_SOON:
-    case NotificationType.COMMENT_ADDED:
-      return { from: "#f59e0b", to: "#d97706" };
-    case NotificationType.SYSTEM:
-    default:
-      return { from: "#6366f1", to: "#4f46e5" };
-  }
-}
-
-/**
- * Get icon color for notification type
- */
-function getNotificationIconColor(type: NotificationType): string {
-  switch (type) {
-    case NotificationType.UPLOAD_SUBMITTED:
-    case NotificationType.MESSAGE_RECEIVED:
-      return "#3b82f6";
-    case NotificationType.UPLOAD_APPROVED:
-      return "#10b981";
-    case NotificationType.UPLOAD_REJECTED:
-      return "#ef4444";
-    case NotificationType.REQUEST_CREATED:
-    case NotificationType.MENTION:
-      return "#8b5cf6";
-    case NotificationType.REQUEST_DUE_SOON:
-    case NotificationType.COMMENT_ADDED:
-      return "#f59e0b";
-    case NotificationType.SYSTEM:
-    default:
-      return "#6366f1";
-  }
 }
 
 // CONVENIENCE NOTIFICATION FUNCTIONS

@@ -83,22 +83,23 @@ function ColorPicker({
     <div className="space-y-2">
       <Label className="text-sm font-medium">{label}</Label>
       <div className="flex items-center gap-3">
-        {/* Color preview & picker */}
+        {/* Color preview & picker (label so a click anywhere opens the picker) */}
         <div className="relative">
-          <div
-            className="w-12 h-12 rounded-xl border-2 border-border shadow-sm cursor-pointer overflow-hidden transition-transform hover:scale-105"
+          <label
+            className="relative block w-12 h-12 rounded-xl border-2 border-border shadow-sm cursor-pointer overflow-hidden transition-transform hover:scale-105"
             style={{ backgroundColor: value }}
           >
             <input
               type="color"
-              value={value}
+              value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000"}
               onChange={handleColorPickerChange}
+              aria-label={`${label} colour picker`}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
-            <div className="absolute inset-0 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity pointer-events-none">
+            <span className="absolute inset-0 flex items-center justify-center opacity-70 transition-opacity pointer-events-none">
               <Palette className="h-4 w-4" style={{ color: contrastColor }} />
-            </div>
-          </div>
+            </span>
+          </label>
         </div>
 
         {/* Hex input */}
