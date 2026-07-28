@@ -189,9 +189,9 @@ export function UploadReviewCard({
   const isVideo = upload.fileType.startsWith("video/");
   const isAudio = upload.fileType.startsWith("audio/");
 
-  // Fetch thumbnail URL on mount for images if not provided
+  // Fetch thumbnail URL on mount for images and videos if not provided
   React.useEffect(() => {
-    if (!thumbnailUrl && isImage && !thumbnailLoading && !thumbnailError) {
+    if (!thumbnailUrl && (isImage || isVideo) && !thumbnailLoading && !thumbnailError) {
       setThumbnailLoading(true);
       fetch(`/api/uploads/${upload.id}/thumbnail`)
         .then((res) => res.json())
@@ -207,7 +207,7 @@ export function UploadReviewCard({
           setThumbnailLoading(false);
         });
     }
-  }, [upload.id, thumbnailUrl, isImage, thumbnailLoading, thumbnailError]);
+  }, [upload.id, thumbnailUrl, isImage, isVideo, thumbnailLoading, thumbnailError]);
 
   const handlePreview = async () => {
     setLoadingPreview(true);

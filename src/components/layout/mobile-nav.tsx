@@ -83,7 +83,7 @@ const oversightItem = {
 const adminItems = [
   { name: "Team", href: "/dashboard/team", icon: UserCog },
   { name: "Appearance", href: "/dashboard/settings/appearance", icon: Sun },
-  { name: "Settings", href: "/dashboard/settings/profile", icon: Settings },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 const supportItems = [

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validateCreatorSession } from "@/lib/portal-auth";
+import { notifyTeam, NotificationType } from "@/lib/notifications";
 
 /**
  * GET /api/portal/requests/[id]/comments
@@ -163,6 +164,36 @@ export async function POST(
         mentions: JSON.stringify([{ type: "creator", id: creator.id, name: creator.name }]),
       },
     });
+
+    // Notify the agency's staff of the new creator comment. Requests have no
+    // single staff owner and watching is opt-in, so a creator comment must
+    // reach the whole team by default. Exclude the per-creator pseudo-users
+    // (`.internal` emails) that back creator comments. Guard so a notification
+    // failure never blocks the comment from being saved.
+    try {
+      const staff = await db.user.findMany({
+        where: {
+          agencyId: request.agencyId,
+          email: { not: { endsWith: ".internal" } },
+        },
+        select: { id: true },
+      });
+      if (staff.length > 0) {
+        const preview =
+          comment.message.length > 50
+            ? comment.message.slice(0, 50) + "..."
+            : comment.message;
+        await notifyTeam(
+          staff.map((s) => s.id),
+          NotificationType.COMMENT_ADDED,
+          "New creator comment",
+          `${creator.name} commented on "${request.title}": ${preview}`,
+          `/dashboard/requests/${id}`
+        );
+      }
+    } catch (notifyError) {
+      console.warn("Failed to notify staff of creator comment:", notifyError);
+    }
 
     return NextResponse.json({
       id: comment.id,

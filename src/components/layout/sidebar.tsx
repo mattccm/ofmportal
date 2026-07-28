@@ -65,7 +65,7 @@ const toolsNavigation = [
 
 const adminNavigation = [
   { name: "Team", href: "/dashboard/team", icon: UserCog },
-  { name: "Settings", href: "/dashboard/settings/profile", icon: Settings },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 // Oversight - management feature gated to elevated roles (owner/admin/manager)

@@ -129,8 +129,9 @@ function UploadPreviewCard({
           />
         ) : isVideo && previewUrl && !imageError ? (
           <div className="w-full h-full relative">
-            <video
+            <img
               src={previewUrl}
+              alt={upload.originalName}
               className="w-full h-full object-cover"
               onError={() => setImageError(true)}
             />

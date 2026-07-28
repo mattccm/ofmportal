@@ -462,7 +462,7 @@ export function createActionCommands(
       label: "Settings",
       description: "Open application settings",
       icon: <Settings className="h-4 w-4" />,
-      action: () => router.push("/dashboard/settings/profile"),
+      action: () => router.push("/dashboard/settings"),
       category: "settings" as const,
       keywords: ["preferences", "config", "options"],
     },
