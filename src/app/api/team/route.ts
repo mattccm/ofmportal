@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { excludePseudoUsers } from "@/lib/staff";
 import crypto from "crypto";
 import { Prisma, UserRole } from "@prisma/client";
 
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
     // Build the where clause
     const where: Prisma.UserWhereInput = {
       agencyId: session.user.agencyId,
+      ...excludePseudoUsers,
     };
 
     if (role && role !== "ALL" && Object.values(UserRole).includes(role as UserRole)) {

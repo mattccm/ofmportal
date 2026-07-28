@@ -5,6 +5,50 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 
+// Cascade the effects of archiving a creator within a transaction:
+// archive their active requests and stop recurring generation for them.
+// Recurring schedules that target only this creator are deactivated; schedules
+// targeting multiple creators or groups keep running, and the recurring
+// generator skips archived creators on its own.
+async function cascadeCreatorArchive(
+  tx: Prisma.TransactionClient,
+  creatorId: string,
+  agencyId: string
+) {
+  await tx.contentRequest.updateMany({
+    where: {
+      creatorId,
+      agencyId,
+      status: { notIn: ["CANCELLED", "ARCHIVED"] },
+    },
+    data: { status: "ARCHIVED" },
+  });
+
+  const schedules = await tx.recurringRequest.findMany({
+    where: { agencyId, isActive: true },
+    select: { id: true, creatorIds: true, creatorGroupIds: true },
+  });
+
+  const soleTargetIds = schedules
+    .filter((s) => {
+      const creatorIds = (s.creatorIds as string[]) ?? [];
+      const groupIds = (s.creatorGroupIds as string[]) ?? [];
+      return (
+        groupIds.length === 0 &&
+        creatorIds.length === 1 &&
+        creatorIds[0] === creatorId
+      );
+    })
+    .map((s) => s.id);
+
+  if (soleTargetIds.length > 0) {
+    await tx.recurringRequest.updateMany({
+      where: { id: { in: soleTargetIds } },
+      data: { isActive: false, nextRunAt: null },
+    });
+  }
+}
+
 // GET - Fetch full creator profile
 export async function GET(
   req: NextRequest,
@@ -189,10 +233,23 @@ export async function PATCH(
       updateData.archivedAt = archived ? new Date() : null;
     }
 
-    const updatedCreator = await db.creator.update({
-      where: { id },
-      data: updateData,
-    });
+    // Archiving cascades to requests + recurring schedules; run in one
+    // transaction so a secondary-write failure rolls the whole thing back.
+    const isArchiving = archived === true && existingCreator.archivedAt === null;
+
+    const updatedCreator = isArchiving
+      ? await db.$transaction(async (tx) => {
+          const creator = await tx.creator.update({
+            where: { id },
+            data: updateData,
+          });
+          await cascadeCreatorArchive(tx, id, session.user.agencyId);
+          return creator;
+        })
+      : await db.creator.update({
+          where: { id },
+          data: updateData,
+        });
 
     // Log activity
     await db.activityLog.create({
@@ -290,11 +347,15 @@ export async function DELETE(
     } else {
       // Archive: mark as archived (reversible). Leave inviteStatus alone so the
       // real invite state is preserved for when the creator is unarchived.
-      await db.creator.update({
-        where: { id },
-        data: {
-          archivedAt: new Date(),
-        },
+      // Cascade in one transaction so a secondary-write failure rolls back.
+      await db.$transaction(async (tx) => {
+        await tx.creator.update({
+          where: { id },
+          data: {
+            archivedAt: new Date(),
+          },
+        });
+        await cascadeCreatorArchive(tx, id, session.user.agencyId);
       });
     }
 

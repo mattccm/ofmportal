@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 import { extractMentionIds } from "@/lib/mention-parser";
 import { MentionContextType } from "@prisma/client";
 
@@ -178,6 +179,7 @@ export async function POST(request: NextRequest) {
       where: {
         id: { in: mentionedUserIds },
         agencyId: session.user.agencyId,
+        ...excludePseudoUsers,
       },
       select: { id: true },
     });

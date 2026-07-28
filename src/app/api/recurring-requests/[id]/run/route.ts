@@ -76,11 +76,13 @@ export async function POST(
       );
     }
 
-    // Get creators
+    // Get creators. Archived creators are skipped so an archived creator never
+    // receives auto-generated requests, even if still listed on the schedule.
     const creators = await db.creator.findMany({
       where: {
         id: { in: allCreatorIds },
         agencyId: session.user.agencyId,
+        archivedAt: null,
       },
       select: { id: true, name: true, email: true },
     });

@@ -2,11 +2,12 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 import TeamClient from "./team-client";
 
 async function getTeamMembers(agencyId: string) {
   const members = await db.user.findMany({
-    where: { agencyId },
+    where: { agencyId, ...excludePseudoUsers },
     select: {
       id: true,
       name: true,

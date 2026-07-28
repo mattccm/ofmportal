@@ -51,6 +51,11 @@ interface Request {
     uploads: number;
     comments: number;
   };
+  completion?: {
+    totalSlots: number;
+    uploadedSlots: number;
+    approvedSlots: number;
+  };
 }
 
 type FilterTab = "all" | "active" | "completed" | "overdue";
@@ -400,10 +405,20 @@ export default function CreatorRequestsPage() {
                                   {format(new Date(request.dueDate), "MMM d")}
                                 </span>
                               )}
-                              <span className="flex items-center gap-1">
-                                <Upload className="h-3 w-3" />
-                                {request._count?.uploads || 0}
-                              </span>
+                              {request.completion && request.completion.totalSlots > 0 ? (
+                                <span className="flex items-center gap-1">
+                                  <Upload className="h-3 w-3" />
+                                  Uploaded {request.completion.uploadedSlots}/
+                                  {request.completion.totalSlots} · Approved{" "}
+                                  {request.completion.approvedSlots}/
+                                  {request.completion.totalSlots}
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  <Upload className="h-3 w-3" />
+                                  {request._count?.uploads || 0}
+                                </span>
+                              )}
                             </div>
                           </div>
                           {viewMode === "list" && (

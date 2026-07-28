@@ -3,6 +3,7 @@ import { getServerSession, type Session } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 import {
   Role,
   Permission,
@@ -538,6 +539,7 @@ export async function DELETE(request: NextRequest) {
       where: {
         agencyId: session.user.agencyId,
         customRoleId: id,
+        ...excludePseudoUsers,
       },
     });
 

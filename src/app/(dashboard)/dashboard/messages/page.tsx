@@ -478,18 +478,19 @@ function NewConversationDialog({
   // Search for users or creators
   React.useEffect(() => {
     const search = async () => {
-      if (searchType === "team" && !searchQuery.trim()) {
-        setUsers([]);
-        return;
-      }
-
       try {
         setIsLoading(true);
         if (searchType === "team") {
-          const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+          // Browse all staff when no query, search when one is entered.
+          const endpoint = searchQuery.trim()
+            ? `/api/users/search?q=${encodeURIComponent(searchQuery)}`
+            : "/api/team/members";
+          const response = await fetch(endpoint);
           if (response.ok) {
             const data = await response.json();
-            setUsers(data.users?.filter((u: { id: string }) => u.id !== currentUserId) || []);
+            const list: { id: string; name: string; email: string; avatar?: string }[] =
+              data.users ?? data.members ?? [];
+            setUsers(list.filter((u) => u.id !== currentUserId));
           }
         } else {
           const q = searchQuery.trim() ? `search=${encodeURIComponent(searchQuery)}&` : "";

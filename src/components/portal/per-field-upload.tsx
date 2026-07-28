@@ -5,6 +5,8 @@ import { FileDropzone } from "@/components/uploads/file-dropzone";
 import { UploadQueue } from "@/components/uploads/upload-queue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   Upload,
@@ -18,11 +20,22 @@ import {
   Eye,
   Send,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import type { QueuedFile } from "@/hooks/use-file-upload";
 import type { TemplateField } from "@/lib/template-types";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
+
+interface SectionComment {
+  id: string;
+  content: string;
+  createdAt: string;
+  fieldId?: string | null;
+  user?: { name: string; image?: string };
+  isAgency: boolean;
+}
 
 interface UploadedFile {
   id: string;
@@ -80,6 +93,10 @@ interface PerFieldUploadProps {
   primaryColor?: string;
   className?: string;
   canUpload?: boolean;
+  comments?: SectionComment[];
+  creatorName?: string;
+  creatorImage?: string;
+  onReplyToField?: (fieldId: string, content: string) => Promise<void>;
 }
 
 function getFileTypeIcon(fileType: string, className = "h-5 w-5") {
@@ -216,6 +233,10 @@ function FieldUploadSection({
   isUploading,
   primaryColor,
   canUpload = true,
+  comments,
+  creatorName,
+  creatorImage,
+  onReply,
 }: {
   field: FileField;
   uploads: UploadedFile[];
@@ -236,9 +257,15 @@ function FieldUploadSection({
   isUploading: boolean;
   primaryColor?: string;
   canUpload?: boolean;
+  comments: SectionComment[];
+  creatorName?: string;
+  creatorImage?: string;
+  onReply?: (content: string) => Promise<void>;
 }) {
   const [submitting, setSubmitting] = React.useState(false);
   const [redacting, setRedacting] = React.useState(false);
+  const [reply, setReply] = React.useState("");
+  const [replying, setReplying] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [previewIndex, setPreviewIndex] = React.useState(0);
   const uploadCount = uploads.length;
@@ -296,6 +323,17 @@ function FieldUploadSection({
     }
   };
 
+  const handleReply = async () => {
+    if (!onReply || !reply.trim()) return;
+    setReplying(true);
+    try {
+      await onReply(reply.trim());
+      setReply("");
+    } finally {
+      setReplying(false);
+    }
+  };
+
   // Get icon and color based on status
   const getStatusIcon = () => {
     if (isApproved) return <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
@@ -348,6 +386,13 @@ function FieldUploadSection({
 
         {/* Status badge & action buttons */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Feedback indicator */}
+          {comments.length > 0 && (
+            <Badge variant="secondary" className="gap-1 text-xs">
+              <MessageCircle className="h-3 w-3" />
+              {comments.length} feedback
+            </Badge>
+          )}
           {/* Status badges */}
           {isApproved && (
             <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs">
@@ -482,6 +527,84 @@ function FieldUploadSection({
         </p>
       )}
 
+      {/* Section feedback thread + reply */}
+      {comments.length > 0 && (
+        <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" style={{ color: primaryColor }} />
+            <p className="text-sm font-semibold">Feedback</p>
+          </div>
+          <div className="space-y-3">
+            {comments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    className={cn("flex gap-3", !comment.isAgency && "flex-row-reverse")}
+                  >
+                    <Avatar
+                      size="sm"
+                      user={{
+                        name: comment.isAgency
+                          ? comment.user?.name || "Agency"
+                          : creatorName || "You",
+                        image: comment.isAgency ? comment.user?.image : creatorImage,
+                      }}
+                    />
+                    <div
+                      className={cn(
+                        "flex-1 min-w-0 max-w-[80%]",
+                        !comment.isAgency && "text-right"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "inline-block rounded-2xl px-4 py-2",
+                          comment.isAgency
+                            ? "bg-muted rounded-tl-none"
+                            : "rounded-tr-none text-white"
+                        )}
+                        style={
+                          !comment.isAgency ? { backgroundColor: primaryColor } : undefined
+                        }
+                      >
+                        <p className="text-sm whitespace-pre-wrap break-words">
+                          {comment.content}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {comment.isAgency ? `${comment.user?.name || "Agency"} · ` : ""}
+                        {formatDistanceToNow(new Date(comment.createdAt), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    </div>
+                  </div>
+            ))}
+          </div>
+          {onReply && (
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Reply to this feedback..."
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                className="min-h-[44px] resize-none"
+              />
+              <Button
+                onClick={handleReply}
+                disabled={!reply.trim() || replying}
+                className="shrink-0"
+                style={{ backgroundColor: primaryColor }}
+              >
+                {replying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Preview Modal */}
       <FilePreviewModal
         open={previewOpen}
@@ -514,6 +637,10 @@ export function PerFieldUpload({
   primaryColor = "#6366f1",
   className,
   canUpload = true,
+  comments = [],
+  creatorName,
+  creatorImage,
+  onReplyToField,
 }: PerFieldUploadProps) {
   // Group uploads and queue items by fieldId
   const getFieldUploads = (fieldId: string) =>
@@ -521,6 +648,9 @@ export function PerFieldUpload({
 
   const getFieldQueue = (fieldId: string) =>
     queue.filter(q => q.fieldId === fieldId);
+
+  const getFieldComments = (fieldId: string) =>
+    comments.filter(c => c.fieldId === fieldId);
 
   // Get unassigned uploads (legacy uploads without fieldId)
   const unassignedUploads = uploads.filter(u => !u.fieldId || !fields.some(f => f.id === u.fieldId));
@@ -553,6 +683,12 @@ export function PerFieldUpload({
             isUploading={isUploading}
             primaryColor={primaryColor}
             canUpload={canUpload}
+            comments={getFieldComments(field.id)}
+            creatorName={creatorName}
+            creatorImage={creatorImage}
+            onReply={
+              onReplyToField ? (content) => onReplyToField(field.id, content) : undefined
+            }
           />
         </div>
       ))}

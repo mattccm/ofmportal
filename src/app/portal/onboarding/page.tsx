@@ -687,12 +687,17 @@ export default function CreatorOnboardingPage() {
   }, [creatorId, router, persistOnboardingComplete]);
 
   // Handle tutorial completion
+  // The tutorial overlay navigates straight to the dashboard, so the wizard's
+  // final step never runs. Persist the profile (name, avatar, timezone,
+  // notifications) here so the details entered earlier are not lost.
   const handleTutorialComplete = useCallback(async () => {
     setShowTutorial(false);
     if (!creatorId) return;
 
     try {
-      await persistOnboardingComplete(false);
+      await persistOnboardingComplete(true);
+      localStorage.setItem("creatorName", profile.name);
+      localStorage.setItem("creatorTimezone", profile.timezone);
       localStorage.setItem("creatorTutorialComplete", "true");
       toast.success("Great job! You're all set to start.");
       router.push("/creator/dashboard");
@@ -700,7 +705,7 @@ export default function CreatorOnboardingPage() {
       console.error("Error completing onboarding:", error);
       toast.error("Something went wrong. Please try again.");
     }
-  }, [creatorId, router, persistOnboardingComplete]);
+  }, [creatorId, profile, router, persistOnboardingComplete]);
 
   // Handle tutorial skip
   const handleTutorialSkip = useCallback(async () => {
@@ -708,14 +713,16 @@ export default function CreatorOnboardingPage() {
     if (!creatorId) return;
 
     try {
-      await persistOnboardingComplete(false);
+      await persistOnboardingComplete(true);
+      localStorage.setItem("creatorName", profile.name);
+      localStorage.setItem("creatorTimezone", profile.timezone);
       toast.success("You can restart the tutorial anytime from settings.");
       router.push("/creator/dashboard");
     } catch (error) {
       console.error("Error completing onboarding:", error);
       toast.error("Something went wrong. Please try again.");
     }
-  }, [creatorId, router, persistOnboardingComplete]);
+  }, [creatorId, profile, router, persistOnboardingComplete]);
 
   // Tutorial steps (shown after onboarding wizard)
   const tutorialSteps: TutorialStep[] = [

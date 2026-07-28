@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 
 /**
  * GET - List all team members for the current agency
@@ -18,6 +19,7 @@ export async function GET() {
     const members = await db.user.findMany({
       where: {
         agencyId: session.user.agencyId,
+        ...excludePseudoUsers,
       },
       select: {
         id: true,

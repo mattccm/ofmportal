@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 
 /**
  * GET /api/users/search
@@ -32,6 +33,8 @@ export async function GET(request: NextRequest) {
         AND: [
           // Exclude current user
           { id: { not: session.user.id } },
+          // Exclude creator-comment pseudo-users
+          excludePseudoUsers,
           // Match the search query
           {
             OR: [

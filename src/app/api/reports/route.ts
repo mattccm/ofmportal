@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 import {
   startOfDay,
   endOfDay,
@@ -507,7 +508,7 @@ export async function GET(request: NextRequest) {
 
     // Get team members for filter dropdown
     const teamMembers = await db.user.findMany({
-      where: { agencyId },
+      where: { agencyId, ...excludePseudoUsers },
       select: { id: true, name: true, email: true, role: true },
       orderBy: { name: "asc" },
     });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 import type { MentionSuggestion } from "@/types/mentions";
 
 // GET /api/mentions/suggestions - Get mention suggestions
@@ -32,6 +33,8 @@ export async function GET(request: NextRequest) {
       agencyId: currentUser.agencyId,
       // Exclude the current user from suggestions
       NOT: { id: session.user.id },
+      // Exclude creator-comment pseudo-users
+      ...excludePseudoUsers,
     };
 
     // Add search filter if query provided

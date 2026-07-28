@@ -380,6 +380,26 @@ export default function CreatorRequestDetailPage({
     }
   };
 
+  const handleReplyToField = async (fieldId: string, content: string) => {
+    const token = localStorage.getItem("creatorToken");
+    const response = await fetch(`/api/portal/requests/${requestId}/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-creator-token": token || "",
+      },
+      body: JSON.stringify({ content, fieldId }),
+    });
+
+    if (!response.ok) {
+      toast.error("Failed to send reply");
+      throw new Error("Failed to send reply");
+    }
+
+    toast.success("Reply sent");
+    await fetchData();
+  };
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -443,8 +463,14 @@ export default function CreatorRequestDetailPage({
   const nonFileFields = request.fields?.filter(f => f.type !== "file") || [];
   const hasFileFields = fileFields.length > 0;
 
-  // General comments (section-scoped feedback is shown per section above)
-  const generalComments = comments.filter((c) => !c.fieldId);
+  // Section-scoped feedback is rendered inline within each file field. General
+  // comments are those with no field, plus any whose field is no longer shown.
+  const fileFieldIds = new Set(
+    fileFields.map((f) => f.id || `field-${f.label}`)
+  );
+  const generalComments = comments.filter(
+    (c) => !c.fieldId || !fileFieldIds.has(c.fieldId)
+  );
 
   // Handler for deleting uploads
   const handleDeleteUpload = async (uploadId: string) => {
@@ -710,6 +736,10 @@ export default function CreatorRequestDetailPage({
             isUploading={isUploading}
             primaryColor={branding.primaryColor}
             canUpload={canUpload}
+            comments={comments}
+            creatorName={creator?.name}
+            creatorImage={creator?.image}
+            onReplyToField={handleReplyToField}
           />
         </div>
       )}
@@ -806,78 +836,6 @@ export default function CreatorRequestDetailPage({
           </CardContent>
         </Card>
       )}
-
-      {/* Per-section feedback: rejection reasons + agency comments on a
-          specific upload slot, so the creator knows exactly what to fix. */}
-      {(() => {
-        const sections = fileFields
-          .map((field) => {
-            const fid = field.id;
-            const submission = fid ? request.fieldSubmissions?.[fid] : undefined;
-            const reason =
-              submission?.status === "NEEDS_REVISION"
-                ? submission.feedback
-                : undefined;
-            const fieldComments = comments.filter(
-              (c) => c.fieldId && c.fieldId === fid
-            );
-            return { field, reason, fieldComments };
-          })
-          .filter((s) => s.reason || s.fieldComments.length > 0);
-
-        if (sections.length === 0) return null;
-
-        return (
-          <div className="space-y-4 pt-4 border-t">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" style={{ color: branding.primaryColor }} />
-              <h2 className="text-lg font-semibold">Feedback by Section</h2>
-            </div>
-            <div className="space-y-3">
-              {sections.map(({ field, reason, fieldComments }) => (
-                <div
-                  key={field.id || field.label}
-                  className="rounded-lg border p-4 space-y-3"
-                >
-                  <p className="text-sm font-semibold">{field.label}</p>
-                  {reason && (
-                    <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
-                      <p className="text-sm text-red-700 dark:text-red-300">
-                        <span className="font-medium">Changes requested:</span>{" "}
-                        {reason}
-                      </p>
-                    </div>
-                  )}
-                  {fieldComments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
-                      <Avatar
-                        size="sm"
-                        user={{
-                          name: comment.user?.name || "Agency",
-                          image: comment.user?.image,
-                        }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="inline-block rounded-2xl rounded-tl-none bg-muted px-4 py-2">
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            {comment.content}
-                          </p>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {comment.user?.name || "Agency"} ·{" "}
-                          {formatDistanceToNow(new Date(comment.createdAt), {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Comments / Feedback - Collapsible */}
       <div className="space-y-4 pt-4 border-t">

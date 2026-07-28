@@ -103,7 +103,7 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { content } = body;
+    const { content, fieldId } = body;
 
     if (!content || typeof content !== "string" || content.trim().length === 0) {
       return NextResponse.json(
@@ -111,6 +111,10 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // Optional section/field this reply belongs to
+    const targetFieldId =
+      typeof fieldId === "string" && fieldId.trim().length > 0 ? fieldId : null;
 
     // For creator comments, we need to create a special system
     // since creators don't have User accounts - we'll store creator info in the comment
@@ -158,6 +162,7 @@ export async function POST(
       data: {
         requestId: id,
         userId: systemUser.id,
+        fieldId: targetFieldId,
         message: content.trim(),
         isInternal: false,
         // Store creator info so we can identify it as a creator comment
@@ -199,6 +204,7 @@ export async function POST(
       id: comment.id,
       content: comment.message,
       createdAt: comment.createdAt.toISOString(),
+      fieldId: comment.fieldId,
       isAgency: false,
       creatorName: creator.name,
     });
