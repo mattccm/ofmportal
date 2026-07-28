@@ -12,14 +12,17 @@ const globalForPrisma = globalThis as unknown as {
 function parseConnectionUrl(url: string) {
   const parsed = new URL(url);
 
-  // Extract query params
   const searchParams = parsed.searchParams;
-  const sslmode = searchParams.get("sslmode");
   const pgbouncer = searchParams.get("pgbouncer") === "true";
 
-  // Supabase's pooler presents a cert that won't verify against public CAs
-  // unless its root CA is provided, so verification defaults off. Set
-  // PGSSL_REJECT_UNAUTHORIZED=true (with a CA available) to enforce it.
+  const isLocal =
+    parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+
+  // Supabase's poolers (session 5432 / transaction 6543) require TLS, and
+  // present a self-signed cert. Enable TLS (without cert verification) for ANY
+  // remote host regardless of whether the URL carries ?sslmode=require — a
+  // dropped param must never silently disable SSL and break the connection.
+  // Set PGSSL_REJECT_UNAUTHORIZED=true (with a CA available) to enforce it.
   const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === "true";
 
   return {
@@ -28,7 +31,7 @@ function parseConnectionUrl(url: string) {
     database: parsed.pathname.slice(1), // Remove leading /
     user: parsed.username,
     password: decodeURIComponent(parsed.password || ""),
-    ssl: sslmode === "require" ? { rejectUnauthorized } : undefined,
+    ssl: isLocal ? undefined : { rejectUnauthorized },
     // If using pgbouncer/Supavisor, we need transaction mode support
     pgbouncer,
   };
@@ -77,6 +80,6 @@ export const db: PrismaClient = globalForPrisma.prisma ?? createPrismaClient();
 // Export as `prisma` for backwards compatibility
 export const prisma = db;
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = db;
-}
+// Reuse a single client across the serverless instance's lifetime (and dev HMR)
+// so we never accumulate connection pools from repeated module evaluation.
+globalForPrisma.prisma = db;
