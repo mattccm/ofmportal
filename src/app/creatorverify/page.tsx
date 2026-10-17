@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import Image from "next/image";
 
 type Proxy = {
   host: string;
@@ -21,31 +22,43 @@ const CSS = `
   --cv-ink:var(--foreground);--cv-muted:var(--muted-foreground);--cv-line:var(--border);--cv-chip:var(--secondary);
   --cv-accent:var(--primary);--cv-accent-ink:var(--primary-foreground);
   --cv-soft:var(--accent);--cv-soft-ink:var(--accent-foreground);--cv-bad:var(--destructive);
+  --cv-grad:linear-gradient(90deg,var(--primary),#7c3aed);
+  --cv-grad-text:linear-gradient(90deg,var(--primary),#a78bfa 55%,#c084fc);
   --cv-fsans:var(--font-sans),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --cv-fhead:var(--font-display),var(--font-sans),sans-serif;--cv-mono:var(--font-mono),ui-monospace,Menlo,monospace;
   min-height:100%;background:var(--cv-bg);color:var(--cv-ink);font-family:var(--cv-fsans);line-height:1.5}
 .cv-root *{box-sizing:border-box}
-.cv-wrap{max-width:560px;margin:0 auto;padding:0 16px 56px}
-.cv-top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--cv-bg) 88%,transparent);backdrop-filter:blur(8px);
-  margin:0 -16px;padding:14px 16px 10px;border-bottom:1px solid var(--cv-line)}
-.cv-brand{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.cv-h1{font-family:var(--cv-fhead);font-weight:700;font-size:18px;margin:0;letter-spacing:-.01em}
-.cv-pct{font-family:var(--cv-fhead);font-variant-numeric:tabular-nums;font-size:13px;color:var(--cv-muted);font-weight:600}
-.cv-bar{height:6px;border-radius:999px;background:var(--cv-chip);margin-top:9px;overflow:hidden}
-.cv-bar>i{display:block;height:100%;width:0;background:var(--cv-accent);border-radius:999px;transition:width .35s ease}
-.cv-intro{margin:18px 0 6px}
-.cv-intro h2{font-family:var(--cv-fhead);font-size:22px;line-height:1.2;margin:0 0 8px;text-wrap:balance}
-.cv-intro p{color:var(--cv-muted);margin:0 0 14px}
-.cv-meta{display:flex;flex-wrap:wrap;gap:8px}
+
+.cv-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#0f172a,#1e293b 55%,#0f172a);
+  padding:24px 16px 22px;color:#fff}
+.cv-hero::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(28rem 28rem at 12% 20%,color-mix(in srgb,var(--primary) 34%,transparent),transparent 60%),
+    radial-gradient(22rem 22rem at 92% 85%,rgba(139,92,246,.22),transparent 55%),
+    radial-gradient(16rem 16rem at 55% 50%,rgba(147,51,234,.12),transparent 60%)}
+.cv-hero::after{content:"";position:absolute;inset:0;opacity:.04;
+  background-image:linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px);
+  background-size:52px 52px}
+.cv-hero-in{position:relative;z-index:1;max-width:560px;margin:0 auto}
+.cv-logo{filter:brightness(0) invert(1);opacity:.96}
+.cv-kicker{margin:14px 0 0;font-family:var(--cv-fhead);font-weight:700;font-size:26px;line-height:1.08;letter-spacing:-.01em;color:#fff}
+.cv-grad{background:var(--cv-grad-text);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cv-hero-sub{margin:7px 0 0;color:#94a3b8;font-size:13.5px;max-width:34rem}
+.cv-hero-prog{margin-top:16px;display:flex;align-items:center;gap:11px}
+.cv-hero-prog .track{flex:1;height:7px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}
+.cv-hero-prog .track>i{display:block;height:100%;width:0;border-radius:999px;background:var(--cv-grad);transition:width .35s ease}
+.cv-hero-prog .lbl{font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:600;color:#cbd5e1}
+
+.cv-wrap{max-width:560px;margin:0 auto;padding:18px 16px 56px}
+.cv-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
 .cv-pill{display:inline-flex;align-items:center;background:var(--cv-chip);color:var(--cv-muted);font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:999px}
-.cv-steps{list-style:none;margin:20px 0 0;padding:0;display:flex;flex-direction:column;gap:14px}
-.cv-step{background:var(--cv-surface);border:1px solid var(--cv-line);border-radius:14px;padding:16px 15px}
+.cv-steps{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:14px}
+.cv-step{background:var(--cv-surface);border:1px solid var(--cv-line);border-radius:14px;padding:16px 15px;box-shadow:0 1px 3px rgba(2,6,23,.04)}
 .cv-step.done{border-color:color-mix(in srgb,var(--cv-accent) 45%,var(--cv-line))}
 .cv-shead{display:flex;gap:12px;align-items:flex-start}
-.cv-num{flex:0 0 auto;width:30px;height:30px;border-radius:10px;background:var(--cv-soft);color:var(--cv-soft-ink);
+.cv-num{flex:0 0 auto;width:32px;height:32px;border-radius:11px;background:var(--cv-grad);color:#fff;
+  box-shadow:0 6px 13px -5px color-mix(in srgb,var(--cv-accent) 55%,transparent);
   font-family:var(--cv-fhead);font-weight:700;font-size:15px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
-.cv-step.done .cv-num{background:var(--cv-accent);color:var(--cv-accent-ink)}
-.cv-stitle{font-family:var(--cv-fhead);font-weight:600;font-size:16.5px;margin:3px 0 0;flex:1;min-width:0}
+.cv-stitle{font-family:var(--cv-fhead);font-weight:600;font-size:16.5px;margin:4px 0 0;flex:1;min-width:0}
 .cv-sbody{margin:11px 0 0}
 .cv-sbody p{margin:0 0 10px;color:var(--cv-muted)}
 .cv-sbody p:last-child{margin-bottom:0}
@@ -63,7 +76,7 @@ const CSS = `
   font-weight:600;font-size:12.5px;padding:7px 12px;border-radius:9px;cursor:pointer}
 .cv-copy.ok{color:var(--cv-accent);border-color:color-mix(in srgb,var(--cv-accent) 45%,var(--cv-line))}
 .cv-expect{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--cv-soft);border-radius:12px;padding:12px}
-.cv-expect .ip{font-family:var(--cv-mono);font-weight:700;font-size:17px;color:var(--cv-accent)}
+.cv-expect .ip{font-family:var(--cv-mono);font-weight:700;font-size:17px;background:var(--cv-grad-text);-webkit-background-clip:text;background-clip:text;color:transparent}
 .cv-expect small{display:block;color:var(--cv-muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 .cv-check{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px dashed var(--cv-line);cursor:pointer;user-select:none}
 .cv-check input{width:20px;height:20px;accent-color:var(--cv-accent);flex:0 0 auto}
@@ -77,17 +90,22 @@ const CSS = `
 .cv-ts h4{margin:14px 0 4px;font-size:14px}
 .cv-ts p{margin:0 0 6px;color:var(--cv-muted);font-size:13.5px}
 .cv-foot{margin-top:22px;color:var(--cv-muted);font-size:12.5px;text-align:center}
-.cv-gate{min-height:70vh;display:flex;align-items:center;justify-content:center;padding:24px 0}
-.cv-card{width:100%;max-width:360px;background:var(--cv-surface);border:1px solid var(--cv-line);border-radius:16px;padding:26px 22px;text-align:center}
-.cv-lock{width:46px;height:46px;border-radius:13px;background:var(--cv-soft);color:var(--cv-accent);display:grid;place-items:center;margin:0 auto 14px;font-size:22px}
-.cv-card h2{font-family:var(--cv-fhead);font-size:19px;margin:0 0 6px}
+
+.cv-gate{max-width:420px;margin:0 auto;padding:30px 16px 48px}
+.cv-card{background:var(--cv-surface);border:1px solid var(--cv-line);border-radius:18px;padding:26px 22px;text-align:center;
+  box-shadow:0 18px 40px -24px rgba(2,6,23,.4)}
+.cv-lock{width:50px;height:50px;border-radius:14px;background:var(--cv-grad);color:#fff;display:grid;place-items:center;margin:0 auto 14px;font-size:22px;
+  box-shadow:0 10px 20px -8px color-mix(in srgb,var(--cv-accent) 60%,transparent)}
+.cv-card h2{font-family:var(--cv-fhead);font-size:20px;margin:0 0 6px}
 .cv-card p{color:var(--cv-muted);font-size:13.5px;margin:0 0 18px}
-.cv-input{width:100%;padding:12px 14px;border:1px solid var(--cv-line);border-radius:10px;background:var(--cv-raise);color:var(--cv-ink);font:inherit;font-size:16px;text-align:center}
+.cv-input{width:100%;padding:12px 14px;border:1px solid var(--cv-line);border-radius:11px;background:var(--cv-raise);color:var(--cv-ink);font:inherit;font-size:16px;text-align:center}
 .cv-input:focus{outline:2px solid var(--cv-accent);outline-offset:0;border-color:transparent}
-.cv-btn{width:100%;margin-top:11px;border:none;border-radius:10px;padding:13px 14px;font-weight:700;font-size:15px;cursor:pointer;background:var(--cv-accent);color:var(--cv-accent-ink);font-family:var(--cv-fsans)}
-.cv-btn:disabled{opacity:.6;cursor:default}
+.cv-btn{width:100%;margin-top:11px;border:none;border-radius:11px;padding:13px 14px;font-weight:700;font-size:15px;cursor:pointer;
+  background:var(--cv-grad);color:#fff;font-family:var(--cv-fsans);box-shadow:0 12px 22px -10px color-mix(in srgb,var(--cv-accent) 55%,transparent);transition:transform .15s ease,box-shadow .15s ease}
+.cv-btn:not(:disabled):active{transform:translateY(1px)}
+.cv-btn:disabled{opacity:.55;cursor:default}
 .cv-err{color:var(--cv-bad);font-size:13px;min-height:18px;margin-top:10px}
-.cv-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--cv-ink);color:var(--cv-bg);
+.cv-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0f172a;color:#fff;
   padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}
 .cv-toast.show{opacity:1}
 `;
@@ -108,6 +126,21 @@ function Field({
       <button className="cv-copy" type="button" onClick={(e) => onCopy(value, e.currentTarget)}>
         Copy
       </button>
+    </div>
+  );
+}
+
+function Hero({ lead, accent, sub, children }: { lead: string; accent: string; sub: string; children?: ReactNode }) {
+  return (
+    <div className="cv-hero">
+      <div className="cv-hero-in">
+        <Image className="cv-logo" src="/ccm-logo.png" alt="CCM" width={38} height={38} priority />
+        <h1 className="cv-kicker">
+          {lead} <span className="cv-grad">{accent}</span>
+        </h1>
+        <p className="cv-hero-sub">{sub}</p>
+        {children}
+      </div>
     </div>
   );
 }
@@ -201,37 +234,36 @@ export default function CreatorVerifyPage() {
     return (
       <div className="cv-root">
         <style dangerouslySetInnerHTML={{ __html: CSS }} />
-        <div className="cv-wrap">
-          <div className="cv-gate">
-            <div className="cv-card">
-              <div className="cv-lock" aria-hidden>
-                &#128274;
-              </div>
-              <h2>Creator Verification</h2>
-              <p>Enter the access password Matt gave you to open the guide.</p>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void unlock();
-                }}
-              >
-                <input
-                  className="cv-input"
-                  id="cv-password"
-                  type="password"
-                  inputMode="text"
-                  autoComplete="off"
-                  placeholder="Access password"
-                  value={pw}
-                  onChange={(e) => setPw(e.target.value)}
-                  autoFocus
-                />
-                <button className="cv-btn" type="submit" disabled={submitting || !pw}>
-                  {submitting ? "Checking…" : "Unlock guide"}
-                </button>
-              </form>
-              <div className="cv-err">{error}</div>
+        <Hero lead="Creator" accent="Verification" sub="Enter the access password Matt gave you to open your setup guide." />
+        <div className="cv-gate">
+          <div className="cv-card">
+            <div className="cv-lock" aria-hidden>
+              &#128274;
             </div>
+            <h2>Enter your password</h2>
+            <p>This keeps your setup details private.</p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void unlock();
+              }}
+            >
+              <input
+                className="cv-input"
+                id="cv-password"
+                type="password"
+                inputMode="text"
+                autoComplete="off"
+                placeholder="Access password"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                autoFocus
+              />
+              <button className="cv-btn" type="submit" disabled={submitting || !pw}>
+                {submitting ? "Checking…" : "Unlock guide"}
+              </button>
+            </form>
+            <div className="cv-err">{error}</div>
           </div>
         </div>
         <div className={`cv-toast${toast ? " show" : ""}`}>{toast}</div>
@@ -250,27 +282,24 @@ export default function CreatorVerifyPage() {
   return (
     <div className="cv-root">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div className="cv-wrap">
-        <header className="cv-top">
-          <div className="cv-brand">
-            <h1 className="cv-h1">Verification Walkthrough</h1>
-            <span className="cv-pct">{pct}%</span>
-          </div>
-          <div className="cv-bar">
+      <Hero lead="Selfie" accent="Verification" sub="Set up the proxy, then do your selfie check. About 10 minutes.">
+        <div className="cv-hero-prog">
+          <div className="track">
             <i style={{ width: `${pct}%` }} />
           </div>
-        </header>
+          <span className="lbl">
+            {completed}/{STEP_KEYS.length}
+          </span>
+        </div>
+      </Hero>
 
-        <section className="cv-intro">
-          <h2>Set up the proxy, then do your selfie check</h2>
-          <p>Follow these steps in order on your iPhone. Tap Copy on anything you need to paste. It takes about 10 minutes.</p>
-          <div className="cv-meta">
-            <span className="cv-pill">~10 minutes</span>
-            <span className="cv-pill">Just a quick selfie</span>
-            <span className="cv-pill">Good lighting</span>
-            <span className="cv-pill">Keep the proxy ON the whole time</span>
-          </div>
-        </section>
+      <div className="cv-wrap">
+        <div className="cv-meta">
+          <span className="cv-pill">~10 minutes</span>
+          <span className="cv-pill">Just a quick selfie</span>
+          <span className="cv-pill">Good lighting</span>
+          <span className="cv-pill">Keep the proxy ON the whole time</span>
+        </div>
 
         <ol className="cv-steps">
           <li className={`cv-step${done.s1 ? " done" : ""}`}>
