@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
+import { getViewPresignedUrl, getPublicFileUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 // Types for version history
 interface UploadVersion {
@@ -94,10 +94,10 @@ export async function GET(
     // Current upload is always version 1 (most recent)
     const versions: UploadVersion[] = [];
 
-    // Add current version (prefer public URL for zero bandwidth)
+    // Add current version (creator content: signed inline view URL)
     let currentPreviewUrl = getPublicFileUrl(upload.storageKey);
     if (!currentPreviewUrl) {
-      currentPreviewUrl = await getDownloadPresignedUrl(upload.storageKey).catch(() => null);
+      currentPreviewUrl = await getViewPresignedUrl(upload.storageKey).catch(() => null);
     }
 
     versions.push({
@@ -134,7 +134,7 @@ export async function GET(
         if (prevStorageKey) {
           prevPreviewUrl = getPublicFileUrl(prevStorageKey);
           if (!prevPreviewUrl) {
-            prevPreviewUrl = await getDownloadPresignedUrl(prevStorageKey).catch(() => null);
+            prevPreviewUrl = await getViewPresignedUrl(prevStorageKey).catch(() => null);
           }
         }
 
@@ -168,11 +168,14 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({
-      versions,
-      currentVersionId: upload.id,
-      totalVersions: versions.length,
-    });
+    return NextResponse.json(
+      {
+        versions,
+        currentVersionId: upload.id,
+        totalVersions: versions.length,
+      },
+      { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
+    );
   } catch (error) {
     console.error("Error fetching version history:", error);
     return NextResponse.json(

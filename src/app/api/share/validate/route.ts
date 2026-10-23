@@ -5,7 +5,7 @@ import {
   logShareAccess,
   getSharedResource,
 } from "@/lib/share";
-import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
+import { getViewPresignedUrl, getPublicFileUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 // POST - Validate share token and get shared content
 export async function POST(request: NextRequest) {
@@ -81,12 +81,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For uploads, get preview URL (prefer public URL for zero bandwidth)
+    // For uploads, get a preview URL (creator content: signed inline view URL)
     let enrichedResource: unknown = resource;
     if (shareLink.resourceType === "UPLOAD" && "storageKey" in resource) {
       let previewUrl = getPublicFileUrl(resource.storageKey);
       if (!previewUrl) {
-        previewUrl = await getDownloadPresignedUrl(resource.storageKey);
+        previewUrl = await getViewPresignedUrl(resource.storageKey);
       }
       enrichedResource = { ...resource, previewUrl };
     }
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         viewCount: shareLink.viewCount,
       },
       resource: enrichedResource,
-    });
+    }, { headers: { "Cache-Control": SIGNED_URL_NO_STORE } });
   } catch (error) {
     console.error("Share validate error:", error);
     return NextResponse.json(

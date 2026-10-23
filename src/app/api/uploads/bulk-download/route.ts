@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
+import { parseJsonBody } from "@/lib/api";
 import { z } from "zod";
 import { format } from "date-fns";
 
@@ -58,9 +59,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const parsed = await parseJsonBody(req);
+    if (!parsed.ok) return parsed.response;
     const { uploadIds, organization, includeMetadata } =
-      bulkDownloadSchema.parse(body);
+      bulkDownloadSchema.parse(parsed.data);
 
     // Fetch uploads with creator and request info
     const uploads = await db.upload.findMany({
@@ -95,21 +97,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Log the download activity
-    // One row per upload so the activity feed can join on entityId
-    await db.activityLog.createMany({
-      data: uploads.map((u) => ({
-        userId: session.user.id,
-        action: "upload.bulk_download",
-        entityType: "Upload",
-        entityId: u.id,
-        metadata: {
-          count: uploads.length,
-          organization,
-          includeMetadata,
-        },
-      })),
-    });
+    // Audit trail: one row per upload so the activity feed can join on
+    // entityId. Best-effort, never blocks the download.
+    try {
+      await db.activityLog.createMany({
+        data: uploads.map((u) => ({
+          userId: session.user.id,
+          action: "content.download",
+          entityType: "Upload",
+          entityId: u.id,
+          metadata: {
+            creatorId: u.creatorId,
+            requestId: u.requestId,
+            fileName: u.originalName,
+            count: uploads.length,
+            bulk: true,
+            organization,
+          },
+        })),
+      });
+    } catch (logError) {
+      console.warn("Failed to log bulk content download:", logError);
+    }
 
     // Generate download URLs for each file (NO bandwidth through Vercel!)
     const downloadFiles = await Promise.all(
@@ -147,22 +156,25 @@ export async function POST(req: NextRequest) {
 
     // Return URLs - client handles the downloads directly from R2
     // This uses ZERO Vercel bandwidth for file transfer
-    return NextResponse.json({
-      success: true,
-      message: "Download URLs generated. Files will download directly from storage.",
-      files: downloadFiles,
-      totalFiles: downloadFiles.length,
-      totalSize: downloadFiles.reduce((acc, f) => acc + f.fileSize, 0),
-      totalSizeFormatted: formatBytes(downloadFiles.reduce((acc, f) => acc + f.fileSize, 0)),
-      // Include metadata if requested
-      ...(includeMetadata && {
-        metadata: {
-          downloadedAt: new Date().toISOString(),
-          downloadedBy: session.user.email,
-          organization,
-        },
-      }),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Download URLs generated. Files will download directly from storage.",
+        files: downloadFiles,
+        totalFiles: downloadFiles.length,
+        totalSize: downloadFiles.reduce((acc, f) => acc + f.fileSize, 0),
+        totalSizeFormatted: formatBytes(downloadFiles.reduce((acc, f) => acc + f.fileSize, 0)),
+        // Include metadata if requested
+        ...(includeMetadata && {
+          metadata: {
+            downloadedAt: new Date().toISOString(),
+            downloadedBy: session.user.email,
+            organization,
+          },
+        }),
+      },
+      { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -222,11 +222,26 @@ export async function getDownloadPresignedUrl(key: string, filename?: string): P
   });
 
   return getSignedUrl(s3Client, command, {
-    expiresIn: 900, // 15 minutes
+    expiresIn: DOWNLOAD_URL_EXPIRY_SECONDS,
   });
 }
 
-// Generate presigned URL for viewing/preview (inline, 15 minute expiry)
+// How long signed GET links stay valid. Views are longer so a long video
+// doesn't stop mid-way; downloads only need to start before they expire.
+export const VIEW_URL_EXPIRY_SECONDS = 3600; // 1 hour
+export const DOWNLOAD_URL_EXPIRY_SECONDS = 900; // 15 minutes
+
+/**
+ * Cache-Control for any response that redirects to, or returns, a signed
+ * content URL. A CDN or browser must never keep a signed URL past its life
+ * (or share it between users).
+ */
+export const SIGNED_URL_NO_STORE = "private, no-store";
+// For <img src> redirects (thumbnails) a short private cache avoids re-signing
+// on every render while staying well below VIEW_URL_EXPIRY_SECONDS.
+export const SIGNED_URL_SHORT_CACHE = "private, max-age=300";
+
+// Generate presigned URL for viewing/preview (inline, 1 hour expiry)
 export async function getViewPresignedUrl(key: string): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
@@ -234,7 +249,7 @@ export async function getViewPresignedUrl(key: string): Promise<string> {
   });
 
   return getSignedUrl(s3Client, command, {
-    expiresIn: 900, // 15 minutes
+    expiresIn: VIEW_URL_EXPIRY_SECONDS,
   });
 }
 
@@ -372,13 +387,34 @@ export function formatFileSize(bytes: number): string {
 export const hasPublicDomain = Boolean(process.env.R2_PUBLIC_DOMAIN);
 
 /**
- * Get a public URL for a file stored in R2.
- * This serves files directly from Cloudflare's CDN with ZERO egress through Vercel.
+ * Key prefixes that are public by design (avatars, agency branding and
+ * template example assets). Everything else in the bucket is private creator
+ * content (uploads, media library, voice notes, thumbnails) and must only be
+ * served through short-lived signed URLs.
+ */
+export const PUBLIC_ASSET_PREFIXES = [
+  "avatars/", // staff avatars
+  "creator-avatars/", // creator profile pictures
+  "branding/",
+  "template-assets/",
+] as const;
+
+export function isPublicAssetKey(key: string): boolean {
+  return PUBLIC_ASSET_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+/**
+ * Get a public URL for a public-by-design asset stored in R2 (see
+ * PUBLIC_ASSET_PREFIXES). Served from Cloudflare's CDN with zero egress
+ * through Vercel.
  *
- * Requires R2_PUBLIC_DOMAIN to be set (e.g., "files.yourdomain.com")
- * Set this up in Cloudflare Dashboard > R2 > Your Bucket > Settings > Custom Domains
+ * Returns null for any other key (private creator content), so callers fall
+ * back to a signed URL. Also null when R2_PUBLIC_DOMAIN is not set.
  */
 export function getPublicFileUrl(key: string): string | null {
+  if (!isPublicAssetKey(key)) {
+    return null;
+  }
   const publicDomain = process.env.R2_PUBLIC_DOMAIN;
   if (!publicDomain) {
     return null;
@@ -389,8 +425,8 @@ export function getPublicFileUrl(key: string): string | null {
 }
 
 /**
- * Get the best URL for serving a file - prefers public URL if available,
- * falls back to presigned URL.
+ * Get the best URL for serving a file: the public URL for public assets,
+ * otherwise a presigned download (attachment) URL.
  *
  * Public URL = zero Vercel bandwidth (served from Cloudflare CDN)
  * Presigned URL = still direct to R2, but requires signing overhead

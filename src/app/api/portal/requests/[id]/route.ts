@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
-import { getDownloadPresignedUrl, useLocalStorage, getPublicFileUrl } from "@/lib/storage";
+import {
+  getViewPresignedUrl,
+  useLocalStorage,
+  getPublicFileUrl,
+  SIGNED_URL_NO_STORE,
+} from "@/lib/storage";
 
 export async function GET(
   req: NextRequest,
@@ -122,13 +127,13 @@ export async function GET(
 
         if (keyToUse) {
           try {
-            // Prefer public URL (zero bandwidth)
+            // Creator content: getPublicFileUrl returns null, so this signs
             previewUrl = getPublicFileUrl(keyToUse);
             if (!previewUrl) {
               if (useLocalStorage) {
                 previewUrl = `/api/local-files/${encodeURIComponent(keyToUse)}`;
               } else {
-                previewUrl = await getDownloadPresignedUrl(keyToUse);
+                previewUrl = await getViewPresignedUrl(keyToUse);
               }
             }
           } catch {
@@ -228,7 +233,7 @@ export async function GET(
         hasMoreComments: commentsTotal > commentsLimit,
       },
       ...(viewTracking && { viewTracking }),
-    });
+    }, { headers: { "Cache-Control": SIGNED_URL_NO_STORE } });
   } catch (error) {
     console.error("Error fetching request:", error);
     return NextResponse.json(

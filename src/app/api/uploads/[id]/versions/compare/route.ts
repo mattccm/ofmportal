@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl } from "@/lib/storage";
+import { getViewPresignedUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 interface ComparisonResult {
   left: {
@@ -94,7 +94,7 @@ export async function POST(
     ): Promise<ComparisonResult["left"] | null> => {
       // Check if it's the current version
       if (versionId === id) {
-        const previewUrl = await getDownloadPresignedUrl(upload.storageKey).catch(() => null);
+        const previewUrl = await getViewPresignedUrl(upload.storageKey).catch(() => null);
         return {
           versionNumber: versionLogs.length + 1,
           fileName: upload.fileName,
@@ -124,7 +124,7 @@ export async function POST(
 
       const storageKey = prevVersion.storageKey as string;
       const previewUrl = storageKey
-        ? await getDownloadPresignedUrl(storageKey).catch(() => null)
+        ? await getViewPresignedUrl(storageKey).catch(() => null)
         : null;
 
       return {
@@ -232,7 +232,9 @@ export async function POST(
       differences,
     };
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: { "Cache-Control": SIGNED_URL_NO_STORE },
+    });
   } catch (error) {
     console.error("Error comparing versions:", error);
     return NextResponse.json(

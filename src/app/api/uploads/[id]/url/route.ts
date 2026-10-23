@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
+import { getViewPresignedUrl, getPublicFileUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 export async function GET(
   req: NextRequest,
@@ -29,13 +29,36 @@ export async function GET(
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    // Prefer public URL for zero bandwidth
+    // Creator content is private: getPublicFileUrl returns null for it, so this
+    // is a signed inline (view) URL used for previews and video playback.
     let url = getPublicFileUrl(upload.storageKey);
     if (!url) {
-      url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName || upload.fileName);
+      url = await getViewPresignedUrl(upload.storageKey);
     }
 
-    return NextResponse.json({ url });
+    // Audit trail: best-effort, never blocks access
+    try {
+      await db.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: "content.url_issued",
+          entityType: "Upload",
+          entityId: upload.id,
+          metadata: {
+            creatorId: upload.creatorId,
+            requestId: upload.requestId,
+            fileName: upload.originalName || upload.fileName,
+          },
+        },
+      });
+    } catch (logError) {
+      console.warn("Failed to log content URL access:", logError);
+    }
+
+    return NextResponse.json(
+      { url },
+      { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
+    );
   } catch (error) {
     console.error("Error getting upload URL:", error);
     return NextResponse.json(

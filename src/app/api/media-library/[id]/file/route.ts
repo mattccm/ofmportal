@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getViewPresignedUrl, getPublicFileUrl, useLocalStorage } from "@/lib/storage";
+import {
+  getViewPresignedUrl,
+  getPublicFileUrl,
+  useLocalStorage,
+  SIGNED_URL_SHORT_CACHE,
+} from "@/lib/storage";
 
 // GET /api/media-library/[id]/file
 // Used directly as <img>/<video>/<audio> src, so it 302-redirects to an inline
@@ -42,7 +47,10 @@ export async function GET(
     const url =
       getPublicFileUrl(item.storageKey) ??
       (await getViewPresignedUrl(item.storageKey));
-    return NextResponse.redirect(url, 302);
+    // Signed view URL: cache the redirect privately, well below its expiry
+    const response = NextResponse.redirect(url, 302);
+    response.headers.set("Cache-Control", SIGNED_URL_SHORT_CACHE);
+    return response;
   } catch (error) {
     console.error("Error resolving media file:", error);
     return NextResponse.json(

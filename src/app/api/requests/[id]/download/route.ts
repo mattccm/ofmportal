@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
@@ -74,21 +74,44 @@ export async function GET(
       })
     );
 
+    // Audit trail: one row per upload, best-effort, never blocks the download
+    try {
+      await db.activityLog.createMany({
+        data: request.uploads.map((upload) => ({
+          userId: session.user.id,
+          action: "content.download",
+          entityType: "Upload",
+          entityId: upload.id,
+          metadata: {
+            creatorId: upload.creatorId,
+            requestId: request.id,
+            fileName: upload.originalName,
+            count: request.uploads.length,
+          },
+        })),
+      });
+    } catch (logError) {
+      console.warn("Failed to log request content download:", logError);
+    }
+
     // Return URLs - client handles the downloads directly from R2
     // This uses ZERO Vercel bandwidth for file transfer
-    return NextResponse.json({
-      success: true,
-      message: "Download URLs generated. Files will download directly from storage.",
-      request: {
-        id: request.id,
-        title: request.title,
-        creator: request.creator,
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Download URLs generated. Files will download directly from storage.",
+        request: {
+          id: request.id,
+          title: request.title,
+          creator: request.creator,
+        },
+        files: downloadFiles,
+        totalFiles: downloadFiles.length,
+        totalSize: downloadFiles.reduce((acc, f) => acc + f.fileSize, 0),
+        totalSizeFormatted: formatBytes(downloadFiles.reduce((acc, f) => acc + f.fileSize, 0)),
       },
-      files: downloadFiles,
-      totalFiles: downloadFiles.length,
-      totalSize: downloadFiles.reduce((acc, f) => acc + f.fileSize, 0),
-      totalSizeFormatted: formatBytes(downloadFiles.reduce((acc, f) => acc + f.fileSize, 0)),
-    });
+      { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
+    );
   } catch (error) {
     console.error("Error creating download:", error);
     return NextResponse.json(

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl, useLocalStorage } from "@/lib/storage";
+import { getDownloadPresignedUrl, useLocalStorage, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 // GET /api/media-library/[id]/download
 // Opened via window.open(); 302-redirects to a presigned attachment download URL.
@@ -23,11 +23,29 @@ export async function GET(
         id,
         agencyId: session.user.agencyId,
       },
-      select: { storageKey: true, fileName: true, name: true },
+      select: { id: true, storageKey: true, fileName: true, name: true, creatorId: true },
     });
 
     if (!item) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Audit trail: best-effort, never blocks the download
+    try {
+      await db.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: "content.download",
+          entityType: "MediaItem",
+          entityId: item.id,
+          metadata: {
+            creatorId: item.creatorId,
+            fileName: item.fileName || item.name,
+          },
+        },
+      });
+    } catch (logError) {
+      console.warn("Failed to log media download:", logError);
     }
 
     if (useLocalStorage) {
@@ -43,7 +61,9 @@ export async function GET(
       item.storageKey,
       item.fileName || item.name
     );
-    return NextResponse.redirect(url, 302);
+    const response = NextResponse.redirect(url, 302);
+    response.headers.set("Cache-Control", SIGNED_URL_NO_STORE);
+    return response;
   } catch (error) {
     console.error("Error resolving media download:", error);
     return NextResponse.json(

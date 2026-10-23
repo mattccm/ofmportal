@@ -19,6 +19,9 @@ import { finalizeBulkEmails } from "@/lib/email";
  * { "path": "/api/cron/cleanup", "schedule": "0 3 * * *" }
  */
 
+// Audit-trail actions that the age-based ActivityLog purge never deletes
+const RETAINED_ACTIVITY_PREFIXES = ["content.", "security.", "auth.", "2fa.", "reminder."];
+
 export async function GET(req: NextRequest) {
   if (!verifyCronAuth(req.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -88,9 +91,14 @@ export async function GET(req: NextRequest) {
 
     // 4. Purge old activity logs (older than 90 days)
     const logCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    // Audit-trail actions (content access, security, auth, 2FA, reminders)
+    // are kept regardless of age.
     const oldLogs = await db.activityLog.deleteMany({
       where: {
         createdAt: { lt: logCutoff },
+        NOT: RETAINED_ACTIVITY_PREFIXES.map((prefix) => ({
+          action: { startsWith: prefix },
+        })),
       },
     });
     results.oldActivityLogs = oldLogs.count;

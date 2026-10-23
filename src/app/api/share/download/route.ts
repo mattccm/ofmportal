@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { validateShareAccess, logShareAccess } from "@/lib/share";
-import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl, getPublicFileUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 // POST - Download file through share link
 export async function POST(request: NextRequest) {
@@ -147,16 +147,20 @@ export async function POST(request: NextRequest) {
     // Log the download
     await logShareAccess(shareLink.id, "DOWNLOAD", metadata);
 
-    // Get download URL - prefer public URL (zero bandwidth) over presigned
+    // Creator content: getPublicFileUrl returns null, so this is a signed
+    // attachment download URL
     let url = getPublicFileUrl(upload.storageKey);
     if (!url) {
-      url = await getDownloadPresignedUrl(upload.storageKey);
+      url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName);
     }
 
-    return NextResponse.json({
-      url,
-      fileName: upload.originalName,
-    });
+    return NextResponse.json(
+      {
+        url,
+        fileName: upload.originalName,
+      },
+      { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
+    );
   } catch (error) {
     console.error("Share download error:", error);
     return NextResponse.json(

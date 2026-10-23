@@ -340,11 +340,10 @@ export function UploadReviewPanel({
     if (!upload) return;
 
     try {
-      const url = previewUrl || (await fetchPreviewUrl());
-      if (!url) throw new Error("No URL available");
-
+      // Same-origin route that redirects to a signed attachment URL (and logs
+      // the download), so the file saves instead of opening inline.
       const link = document.createElement("a");
-      link.href = url;
+      link.href = `/api/uploads/${upload.id}/download`;
       link.download = upload.originalName;
       document.body.appendChild(link);
       link.click();
@@ -352,19 +351,6 @@ export function UploadReviewPanel({
       toast.success("Download started");
     } catch {
       toast.error("Failed to download file");
-    }
-  };
-
-  const fetchPreviewUrl = async (): Promise<string | null> => {
-    if (!upload) return null;
-
-    try {
-      const response = await fetch(`/api/uploads/${upload.id}/url`);
-      if (!response.ok) return null;
-      const { url } = await response.json();
-      return url;
-    } catch {
-      return null;
     }
   };
 

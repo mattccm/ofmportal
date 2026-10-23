@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getViewPresignedUrl, getPublicFileUrl } from "@/lib/storage";
+import { getViewPresignedUrl, getPublicFileUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 export async function GET(
   req: NextRequest,
@@ -59,13 +59,16 @@ export async function GET(
       return NextResponse.json({ url: null });
     }
 
-    // Prefer public URL for zero bandwidth
+    // Thumbnails are creator content, so this is a signed view URL
     let url = getPublicFileUrl(keyToUse);
     if (!url) {
       url = await getViewPresignedUrl(keyToUse);
     }
 
-    return NextResponse.json({ url });
+    return NextResponse.json(
+      { url },
+      { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
+    );
   } catch (error) {
     console.error("Error getting thumbnail URL:", error);
     return NextResponse.json(

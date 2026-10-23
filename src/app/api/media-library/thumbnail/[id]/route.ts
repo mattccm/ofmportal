@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getViewPresignedUrl, getPublicFileUrl, useLocalStorage } from "@/lib/storage";
+import {
+  getViewPresignedUrl,
+  getPublicFileUrl,
+  useLocalStorage,
+  SIGNED_URL_SHORT_CACHE,
+} from "@/lib/storage";
 
 // GET /api/media-library/thumbnail/[id]
 // Used directly as an <img src>, so it 302-redirects to the resolved image URL.
@@ -55,9 +60,12 @@ export async function GET(
       );
     }
 
-    // Prefer the public (zero-bandwidth) URL, fall back to a presigned view URL.
+    // Creator content: getPublicFileUrl returns null, so this is a signed view URL.
     const url = getPublicFileUrl(keyToUse) ?? (await getViewPresignedUrl(keyToUse));
-    return NextResponse.redirect(url, 302);
+    // Cache the redirect privately, well below the signed URL's expiry
+    const response = NextResponse.redirect(url, 302);
+    response.headers.set("Cache-Control", SIGNED_URL_SHORT_CACHE);
+    return response;
   } catch (error) {
     console.error("Error resolving media thumbnail:", error);
     return NextResponse.json(
