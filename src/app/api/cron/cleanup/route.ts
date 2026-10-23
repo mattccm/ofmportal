@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { deleteFile } from "@/lib/storage";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { runCron } from "@/lib/cron";
 import { finalizeBulkEmails } from "@/lib/email";
 
 /**
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
     storageCleanupErrors: [] as string[],
   };
 
-  try {
+  return runCron("cleanup", async () => {
     // 1. Clean up orphaned uploads (PENDING status older than 24 hours)
     const orphanCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const orphanedUploads = await db.upload.findMany({
@@ -119,11 +120,5 @@ export async function GET(req: NextRequest) {
       message: "Cleanup completed successfully",
       ...results,
     });
-  } catch (error) {
-    console.error("Cleanup cron error:", error);
-    return NextResponse.json(
-      { error: "Failed to run cleanup" },
-      { status: 500 }
-    );
-  }
+  }, { errorMessage: "Failed to run cleanup" });
 }

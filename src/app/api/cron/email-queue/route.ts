@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmail, buildBulkEmailVariables, renderBulkEmail, finalizeBulkEmails } from "@/lib/email";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { runCron } from "@/lib/cron";
 
 /**
  * Cron: Process scheduled and pending email queue items
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
+  return runCron("email-queue", async () => {
     const results = { processed: 0, sent: 0, failed: 0, errors: [] as string[] };
 
     // Step 1: Activate scheduled bulk emails whose time has come
@@ -173,11 +174,5 @@ export async function GET(req: NextRequest) {
       ...results,
       finalized,
     });
-  } catch (error) {
-    console.error("Email queue cron error:", error);
-    return NextResponse.json(
-      { error: "Failed to process email queue" },
-      { status: 500 }
-    );
-  }
+  }, { errorMessage: "Failed to process email queue" });
 }

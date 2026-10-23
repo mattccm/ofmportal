@@ -8,6 +8,7 @@
     "postinstall": "prisma generate",
     "start": "next start -p 3001",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && npm run db:seed",

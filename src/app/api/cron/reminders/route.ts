@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runReminderCron } from "@/lib/reminders";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { runCron } from "@/lib/cron";
 
 // This endpoint should be called by a cron job service
 // For Vercel, add this to vercel.json:
@@ -17,16 +18,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await runReminderCron();
+  return runCron(
+    "reminders",
+    async () => {
+      const result = await runReminderCron();
 
-  if (result.success) {
-    return NextResponse.json({ message: "Reminders processed successfully" });
-  } else {
-    return NextResponse.json(
-      { error: "Failed to process reminders" },
-      { status: 500 }
-    );
-  }
+      if (!result.success) {
+        // Throw so the Sentry monitor records a failed check-in; runCron
+        // turns this into the same 500 response as before
+        throw result.error instanceof Error
+          ? result.error
+          : new Error("Reminder cron reported failure");
+      }
+
+      return NextResponse.json({ message: "Reminders processed successfully" });
+    },
+    {
+      errorMessage: "Failed to process reminders",
+      // Hourly heartbeat: Sentry alerts if a run is missed or fails
+      monitor: {
+        slug: "cron-reminders",
+        config: {
+          schedule: { type: "crontab", value: "0 * * * *" },
+          checkinMargin: 10,
+          maxRuntime: 10,
+          timezone: "UTC",
+        },
+      },
+    }
+  );
 }
 
 // Also support POST for manual triggers

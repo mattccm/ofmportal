@@ -5,7 +5,7 @@ import path from "path";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { LOCAL_UPLOAD_DIR } from "@/lib/storage";
+import { LOCAL_UPLOAD_DIR, useLocalStorage } from "@/lib/storage";
 
 // MIME type mapping
 const MIME_TYPES: Record<string, string> = {
@@ -53,6 +53,12 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    // Local-disk serving is a dev fallback only. When R2 is configured, files
+    // live in R2 and this route must not expose the server's disk.
+    if (!useLocalStorage) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const { path: pathSegments } = await params;
 
     if (!pathSegments || pathSegments.length === 0) {

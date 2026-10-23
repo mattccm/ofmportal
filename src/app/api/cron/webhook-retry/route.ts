@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { retryFailedDeliveries } from "@/lib/webhooks";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { runCron } from "@/lib/cron";
 
 /**
  * Cron: Retry failed webhook deliveries
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
+  return runCron("webhook-retry", async () => {
     const results = await retryFailedDeliveries();
 
     console.log("[Webhook Retry Cron] Results:", results);
@@ -22,11 +23,5 @@ export async function GET(req: NextRequest) {
       message: "Webhook retry completed",
       ...results,
     });
-  } catch (error) {
-    console.error("Webhook retry cron error:", error);
-    return NextResponse.json(
-      { error: "Failed to retry webhooks" },
-      { status: 500 }
-    );
-  }
+  }, { errorMessage: "Failed to retry webhooks" });
 }

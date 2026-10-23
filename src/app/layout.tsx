@@ -47,6 +47,8 @@ export const metadata: Metadata = {
   authors: [{ name: "CCM" }],
   creator: "CCM",
   publisher: "CCM",
+  // Internal tool: keep it out of search engines
+  robots: { index: false, follow: false },
   formatDetection: {
     email: false,
     address: false,

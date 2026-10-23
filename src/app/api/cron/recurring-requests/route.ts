@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { runCron } from "@/lib/cron";
 import {
   executeRecurringRequest,
   computeNextRunAt,
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
+  return runCron("recurring-requests", async () => {
     const now = new Date();
     const results = { due: 0, executed: 0, skipped: 0, failed: 0, errors: [] as string[] };
 
@@ -80,11 +81,5 @@ export async function GET(req: NextRequest) {
       message: "Recurring requests processed",
       ...results,
     });
-  } catch (error) {
-    console.error("Recurring requests cron error:", error);
-    return NextResponse.json(
-      { error: "Failed to process recurring requests" },
-      { status: 500 }
-    );
-  }
+  }, { errorMessage: "Failed to process recurring requests" });
 }

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Dummy value so `prisma generate` (npm postinstall) works. CI never
+      # connects to a database, runs migrations or builds the app.
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Generates route types and next-env.d.ts (both gitignored) without a build
+      - name: Generate Next.js types
+        run: npx next typegen
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Warning budget: the exact `npx eslint src` warning count as of
+      # 2026-10-24. Lower it as warnings get fixed so new ones fail CI.
+      - name: Lint
+        run: npx eslint src --max-warnings=300
