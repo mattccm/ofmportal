@@ -2,6 +2,7 @@
 // GET /api/review-sessions/[id]/annotations - Get annotations for session
 // DELETE /api/review-sessions/[id]/annotations - Clear all annotations (host only)
 
+import { getReviewSessionUser } from "@/lib/review-session-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { broadcastSessionAnnotation } from "@/lib/realtime-broadcast";
@@ -12,12 +13,6 @@ import {
   AnnotationEvent,
 } from "@/types/review-session";
 
-// Mock auth helper - replace with real auth in production
-async function getCurrentUser(request: NextRequest) {
-  const userId = request.headers.get("x-user-id") || "user_demo";
-  const agencyId = request.headers.get("x-agency-id") || "agency_demo";
-  return { userId, agencyId };
-}
 
 // In-memory annotation store (in production, use database)
 const annotationStore = new Map<string, SessionAnnotation[]>();
@@ -92,7 +87,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
     const body = await request.json();
 
     // Validate required fields
@@ -192,7 +189,9 @@ export async function GET(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { agencyId } = reviewUser;
     const { searchParams } = new URL(request.url);
     const uploadId = searchParams.get("uploadId");
 
@@ -252,7 +251,9 @@ export async function DELETE(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
     const { searchParams } = new URL(request.url);
     const annotationId = searchParams.get("annotationId");
     const uploadId = searchParams.get("uploadId");
@@ -340,7 +341,9 @@ export async function PUT(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
     const body = await request.json();
 
     if (!body.annotationId || !body.data) {

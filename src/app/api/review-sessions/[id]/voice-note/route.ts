@@ -1,6 +1,7 @@
 // POST /api/review-sessions/[id]/voice-note - Upload a voice note
 // GET /api/review-sessions/[id]/voice-note - Get voice notes for session
 
+import { getReviewSessionUser } from "@/lib/review-session-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -13,14 +14,9 @@ import {
   generateVoiceNoteKey,
   getPublicFileUrl,
   getViewPresignedUrl,
+  SIGNED_URL_NO_STORE,
 } from "@/lib/storage";
 
-// Mock auth helper - replace with real auth in production
-async function getCurrentUser(request: NextRequest) {
-  const userId = request.headers.get("x-user-id") || "user_demo";
-  const agencyId = request.headers.get("x-agency-id") || "agency_demo";
-  return { userId, agencyId };
-}
 
 export async function POST(
   request: NextRequest,
@@ -28,7 +24,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
 
     // Get session
     const session = await db.reviewSession.findUnique({
@@ -177,10 +175,13 @@ export async function POST(
       createdAt: chatMessage.createdAt,
     };
 
-    return NextResponse.json({
-      voiceNote,
-      message: messageWithUser,
-    });
+    return NextResponse.json(
+      {
+        voiceNote,
+        message: messageWithUser,
+      },
+      { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
+    );
   } catch (error) {
     console.error("Error uploading voice note:", error);
     return NextResponse.json(
@@ -196,7 +197,9 @@ export async function GET(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { agencyId } = reviewUser;
     const { searchParams } = new URL(request.url);
     const uploadId = searchParams.get("uploadId");
 
@@ -267,7 +270,10 @@ export async function GET(
       })
     );
 
-    return NextResponse.json({ voiceNotes: voiceNotesWithUsers });
+    return NextResponse.json(
+      { voiceNotes: voiceNotesWithUsers },
+      { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
+    );
   } catch (error) {
     console.error("Error fetching voice notes:", error);
     return NextResponse.json(

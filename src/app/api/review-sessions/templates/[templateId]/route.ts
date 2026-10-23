@@ -2,6 +2,7 @@
 // PUT /api/review-sessions/templates/[templateId] - Update a template
 // DELETE /api/review-sessions/templates/[templateId] - Delete a template
 
+import { getReviewSessionUser } from "@/lib/review-session-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
@@ -11,12 +12,6 @@ import {
   DEFAULT_SESSION_SETTINGS,
 } from "@/types/review-session";
 
-// Mock auth helper - replace with real auth in production
-async function getCurrentUser(request: NextRequest) {
-  const userId = request.headers.get("x-user-id") || "user_demo";
-  const agencyId = request.headers.get("x-agency-id") || "agency_demo";
-  return { userId, agencyId };
-}
 
 export async function GET(
   request: NextRequest,
@@ -24,7 +19,9 @@ export async function GET(
 ) {
   try {
     const { templateId } = await params;
-    const { agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { agencyId } = reviewUser;
 
     const template = await db.sessionTemplate.findUnique({
       where: { id: templateId },
@@ -81,7 +78,9 @@ export async function PUT(
 ) {
   try {
     const { templateId } = await params;
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
     const body: Partial<CreateSessionTemplateRequest> = await request.json();
 
     const template = await db.sessionTemplate.findUnique({
@@ -164,7 +163,9 @@ export async function DELETE(
 ) {
   try {
     const { templateId } = await params;
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
 
     const template = await db.sessionTemplate.findUnique({
       where: { id: templateId },

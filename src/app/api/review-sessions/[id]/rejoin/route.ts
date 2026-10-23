@@ -1,5 +1,6 @@
 // POST /api/review-sessions/[id]/rejoin - Rejoin a session with state sync
 
+import { getReviewSessionUser } from "@/lib/review-session-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -14,12 +15,6 @@ import {
   SessionRecordingEvent,
 } from "@/types/review-session";
 
-// Mock auth helper - replace with real auth in production
-async function getCurrentUser(request: NextRequest) {
-  const userId = request.headers.get("x-user-id") || "user_demo";
-  const agencyId = request.headers.get("x-agency-id") || "agency_demo";
-  return { userId, agencyId };
-}
 
 export async function POST(
   request: NextRequest,
@@ -27,7 +22,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
     const body: RejoinSessionRequest = await request.json().catch(() => ({}));
 
     // Get session

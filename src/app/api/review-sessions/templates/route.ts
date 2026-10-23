@@ -1,6 +1,7 @@
 // POST /api/review-sessions/templates - Create a new session template
 // GET /api/review-sessions/templates - List session templates
 
+import { getReviewSessionUser } from "@/lib/review-session-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
@@ -10,16 +11,12 @@ import {
   DEFAULT_SESSION_SETTINGS,
 } from "@/types/review-session";
 
-// Mock auth helper - replace with real auth in production
-async function getCurrentUser(request: NextRequest) {
-  const userId = request.headers.get("x-user-id") || "user_demo";
-  const agencyId = request.headers.get("x-agency-id") || "agency_demo";
-  return { userId, agencyId };
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
     const body: CreateSessionTemplateRequest = await request.json();
 
     // Validate request
@@ -89,7 +86,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { agencyId } = reviewUser;
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50", 10);
 

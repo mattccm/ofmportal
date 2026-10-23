@@ -1,15 +1,10 @@
 // GET /api/review-sessions/[id]/stream - SSE endpoint for real-time updates
 
+import { getReviewSessionUser } from "@/lib/review-session-auth";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { createSSEStream, sessionStore } from "@/lib/realtime-session";
 
-// Mock auth helper - replace with real auth in production
-async function getCurrentUser(request: NextRequest) {
-  const userId = request.headers.get("x-user-id") || "user_demo";
-  const agencyId = request.headers.get("x-agency-id") || "agency_demo";
-  return { userId, agencyId };
-}
 
 export async function GET(
   request: NextRequest,
@@ -17,7 +12,9 @@ export async function GET(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { agencyId } = reviewUser;
 
     // Verify session exists and user has access
     const session = await db.reviewSession.findUnique({
@@ -60,7 +57,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { agencyId } = reviewUser;
 
     // Verify session exists and user has access
     const session = await db.reviewSession.findUnique({

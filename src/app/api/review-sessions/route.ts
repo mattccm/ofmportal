@@ -1,6 +1,7 @@
 // POST /api/review-sessions - Create a new review session
 // GET /api/review-sessions - List active sessions for agency
 
+import { getReviewSessionUser } from "@/lib/review-session-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -14,17 +15,12 @@ import {
   buildSessionState,
 } from "@/lib/realtime-session";
 
-// Mock auth helper - replace with real auth in production
-async function getCurrentUser(request: NextRequest) {
-  // In production, get from session/JWT
-  const userId = request.headers.get("x-user-id") || "user_demo";
-  const agencyId = request.headers.get("x-agency-id") || "agency_demo";
-  return { userId, agencyId };
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, agencyId } = reviewUser;
     const body: CreateSessionRequest = await request.json();
 
     // Validate request
@@ -164,7 +160,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { agencyId } = await getCurrentUser(request);
+    const reviewUser = await getReviewSessionUser();
+    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { agencyId } = reviewUser;
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "ACTIVE";
     const limit = parseInt(searchParams.get("limit") || "10", 10);
