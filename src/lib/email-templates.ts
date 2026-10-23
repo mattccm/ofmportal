@@ -184,7 +184,7 @@ If you didn't expect this invitation, you can safely ignore this email.`.trim(),
     name: "Request Sent",
     description: "Sent when a new content request is created for a creator",
     variables: TEMPLATE_VARIABLES.REQUEST_SENT,
-    defaultSubject: "New content request: {{request.title}}",
+    defaultSubject: "You have a new content request",
     defaultHtml: `
 <!DOCTYPE html>
 <html>
@@ -222,7 +222,7 @@ View and upload here: {{portal.link}}`.trim(),
     name: "Upload Received",
     description: "Sent to agency when a creator uploads content",
     variables: TEMPLATE_VARIABLES.UPLOAD_RECEIVED,
-    defaultSubject: "New upload from {{creator.name}} for \"{{request.title}}\"",
+    defaultSubject: "New upload from {{creator.name}}",
     defaultHtml: `
 <!DOCTYPE html>
 <html>
@@ -255,7 +255,7 @@ Review the uploads here: {{dashboard.link}}`.trim(),
     name: "Request Approved",
     description: "Sent when all content for a request is approved",
     variables: TEMPLATE_VARIABLES.REQUEST_APPROVED,
-    defaultSubject: "Your content for \"{{request.title}}\" has been approved!",
+    defaultSubject: "Your content was approved",
     defaultHtml: `
 <!DOCTYPE html>
 <html>
@@ -289,7 +289,7 @@ Thank you for your submission!
     name: "Request Rejected",
     description: "Sent when content is rejected and needs to be replaced",
     variables: TEMPLATE_VARIABLES.REQUEST_REJECTED,
-    defaultSubject: "Action needed: Content for \"{{request.title}}\" was not approved",
+    defaultSubject: "Action needed: your content was not approved",
     defaultHtml: `
 <!DOCTYPE html>
 <html>
@@ -329,7 +329,7 @@ Please upload new content here: {{portal.link}}`.trim(),
     name: "Upcoming Deadline Reminder",
     description: "Sent before a request's due date",
     variables: TEMPLATE_VARIABLES.REMINDER_UPCOMING,
-    defaultSubject: "Reminder: \"{{request.title}}\" is due in {{days.remaining}} days",
+    defaultSubject: "Reminder: content due in {{days.remaining}} days",
     defaultHtml: `
 <!DOCTYPE html>
 <html>
@@ -367,7 +367,7 @@ Upload your content here: {{portal.link}}`.trim(),
     name: "Due Today Reminder",
     description: "Sent on the day a request is due",
     variables: TEMPLATE_VARIABLES.REMINDER_DUE_TODAY,
-    defaultSubject: "Due Today: \"{{request.title}}\"",
+    defaultSubject: "Reminder: content due today",
     defaultHtml: `
 <!DOCTYPE html>
 <html>
@@ -401,7 +401,7 @@ Please upload your content as soon as possible: {{portal.link}}`.trim(),
     name: "Overdue Reminder",
     description: "Sent when a request is past its due date",
     variables: TEMPLATE_VARIABLES.REMINDER_OVERDUE,
-    defaultSubject: "OVERDUE: \"{{request.title}}\" is {{days.overdue}} days late",
+    defaultSubject: "Overdue: your content is {{days.overdue}} days late",
     defaultHtml: `
 <!DOCTYPE html>
 <html>
@@ -484,7 +484,7 @@ If you didn't request a password reset, you can safely ignore this email.`.trim(
     name: "Revision Requested",
     description: "Sent when changes are requested for submitted content",
     variables: TEMPLATE_VARIABLES.REVISION_REQUESTED,
-    defaultSubject: "Revision needed for \"{{request.title}}\"",
+    defaultSubject: "Revision needed on your content",
     defaultHtml: `
 <!DOCTYPE html>
 <html>

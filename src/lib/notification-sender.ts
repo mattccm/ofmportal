@@ -379,7 +379,7 @@ export async function sendUploadSubmittedNotification(
     title: "New Content Submitted",
     message: `${creatorName} has submitted content for "${requestTitle}"`,
     link: `/dashboard/requests/${requestId}`,
-    smsMessage: `New content submitted by ${creatorName} for "${requestTitle}"`,
+    smsMessage: `New content submitted by ${creatorName}`,
   });
 }
 
@@ -396,7 +396,7 @@ export async function sendUploadApprovedNotification(
     title: "Content Approved",
     message: `Your content for "${requestTitle}" has been approved`,
     link: `/creator/requests/${requestId}`,
-    smsMessage: `Great news! Your content for "${requestTitle}" was approved.`,
+    smsMessage: `Great news! Your content was approved.`,
   });
 }
 
@@ -418,7 +418,7 @@ export async function sendUploadRejectedNotification(
     title: "Content Needs Revision",
     message,
     link: `/creator/requests/${requestId}`,
-    smsMessage: `Revision needed for "${requestTitle}". Please check the feedback.`,
+    smsMessage: `Revision needed on your content. Please check the feedback.`,
   });
 }
 
@@ -440,7 +440,7 @@ export async function sendRequestCreatedNotification(
     title: "New Content Request",
     message: `You have a new content request: "${requestTitle}"${dueDateStr}`,
     link: `/creator/requests/${requestId}`,
-    smsMessage: `New request: "${requestTitle}"${dueDateStr}`,
+    smsMessage: `You have a new content request${dueDateStr}`,
   });
 }
 
@@ -465,7 +465,7 @@ export async function sendRequestDueSoonNotification(
     title: "Request Due Soon",
     message: `"${requestTitle}" is due ${timeStr}`,
     link: `/creator/requests/${requestId}`,
-    smsMessage: `Reminder: "${requestTitle}" is due ${timeStr}`,
+    smsMessage: `Reminder: content is due ${timeStr}`,
   });
 }
 
@@ -489,7 +489,7 @@ export async function sendCommentNotification(
     title: "New Comment",
     message: `${commenterName} commented on "${requestTitle}": ${preview}`,
     link: `/dashboard/requests/${requestId}`,
-    smsMessage: `${commenterName} commented on "${requestTitle}"`,
+    smsMessage: `${commenterName} left a new comment`,
   });
 }
 

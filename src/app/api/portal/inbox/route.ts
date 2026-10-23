@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { validateCreatorSession } from "@/lib/portal-auth";
 import { excludePseudoUsers } from "@/lib/staff";
 import { broadcastConversationMessage } from "@/lib/realtime-broadcast";
+import { notifyTeam, NotificationType } from "@/lib/notifications";
 
 // GET /api/portal/inbox - Get creator's conversations
 export async function GET(request: NextRequest) {
@@ -173,6 +174,32 @@ export async function POST(request: NextRequest) {
       senderName: creator.name,
       createdAt: message.createdAt.toISOString(),
     }).catch(() => {});
+
+    // Notify the agency's staff of the new creator message. The sender is the
+    // creator (not a User), so every real staff member is notified; the
+    // `.internal` pseudo-users are excluded. Guard so a notification failure
+    // never fails the creator's send.
+    try {
+      const staff = await db.user.findMany({
+        where: {
+          AND: [{ agencyId: creator.agencyId }, excludePseudoUsers],
+        },
+        select: { id: true },
+      });
+      if (staff.length > 0) {
+        const preview =
+          content.length > 80 ? content.slice(0, 77) + "..." : content;
+        await notifyTeam(
+          staff.map((s) => s.id),
+          NotificationType.MESSAGE_RECEIVED,
+          `New message from ${creator.name}`,
+          preview,
+          `/dashboard/messages?conversation=${conversation.id}`
+        );
+      }
+    } catch (notifyError) {
+      console.warn("Failed to notify staff of creator message:", notifyError);
+    }
 
     return NextResponse.json({
       message: {

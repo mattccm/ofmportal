@@ -48,33 +48,38 @@ export async function sendSms({ to, message }: SendSmsOptions) {
 }
 
 // SMS Templates
+//
+// Lock-screen safe: SMS previews show on locked phones, and request titles can
+// be explicit, so bodies never include the request title or other
+// request-specific wording. `requestTitle` is still accepted for caller
+// compatibility but intentionally unused.
+
+const SMS_BRAND = "CCM";
 
 export async function sendContentRequestSms({
   to,
   creatorName,
-  requestTitle,
   portalLink,
 }: {
   to: string;
   creatorName: string;
-  requestTitle: string;
+  requestTitle?: string;
   portalLink: string;
 }) {
-  const message = `Hi ${creatorName}! You have a new content request: "${requestTitle}". Upload here: ${portalLink}`;
+  const message = `Hi ${creatorName}, you have a new content request from ${SMS_BRAND}. View it here: ${portalLink}`;
   return sendSms({ to, message });
 }
 
 export async function sendReminderSms({
   to,
   creatorName,
-  requestTitle,
   daysUntilDue,
   portalLink,
   isTest,
 }: {
   to: string;
   creatorName: string;
-  requestTitle: string;
+  requestTitle?: string;
   daysUntilDue: number;
   portalLink: string;
   isTest?: boolean;
@@ -83,41 +88,39 @@ export async function sendReminderSms({
     daysUntilDue < 0
       ? `${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) !== 1 ? "s" : ""} overdue`
       : daysUntilDue === 0
-        ? "due TODAY"
+        ? "due today"
         : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? "s" : ""}`;
 
   const testPrefix = isTest ? "[TEST] " : "";
 
-  const message = `${testPrefix}Hi ${creatorName}, your content for "${requestTitle}" is ${urgencyText}. Upload: ${portalLink}`;
+  const message = `${testPrefix}Hi ${creatorName}, you have ${SMS_BRAND} content ${urgencyText}. View it here: ${portalLink}`;
   return sendSms({ to, message });
 }
 
 export async function sendContentApprovedSms({
   to,
   creatorName,
-  requestTitle,
 }: {
   to: string;
   creatorName: string;
-  requestTitle: string;
+  requestTitle?: string;
 }) {
-  const message = `Hi ${creatorName}, your content for "${requestTitle}" has been approved.`;
+  const message = `Hi ${creatorName}, your content for ${SMS_BRAND} has been approved.`;
   return sendSms({ to, message });
 }
 
 export async function sendRevisionRequestSms({
   to,
   creatorName,
-  requestTitle,
   portalLink,
 }: {
   to: string;
   creatorName: string;
-  requestTitle: string;
+  requestTitle?: string;
   portalLink?: string;
 }) {
-  const linkPart = portalLink ? ` Check feedback & resubmit: ${portalLink}` : "";
-  const message = `Hi ${creatorName}, revision needed for "${requestTitle}".${linkPart}`;
+  const linkPart = portalLink ? ` View feedback here: ${portalLink}` : "";
+  const message = `Hi ${creatorName}, ${SMS_BRAND} has requested changes to your content.${linkPart}`;
   return sendSms({ to, message });
 }
 
@@ -132,7 +135,7 @@ export async function sendBatchedReminderSms({
   requestCount: number;
   portalLink: string;
 }) {
-  const message = `Hi ${creatorName}, you have ${requestCount} content requests pending. View all: ${portalLink}`;
+  const message = `Hi ${creatorName}, you have ${requestCount} content requests pending from ${SMS_BRAND}. View all: ${portalLink}`;
   return sendSms({ to, message });
 }
 

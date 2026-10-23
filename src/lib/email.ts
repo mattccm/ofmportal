@@ -219,7 +219,7 @@ export function renderEmail(options: {
     <title>${escapeHtml(subject)}</title>
   </head>
   <body style="margin:0;padding:0;width:100%;background-color:#f4f4f7;-webkit-text-size-adjust:100%;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(subject)}</div>
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(subject)}${"&#847;&zwnj;&nbsp;".repeat(60)}</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f7;">
       <tr>
         <td align="center" style="padding:32px 16px;">
@@ -571,7 +571,8 @@ export async function sendContentRequestEmail({
   agencyId?: string;
 }) {
   const branding = await loadEmailBranding(agencyId, agencyName);
-  const subject = `New content request: ${requestTitle}`;
+  // Lock-screen safe: never put the request title in the subject/preheader
+  const subject = "You have a new content request";
 
   const content = `
     ${p(`Hi ${escapeHtml(creatorName)},`)}
@@ -626,7 +627,10 @@ export async function sendReminderEmail({
       : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? "s" : ""}`;
 
   const testPrefix = isTest ? "[TEST] " : "";
-  const subject = `${testPrefix}Reminder: "${requestTitle}" is ${urgencyText}`;
+  // Lock-screen safe: never put the request title in the subject/preheader
+  const subject = isOverdue
+    ? `${testPrefix}Reminder: your content is ${urgencyText}`
+    : `${testPrefix}Reminder: content ${urgencyText}`;
 
   const pill = isOverdue
     ? statusPill("Overdue", "#b91c1c", "#fef2f2")
@@ -669,7 +673,8 @@ export async function sendContentApprovedEmail({
   agencyId?: string;
 }) {
   const branding = await loadEmailBranding(agencyId);
-  const subject = `Your content for "${requestTitle}" has been approved`;
+  // Lock-screen safe: never put the request title in the subject/preheader
+  const subject = "Your content was approved";
 
   const content = `
     ${statusPill("Approved", "#15803d", "#f0fdf4")}
@@ -705,7 +710,8 @@ export async function sendRevisionRequestEmail({
   agencyId?: string;
 }) {
   const branding = await loadEmailBranding(agencyId);
-  const subject = `Changes requested for "${requestTitle}"`;
+  // Lock-screen safe: never put the request title in the subject/preheader
+  const subject = "Changes requested on your content";
 
   const content = `
     ${statusPill("Changes requested", "#b45309", "#fffbeb")}
@@ -742,7 +748,8 @@ export async function sendNewRequestEmail({
   agencyId?: string;
 }) {
   const branding = await loadEmailBranding(agencyId);
-  const subject = `New content request: ${requestTitle}`;
+  // Lock-screen safe: never put the request title in the subject/preheader
+  const subject = "You have a new content request";
 
   const content = `
     ${p(`Hi ${escapeHtml(creatorName)},`)}

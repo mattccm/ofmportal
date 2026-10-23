@@ -95,7 +95,7 @@ Best regards,
   {
     id: "new-request",
     name: "New Request Notification",
-    subject: "New Content Request: {{request.title}}",
+    subject: "You have a new content request",
     body: `Hi {{creator.name}},
 
 We have a new content request for you!
