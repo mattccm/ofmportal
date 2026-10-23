@@ -69,24 +69,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SessionList, type SessionData } from "@/components/security/session-card";
 import { SessionTimeoutWarning } from "@/components/security/session-timeout-warning";
 import { TrustedDevices } from "@/components/security/trusted-devices";
 
 // Types
-interface Session {
-  id: string;
-  sessionToken: string;
-  current: boolean;
-  device: string;
-  browser: string;
-  os: string;
-  ip: string;
-  location: string;
-  lastActive: string;
-  createdAt: string;
-}
-
 interface SecurityLog {
   id: string;
   action: string;
@@ -138,7 +124,6 @@ export default function SecuritySettingsPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false);
   const [lastPasswordChange, setLastPasswordChange] = React.useState<string | null>(null);
-  const [sessions, setSessions] = React.useState<Session[]>([]);
   const [securityLogs, setSecurityLogs] = React.useState<SecurityLog[]>([]);
   const [apiKeys, setApiKeys] = React.useState<ApiKey[]>([]);
   const [backupCodesStatus, setBackupCodesStatus] = React.useState<{
@@ -190,35 +175,13 @@ export default function SecuritySettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = React.useState(false);
   const [isGeneratingBackupCodes, setIsGeneratingBackupCodes] = React.useState(false);
   const [isCreatingApiKey, setIsCreatingApiKey] = React.useState(false);
-  const [isTerminatingSession, setIsTerminatingSession] = React.useState<string | null>(null);
-  const [isTerminatingAll, setIsTerminatingAll] = React.useState(false);
-
-  // Track session metadata on page load
-  React.useEffect(() => {
-    // Update session metadata when page loads
-    fetch("/api/auth/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    }).catch(() => {
-      // Silently fail - not critical
-    });
-  }, []);
-
-  // Extend session callback for timeout warning
-  const handleExtendSession = React.useCallback(async () => {
-    await fetch("/api/auth/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-  }, []);
 
   // Fetch initial data
   React.useEffect(() => {
     async function fetchData() {
       try {
-        const [passwordRes, sessionsRes, logsRes, apiKeysRes, backupRes] = await Promise.all([
+        const [passwordRes, logsRes, apiKeysRes, backupRes] = await Promise.all([
           fetch("/api/auth/password"),
-          fetch("/api/auth/sessions"),
           fetch("/api/auth/security-logs?limit=20"),
           fetch("/api/auth/api-keys"),
           fetch("/api/auth/2fa/backup-codes"),
@@ -227,11 +190,6 @@ export default function SecuritySettingsPage() {
         if (passwordRes.ok) {
           const data = await passwordRes.json();
           setLastPasswordChange(data.lastChanged);
-        }
-
-        if (sessionsRes.ok) {
-          const data = await sessionsRes.json();
-          setSessions(data.sessions || []);
         }
 
         if (logsRes.ok) {
@@ -488,48 +446,6 @@ export default function SecuritySettingsPage() {
     setShowRevokeApiKeyDialog(true);
   };
 
-  // Session Management
-  const handleTerminateSession = async (sessionId: string) => {
-    setIsTerminatingSession(sessionId);
-    try {
-      const response = await fetch("/api/auth/sessions", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      });
-
-      if (!response.ok) throw new Error("Failed to terminate session");
-
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      toast.success("Session terminated");
-    } catch (error) {
-      toast.error("Failed to terminate session");
-    } finally {
-      setIsTerminatingSession(null);
-    }
-  };
-
-  const handleTerminateAllSessions = async () => {
-    setIsTerminatingAll(true);
-    try {
-      const response = await fetch("/api/auth/sessions", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ terminateAll: true }),
-      });
-
-      if (!response.ok) throw new Error("Failed to terminate sessions");
-
-      // Keep only the current session in UI
-      setSessions((prev) => prev.filter((s) => s.current));
-      toast.success("All other sessions terminated");
-    } catch (error) {
-      toast.error("Failed to terminate sessions");
-    } finally {
-      setIsTerminatingAll(false);
-    }
-  };
-
   // Copy to clipboard - handled by CopyButton component
 
   // Password strength
@@ -564,7 +480,6 @@ export default function SecuritySettingsPage() {
       <SessionTimeoutWarning
         warningTime={5 * 60 * 1000} // 5 minutes warning
         sessionTimeout={30 * 60 * 1000} // 30 minutes total
-        onExtendSession={handleExtendSession}
         enabled={true}
       />
 
@@ -629,8 +544,8 @@ export default function SecuritySettingsPage() {
                 <Monitor className="h-6 w-6 text-violet-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Active Sessions</p>
-                <p className="font-semibold">{sessions.length} devices</p>
+                <p className="text-sm text-muted-foreground">Session Length</p>
+                <p className="font-semibold">30 days</p>
               </div>
             </div>
           </div>
@@ -794,33 +709,27 @@ export default function SecuritySettingsPage() {
                   <Monitor className="h-5 w-5 text-violet-500" />
                 </div>
                 <div>
-                  <CardTitle>Active Sessions</CardTitle>
+                  <CardTitle>Sessions</CardTitle>
                   <CardDescription>
-                    Manage devices where you are logged in. Each session shows the
-                    device, browser, and location based on IP address.
+                    How sign-ins on your devices work
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <SessionList
-                sessions={sessions as SessionData[]}
-                onRevokeSession={handleTerminateSession}
-                onRevokeAllOther={handleTerminateAllSessions}
-                isRevokingAll={isTerminatingAll}
-                revokingSessionId={isTerminatingSession}
-              />
-
-              {/* Privacy Notice */}
-              <div className="mt-6 p-4 rounded-xl border border-muted bg-muted/30">
+              <div className="p-4 rounded-xl border border-muted bg-muted/30">
                 <div className="flex gap-3">
                   <Shield className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div className="text-sm text-muted-foreground">
-                    <p className="font-medium text-foreground">Privacy Notice</p>
-                    <p className="mt-1">
-                      IP addresses are partially masked for privacy. Location data is
-                      approximate and based on your IP address. We do not store exact
-                      GPS coordinates or precise location information.
+                    <p>
+                      Each sign-in is a signed token stored on that device, valid for up to
+                      30 days. Signed-in devices aren&apos;t tracked individually, so they
+                      can&apos;t be listed or signed out from here.
+                    </p>
+                    <p className="mt-2">
+                      Use Sign out on a device to end its session. Changing your password
+                      also removes remembered (&quot;stay signed in&quot;) devices; see the
+                      Trusted Devices tab.
                     </p>
                   </div>
                 </div>

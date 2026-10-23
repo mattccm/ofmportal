@@ -55,6 +55,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Security log (never let a logging failure break the 2FA change)
+    await db.activityLog
+      .create({
+        data: {
+          userId: session.user.id,
+          action: "2fa.disabled",
+          entityType: "User",
+          entityId: session.user.id,
+          ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined,
+          userAgent: req.headers.get("user-agent") || undefined,
+        },
+      })
+      .catch(() => {});
+
     return NextResponse.json({
       message: "2FA disabled successfully",
     });

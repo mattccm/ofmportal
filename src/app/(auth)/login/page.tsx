@@ -19,15 +19,28 @@ import {
   clearSignedOutFlag,
   storeCreatorSession,
   getCreatorSession,
+  clearCreatorSession,
 } from "@/lib/remember-token";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const { status } = useSession();
+  const rawCallback = searchParams.get("callbackUrl");
+  // Only allow same-origin relative paths (no //evil or /\evil) to avoid open redirects
+  const callbackUrl =
+    rawCallback &&
+    rawCallback.startsWith("/") &&
+    !rawCallback.startsWith("//") &&
+    !rawCallback.startsWith("/\\")
+      ? rawCallback
+      : "/dashboard";
+  const { data: session, status: rawStatus } = useSession();
+  // A revoked token yields a session with no user; treat it as signed out so the
+  // dashboard layout's redirect to /login doesn't bounce straight back.
+  const status = rawStatus === "authenticated" && !session?.user ? "unauthenticated" : rawStatus;
 
-  const [email, setEmail] = useState("");
+  // Prefilled when arriving from account setup (/login?email=...)
+  const [email, setEmail] = useState(() => searchParams.get("email") || "");
   const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [error, setError] = useState("");
@@ -48,34 +61,6 @@ function LoginForm() {
       setStaySignedIn(true);
     }
 
-    // Send debug log that login page mounted
-    const sendLoginDebug = async (event: string, data: Record<string, unknown>) => {
-      try {
-        let deviceId = localStorage.getItem("debug-device-id");
-        if (!deviceId) {
-          deviceId = "device-" + Math.random().toString(36).substring(2, 10);
-          localStorage.setItem("debug-device-id", deviceId);
-        }
-        await fetch("/api/debug/session-log", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deviceId, event, data }),
-        });
-      } catch (e) { /* ignore */ }
-    };
-
-    // Log that login page mounted - this helps us see if PWA is going to login page
-    sendLoginDebug("login-page-mount", {
-      isPWA: isPWAMode,
-      hasSignedOutFlag: hasSignedOutFlag(),
-      hasIndicatorCookie: hasIndicatorCookie(),
-      localStorageKeys: Object.keys(localStorage),
-      creatorToken: localStorage.getItem("creatorToken") ? "EXISTS" : "NULL",
-      creatorIndicator: localStorage.getItem("ccm-creator-session") ? "EXISTS" : "NULL",
-      url: window.location.href,
-      timestamp: new Date().toISOString(),
-    });
-
     // Attempt auto-login if we have a remember token
     // This is the PRIMARY auto-login trigger for returning PWA users
     const tryAutoLogin = async () => {
@@ -84,14 +69,12 @@ function LoginForm() {
 
       // Check if user intentionally signed out - don't auto-login
       if (hasSignedOutFlag()) {
-        sendLoginDebug("login-skip-signed-out", { reason: "signed-out-flag" });
         return;
       }
 
       // Quick check: if no indicator cookie, likely no token
       // This is a fast synchronous check before doing async storage checks
       if (!hasIndicatorCookie() && !isPWAMode) {
-        sendLoginDebug("login-skip-no-indicator", { reason: "no-indicator-not-pwa" });
         return;
       }
 
@@ -99,14 +82,20 @@ function LoginForm() {
       // This handles creators returning to the PWA
       const creatorSession = await getCreatorSession();
       if (creatorSession) {
-        sendLoginDebug("login-creator-restore", {
-          email: creatorSession.email,
-          creatorId: creatorSession.creatorId,
-          storedAt: creatorSession.storedAt,
-        });
-
         autoLoginAttempted.current = true;
         setAutoLoginInProgress(true);
+
+        // Validate the stored token first: an expired/revoked session would
+        // otherwise bounce between here and the dashboard. Offline (fetch
+        // fails) still restores so the PWA opens.
+        const check = await fetch("/api/portal/profile", {
+          headers: { "x-creator-token": creatorSession.token },
+        }).catch(() => null);
+        if (check && check.status === 401) {
+          await clearCreatorSession().catch(() => {});
+          setAutoLoginInProgress(false);
+          return;
+        }
 
         // Restore to localStorage
         localStorage.setItem("creatorToken", creatorSession.token);
@@ -122,8 +111,6 @@ function LoginForm() {
         document.cookie = `creatorName=${encodeURIComponent(creatorSession.name)}; path=/; max-age=${maxAge}; SameSite=Lax`;
         document.cookie = `creatorEmail=${encodeURIComponent(creatorSession.email)}; path=/; max-age=${maxAge}; SameSite=Lax`;
 
-        sendLoginDebug("login-creator-redirect", { to: "/creator/dashboard" });
-
         // Redirect to creator dashboard
         router.push("/creator/dashboard");
         return;
@@ -132,7 +119,6 @@ function LoginForm() {
       // SECOND: Check for team member remember token
       const storedToken = await getRememberToken();
       if (!storedToken) {
-        sendLoginDebug("login-no-remember-token", { reason: "no-remember-token" });
         return;
       }
 
@@ -220,6 +206,17 @@ function LoginForm() {
         return;
       }
 
+      // Staff-specific failures: show them directly, don't fall back to creator login
+      if (
+        requires2FA ||
+        result?.error === "Invalid 2FA code" ||
+        result?.error?.startsWith("Too many")
+      ) {
+        setError(result?.error || "Invalid email or password");
+        setLoading(false);
+        return;
+      }
+
       // Team login failed, try creator login
       try {
         const creatorResponse = await fetch("/api/portal/login", {
@@ -254,7 +251,6 @@ function LoginForm() {
           document.cookie = `creatorEmail=${encodeURIComponent(creatorData.email)}; path=/; max-age=${maxAge}; SameSite=Lax`;
 
           // Store in IndexedDB for iOS PWA persistence (most reliable on iOS)
-          let indexedDBSuccess = false;
           try {
             await storeCreatorSession({
               token: creatorData.token,
@@ -262,32 +258,8 @@ function LoginForm() {
               name: creatorData.name,
               email: creatorData.email,
             });
-            indexedDBSuccess = true;
           } catch (err) {
             console.warn("Failed to store creator session in IndexedDB:", err);
-          }
-
-          // Send debug log to server
-          try {
-            await fetch("/api/debug/session-log", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                deviceId: localStorage.getItem("debug-device-id") || "unknown",
-                event: "creator-login",
-                data: {
-                  email: creatorData.email,
-                  creatorId: creatorData.creatorId,
-                  indexedDBSuccess,
-                  localStorageSet: true,
-                  cookiesSet: true,
-                  isPWA: isIOSPWA(),
-                  timestamp: new Date().toISOString(),
-                },
-              }),
-            });
-          } catch (e) {
-            // Ignore debug log failures
           }
 
           // First-time creators go through onboarding before the dashboard
@@ -424,18 +396,18 @@ function LoginForm() {
               <Input
                 id="totpCode"
                 type="text"
-                inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="000000"
                 value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                // 6-digit TOTP code or an XXXX-XXXX backup code
+                onChange={(e) => setTotpCode(e.target.value.replace(/[^0-9a-fA-F-]/g, "").slice(0, 9))}
                 required
                 disabled={loading}
                 autoFocus
                 className="h-14 rounded-xl border-border bg-background px-4 text-center text-2xl font-semibold tracking-widest transition-all focus:ring-2 focus:ring-primary/20"
               />
               <p className="text-xs text-muted-foreground text-center">
-                Enter the 6-digit code from your authenticator app
+                Enter the 6-digit code from your authenticator app, or a backup code
               </p>
             </div>
           )}

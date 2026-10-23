@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { db } from "./db";
 import { rateLimitAsync, RATE_LIMITS } from "./rate-limit";
 import * as OTPAuth from "otpauth";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Consume a single-use remember-me nonce issued by PUT /api/auth/remember.
@@ -23,6 +24,32 @@ async function consumeRememberNonce(nonce: string): Promise<string | null> {
   });
   return record?.userId ?? null;
 }
+
+/**
+ * Write a login event to the security log. Fire-and-forget: a logging failure
+ * must never break the login itself.
+ */
+function logAuthEvent(
+  userId: string,
+  action: string,
+  headers: Record<string, string | undefined>
+): void {
+  db.activityLog
+    .create({
+      data: {
+        userId,
+        action,
+        entityType: "User",
+        entityId: userId,
+        ipAddress: headers["x-forwarded-for"]?.split(",")[0]?.trim() || headers["x-real-ip"] || undefined,
+        userAgent: headers["user-agent"] || undefined,
+      },
+    })
+    .catch(() => {});
+}
+
+// How often a session's role/agency is re-read from the DB
+const SESSION_RECHECK_MS = 5 * 60 * 1000;
 
 // Cookie configuration for iOS Safari PWA support
 const useSecureCookies = process.env.NODE_ENV === "production";
@@ -165,6 +192,7 @@ export const authOptions: NextAuthOptions = {
             password: true,
             twoFactorEnabled: true,
             twoFactorSecret: true,
+            preferences: true,
             agencyId: true,
             agency: {
               select: {
@@ -191,6 +219,7 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!passwordValid) {
+          logAuthEvent(user.id, "auth.login.failed", headers);
           throw new Error("Invalid email or password");
         }
 
@@ -207,15 +236,52 @@ export const authOptions: NextAuthOptions = {
             throw new Error("2FA_REQUIRED");
           }
 
-          const isValid = verifyTwoFactorCode(
-            user.twoFactorSecret,
-            totpCode
-          );
+          const raw = totpCode.trim();
+          let isValid = /^\d{6}$/.test(raw) && verifyTwoFactorCode(user.twoFactorSecret, raw);
+
+          // Fall back to a single-use backup code (XXXX-XXXX hex, bcrypt-hashed in preferences)
+          if (!isValid) {
+            const norm = raw.toUpperCase().replace(/[^0-9A-F]/g, "");
+            if (norm.length === 8) {
+              const candidate = `${norm.slice(0, 4)}-${norm.slice(4)}`;
+              const prefs = (user.preferences as Record<string, unknown>) || {};
+              const codes = (prefs.backupCodes as Array<{ code: string; used: boolean; usedAt?: string }>) || [];
+              for (let i = 0; i < codes.length; i++) {
+                if (!codes[i].used && (await bcrypt.compare(candidate, codes[i].code))) {
+                  const updated = codes.map((c, j) =>
+                    j === i ? { ...c, used: true, usedAt: new Date().toISOString() } : c
+                  );
+                  await db.user.update({
+                    where: { id: user.id },
+                    data: { preferences: { ...prefs, backupCodes: updated } as unknown as Prisma.InputJsonValue },
+                  });
+                  await db.activityLog
+                    .create({
+                      data: {
+                        userId: user.id,
+                        action: "2fa.backup_code_used",
+                        entityType: "User",
+                        entityId: user.id,
+                        metadata: { remaining: updated.filter((c) => !c.used).length },
+                        ipAddress: headers["x-forwarded-for"]?.split(",")[0]?.trim() || headers["x-real-ip"] || undefined,
+                        userAgent: headers["user-agent"] || undefined,
+                      },
+                    })
+                    .catch(() => {});
+                  isValid = true;
+                  break;
+                }
+              }
+            }
+          }
 
           if (!isValid) {
+            logAuthEvent(user.id, "auth.login.failed", headers);
             throw new Error("Invalid 2FA code");
           }
         }
+
+        logAuthEvent(user.id, "auth.login", headers);
 
         return {
           id: user.id,
@@ -240,6 +306,32 @@ export const authOptions: NextAuthOptions = {
         token.agencyId = user.agencyId || "";
         token.agencyName = user.agencyName || "";
         token.twoFactorEnabled = user.twoFactorEnabled;
+        token.checkedAt = Date.now();
+      }
+
+      // Periodically re-read role/agency so removed or demoted staff lose access
+      if (
+        !user &&
+        token.id &&
+        (!token.checkedAt || Date.now() - (token.checkedAt as number) > SESSION_RECHECK_MS)
+      ) {
+        try {
+          const fresh = await db.user.findUnique({
+            where: { id: token.id as string },
+            select: { role: true, agencyId: true, agency: { select: { name: true } } },
+          });
+          if (!fresh) {
+            // User removed: strip identity so every session.user.id / agencyId / role check fails
+            return { checkedAt: Date.now() } as unknown as typeof token;
+          }
+          token.role = fresh.role;
+          token.agencyId = fresh.agencyId || "";
+          token.agencyName = fresh.agency?.name || "";
+          token.checkedAt = Date.now();
+        } catch (error) {
+          // Keep the existing token on a DB error rather than logging everyone out
+          console.error("Session recheck failed:", error);
+        }
       }
 
       // Handle session update (e.g., after enabling 2FA or avatar update)
@@ -258,6 +350,11 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      // Revoked token (user removed, see jwt callback): expose no user at all so
+      // `!session?.user` checks fail too, not only `!session?.user?.id` ones
+      if (!token.id) {
+        return { expires: session.expires } as typeof session;
+      }
       if (session.user) {
         session.user.id = token.id as string;
         session.user.image = token.image as string | null;

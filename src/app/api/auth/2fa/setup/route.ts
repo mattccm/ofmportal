@@ -12,6 +12,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Never overwrite an active secret: login would start using the
+    // unconfirmed one and lock the user out
+    const existing = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { twoFactorEnabled: true },
+    });
+    if (existing?.twoFactorEnabled) {
+      return NextResponse.json(
+        { error: "2FA is already enabled. Disable it first to set up a new authenticator." },
+        { status: 400 }
+      );
+    }
+
     // Generate new 2FA secret
     const secret = generateTwoFactorSecret();
     const qrCodeUrl = generateTwoFactorQRCodeUrl(session.user.email!, secret);
@@ -20,10 +33,17 @@ export async function POST(req: NextRequest) {
     const qrCodeDataUrl = await QRCode.toDataURL(qrCodeUrl);
 
     // Store secret temporarily (not enabled yet until verified)
-    await db.user.update({
-      where: { id: session.user.id },
+    // (guarded so a concurrent enable cannot be overwritten)
+    const updated = await db.user.updateMany({
+      where: { id: session.user.id, twoFactorEnabled: false },
       data: { twoFactorSecret: secret },
     });
+    if (updated.count === 0) {
+      return NextResponse.json(
+        { error: "2FA is already enabled. Disable it first to set up a new authenticator." },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       secret,
