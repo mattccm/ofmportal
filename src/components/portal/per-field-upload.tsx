@@ -21,6 +21,7 @@ import {
   Send,
   Loader2,
   MessageCircle,
+  Clock,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { QueuedFile } from "@/hooks/use-file-upload";
@@ -46,6 +47,7 @@ interface UploadedFile {
   fieldId?: string | null;
   thumbnailUrl?: string;
   storageKey?: string;
+  status?: string;
 }
 
 interface FileField {
@@ -128,13 +130,20 @@ function UploadPreviewCard({
 }) {
   const isImage = upload.fileType.startsWith("image/");
   const isVideo = upload.fileType.startsWith("video/");
+  const isRejected = upload.status === "REJECTED";
+  const isApprovedFile = upload.status === "APPROVED";
   const [imageError, setImageError] = React.useState(false);
 
   // Use thumbnailUrl from API (already resolved to public URL or presigned)
   const previewUrl = upload.thumbnailUrl || null;
 
   return (
-    <div className="group relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 transition-all duration-200 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600">
+    <div
+      className={cn(
+        "group relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 transition-all duration-200 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600",
+        isRejected && "ring-2 ring-red-500/60 border-red-300"
+      )}
+    >
       {/* Preview area */}
       <div className="aspect-square relative">
         {isImage && previewUrl && !imageError ? (
@@ -175,10 +184,13 @@ function UploadPreviewCard({
           </div>
         )}
 
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+        {/* Hover overlay: always visible on touch devices; on hover devices it
+            is not clickable until shown, so a tap can't hit a hidden button */}
+        <div className="absolute inset-0 bg-black/50 transition-opacity flex items-center justify-center gap-2 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-focus-within:pointer-events-auto">
           {onPreview && (
             <button
+              type="button"
+              aria-label="Preview file"
               onClick={onPreview}
               className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
             >
@@ -187,7 +199,12 @@ function UploadPreviewCard({
           )}
           {onDelete && (
             <button
-              onClick={onDelete}
+              type="button"
+              aria-label="Delete file"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`Delete "${upload.originalName}"? This cannot be undone.`)) onDelete();
+              }}
               className="h-10 w-10 rounded-full bg-red-500/80 backdrop-blur-sm flex items-center justify-center text-white hover:bg-red-500 transition-colors"
             >
               <X className="h-5 w-5" />
@@ -195,11 +212,21 @@ function UploadPreviewCard({
           )}
         </div>
 
-        {/* Success indicator */}
+        {/* Review status indicator */}
         <div className="absolute top-2 right-2">
-          <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
-            <Check className="h-3.5 w-3.5 text-white" />
-          </div>
+          {isRejected ? (
+            <div className="h-6 w-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg">
+              <X className="h-3.5 w-3.5 text-white" />
+            </div>
+          ) : isApprovedFile ? (
+            <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
+              <Check className="h-3.5 w-3.5 text-white" />
+            </div>
+          ) : (
+            <div className="h-6 w-6 rounded-full bg-slate-400 flex items-center justify-center shadow-lg">
+              <Clock className="h-3.5 w-3.5 text-white" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -207,6 +234,7 @@ function UploadPreviewCard({
       <div className="p-3 border-t border-slate-200 dark:border-slate-700">
         <p className="text-sm font-medium truncate">{upload.originalName}</p>
         <p className="text-xs text-muted-foreground">{formatFileSize(upload.fileSize)}</p>
+        {isRejected && <p className="text-xs font-medium text-red-600">Rejected – please replace</p>}
       </div>
     </div>
   );
@@ -268,6 +296,8 @@ function FieldUploadSection({
   const [replying, setReplying] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [previewIndex, setPreviewIndex] = React.useState(0);
+  // Signed URLs for the real files (thumbnails can't play videos/documents)
+  const [fullUrls, setFullUrls] = React.useState<Record<string, string>>({});
   const uploadCount = uploads.length;
   const hasMinFiles = field.minFiles ? uploadCount >= field.minFiles : uploadCount > 0;
   // Check if there are any pending/uploading items (not just any items in queue)
@@ -281,26 +311,45 @@ function FieldUploadSection({
   const needsRevision = submissionStatus === "NEEDS_REVISION";
   // Only allow submit if canUpload is true (request is in an editable state) AND field isn't already submitted/approved
   const canSubmitField = canUpload && hasUploads && hasMinFiles && !isSubmitted && !isApproved;
-  const canRedactField = canUpload && (isSubmitted || needsRevision) && !isApproved;
+  // Matches the redact API: only a SUBMITTED field awaiting review can be redacted
+  const canRedactField = canUpload && isSubmitted;
   const canDeleteUploads = canUpload && !isSubmitted && !isApproved;
   const canUploadMore = canUpload && !isSubmitted && !isApproved;
 
   // Convert uploads to preview files
   const previewFiles: PreviewFile[] = uploads.map(upload => ({
     id: upload.id,
-    url: upload.thumbnailUrl || "",
+    url: fullUrls[upload.id] || (upload.fileType.startsWith("image/") ? upload.thumbnailUrl || "" : ""),
     fileName: upload.fileName,
     originalName: upload.originalName,
     fileType: upload.fileType,
     fileSize: upload.fileSize,
   }));
 
-  const handlePreview = (uploadId: string) => {
+  const handlePreview = async (uploadId: string) => {
     const index = uploads.findIndex(u => u.id === uploadId);
-    if (index !== -1) {
-      setPreviewIndex(index);
-      setPreviewOpen(true);
-    }
+    if (index === -1) return;
+    setPreviewIndex(index);
+    setPreviewOpen(true);
+
+    // Fetch real file URLs for every upload (the modal pages between them)
+    const token = (() => { try { return localStorage.getItem("creatorToken") || ""; } catch { return ""; } })();
+    const missing = uploads.filter(u => !fullUrls[u.id]);
+    if (missing.length === 0) return;
+    const results = await Promise.all(missing.map(async u => {
+      try {
+        const r = await fetch(`/api/portal/uploads/${u.id}`, { headers: { "x-creator-token": token } });
+        if (!r.ok) return null;
+        const d = await r.json();
+        return d.url ? ([u.id, d.url as string] as const) : null;
+      } catch {
+        return null;
+      }
+    }));
+    setFullUrls(prev => ({
+      ...prev,
+      ...Object.fromEntries(results.filter((r): r is readonly [string, string] => r !== null)),
+    }));
   };
 
   const handleSubmit = async () => {

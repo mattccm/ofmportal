@@ -18,6 +18,9 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
+// Agency support address (set NEXT_PUBLIC_SUPPORT_EMAIL); nothing renders when unset
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || null;
+
 interface ErrorProps {
   error: Error & { digest?: string };
   reset: () => void;
@@ -221,30 +224,34 @@ Stack: ${error.stack || "No stack trace"}
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Go Back
               </Button>
-              <Button
-                variant="ghost"
-                asChild
-                className="flex-1 text-muted-foreground"
-              >
-                <a href="mailto:support@contentportal.com">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Contact Support
-                </a>
-              </Button>
+              {SUPPORT_EMAIL && (
+                <Button
+                  variant="ghost"
+                  asChild
+                  className="flex-1 text-muted-foreground"
+                >
+                  <a href={`mailto:${SUPPORT_EMAIL}`}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Contact Support
+                  </a>
+                </Button>
+              )}
             </div>
           </CardFooter>
         </Card>
 
         {/* Footer text */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          If you continue to experience issues, please email{" "}
-          <a
-            href="mailto:support@contentportal.com"
-            className="text-primary hover:underline"
-          >
-            support@contentportal.com
-          </a>
-        </p>
+        {SUPPORT_EMAIL && (
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            If you continue to experience issues, please email{" "}
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="text-primary hover:underline"
+            >
+              {SUPPORT_EMAIL}
+            </a>
+          </p>
+        )}
       </div>
 
       {/* Add custom animation */}

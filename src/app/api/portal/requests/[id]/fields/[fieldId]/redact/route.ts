@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { validateCreatorSession } from "@/lib/portal-auth";
+import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import type { Prisma } from "@prisma/client";
 
 interface FieldSubmission {
@@ -32,6 +32,7 @@ export async function POST(
       where: {
         id,
         creatorId: creator.id,
+        status: { notIn: CREATOR_HIDDEN_STATUSES },
       },
     });
 
@@ -50,17 +51,10 @@ export async function POST(
       );
     }
 
-    // Can only redact if SUBMITTED or NEEDS_REVISION (not APPROVED)
-    if (existingSubmission.status === "APPROVED") {
+    // Can only redact a SUBMITTED field awaiting review (redacting NEEDS_REVISION would erase staff feedback)
+    if (existingSubmission.status !== "SUBMITTED") {
       return NextResponse.json(
-        { error: "Cannot redact approved field" },
-        { status: 400 }
-      );
-    }
-
-    if (existingSubmission.status === "PENDING") {
-      return NextResponse.json(
-        { error: "Field is not submitted" },
+        { error: "Only submitted fields awaiting review can be redacted" },
         { status: 400 }
       );
     }

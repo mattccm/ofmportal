@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
@@ -67,12 +67,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Fire webhook for creator joining
-    dispatchWebhookEvent(creator.agencyId, "creator.joined", {
-      creatorId: creator.id,
-      creatorName: creator.name,
-      creatorEmail: creator.email,
-    });
+    // Fire webhook for creator joining (after() keeps it alive past the response)
+    after(() =>
+      dispatchWebhookEvent(creator.agencyId, "creator.joined", {
+        creatorId: creator.id,
+        creatorName: creator.name,
+        creatorEmail: creator.email,
+      })
+    );
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { validateCreatorSession } from "@/lib/portal-auth";
+import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import { getDownloadPresignedUrl, useLocalStorage, getPublicFileUrl } from "@/lib/storage";
 
 export async function GET(
@@ -15,12 +15,12 @@ export async function GET(
     }
     const creator = authResult.creator;
 
-    // Get request (exclude archived/cancelled from creator view)
+    // Get request (exclude drafts and archived/cancelled from creator view)
     const request = await db.contentRequest.findFirst({
       where: {
         id,
         creatorId: creator.id,
-        status: { notIn: ["CANCELLED", "ARCHIVED"] },
+        status: { notIn: CREATOR_HIDDEN_STATUSES },
       },
     });
 
@@ -258,6 +258,7 @@ export async function PATCH(
       where: {
         id,
         creatorId: creator.id,
+        status: { notIn: CREATOR_HIDDEN_STATUSES },
       },
     });
 

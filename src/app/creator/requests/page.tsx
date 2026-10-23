@@ -28,7 +28,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isPast, format } from "date-fns";
+import { format } from "date-fns";
+import { isRequestOverdue } from "@/lib/request-status";
 import { useBranding } from "@/components/providers/branding-provider";
 import { stripHtml } from "@/components/ui/html-content";
 import { RequestProgress } from "@/components/portal/request-progress";
@@ -144,11 +145,7 @@ export default function CreatorRequestsPage() {
         break;
       case "overdue":
         filtered = filtered.filter(
-          (r) =>
-            r.dueDate &&
-            isPast(new Date(r.dueDate)) &&
-            r.status !== "APPROVED" &&
-            r.status !== "SUBMITTED"
+          (r) => isRequestOverdue(r)
         );
         break;
     }
@@ -206,11 +203,7 @@ export default function CreatorRequestsPage() {
         r.status === "APPROVED"
     ).length;
     const overdue = requests.filter(
-      (r) =>
-        r.dueDate &&
-        isPast(new Date(r.dueDate)) &&
-        r.status !== "APPROVED" &&
-        r.status !== "SUBMITTED"
+      (r) => isRequestOverdue(r)
     ).length;
 
     return { all, active, completed, overdue };
@@ -443,9 +436,7 @@ export default function CreatorRequestsPage() {
                                 <div className="mb-2">
                                   <span className={cn(
                                     "inline-flex items-center gap-1 text-xs text-muted-foreground",
-                                    isPast(new Date(request.dueDate)) &&
-                                    request.status !== "APPROVED" &&
-                                    request.status !== "SUBMITTED" &&
+                                    isRequestOverdue(request) &&
                                     "text-red-500 font-medium"
                                   )}>
                                     <Calendar className="h-3 w-3" />

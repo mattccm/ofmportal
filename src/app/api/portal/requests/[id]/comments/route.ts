@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { validateCreatorSession } from "@/lib/portal-auth";
+import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import { notifyTeam, NotificationType } from "@/lib/notifications";
 
 /**
@@ -24,6 +24,7 @@ export async function GET(
       where: {
         id,
         creatorId: creator.id,
+        status: { notIn: CREATOR_HIDDEN_STATUSES },
       },
     });
 
@@ -50,19 +51,38 @@ export async function GET(
     });
 
     // Transform comments for the frontend
-    const transformedComments = comments.map((comment) => ({
-      id: comment.id,
-      content: comment.message,
-      createdAt: comment.createdAt.toISOString(),
-      fieldId: comment.fieldId,
-      isAgency: true, // Agency user comments
-      user: comment.user
-        ? {
-            name: comment.user.name,
-            image: comment.user.avatar,
-          }
-        : undefined,
-    }));
+    // Creator comments carry a { type: "creator" } marker in `mentions`
+    const transformedComments = comments.map((comment) => {
+      let creatorInfo: { name?: string } | null = null;
+      try {
+        const mentions =
+          typeof comment.mentions === "string"
+            ? JSON.parse(comment.mentions)
+            : comment.mentions;
+        if (Array.isArray(mentions) && mentions[0]?.type === "creator") {
+          creatorInfo = mentions[0];
+        }
+      } catch {
+        // Not a creator comment
+      }
+      const isCreatorComment = creatorInfo !== null;
+
+      return {
+        id: comment.id,
+        content: comment.message,
+        createdAt: comment.createdAt.toISOString(),
+        fieldId: comment.fieldId,
+        isAgency: !isCreatorComment,
+        user: isCreatorComment
+          ? { name: creatorInfo?.name || creator.name }
+          : comment.user
+            ? {
+                name: comment.user.name,
+                image: comment.user.avatar,
+              }
+            : undefined,
+      };
+    });
 
     return NextResponse.json(transformedComments);
   } catch (error) {
@@ -95,6 +115,7 @@ export async function POST(
       where: {
         id,
         creatorId: creator.id,
+        status: { notIn: CREATOR_HIDDEN_STATUSES },
       },
     });
 
@@ -128,34 +149,23 @@ export async function POST(
     // Find or create a system user for this specific creator's messages
     // Use creator-specific email to show the right name on team member side
     const creatorSystemEmail = `creator-${creator.id}@${request.agencyId}.internal`;
-    let systemUser = await db.user.findFirst({
-      where: {
+    // Upsert (not findFirst + create) so concurrent first comments don't
+    // race on the unique email. Name/avatar are refreshed on every comment.
+    const systemUser = await db.user.upsert({
+      where: { email: creatorSystemEmail },
+      create: {
         email: creatorSystemEmail,
+        password: "", // No password - system account
+        name: creator.name, // Use the actual creator's name
+        avatar: creator.avatar, // Copy their avatar too
+        agencyId: request.agencyId,
+        role: "MEMBER",
+      },
+      update: {
+        name: creator.name,
+        avatar: creator.avatar,
       },
     });
-
-    if (!systemUser) {
-      // Create a system user for this creator's comments
-      systemUser = await db.user.create({
-        data: {
-          email: creatorSystemEmail,
-          password: "", // No password - system account
-          name: creator.name, // Use the actual creator's name
-          avatar: creator.avatar, // Copy their avatar too
-          agencyId: request.agencyId,
-          role: "MEMBER",
-        },
-      });
-    } else if (systemUser.name !== creator.name || systemUser.avatar !== creator.avatar) {
-      // Update the name/avatar if creator has changed their profile
-      systemUser = await db.user.update({
-        where: { id: systemUser.id },
-        data: {
-          name: creator.name,
-          avatar: creator.avatar,
-        },
-      });
-    }
 
     // Create the comment with creator info in metadata
     const comment = await db.comment.create({

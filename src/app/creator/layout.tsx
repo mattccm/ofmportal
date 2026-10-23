@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Toaster } from "sonner";
 import { BrandingProvider, useBranding } from "@/components/providers/branding-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -24,7 +23,6 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Bell,
   ChevronDown,
   Sparkles,
 } from "lucide-react";
@@ -43,6 +41,32 @@ const navItems: NavItem[] = [
   { href: "/creator/calendar", label: "Calendar", icon: <Calendar className="h-5 w-5" /> },
   { href: "/creator/messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" /> },
 ];
+
+/**
+ * Clear the creator session stored on this device (IndexedDB, localStorage, cookies)
+ */
+async function clearLocalCreatorSession(): Promise<void> {
+  // Clear IndexedDB (most important for iOS PWA)
+  try {
+    await clearCreatorSession();
+  } catch (error) {
+    console.error("Error clearing IndexedDB:", error);
+  }
+
+  // Clear local storage
+  localStorage.removeItem("creatorToken");
+  localStorage.removeItem("creatorId");
+  localStorage.removeItem("creatorName");
+  localStorage.removeItem("creatorEmail");
+  localStorage.removeItem("creatorAvatar");
+  localStorage.removeItem("creatorOnboardingComplete");
+
+  // Clear cookies too
+  document.cookie = "creatorToken=; path=/; max-age=0";
+  document.cookie = "creatorId=; path=/; max-age=0";
+  document.cookie = "creatorName=; path=/; max-age=0";
+  document.cookie = "creatorEmail=; path=/; max-age=0";
+}
 
 /**
  * Check if we're in any standalone/PWA mode
@@ -371,6 +395,12 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
               email: data.email || creatorEmail || "",
               avatar: data.avatar || undefined,
             });
+          } else if (response.status === 401) {
+            // Session expired or was invalidated - clear it and send to sign-in
+            // (no signed-out flag, so the user can sign in again normally)
+            await clearLocalCreatorSession();
+            router.replace("/login");
+            return;
           } else {
             // If fetch fails, use localStorage data
             setCreator(initialCreator);
@@ -404,26 +434,7 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Clear IndexedDB (most important for iOS PWA)
-    try {
-      await clearCreatorSession();
-    } catch (error) {
-      console.error("Error clearing IndexedDB:", error);
-    }
-
-    // Clear local storage
-    localStorage.removeItem("creatorToken");
-    localStorage.removeItem("creatorId");
-    localStorage.removeItem("creatorName");
-    localStorage.removeItem("creatorEmail");
-    localStorage.removeItem("creatorAvatar");
-    localStorage.removeItem("creatorOnboardingComplete");
-
-    // Clear cookies too
-    document.cookie = "creatorToken=; path=/; max-age=0";
-    document.cookie = "creatorId=; path=/; max-age=0";
-    document.cookie = "creatorName=; path=/; max-age=0";
-    document.cookie = "creatorEmail=; path=/; max-age=0";
+    await clearLocalCreatorSession();
 
     router.push("/login");
   };
@@ -517,14 +528,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2">
               <ThemeToggle variant="icon" size="sm" className="h-9 w-9" />
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative h-9 w-9"
-              >
-                <Bell className="h-5 w-5" />
-              </Button>
-
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -605,8 +608,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
       <main className="relative z-10 pb-mobile-nav md:pb-0">
         {children}
       </main>
-
-      <Toaster position="top-right" richColors />
     </div>
   );
 }

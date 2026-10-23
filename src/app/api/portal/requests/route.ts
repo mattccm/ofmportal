@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { validateCreatorSession } from "@/lib/portal-auth";
+import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 
 interface RequestField {
   id: string;
@@ -20,14 +20,17 @@ export async function GET(req: NextRequest) {
     const requests = await db.contentRequest.findMany({
       where: {
         creatorId: creator.id,
-        status: { notIn: ["CANCELLED", "ARCHIVED"] },
+        // Drafts are staff-only until sent
+        status: { notIn: CREATOR_HIDDEN_STATUSES },
       },
       orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
       include: {
+        // Only completed uploads fill slots (matches the detail and submit routes)
         _count: {
-          select: { uploads: true },
+          select: { uploads: { where: { uploadStatus: "COMPLETED" } } },
         },
         uploads: {
+          where: { uploadStatus: "COMPLETED" },
           select: { fieldId: true, status: true },
         },
         comments: {

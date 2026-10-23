@@ -70,23 +70,39 @@ export async function POST(req: NextRequest) {
       // Extract user ID from identifier
       const userId = verificationToken.identifier.replace("password-reset:", "");
 
-      // Update the user's password
-      await db.user.update({
-        where: { id: userId },
-        data: {
-          password: hashedPassword,
-        },
-      });
-
-      // Delete the used token
-      await db.verificationToken.delete({
-        where: {
-          identifier_token: {
-            identifier: verificationToken.identifier,
-            token: verificationToken.token,
+      await db.$transaction([
+        // Update the user's password
+        db.user.update({
+          where: { id: userId },
+          data: {
+            password: hashedPassword,
           },
-        },
-      });
+        }),
+        // Invalidate all remember tokens on password reset
+        db.rememberToken.deleteMany({
+          where: { userId },
+        }),
+        // Delete the used token
+        db.verificationToken.delete({
+          where: {
+            identifier_token: {
+              identifier: verificationToken.identifier,
+              token: verificationToken.token,
+            },
+          },
+        }),
+        // Log the security event
+        db.activityLog.create({
+          data: {
+            userId,
+            action: "password.changed",
+            entityType: "User",
+            entityId: userId,
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined,
+            userAgent: req.headers.get("user-agent") || undefined,
+          },
+        }),
+      ]);
 
       return NextResponse.json({
         message: "Password has been reset successfully. You can now sign in.",
@@ -97,6 +113,7 @@ export async function POST(req: NextRequest) {
     const creator = await db.creator.findFirst({
       where: {
         inviteToken: token,
+        inviteStatus: "ACCEPTED",
       },
     });
 
@@ -125,6 +142,9 @@ export async function POST(req: NextRequest) {
         portalPassword: hashedPassword,
         inviteToken: null,
         inviteSentAt: null,
+        // Revoke any existing portal session
+        sessionToken: null,
+        sessionExpiry: null,
       },
     });
 
@@ -196,6 +216,7 @@ export async function GET(req: NextRequest) {
     const creator = await db.creator.findFirst({
       where: {
         inviteToken: token,
+        inviteStatus: "ACCEPTED",
       },
       select: {
         id: true,
@@ -211,8 +232,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Check expiry
-    if (creator.inviteSentAt && new Date() > creator.inviteSentAt) {
+    // Check expiry (24 hour window from when it was sent, same as POST)
+    if (creator.inviteSentAt && Date.now() > creator.inviteSentAt.getTime() + 24 * 60 * 60 * 1000) {
       return NextResponse.json(
         { valid: false, error: "Reset link has expired" },
         { status: 400 }

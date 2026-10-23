@@ -21,7 +21,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatFileSize, ALLOWED_TYPES, MAX_FILE_SIZE } from "@/lib/file-utils";
+import { formatFileSize, ALLOWED_TYPES, MAX_FILE_SIZE, buildAcceptAttribute } from "@/lib/file-utils";
 
 export interface UploadingFile {
   id: string;
@@ -74,7 +74,8 @@ export function UploadZone({
   const showImages = !acceptedTypes || acceptedTypes.some(t => t.startsWith("image"));
   const showVideos = !acceptedTypes || acceptedTypes.some(t => t.startsWith("video"));
   const showAudio = !acceptedTypes || acceptedTypes.some(t => t.startsWith("audio"));
-  const acceptString = acceptedTypes?.join(",") || ALLOWED_TYPES.join(",");
+  // Include extensions so pickers don't hide files the OS has no MIME type for
+  const acceptString = buildAcceptAttribute(acceptedTypes?.length ? acceptedTypes : ALLOWED_TYPES);
 
   // Generate file type description text
   const getFileTypeDescription = () => {

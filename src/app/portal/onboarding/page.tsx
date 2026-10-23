@@ -4,13 +4,12 @@ import * as React from "react";
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { AvatarUpload } from "@/components/ui/avatar-upload";
+import { useBranding } from "@/components/providers/branding-provider";
 import {
   Select,
   SelectContent,
@@ -25,10 +24,7 @@ import { TutorialOverlay, type TutorialStep } from "@/components/onboarding/tuto
 import {
   User,
   Globe,
-  Bell,
   CheckCircle2,
-  Mail,
-  MessageSquare,
   Clock,
   Upload,
   FileText,
@@ -54,8 +50,6 @@ interface CreatorProfile {
   bio: string;
   phone: string;
   timezone: string;
-  emailNotifications: boolean;
-  smsNotifications: boolean;
   avatar?: string;
 }
 
@@ -159,6 +153,7 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
               alt={agencyInfo.name}
               width={64}
               height={64}
+              unoptimized
               className="object-contain"
             />
           </div>
@@ -187,7 +182,6 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
         {[
           { icon: User, text: "Set up your profile" },
           { icon: Globe, text: "Choose your timezone" },
-          { icon: Bell, text: "Configure notifications" },
           { icon: Play, text: "Quick portal tutorial" },
         ].map((item, index) => (
           <div
@@ -386,105 +380,6 @@ function TimezoneStep({ timezone, onTimezoneChange }: TimezoneStepProps) {
   );
 }
 
-// NOTIFICATIONS STEP COMPONENT
-
-interface NotificationsStepProps {
-  profile: CreatorProfile;
-  onProfileChange: (updates: Partial<CreatorProfile>) => void;
-  creatorEmail: string;
-}
-
-function NotificationsStep({
-  profile,
-  onProfileChange,
-  creatorEmail,
-}: NotificationsStepProps) {
-  return (
-    <div className="space-y-6">
-      {/* Email notifications */}
-      <label
-        className={cn(
-          "flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all",
-          profile.emailNotifications
-            ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20"
-            : "border-border hover:border-muted-foreground/30"
-        )}
-      >
-        <div className="pt-0.5">
-          <Checkbox
-            checked={profile.emailNotifications}
-            onCheckedChange={(checked) =>
-              onProfileChange({ emailNotifications: checked as boolean })
-            }
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Mail className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span className="font-medium">Email Notifications</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Receive updates about new requests, due date reminders, and feedback
-            at {creatorEmail}
-          </p>
-        </div>
-      </label>
-
-      {/* SMS notifications */}
-      <label
-        className={cn(
-          "flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all",
-          profile.smsNotifications
-            ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20"
-            : "border-border hover:border-muted-foreground/30",
-          !profile.phone && "opacity-60 cursor-not-allowed"
-        )}
-      >
-        <div className="pt-0.5">
-          <Checkbox
-            checked={profile.smsNotifications}
-            onCheckedChange={(checked) => {
-              if (profile.phone) {
-                onProfileChange({ smsNotifications: checked as boolean });
-              }
-            }}
-            disabled={!profile.phone}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span className="font-medium">SMS Notifications</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {profile.phone
-              ? `Get urgent alerts via text message at ${profile.phone}`
-              : "Add a phone number in your profile to enable SMS notifications"}
-          </p>
-        </div>
-      </label>
-
-      {/* Notification types preview */}
-      <div className="pt-4">
-        <p className="text-sm font-medium mb-3">You&apos;ll be notified about:</p>
-        <div className="grid gap-2">
-          {[
-            { icon: FileText, text: "New content requests" },
-            { icon: Clock, text: "Upcoming due dates" },
-            { icon: MessageCircle, text: "Feedback and comments" },
-            { icon: CheckCircle2, text: "Approval updates" },
-          ].map((item, index) => (
-            <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
-              <item.icon className="w-4 h-4 text-indigo-500" />
-              <span>{item.text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // TUTORIAL STEP COMPONENT
 
 interface TutorialStepProps {
@@ -561,11 +456,12 @@ export default function CreatorOnboardingPage() {
   const [creatorEmail, setCreatorEmail] = useState<string>("");
   const [showTutorial, setShowTutorial] = useState(false);
 
-  // Agency info
-  const [agencyInfo] = useState<AgencyInfo>({
-    name: "Upload Portal",
-    logo: undefined,
-  });
+  // Agency info from the portal's BrandingProvider
+  const { agencyName, branding } = useBranding();
+  const agencyInfo: AgencyInfo = {
+    name: agencyName || "CCM",
+    logo: branding.logoLight ?? undefined,
+  };
 
   // Profile state
   const [profile, setProfile] = useState<CreatorProfile>({
@@ -573,8 +469,6 @@ export default function CreatorOnboardingPage() {
     bio: "",
     phone: "",
     timezone: "",
-    emailNotifications: true,
-    smsNotifications: false,
     avatar: undefined,
   });
 
@@ -627,8 +521,6 @@ export default function CreatorOnboardingPage() {
         body.phone = profile.phone;
         body.timezone = profile.timezone;
         body.avatar = profile.avatar;
-        body.emailNotifications = profile.emailNotifications;
-        body.smsNotifications = profile.smsNotifications;
       }
 
       const response = await fetch(`/api/portal/profile`, {
@@ -822,19 +714,6 @@ export default function CreatorOnboardingPage() {
         }
         return true;
       },
-    },
-    {
-      id: "notifications",
-      title: "Notifications",
-      description: "Stay in the loop",
-      icon: <Bell className="w-5 h-5" />,
-      content: (
-        <NotificationsStep
-          profile={profile}
-          onProfileChange={handleProfileChange}
-          creatorEmail={creatorEmail}
-        />
-      ),
     },
     {
       id: "tutorial",

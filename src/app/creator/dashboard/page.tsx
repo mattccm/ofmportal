@@ -86,16 +86,9 @@ export default function CreatorDashboardPage() {
     const creatorId = localStorage.getItem("creatorId");
     const name = localStorage.getItem("creatorName");
     const email = localStorage.getItem("creatorEmail");
-    const onboardingComplete = localStorage.getItem("creatorOnboardingComplete");
 
     if (!token || !creatorId) {
       router.push("/login");
-      return;
-    }
-
-    // Check if onboarding is complete
-    if (onboardingComplete !== "true") {
-      router.push("/creator/onboarding");
       return;
     }
 

@@ -20,6 +20,9 @@ import {
   DuplicateAlert,
 } from "@/components/uploads/duplicate-warning";
 import type { DuplicateCheckResult } from "@/lib/duplicate-detection";
+import type { DuplicateCheckResult as FingerprintCheckResult } from "@/types/content-fingerprint";
+import { resolveMimeType } from "@/lib/file-utils";
+import { isRequestOverdue } from "@/lib/request-status";
 import {
   Loader2,
   ArrowLeft,
@@ -34,7 +37,7 @@ import {
   ChevronUp,
   Upload,
 } from "lucide-react";
-import { format, formatDistanceToNow, differenceInDays, isPast } from "date-fns";
+import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { HtmlContent } from "@/components/ui/html-content";
@@ -140,6 +143,98 @@ const statusConfig: Record<
   },
 };
 
+// Files up to this size are hashed whole; larger ones hash the first and last
+// 8MB plus the size. Used for both the duplicate check and stored fingerprints.
+const FULL_HASH_LIMIT = 100 * 1024 * 1024;
+const EDGE_HASH_BYTES = 8 * 1024 * 1024;
+const fileHashCache = new WeakMap<File, Promise<string | null>>();
+
+function getFileHash(file: File): Promise<string | null> {
+  let pending = fileHashCache.get(file);
+  if (!pending) {
+    pending = (async () => {
+      if (typeof crypto === "undefined" || !crypto.subtle) return null;
+      try {
+        const data =
+          file.size <= FULL_HASH_LIMIT
+            ? await file.arrayBuffer()
+            : await new Blob([
+                file.slice(0, EDGE_HASH_BYTES),
+                file.slice(file.size - EDGE_HASH_BYTES),
+                String(file.size),
+              ]).arrayBuffer();
+        const digest = await crypto.subtle.digest("SHA-256", data);
+        return Array.from(new Uint8Array(digest))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      } catch (error) {
+        console.warn("Could not hash file for duplicate detection:", error);
+        return null;
+      }
+    })();
+    fileHashCache.set(file, pending);
+  }
+  return pending;
+}
+
+// Record a fingerprint for a finished upload so later uploads can be checked against it
+async function storeFingerprint(file: File, uploadId: string): Promise<void> {
+  const fileHash = await getFileHash(file);
+  if (!fileHash || file.size < 1) return;
+  try {
+    const token = localStorage.getItem("creatorToken");
+    const response = await fetch("/api/uploads/fingerprint", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-creator-token": token || "",
+      },
+      body: JSON.stringify({
+        uploadId,
+        fileHash,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: resolveMimeType(file.name, file.type),
+      }),
+    });
+    if (!response.ok) {
+      console.warn("Failed to store upload fingerprint:", response.status);
+    }
+  } catch (error) {
+    console.warn("Failed to store upload fingerprint:", error);
+  }
+}
+
+// Map the check-duplicate API response onto the shape the warning UI renders
+function toDuplicateDisplayResult(result: FingerprintCheckResult): DuplicateCheckResult {
+  const matches = result.matches.map((m) => ({
+    type:
+      m.matchType === "exact"
+        ? ("exact_hash" as const)
+        : m.matchType === "near"
+          ? ("possible_version" as const)
+          : ("similar_filename" as const),
+    confidence: m.confidence / 100,
+    existingUploadId: m.originalUploadId,
+    existingFileName: m.originalFileName || "Previous upload",
+    existingFileSize: BigInt(m.originalFileSize ?? 0),
+    existingCreatorId: "",
+    existingRequestId: m.originalRequestId,
+    existingUploadedAt: m.originalUploadedAt ? new Date(m.originalUploadedAt) : null,
+    matchDetails: m.originalRequestName
+      ? `Submitted for "${m.originalRequestName}"`
+      : m.hashMatch
+        ? "Identical file content"
+        : "Similar content",
+  }));
+  return {
+    isDuplicate: result.isDuplicate,
+    matches,
+    highestConfidence: matches[0]?.confidence ?? 0,
+    recommendedAction: "review",
+  };
+}
+
 export default function CreatorRequestDetailPage({
   params,
 }: {
@@ -199,6 +294,9 @@ export default function CreatorRequestDetailPage({
     maxConcurrent: 3,
     onUploadComplete: (file) => {
       fetchData();
+      if (file.uploadId) {
+        storeFingerprint(file.file, file.uploadId);
+      }
       if (file.uploadId && file.file.type.startsWith("video/")) {
         pollThumbnail(file.uploadId);
       }
@@ -302,9 +400,14 @@ export default function CreatorRequestDetailPage({
     fetchData();
   }, [router, fetchData]);
 
-  const checkDuplicates = async (file: File): Promise<DuplicateCheckResult | null> => {
+  const checkDuplicates = async (file: File): Promise<FingerprintCheckResult | null> => {
     const token = localStorage.getItem("creatorToken");
     try {
+      const fileHash = await getFileHash(file);
+      if (!fileHash || file.size < 1) {
+        return null;
+      }
+
       const response = await fetch("/api/uploads/check-duplicate", {
         method: "POST",
         headers: {
@@ -315,12 +418,13 @@ export default function CreatorRequestDetailPage({
           requestId,
           fileName: file.name,
           fileSize: file.size,
-          fileType: file.type,
-          checkScope: "creator",
+          mimeType: resolveMimeType(file.name, file.type),
+          fileHash,
         }),
       });
 
       if (!response.ok) {
+        console.warn("Duplicate check failed:", response.status, await response.text().catch(() => ""));
         return null;
       }
 
@@ -363,25 +467,50 @@ export default function CreatorRequestDetailPage({
   const handleFilesSelected = async (files: FileList | File[], fieldId?: string) => {
     const fileArray = Array.from(files);
 
-    if (fileArray.length > 0) {
-      const duplicateCheck = await checkDuplicates(fileArray[0]);
+    // Check every file (sequentially, to bound memory while hashing). Likely
+    // duplicates are held for the dialog; everything else uploads right away.
+    const flagged: File[] = [];
+    const clean: File[] = [];
+    let flaggedResult: FingerprintCheckResult | null = null;
+    let alert: { result: FingerprintCheckResult; fileName: string } | null = null;
 
-      if (duplicateCheck && duplicateCheck.isDuplicate && duplicateCheck.highestConfidence >= 0.7) {
-        setPendingFiles(fileArray);
-        setPendingFieldId(fieldId);
-        setDuplicateResult(duplicateCheck);
-        setDuplicateDialogOpen(true);
-        return;
-      } else if (duplicateCheck && duplicateCheck.isDuplicate) {
-        setDuplicateAlertResult({
-          result: duplicateCheck,
-          fileName: fileArray[0].name,
-        });
-        setTimeout(() => setDuplicateAlertResult(null), 5000);
+    for (const file of fileArray) {
+      const duplicateCheck = await checkDuplicates(file);
+
+      if (
+        duplicateCheck &&
+        duplicateCheck.isDuplicate &&
+        (duplicateCheck.recommendation === "block" ||
+          (duplicateCheck.matches[0]?.confidence ?? 0) >= 70)
+      ) {
+        flagged.push(file);
+        flaggedResult = flaggedResult ?? duplicateCheck;
+      } else {
+        if (duplicateCheck && duplicateCheck.isDuplicate && !alert) {
+          alert = { result: duplicateCheck, fileName: file.name };
+        }
+        clean.push(file);
       }
     }
 
-    addFiles(fileArray, fieldId);
+    if (alert) {
+      setDuplicateAlertResult({
+        result: toDuplicateDisplayResult(alert.result),
+        fileName: alert.fileName,
+      });
+      setTimeout(() => setDuplicateAlertResult(null), 5000);
+    }
+
+    if (clean.length > 0) {
+      addFiles(clean, fieldId);
+    }
+
+    if (flagged.length > 0 && flaggedResult) {
+      setPendingFiles(flagged);
+      setPendingFieldId(fieldId);
+      setDuplicateResult(toDuplicateDisplayResult(flaggedResult));
+      setDuplicateDialogOpen(true);
+    }
   };
 
   const handleSubmit = async () => {
@@ -511,7 +640,7 @@ export default function CreatorRequestDetailPage({
           addSuffix: true,
         }),
         daysUntil: differenceInDays(new Date(request.dueDate), new Date()),
-        isOverdue: isPast(new Date(request.dueDate)),
+        isOverdue: isRequestOverdue(request),
       }
     : null;
 
@@ -742,7 +871,7 @@ export default function CreatorRequestDetailPage({
           newFile={{
             name: pendingFiles[0].name,
             size: pendingFiles[0].size,
-            type: pendingFiles[0].type,
+            type: resolveMimeType(pendingFiles[0].name, pendingFiles[0].type),
           }}
           onReplace={handleDuplicateReplace}
           onKeepBoth={handleDuplicateKeepBoth}

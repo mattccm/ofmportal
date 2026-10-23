@@ -1,6 +1,5 @@
 "use client";
 
-import { Toaster } from "sonner";
 import { BrandingProvider, useBranding } from "@/components/providers/branding-provider";
 
 // Inner layout component that uses branding
@@ -37,16 +36,6 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <div className="relative z-10">{children}</div>
-
-      {/* Toast notifications */}
-      <Toaster
-        position="top-right"
-        richColors
-        toastOptions={{
-          className:
-            "!bg-white/95 dark:!bg-slate-900/95 !backdrop-blur-sm !shadow-lg !border-border/50",
-        }}
-      />
     </div>
   );
 }

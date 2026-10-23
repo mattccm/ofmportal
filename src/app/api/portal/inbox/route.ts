@@ -1,32 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-
-// Helper to get creator from session token header
-async function getCreatorFromSession(request: NextRequest) {
-  const sessionToken = request.headers.get("x-creator-token");
-
-  if (!sessionToken) return null;
-
-  const creator = await db.creator.findFirst({
-    where: {
-      sessionToken,
-      sessionExpiry: { gt: new Date() },
-    },
-    include: {
-      agency: { select: { id: true, name: true } },
-    },
-  });
-
-  return creator;
-}
+import { validateCreatorSession } from "@/lib/portal-auth";
+import { excludePseudoUsers } from "@/lib/staff";
+import { broadcastConversationMessage } from "@/lib/realtime-broadcast";
 
 // GET /api/portal/inbox - Get creator's conversations
 export async function GET(request: NextRequest) {
   try {
-    const creator = await getCreatorFromSession(request);
-    if (!creator) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await validateCreatorSession(request);
+    if (!auth.success) return auth.error;
+    const creator = auth.creator;
 
     // Find or create the creator's conversation with the team
     const conversation = await db.conversation.findFirst({
@@ -90,10 +73,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const agency = await db.agency.findUnique({
+      where: { id: creator.agencyId },
+      select: { name: true },
+    });
+
     return NextResponse.json({
       conversation: {
         id: conversation.id,
-        teamName: creator.agency.name,
+        teamName: agency?.name ?? "",
         participants: conversation.participants.map((p) => p.user),
       },
       messages,
@@ -110,15 +98,17 @@ export async function GET(request: NextRequest) {
 // POST /api/portal/inbox - Creator sends a message
 export async function POST(request: NextRequest) {
   try {
-    const creator = await getCreatorFromSession(request);
-    if (!creator) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await validateCreatorSession(request);
+    if (!auth.success) return auth.error;
+    const creator = auth.creator;
 
-    const body = await request.json();
-    const { content, forwardedContent, attachments } = body;
+    const body = await request.json().catch(() => ({}));
+    // Only text is accepted from creators. Client-supplied attachments and
+    // forwardedContent are ignored: the creator UI never sends them and staff
+    // chat renders them as links/images.
+    const content = typeof body.content === "string" ? body.content.trim().slice(0, 5000) : "";
 
-    if (!content && !forwardedContent?.length && !attachments?.length) {
+    if (!content) {
       return NextResponse.json(
         { error: "Message must have content" },
         { status: 400 }
@@ -136,14 +126,12 @@ export async function POST(request: NextRequest) {
 
     if (!conversation) {
       // Create a new conversation
-      // Get team members who should be participants (e.g., admins)
+      // All staff in the agency are participants so every role can see it
       const teamMembers = await db.user.findMany({
         where: {
-          agencyId: creator.agencyId,
-          role: { in: ["ADMIN", "OWNER"] },
+          AND: [{ agencyId: creator.agencyId }, excludePseudoUsers],
         },
         select: { id: true },
-        take: 5,
       });
 
       conversation = await db.conversation.create({
@@ -163,9 +151,9 @@ export async function POST(request: NextRequest) {
       data: {
         conversationId: conversation.id,
         creatorId: creator.id,
-        content: content || "",
-        forwardedContent: forwardedContent || [],
-        attachments: attachments || [],
+        content,
+        forwardedContent: [],
+        attachments: [],
       },
     });
 
@@ -174,17 +162,25 @@ export async function POST(request: NextRequest) {
       where: { id: conversation.id },
       data: {
         lastMessageAt: message.createdAt,
-        lastMessagePreview: (content || "Shared content").substring(0, 100),
+        lastMessagePreview: content.substring(0, 100),
       },
     });
+
+    // Broadcast new message to conversation channel (fire and forget)
+    broadcastConversationMessage(conversation.id, {
+      id: message.id,
+      content: message.content,
+      senderName: creator.name,
+      createdAt: message.createdAt.toISOString(),
+    }).catch(() => {});
 
     return NextResponse.json({
       message: {
         id: message.id,
         content: message.content,
         isFromCreator: true,
-        attachments: message.attachments,
-        forwardedContent: forwardedContent || [],
+        attachments: [],
+        forwardedContent: [],
         createdAt: message.createdAt,
       },
     });

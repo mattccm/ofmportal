@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// Agency support address (set NEXT_PUBLIC_SUPPORT_EMAIL); nothing renders when unset
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || null;
+
 interface ErrorFallbackProps {
   error: Error | null;
   errorInfo?: ErrorInfo | null;
@@ -225,17 +228,19 @@ Timestamp: ${new Date().toISOString()}
                 If this error persists, please contact our support team.
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs border-blue-200 dark:border-blue-800 hover:bg-blue-100/50 dark:hover:bg-blue-900/30"
-                  asChild
-                >
-                  <a href="mailto:support@contentportal.com">
-                    <Mail className="h-3 w-3 mr-1" />
-                    support@contentportal.com
-                  </a>
-                </Button>
+                {SUPPORT_EMAIL && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-blue-200 dark:border-blue-800 hover:bg-blue-100/50 dark:hover:bg-blue-900/30"
+                    asChild
+                  >
+                    <a href={`mailto:${SUPPORT_EMAIL}`}>
+                      <Mail className="h-3 w-3 mr-1" />
+                      {SUPPORT_EMAIL}
+                    </a>
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"

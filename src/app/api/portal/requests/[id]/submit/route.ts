@@ -1,8 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { db } from "@/lib/db";
 import { handleCreatorResponse } from "@/lib/auto-reminder-scheduler";
-import { validateCreatorSession } from "@/lib/portal-auth";
+import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
+import type { RequestStatus } from "@prisma/client";
+
+// Only requests still awaiting the creator can be (re)submitted
+const SUBMITTABLE_STATUSES: RequestStatus[] = ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"];
 
 export async function POST(
   req: NextRequest,
@@ -21,11 +25,19 @@ export async function POST(
       where: {
         id,
         creatorId: creator.id,
+        status: { notIn: CREATOR_HIDDEN_STATUSES },
       },
     });
 
     if (!request) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+
+    if (!SUBMITTABLE_STATUSES.includes(request.status)) {
+      return NextResponse.json(
+        { error: "This request can no longer be submitted" },
+        { status: 409 }
+      );
     }
 
     // Check if there are uploads
@@ -43,23 +55,32 @@ export async function POST(
       );
     }
 
-    // Update request status
-    await db.contentRequest.update({
-      where: { id },
+    // Update request status (guarded so a concurrent status change isn't overwritten)
+    const updated = await db.contentRequest.updateMany({
+      where: { id, creatorId: creator.id, status: { in: SUBMITTABLE_STATUSES } },
       data: {
         status: "SUBMITTED",
         submittedAt: new Date(),
       },
     });
 
-    // Fire webhook for request submission
-    dispatchWebhookEvent(request.agencyId, "request.submitted", {
-      requestId: id,
-      title: request.title,
-      creatorId: creator.id,
-      creatorName: creator.name,
-      uploadCount,
-    });
+    if (updated.count === 0) {
+      return NextResponse.json(
+        { error: "This request can no longer be submitted" },
+        { status: 409 }
+      );
+    }
+
+    // Fire webhook for request submission (after() keeps it alive past the response)
+    after(() =>
+      dispatchWebhookEvent(request.agencyId, "request.submitted", {
+        requestId: id,
+        title: request.title,
+        creatorId: creator.id,
+        creatorName: creator.name,
+        uploadCount,
+      })
+    );
 
     // Auto-cancel pending reminders when creator submits
     await handleCreatorResponse(id, "submitted").catch((err) => {

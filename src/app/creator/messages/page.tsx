@@ -182,7 +182,9 @@ export default function CreatorMessagesPage() {
       const threadsWithMessages = await Promise.all(
         threadsData.map(async (thread) => {
           try {
-            const commentsResponse = await fetch(`/api/portal/requests/${thread.id}`, {
+            // Use the side-effect-free comments endpoint; the request detail
+            // route marks the request as viewed and presigns upload previews.
+            const commentsResponse = await fetch(`/api/portal/requests/${thread.id}/comments`, {
               headers: {
                 "x-creator-token": token || "",
               },
@@ -190,7 +192,7 @@ export default function CreatorMessagesPage() {
 
             if (commentsResponse.ok) {
               const data = await commentsResponse.json();
-              const comments = data.comments || [];
+              const comments = Array.isArray(data) ? data : [];
 
               return {
                 ...thread,
@@ -257,6 +259,10 @@ export default function CreatorMessagesPage() {
       }]);
 
       setNewMessage("");
+      // First message creates the conversation; load it so the empty state clears
+      if (!teamConversation) {
+        await fetchTeamConversation();
+      }
       toast.success("Message sent");
     } catch {
       toast.error("Failed to send message");

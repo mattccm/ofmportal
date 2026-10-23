@@ -91,14 +91,13 @@ export async function POST(req: NextRequest) {
     if (creator) {
       // Generate a reset token for creator
       const resetToken = crypto.randomBytes(32).toString("hex");
-      const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
       // Store the reset token
       await db.creator.update({
         where: { id: creator.id },
         data: {
           inviteToken: resetToken,
-          inviteSentAt: resetTokenExpiry,
+          inviteSentAt: new Date(), // send time; reset-password allows 24h from this
         },
       });
 

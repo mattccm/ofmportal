@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { validateCreatorSession } from "@/lib/portal-auth";
+import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import type { Prisma } from "@prisma/client";
 
 interface FieldSubmission {
@@ -32,6 +32,7 @@ export async function POST(
       where: {
         id,
         creatorId: creator.id,
+        status: { notIn: CREATOR_HIDDEN_STATUSES },
       },
       include: {
         uploads: {

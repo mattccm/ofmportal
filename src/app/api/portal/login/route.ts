@@ -90,9 +90,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate a secure session token
+    // Reuse the current token while it is still valid so logging in on another
+    // device doesn't sign out the first one; otherwise generate a new one.
     // Session expires after 30 days of inactivity (extended on each API call)
-    const sessionToken = generateSessionToken();
+    const reuse = creator.sessionToken && creator.sessionExpiry && creator.sessionExpiry > new Date();
+    const sessionToken = reuse ? creator.sessionToken! : generateSessionToken();
     const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
     // Store session token in database

@@ -13,6 +13,7 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
+import { useBranding } from "@/components/providers/branding-provider";
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -22,6 +23,10 @@ interface ErrorProps {
 export default function PortalError({ error, reset }: ErrorProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { branding } = useBranding();
+  const supportHref = branding.supportEmail
+    ? `mailto:${branding.supportEmail}`
+    : branding.supportUrl;
 
   useEffect(() => {
     // Log the error
@@ -156,16 +161,23 @@ Timestamp: ${new Date().toISOString()}
                   Portal Home
                 </Link>
               </Button>
-              <Button
-                variant="ghost"
-                asChild
-                className="flex-1 text-muted-foreground"
-              >
-                <a href="mailto:support@contentportal.com">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Support
-                </a>
-              </Button>
+              {supportHref && (
+                <Button
+                  variant="ghost"
+                  asChild
+                  className="flex-1 text-muted-foreground"
+                >
+                  <a
+                    href={supportHref}
+                    {...(branding.supportEmail
+                      ? {}
+                      : { target: "_blank", rel: "noopener noreferrer" })}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Support
+                  </a>
+                </Button>
+              )}
             </div>
           </CardFooter>
         </Card>

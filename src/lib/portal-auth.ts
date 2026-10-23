@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import type { RequestStatus } from "@prisma/client";
 
 // Session configuration
 const SESSION_DURATION_DAYS = 30;
 const SESSION_DURATION_MS = SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Request statuses a creator must never see or act on.
+ * Drafts are staff-only until sent; cancelled/archived requests are closed.
+ */
+export const CREATOR_HIDDEN_STATUSES: RequestStatus[] = ["DRAFT", "CANCELLED", "ARCHIVED"];
 
 export interface AuthenticatedCreator {
   id: string;

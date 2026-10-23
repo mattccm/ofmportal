@@ -559,7 +559,7 @@ export function CreatorOnboarding({
     onComplete?.();
 
     // Navigate to portal
-    router.push("/portal");
+    router.push("/creator/dashboard");
   }, [markStepComplete, onComplete, router]);
 
   const handleStepComplete = useCallback(

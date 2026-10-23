@@ -24,13 +24,13 @@ import {
   isSameMonth,
   isSameDay,
   isToday,
-  isPast,
   addMonths,
   subMonths,
   startOfWeek,
   endOfWeek,
 } from "date-fns";
 import { cn } from "@/lib/utils";
+import { isRequestOverdue } from "@/lib/request-status";
 
 type RequestStatus =
   | "PENDING"
@@ -261,12 +261,7 @@ export default function CreatorCalendarPage() {
                 const dayRequests = requestsByDate[dateKey] || [];
                 const isCurrentMonth = isSameMonth(day, currentMonth);
                 const isSelected = selectedDate && isSameDay(day, selectedDate);
-                const hasOverdue = dayRequests.some(
-                  (r) =>
-                    isPast(new Date(r.dueDate!)) &&
-                    r.status !== "APPROVED" &&
-                    r.status !== "SUBMITTED"
-                );
+                const hasOverdue = dayRequests.some((r) => isRequestOverdue(r));
 
                 return (
                   <button
@@ -378,7 +373,7 @@ export default function CreatorCalendarPage() {
                 <div className="space-y-3">
                   {upcomingRequests.slice(0, 5).map((request) => {
                     const dueDate = new Date(request.dueDate!);
-                    const isOverdue = isPast(dueDate) && request.status !== "APPROVED";
+                    const isOverdue = isRequestOverdue(request);
 
                     return (
                       <Link
