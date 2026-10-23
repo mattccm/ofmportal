@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import { notifyTeam, NotificationType } from "@/lib/notifications";
@@ -123,7 +124,9 @@ export async function POST(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const { content, fieldId } = body;
 
     if (!content || typeof content !== "string" || content.trim().length === 0) {

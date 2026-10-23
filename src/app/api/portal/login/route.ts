@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth";
 import { z } from "zod";
@@ -38,7 +39,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const { email, password } = loginSchema.parse(body);
 
     // Rate limit by email too (prevents distributed brute force)

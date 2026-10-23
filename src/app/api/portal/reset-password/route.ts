@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
@@ -14,9 +15,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { token, password, type } = await req.json();
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { token, password, type } = bodyResult.data;
 
-    if (!token || !password) {
+    if (typeof token !== "string" || typeof password !== "string" || !token || !password) {
       return NextResponse.json(
         { error: "Token and password are required" },
         { status: 400 }

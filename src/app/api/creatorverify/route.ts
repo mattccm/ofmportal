@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import crypto from "crypto";
 
 // Keeps the proxy details on the server. They are only returned after the
@@ -45,16 +46,10 @@ export function GET() {
 export async function POST(req: NextRequest) {
   const c = getConfig();
 
-  let given = "";
-  try {
-    const body: unknown = await req.json();
-    if (body && typeof body === "object" && "password" in body) {
-      const p = (body as { password?: unknown }).password;
-      if (typeof p === "string") given = p;
-    }
-  } catch {
-    // ignore malformed body
-  }
+  const bodyResult = await parseJsonBody(req);
+  if (!bodyResult.ok) return bodyResult.response;
+  const p = bodyResult.data.password;
+  const given = typeof p === "string" ? p : "";
 
   // Small constant delay to blunt brute-forcing of the gate password.
   await new Promise((resolve) => setTimeout(resolve, 400));

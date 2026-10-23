@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
@@ -15,9 +16,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email } = await req.json();
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { email } = bodyResult.data;
 
-    if (!email) {
+    if (typeof email !== "string" || !email.trim()) {
       return NextResponse.json(
         { error: "Email is required" },
         { status: 400 }

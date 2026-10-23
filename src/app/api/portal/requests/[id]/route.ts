@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import { getDownloadPresignedUrl, useLocalStorage, getPublicFileUrl } from "@/lib/storage";
@@ -266,7 +267,9 @@ export async function PATCH(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const { markViewed } = body;
 
     if (markViewed) {

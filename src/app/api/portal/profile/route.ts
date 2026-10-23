@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
@@ -74,7 +75,9 @@ export async function PUT(req: NextRequest) {
       return authResult.error;
     }
 
-    const body = await req.json();
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const updates = updateProfileSchema.parse(body);
 
     // Notification preferences are stored in the contentPreferences JSON field

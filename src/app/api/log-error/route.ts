@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { z } from "zod";
 import { rateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
@@ -26,7 +27,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ logged: false }, { status: 429 });
     }
 
-    const body = await req.json();
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const errorLog = errorLogSchema.parse(body);
 
     // Log structured error server-side (visible in Vercel logs / server logs)

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
+import { parseJsonBody, rateLimitResponse } from "@/lib/api";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { hashPassword, verifyPassword } from "@/lib/auth";
@@ -16,7 +18,17 @@ export async function PUT(req: NextRequest) {
       return authResult.error;
     }
 
-    const body = await req.json();
+    const rl = await rateLimitAsync(
+      `portal-password-change:${authResult.creator.id}:${getClientIp(req.headers)}`,
+      RATE_LIMITS.passwordChange
+    );
+    if (!rl.success) {
+      return rateLimitResponse(rl, "Too many password change attempts. Please try again later.");
+    }
+
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const { currentPassword, newPassword } = changePasswordSchema.parse(body);
 
     // Get creator with current password

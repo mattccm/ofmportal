@@ -21,6 +21,7 @@ import {
   getCreatorSession,
   clearCreatorSession,
 } from "@/lib/remember-token";
+import { setCreatorCookie } from "@/lib/creator-cookies";
 
 function LoginForm() {
   const router = useRouter();
@@ -106,10 +107,10 @@ function LoginForm() {
 
         // Restore cookies
         const maxAge = 30 * 24 * 60 * 60;
-        document.cookie = `creatorToken=${creatorSession.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-        document.cookie = `creatorId=${creatorSession.creatorId}; path=/; max-age=${maxAge}; SameSite=Lax`;
-        document.cookie = `creatorName=${encodeURIComponent(creatorSession.name)}; path=/; max-age=${maxAge}; SameSite=Lax`;
-        document.cookie = `creatorEmail=${encodeURIComponent(creatorSession.email)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        setCreatorCookie("creatorToken", creatorSession.token, maxAge);
+        setCreatorCookie("creatorId", creatorSession.creatorId, maxAge);
+        setCreatorCookie("creatorName", encodeURIComponent(creatorSession.name), maxAge);
+        setCreatorCookie("creatorEmail", encodeURIComponent(creatorSession.email), maxAge);
 
         // Redirect to creator dashboard
         router.push("/creator/dashboard");
@@ -245,10 +246,10 @@ function LoginForm() {
 
           // Also store in cookies for iOS PWA persistence (localStorage can be cleared on app close)
           const maxAge = 30 * 24 * 60 * 60; // 30 days
-          document.cookie = `creatorToken=${creatorData.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-          document.cookie = `creatorId=${creatorData.creatorId}; path=/; max-age=${maxAge}; SameSite=Lax`;
-          document.cookie = `creatorName=${encodeURIComponent(creatorData.name)}; path=/; max-age=${maxAge}; SameSite=Lax`;
-          document.cookie = `creatorEmail=${encodeURIComponent(creatorData.email)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          setCreatorCookie("creatorToken", creatorData.token, maxAge);
+          setCreatorCookie("creatorId", creatorData.creatorId, maxAge);
+          setCreatorCookie("creatorName", encodeURIComponent(creatorData.name), maxAge);
+          setCreatorCookie("creatorEmail", encodeURIComponent(creatorData.email), maxAge);
 
           // Store in IndexedDB for iOS PWA persistence (most reliable on iOS)
           try {

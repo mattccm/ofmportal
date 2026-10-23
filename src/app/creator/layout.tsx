@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCreatorSession, clearCreatorSession, hasCreatorSessionIndicator, setSignedOutFlag, hasSignedOutFlag, storeCreatorSession } from "@/lib/remember-token";
+import { setCreatorCookie, clearCreatorCookie } from "@/lib/creator-cookies";
 
 interface NavItem {
   href: string;
@@ -62,10 +63,10 @@ async function clearLocalCreatorSession(): Promise<void> {
   localStorage.removeItem("creatorOnboardingComplete");
 
   // Clear cookies too
-  document.cookie = "creatorToken=; path=/; max-age=0";
-  document.cookie = "creatorId=; path=/; max-age=0";
-  document.cookie = "creatorName=; path=/; max-age=0";
-  document.cookie = "creatorEmail=; path=/; max-age=0";
+  clearCreatorCookie("creatorToken");
+  clearCreatorCookie("creatorId");
+  clearCreatorCookie("creatorName");
+  clearCreatorCookie("creatorEmail");
 }
 
 /**
@@ -241,10 +242,10 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
             // Also restore cookies (30 days)
             const maxAge = 30 * 24 * 60 * 60;
-            document.cookie = `creatorToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-            document.cookie = `creatorId=${creatorId}; path=/; max-age=${maxAge}; SameSite=Lax`;
-            document.cookie = `creatorName=${encodeURIComponent(creatorName)}; path=/; max-age=${maxAge}; SameSite=Lax`;
-            document.cookie = `creatorEmail=${encodeURIComponent(creatorEmail)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+            setCreatorCookie("creatorToken", token, maxAge);
+            setCreatorCookie("creatorId", creatorId, maxAge);
+            setCreatorCookie("creatorName", encodeURIComponent(creatorName), maxAge);
+            setCreatorCookie("creatorEmail", encodeURIComponent(creatorEmail), maxAge);
 
             // Re-store in IndexedDB to refresh the indicator cookie
             await storeCreatorSession({

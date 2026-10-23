@@ -182,6 +182,17 @@ export const RATE_LIMITS = {
     interval: 15 * 60 * 1000,
     maxRequests: 5,
   },
+  // Password change: 5 attempts per 15 minutes per account + IP
+  passwordChange: {
+    interval: 15 * 60 * 1000,
+    maxRequests: 5,
+  },
+  // 2FA setup/verify/disable/backup codes: 10 attempts per 15 minutes per account + IP
+  // (a little looser than login so a mistyped code or QR re-scan doesn't lock users out)
+  twoFactor: {
+    interval: 15 * 60 * 1000,
+    maxRequests: 10,
+  },
   // API general: 100 requests per minute per user
   api: {
     interval: 60 * 1000,

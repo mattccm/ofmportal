@@ -177,6 +177,14 @@ export const authOptions: NextAuthOptions = {
         if (!rl.success) {
           throw new Error("Too many login attempts. Please try again later.");
         }
+        // Per-account bucket too, so one account can't be brute-forced from many IPs
+        const emailRl = await rateLimitAsync(
+          `login:staff-email:${credentials.email.toLowerCase()}`,
+          RATE_LIMITS.login
+        );
+        if (!emailRl.success) {
+          throw new Error("Too many login attempts for this account. Please try again later.");
+        }
 
         // Normal login flow
         // Use explicit select to ensure password field is always returned

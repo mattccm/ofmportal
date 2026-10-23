@@ -11,6 +11,8 @@
  * so we use all three and check them all.
  */
 
+import { setCreatorCookie, clearCreatorCookie } from "./creator-cookies";
+
 const DB_NAME = "auth-remember";
 const DB_VERSION = 1;
 const STORE_NAME = "tokens";
@@ -499,7 +501,7 @@ export async function storeCreatorSession(session: {
   try {
     if (typeof document !== "undefined") {
       const maxAge = 30 * 24 * 60 * 60; // 30 days
-      document.cookie = `${CREATOR_COOKIE_NAME}=1; path=/; max-age=${maxAge}; SameSite=Lax`;
+      setCreatorCookie(CREATOR_COOKIE_NAME, "1", maxAge);
     }
   } catch (error) {
     console.warn("[CreatorSession] Cookie set failed:", error);
@@ -604,7 +606,7 @@ export async function clearCreatorSession(): Promise<void> {
   // 3. Clear indicator cookie
   try {
     if (typeof document !== "undefined") {
-      document.cookie = `${CREATOR_COOKIE_NAME}=; path=/; max-age=0`;
+      clearCreatorCookie(CREATOR_COOKIE_NAME);
     }
   } catch (error) {
     console.warn("[CreatorSession] Cookie clear failed:", error);

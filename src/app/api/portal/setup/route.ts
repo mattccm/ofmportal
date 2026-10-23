@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
@@ -26,7 +27,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const { token, password } = setupSchema.parse(body);
 
     const creator = await db.creator.findFirst({

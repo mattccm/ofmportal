@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimitResponse } from "@/lib/api";
+import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import { getServerSession } from "next-auth";
 import { authOptions, generateTwoFactorSecret, generateTwoFactorQRCodeUrl } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -10,6 +12,14 @@ export async function POST(req: NextRequest) {
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rl = await rateLimitAsync(
+      `2fa-setup:${session.user.id}:${getClientIp(req.headers)}`,
+      RATE_LIMITS.twoFactor
+    );
+    if (!rl.success) {
+      return rateLimitResponse(rl, "Too many 2FA setup attempts. Please try again later.");
     }
 
     // Never overwrite an active secret: login would start using the

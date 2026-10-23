@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { validateCreatorSession } from "@/lib/portal-auth";
 import {
@@ -144,14 +145,16 @@ export async function POST(request: NextRequest) {
       select: { avatar: true },
     });
 
-    const body = await request.json();
+    const bodyResult = await parseJsonBody(request);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const { image } = body;
 
     if (!image) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
-    if (!image.startsWith("data:image/")) {
+    if (typeof image !== "string" || !image.startsWith("data:image/")) {
       return NextResponse.json({ error: "Invalid image format" }, { status: 400 });
     }
 

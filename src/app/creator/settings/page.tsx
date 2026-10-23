@@ -30,6 +30,7 @@ import { ThemeSwitcher } from "@/components/theme/theme-toggle";
 import { useTheme } from "@/components/theme/theme-provider";
 import { clearCreatorSession, setSignedOutFlag } from "@/lib/remember-token";
 import { compressAvatarImage, validateAvatarFile } from "@/lib/avatar";
+import { clearCreatorCookie } from "@/lib/creator-cookies";
 
 const TIMEZONES = [
   // UTC-12 to UTC-8
@@ -308,10 +309,10 @@ export default function CreatorSettingsPage() {
     localStorage.removeItem("creatorOnboardingComplete");
 
     // Clear cookies
-    document.cookie = "creatorToken=; path=/; max-age=0";
-    document.cookie = "creatorId=; path=/; max-age=0";
-    document.cookie = "creatorName=; path=/; max-age=0";
-    document.cookie = "creatorEmail=; path=/; max-age=0";
+    clearCreatorCookie("creatorToken");
+    clearCreatorCookie("creatorId");
+    clearCreatorCookie("creatorName");
+    clearCreatorCookie("creatorEmail");
 
     router.push("/login");
   };

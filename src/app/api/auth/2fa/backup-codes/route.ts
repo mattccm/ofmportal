@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
+import { parseJsonBody, rateLimitResponse } from "@/lib/api";
 import { getServerSession } from "next-auth";
 import { authOptions, verifyPassword, hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -34,7 +36,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const rl = await rateLimitAsync(
+      `2fa-backup-codes:${session.user.id}:${getClientIp(req.headers)}`,
+      RATE_LIMITS.twoFactor
+    );
+    if (!rl.success) {
+      return rateLimitResponse(rl, "Too many backup code requests. Please try again later.");
+    }
+
+    const bodyResult = await parseJsonBody(req);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
     const { password } = generateCodesSchema.parse(body);
 
     // Verify user's password

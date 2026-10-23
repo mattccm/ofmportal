@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { DEFAULT_BRANDING, type BrandingSettings } from "@/lib/branding";
 
@@ -66,8 +67,11 @@ export async function GET(request: NextRequest) {
 // Alternative: GET branding by agencyId (for public portal pages)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { agencyId, creatorId } = body;
+    const bodyResult = await parseJsonBody(request);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.data;
+    const agencyId = typeof body.agencyId === "string" ? body.agencyId : undefined;
+    const creatorId = typeof body.creatorId === "string" ? body.creatorId : undefined;
 
     if (!agencyId && !creatorId) {
       return NextResponse.json(
