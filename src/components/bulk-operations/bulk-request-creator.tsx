@@ -144,14 +144,15 @@ export function BulkRequestCreator({
       setIsLoading(true);
       try {
         const [creatorsRes, templatesRes, groupsRes] = await Promise.all([
-          fetch("/api/creators"),
+          fetch("/api/creators?limit=100&sortBy=name&sortOrder=asc"),
           fetch("/api/templates"),
           fetch("/api/creators/groups"),
         ]);
 
         if (creatorsRes.ok) {
           const data = await creatorsRes.json();
-          setCreators(data);
+          // /api/creators returns a paginated { data, pagination } response
+          setCreators(Array.isArray(data) ? data : data.data ?? []);
         }
 
         if (templatesRes.ok) {

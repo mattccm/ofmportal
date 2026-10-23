@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
-import { isAllowedFileType, isAllowedFileExtension, MAX_FILE_SIZE } from "@/lib/storage";
+import { isAllowedFileType, isAllowedFileExtension, MAX_FILE_SIZE, useLocalStorage } from "@/lib/storage";
+import { resolveMimeType } from "@/lib/file-utils";
+import { CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 
 // Local file upload handler for development when S3/R2 is not configured
 // This endpoint receives files directly and stores them locally
@@ -21,6 +23,12 @@ async function ensureUploadDir(): Promise<void> {
 
 export async function POST(req: NextRequest) {
   try {
+    // Local-disk uploads are a dev fallback only. When R2 is configured, files
+    // written here would land on ephemeral disk and vanish on the next deploy.
+    if (!useLocalStorage) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const session = await getServerSession(authOptions);
     const creatorToken = req.headers.get("x-creator-token");
 
@@ -35,6 +43,7 @@ export async function POST(req: NextRequest) {
         where: {
           sessionToken: creatorToken,
           inviteStatus: "ACCEPTED",
+          archivedAt: null,
           sessionExpiry: {
             gt: new Date(),
           },
@@ -81,8 +90,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate file type
-    if (!isAllowedFileType(file.type)) {
+    // Validate file type (browsers report empty/alias types for some valid media)
+    const fileType = resolveMimeType(file.name, file.type);
+    if (!isAllowedFileType(fileType)) {
       return NextResponse.json(
         { error: "File type not allowed" },
         { status: 400 }
@@ -102,7 +112,7 @@ export async function POST(req: NextRequest) {
         id: requestId,
         ...(session?.user?.agencyId
           ? { agencyId: session.user.agencyId }
-          : { creatorId }),
+          : { creatorId, status: { notIn: CREATOR_HIDDEN_STATUSES } }),
       },
     });
 
@@ -144,7 +154,7 @@ export async function POST(req: NextRequest) {
         creatorId: creatorId!,
         fileName: file.name,
         originalName: file.name,
-        fileType: file.type,
+        fileType,
         fileSize: BigInt(file.size),
         storageKey,
         uploadStatus: "COMPLETED",

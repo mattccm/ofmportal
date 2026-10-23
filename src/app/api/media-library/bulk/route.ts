@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 import { z } from "zod";
 
 // POST /api/media-library/bulk
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
         id: { in: data.itemIds },
         agencyId: session.user.agencyId,
       },
-      select: { id: true, folderId: true, tags: true, creatorId: true },
+      select: { id: true, folderId: true, tags: true, creatorId: true, storageKey: true, thumbnailKey: true },
     });
 
     if (items.length === 0) {
@@ -63,6 +64,11 @@ export async function POST(req: NextRequest) {
     if (data.action === "delete") {
       await decrementFolders(items.map((i) => i.folderId));
       await db.mediaItem.deleteMany({ where: { id: { in: itemIds } } });
+      // Best-effort storage cleanup, skipping objects another MediaItem or an
+      // Upload (e.g. the upload an item was imported from) still references
+      await deleteUnreferencedStorageObjects(
+        items.flatMap((i) => [i.storageKey, i.thumbnailKey])
+      );
     } else if (data.action === "archive") {
       // Status change only; folder membership (and its count) is unchanged.
       await db.mediaItem.updateMany({

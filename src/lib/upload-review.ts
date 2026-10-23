@@ -355,6 +355,17 @@ export async function generateReviewReport(
 }
 
 /**
+ * Quote a CSV field and neutralise leading formula characters (=, +, -, @,
+ * tab, CR) so creator-controlled values can't run as spreadsheet formulas
+ */
+function csvField(value: string | null | undefined): string {
+  if (value == null || value === "") return "";
+  let v = String(value);
+  if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
+  return `"${v.replace(/"/g, '""')}"`;
+}
+
+/**
  * Convert report data to CSV format
  */
 export function reportToCsv(report: ReviewReportItem[]): string {
@@ -376,16 +387,16 @@ export function reportToCsv(report: ReviewReportItem[]): string {
 
   const rows = report.map((item) => [
     item.id,
-    `"${item.fileName.replace(/"/g, '""')}"`,
-    item.fileType,
+    csvField(item.fileName),
+    csvField(item.fileType),
     item.fileSize,
-    `"${item.creatorName.replace(/"/g, '""')}"`,
-    item.creatorEmail,
-    `"${item.requestTitle.replace(/"/g, '""')}"`,
+    csvField(item.creatorName),
+    csvField(item.creatorEmail),
+    csvField(item.requestTitle),
     item.status,
     item.rating ?? "",
-    item.reviewNote ? `"${item.reviewNote.replace(/"/g, '""')}"` : "",
-    item.reviewerName ? `"${item.reviewerName.replace(/"/g, '""')}"` : "",
+    csvField(item.reviewNote),
+    csvField(item.reviewerName),
     item.uploadedAt ? format(item.uploadedAt, "yyyy-MM-dd HH:mm:ss") : "",
     item.reviewedAt ? format(item.reviewedAt, "yyyy-MM-dd HH:mm:ss") : "",
   ]);

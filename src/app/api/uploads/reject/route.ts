@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -95,15 +95,20 @@ export async function POST(req: NextRequest) {
 
     if (rejectedIds.length > 0) {
       // Fire webhook for rejected uploads
-      dispatchWebhookEvent(session.user.agencyId, "upload.rejected", {
-        uploadIds: rejectedIds,
-        requestId,
-        requestTitle: request.title,
-        creatorId: request.creatorId,
-        creatorName: request.creator.name,
-        reason,
-        rejectedBy: session.user.id,
-      });
+      // after() keeps the serverless function alive until delivery finishes
+      const agencyId = session.user.agencyId;
+      const userId = session.user.id;
+      after(() =>
+        dispatchWebhookEvent(agencyId, "upload.rejected", {
+          uploadIds: rejectedIds,
+          requestId,
+          requestTitle: request.title,
+          creatorId: request.creatorId,
+          creatorName: request.creator.name,
+          reason,
+          rejectedBy: userId,
+        })
+      );
 
       // Notify creator
       const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${requestId}`;
@@ -135,18 +140,19 @@ export async function POST(req: NextRequest) {
       }
 
       // Log activity
-      await db.activityLog.create({
-        data: {
+      // One row per upload so the activity feed can join on entityId
+      await db.activityLog.createMany({
+        data: rejectedIds.map((id) => ({
           userId: session.user.id,
           action: "upload.rejected",
           entityType: "Upload",
-          entityId: rejectedIds.join(","),
+          entityId: id,
           metadata: {
             count: rejectedIds.length,
             requestId,
             reason,
           },
-        },
+        })),
       });
     }
 

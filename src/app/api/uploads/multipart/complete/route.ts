@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { completeMultipartUpload } from "@/lib/storage";
+import { completeMultipartUpload, fileExists } from "@/lib/storage";
 import { authorizeUploadRecord } from "@/lib/upload-auth";
 import { finalizeUpload } from "@/lib/upload-finalize";
 
@@ -28,12 +28,24 @@ export async function POST(req: NextRequest) {
       return auth.response;
     }
 
-    // Assemble the object from its parts on the storage backend.
-    await completeMultipartUpload(
-      auth.upload.storageKey,
-      data.multipartUploadId,
-      data.parts
-    );
+    // Assemble the object from its parts on the storage backend. Skip when a
+    // previous call already finished (client retry after a lost response):
+    // the multipart session no longer exists, so completing again would fail.
+    if (auth.upload.uploadStatus !== "COMPLETED") {
+      try {
+        await completeMultipartUpload(
+          auth.upload.storageKey,
+          data.multipartUploadId,
+          data.parts
+        );
+      } catch (err) {
+        // The first call may have assembled the object but failed before the
+        // DB update; treat it as done if the object is there.
+        if (!(await fileExists(auth.upload.storageKey))) {
+          throw err;
+        }
+      }
+    }
 
     // Run the SAME post-upload bookkeeping as the single-shot complete flow.
     // The object is guaranteed to exist right after CompleteMultipartUpload,

@@ -13,6 +13,21 @@ export interface ZipProgress {
   fileName?: string;
 }
 
+export interface ZipResult {
+  blob: Blob;
+  /** Names of files that could not be fetched and are missing from the ZIP */
+  failedFiles: string[];
+  /** Number of files actually added to the ZIP */
+  addedCount: number;
+}
+
+/**
+ * The whole archive is built in browser memory, so very large selections
+ * crash the tab. Above this total size, callers should download files
+ * individually instead.
+ */
+export const MAX_CLIENT_ZIP_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
+
 /**
  * Creates a ZIP file from a list of file URLs, downloading them directly
  * from storage (R2/S3) without going through Vercel's serverless functions.
@@ -24,6 +39,18 @@ export async function createZipFromUrls(
   files: FileToZip[],
   onProgress?: (progress: ZipProgress) => void
 ): Promise<Blob> {
+  const { blob } = await createZipFromUrlsWithReport(files, onProgress);
+  return blob;
+}
+
+/**
+ * Same as createZipFromUrls, but also reports which files failed to download
+ * so callers can tell the user the ZIP is incomplete.
+ */
+export async function createZipFromUrlsWithReport(
+  files: FileToZip[],
+  onProgress?: (progress: ZipProgress) => void
+): Promise<ZipResult> {
   const zip = new JSZip();
   const total = files.length;
 
@@ -107,9 +134,10 @@ export async function createZipFromUrls(
     total,
   });
 
-  // Generate the zip file
+  // Generate the zip file. STORE (no compression): media is already compressed,
+  // so DEFLATE only burns CPU for near-zero gain.
   const zipBlob = await zip.generateAsync(
-    { type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } },
+    { type: "blob", compression: "STORE" },
     (metadata) => {
       // This callback is called during compression
       if (metadata.percent === 100) {
@@ -122,7 +150,11 @@ export async function createZipFromUrls(
     }
   );
 
-  return zipBlob;
+  return {
+    blob: zipBlob,
+    failedFiles,
+    addedCount: files.length - failedFiles.length,
+  };
 }
 
 /**

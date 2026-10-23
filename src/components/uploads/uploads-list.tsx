@@ -29,7 +29,6 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
-import { ShareButton } from "@/components/share/share-dialog";
 
 interface Upload {
   id: string;
@@ -475,16 +474,6 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
                     >
                       <Download className="h-4 w-4" />
                     </Button>
-
-                    {upload.status === "APPROVED" && (
-                      <ShareButton
-                        resourceType="UPLOAD"
-                        resourceId={upload.id}
-                        resourceTitle={upload.originalName}
-                        variant="ghost"
-                        size="icon-sm"
-                      />
-                    )}
 
                     {upload.status === "PENDING" && (
                       <>

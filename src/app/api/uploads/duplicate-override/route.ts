@@ -71,8 +71,10 @@ export async function POST(req: NextRequest) {
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {
-          OR: [{ inviteToken: creatorToken }, { id: creatorToken }],
+          sessionToken: creatorToken,
           inviteStatus: "ACCEPTED",
+          sessionExpiry: { gt: new Date() },
+          archivedAt: null,
         },
       });
 
@@ -194,8 +196,10 @@ export async function GET(req: NextRequest) {
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {
-          OR: [{ inviteToken: creatorToken }, { id: creatorToken }],
+          sessionToken: creatorToken,
           inviteStatus: "ACCEPTED",
+          sessionExpiry: { gt: new Date() },
+          archivedAt: null,
         },
       });
 

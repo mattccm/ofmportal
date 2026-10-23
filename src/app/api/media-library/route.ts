@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 
@@ -438,10 +439,14 @@ export async function DELETE(req: NextRequest) {
       });
     }
 
-    // Delete the item (storage cleanup would happen via background job)
+    // Delete the item
     await db.mediaItem.delete({
       where: { id: itemId },
     });
+
+    // Best-effort storage cleanup, skipping objects another MediaItem or an
+    // Upload (e.g. the upload this item was imported from) still references
+    await deleteUnreferencedStorageObjects([existingItem.storageKey, existingItem.thumbnailKey]);
 
     // Log activity
     await db.activityLog.create({

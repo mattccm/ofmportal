@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { validateCreatorSession } from "@/lib/portal-auth";
-import { deleteFile } from "@/lib/storage";
+import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 
 /**
  * DELETE /api/uploads/[id]
@@ -63,21 +63,14 @@ export async function DELETE(
         );
       }
 
-      // Delete from storage
-      try {
-        await deleteFile(upload.storageKey);
-        if (upload.thumbnailKey) {
-          await deleteFile(upload.thumbnailKey);
-        }
-      } catch (storageError) {
-        console.error("Failed to delete file from storage:", storageError);
-        // Continue with database deletion even if storage deletion fails
-      }
-
       // Delete from database
       await db.upload.delete({
         where: { id },
       });
+
+      // Delete from storage (best-effort) unless a media-library item imported
+      // from this upload still points at the same object
+      await deleteUnreferencedStorageObjects([upload.storageKey, upload.thumbnailKey]);
 
       return NextResponse.json({ success: true });
     }
@@ -102,21 +95,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    // Delete from storage
-    try {
-      await deleteFile(upload.storageKey);
-      if (upload.thumbnailKey) {
-        await deleteFile(upload.thumbnailKey);
-      }
-    } catch (storageError) {
-      console.error("Failed to delete file from storage:", storageError);
-      // Continue with database deletion even if storage deletion fails
-    }
-
     // Delete from database
     await db.upload.delete({
       where: { id },
     });
+
+    // Delete from storage (best-effort) unless a media-library item imported
+    // from this upload still points at the same object
+    await deleteUnreferencedStorageObjects([upload.storageKey, upload.thumbnailKey]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

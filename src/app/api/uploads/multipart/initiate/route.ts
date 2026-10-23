@@ -8,11 +8,13 @@ import {
 } from "@/lib/storage";
 import { resolveUploadContext, validateUploadFile } from "@/lib/upload-auth";
 import { handleCreatorResponse } from "@/lib/auto-reminder-scheduler";
+import { resolveMimeType } from "@/lib/file-utils";
 
 const initiateSchema = z.object({
   requestId: z.string().min(1, "Request ID is required"),
   fileName: z.string().min(1, "File name is required"),
-  fileType: z.string().min(1, "File type is required"),
+  // May be empty: browsers report no type for some valid media (resolved below)
+  fileType: z.string(),
   fileSize: z.number().min(1, "File size is required"),
   fieldId: z.string().optional(),
 });
@@ -29,7 +31,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const data = initiateSchema.parse(body);
+    const parsed = initiateSchema.parse(body);
+    const data = { ...parsed, fileType: resolveMimeType(parsed.fileName, parsed.fileType) };
 
     // Auth + agency/creator scoping (same rules as the presign route)
     const auth = await resolveUploadContext(req, data.requestId);

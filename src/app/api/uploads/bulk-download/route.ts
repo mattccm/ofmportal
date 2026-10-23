@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDownloadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
+import { getDownloadPresignedUrl } from "@/lib/storage";
 import { z } from "zod";
 import { format } from "date-fns";
 
@@ -96,31 +96,27 @@ export async function POST(req: NextRequest) {
     }
 
     // Log the download activity
-    await db.activityLog.create({
-      data: {
+    // One row per upload so the activity feed can join on entityId
+    await db.activityLog.createMany({
+      data: uploads.map((u) => ({
         userId: session.user.id,
         action: "upload.bulk_download",
         entityType: "Upload",
-        entityId: uploads.map((u) => u.id).join(","),
+        entityId: u.id,
         metadata: {
           count: uploads.length,
-          uploadIds: uploads.map((u) => u.id),
           organization,
           includeMetadata,
         },
-      },
+      })),
     });
 
     // Generate download URLs for each file (NO bandwidth through Vercel!)
     const downloadFiles = await Promise.all(
       uploads.map(async (upload) => {
-        // Try public URL first (zero bandwidth cost)
-        let url = getPublicFileUrl(upload.storageKey);
-
-        // Fall back to presigned URL if no public domain configured
-        if (!url) {
-          url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName);
-        }
+        // Presigned URL (not the public domain) so R2 sends Content-Disposition:
+        // attachment and serves CORS, matching requests/[id]/download
+        const url = await getDownloadPresignedUrl(upload.storageKey, upload.originalName);
 
         const folderPath = organization !== "flat" ? getFolderPath(upload, organization) : undefined;
 

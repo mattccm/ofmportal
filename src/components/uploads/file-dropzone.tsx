@@ -20,6 +20,8 @@ import {
   ALLOWED_TYPES,
   MAX_FILE_SIZE,
   isAllowedFileType,
+  resolveMimeType,
+  buildAcceptAttribute,
 } from "@/lib/file-utils";
 
 export interface FileDropzoneProps {
@@ -102,7 +104,10 @@ export function FileDropzone({
   const showAudio = acceptedTypes.some(t => t.startsWith("audio") || t === "*/*");
 
   // Check if a file type matches the accepted types for this field
-  const isFileTypeAccepted = useCallback((mimeType: string): boolean => {
+  const isFileTypeAccepted = useCallback((reportedType: string, fileName = ""): boolean => {
+    // Browsers report empty/alias types for some valid media (HEIC, MKV, WAV)
+    const mimeType = resolveMimeType(fileName, reportedType);
+
     // First check if it's a globally allowed type
     if (!isAllowedFileType(mimeType)) return false;
 
@@ -146,10 +151,10 @@ export function FileDropzone({
         if (item.kind === "file") {
           const file = item.getAsFile();
           if (file) {
-            if (isFileTypeAccepted(file.type) && file.size <= maxFileSize) {
+            if (isFileTypeAccepted(file.type, file.name) && file.size <= maxFileSize) {
               validCount++;
               totalSize += file.size;
-            } else if (!isFileTypeAccepted(file.type)) {
+            } else if (!isFileTypeAccepted(file.type, file.name)) {
               const ext = file.name.split(".").pop() || file.type;
               if (!invalidTypes.includes(ext)) {
                 invalidTypes.push(ext);
@@ -211,7 +216,7 @@ export function FileDropzone({
 
       if (e.dataTransfer?.files.length) {
         const validFiles = Array.from(e.dataTransfer.files).filter(
-          (file) => isFileTypeAccepted(file.type) && file.size <= maxFileSize
+          (file) => isFileTypeAccepted(file.type, file.name) && file.size <= maxFileSize
         );
         if (validFiles.length > 0) {
           onFilesSelected(validFiles);
@@ -244,7 +249,7 @@ export function FileDropzone({
       for (const item of Array.from(items)) {
         if (item.kind === "file") {
           const file = item.getAsFile();
-          if (file && isFileTypeAccepted(file.type) && file.size <= maxFileSize) {
+          if (file && isFileTypeAccepted(file.type, file.name) && file.size <= maxFileSize) {
             files.push(file);
           }
         }
@@ -316,7 +321,7 @@ export function FileDropzone({
       const files = e.dataTransfer.files;
       if (files.length > 0) {
         const validFiles = Array.from(files).filter(
-          (file) => isFileTypeAccepted(file.type) && file.size <= maxFileSize
+          (file) => isFileTypeAccepted(file.type, file.name) && file.size <= maxFileSize
         );
         if (validFiles.length > 0) {
           onFilesSelected(validFiles);
@@ -350,7 +355,7 @@ export function FileDropzone({
           if (type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/")) {
             const blob = await item.getType(type);
             const file = new File([blob], `pasted-${Date.now()}.${type.split("/")[1]}`, { type });
-            if (isFileTypeAccepted(file.type) && file.size <= maxFileSize) {
+            if (isFileTypeAccepted(file.type, file.name) && file.size <= maxFileSize) {
               files.push(file);
             }
           }
@@ -505,7 +510,7 @@ export function FileDropzone({
               ref={fileInputRef}
               type="file"
               multiple
-              accept={acceptedTypes.join(",")}
+              accept={buildAcceptAttribute(acceptedTypes)}
               onChange={handleFileSelect}
               className="hidden"
               disabled={disabled}
@@ -637,7 +642,7 @@ export function FileDropzone({
             ref={fileInputRef}
             type="file"
             multiple
-            accept={acceptedTypes.join(",")}
+            accept={buildAcceptAttribute(acceptedTypes)}
             onChange={handleFileSelect}
             className="hidden"
             disabled={disabled}

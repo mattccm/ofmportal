@@ -9,8 +9,10 @@ import {
   isAllowedFileType,
   isAllowedFileExtension,
   MAX_FILE_SIZE,
+  useLocalStorage,
 } from "@/lib/storage";
 import { handleCreatorResponse } from "@/lib/auto-reminder-scheduler";
+import { CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 
 const presignRequestSchema = z.object({
   requestId: z.string().min(1, "Request ID is required"),
@@ -22,6 +24,15 @@ const presignRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Presigned PUTs need an S3-compatible backend. 409 tells the client to use
+    // the local-disk endpoint instead (dev only; that endpoint is off otherwise).
+    if (useLocalStorage) {
+      return NextResponse.json(
+        { error: "Direct upload is not available for local storage" },
+        { status: 409 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     // Allow both agency users and creators (via portal)
@@ -122,6 +133,7 @@ export async function POST(req: NextRequest) {
         where: {
           sessionToken: creatorToken,
           inviteStatus: "ACCEPTED",
+          archivedAt: null,
           sessionExpiry: {
             gt: new Date(),
           },
@@ -141,11 +153,12 @@ export async function POST(req: NextRequest) {
       const body = await req.json();
       const validatedData = presignRequestSchema.parse(body);
 
-      // Verify request belongs to this creator
+      // Verify request belongs to this creator (drafts/closed requests are hidden)
       const contentRequest = await db.contentRequest.findFirst({
         where: {
           id: validatedData.requestId,
           creatorId: creator.id,
+          status: { notIn: CREATOR_HIDDEN_STATUSES },
         },
       });
 

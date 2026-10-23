@@ -38,6 +38,7 @@ export async function GET(
         where: {
           sessionToken: creatorToken,
           sessionExpiry: { gt: new Date() },
+          archivedAt: null,
         },
         select: { id: true },
       });

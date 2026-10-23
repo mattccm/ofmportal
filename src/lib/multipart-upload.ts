@@ -222,6 +222,29 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 export async function uploadFileMultipart(
   options: MultipartUploadOptions
 ): Promise<MultipartUploadResult> {
+  try {
+    return await uploadFileMultipartAttempt(options);
+  } catch (error) {
+    if (error instanceof MultipartAbortError) throw error;
+    // An aborted fetch (initiate / sign-part / mid-batch) throws a DOMException
+    // AbortError; surface it as a pause/cancel rather than a failure.
+    if (options.signal?.aborted || (error as Error)?.name === "AbortError") {
+      throw new MultipartAbortError();
+    }
+    // The resumed session is dead on the server (cleaned up, expired, deleted):
+    // drop the persisted state and start over. Recurses at most once in practice
+    // because the IndexedDB entry is gone, so the next attempt initiates fresh.
+    if ((error as Error & { staleSession?: boolean }).staleSession) {
+      await idbDelete(getFileIdentity(options.file, options.requestId, options.fieldId));
+      return uploadFileMultipart(options);
+    }
+    throw error;
+  }
+}
+
+async function uploadFileMultipartAttempt(
+  options: MultipartUploadOptions
+): Promise<MultipartUploadResult> {
   const {
     file,
     requestId,
@@ -252,6 +275,8 @@ export async function uploadFileMultipart(
     existing.fileSize === file.size &&
     existing.lastModified === file.lastModified &&
     existing.fileName === file.name;
+
+  const resumed = !!isSameFile;
 
   if (isSameFile) {
     dbUploadId = existing.dbUploadId;
@@ -297,8 +322,10 @@ export async function uploadFileMultipart(
 
   onInit?.({ dbUploadId, multipartUploadId });
 
+  // Skip once aborted so a part finishing after a cancel can't write the
+  // (now dead) session back after abortPersistedUpload deleted it.
   const persist = (): Promise<void> =>
-    idbPut({
+    signal?.aborted ? Promise.resolve() : idbPut({
       id: identity,
       dbUploadId,
       multipartUploadId,
@@ -364,7 +391,11 @@ export async function uploadFileMultipart(
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Failed to sign upload parts");
+      const error = new Error(err.error || "Failed to sign upload parts");
+      (error as Error & { status?: number; staleSession?: boolean }).status = res.status;
+      (error as Error & { staleSession?: boolean }).staleSession =
+        resumed && [400, 404].includes(res.status);
+      throw error;
     }
     const data = (await res.json()) as {
       parts: Array<{ partNumber: number; url: string }>;
@@ -511,6 +542,9 @@ export async function uploadFileMultipart(
 
   if (!completeRes.ok) {
     const err = await completeRes.json().catch(() => ({}));
+    // Drop the resume state so a retry initiates fresh instead of looping on a
+    // multipart session that may no longer exist (e.g. NoSuchUpload).
+    await idbDelete(identity);
     throw new Error(err.details || err.error || "Failed to complete upload");
   }
 

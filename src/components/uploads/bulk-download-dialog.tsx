@@ -43,7 +43,12 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";
-import { createZipFromUrls, downloadBlob, downloadFilesIndividually } from "@/lib/client-zip";
+import {
+  createZipFromUrlsWithReport,
+  downloadBlob,
+  downloadFilesIndividually,
+  MAX_CLIENT_ZIP_BYTES,
+} from "@/lib/client-zip";
 
 export interface UploadForDownload {
   id: string;
@@ -238,6 +243,14 @@ export function BulkDownloadDialog({
       return;
     }
 
+    // ZIPs are built in browser memory; very large selections crash the tab
+    if (downloadFormat !== "individual" && totalSize > MAX_CLIENT_ZIP_BYTES) {
+      toast.error(
+        `Selection is too large to ZIP in the browser (${formatFileSize(totalSize)}, max ${formatFileSize(MAX_CLIENT_ZIP_BYTES)}). Select fewer files or download them individually.`
+      );
+      return;
+    }
+
     setIsDownloading(true);
     setDownloadProgress(0);
     setDownloadStatus("Getting download URLs...");
@@ -283,7 +296,7 @@ export function BulkDownloadDialog({
         // Create ZIP client-side (files fetched directly from R2 - no Vercel bandwidth)
         setDownloadStatus("Downloading files for ZIP...");
 
-        const zipBlob = await createZipFromUrls(
+        const { blob: zipBlob, failedFiles, addedCount } = await createZipFromUrlsWithReport(
           files.map(f => ({
             url: f.url,
             fileName: f.fileName,
@@ -306,7 +319,13 @@ export function BulkDownloadDialog({
         // Download the ZIP
         const dateStr = format(new Date(), "yyyy-MM-dd");
         downloadBlob(zipBlob, `uploads-${dateStr}.zip`);
-        toast.success(`Downloaded ${files.length} file(s) as ZIP`);
+        if (failedFiles.length > 0) {
+          toast.warning(
+            `ZIP contains ${addedCount} of ${files.length} file(s). ${failedFiles.length} failed to download: ${failedFiles.slice(0, 3).join(", ")}${failedFiles.length > 3 ? ", ..." : ""}`
+          );
+        } else {
+          toast.success(`Downloaded ${files.length} file(s) as ZIP`);
+        }
       }
 
       // Close dialog after successful download

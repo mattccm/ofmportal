@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
           sessionExpiry: {
             gt: new Date(),
           },
+          archivedAt: null,
         },
       });
 

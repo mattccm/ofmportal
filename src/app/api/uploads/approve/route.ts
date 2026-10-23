@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -131,26 +131,33 @@ export async function POST(req: NextRequest) {
     });
 
     // Fire webhook for approved uploads
+    // after() keeps the serverless function alive until delivery finishes
+    const agencyId = session.user.agencyId;
+    const userId = session.user.id;
     if (approvedIds.length > 0) {
-      dispatchWebhookEvent(session.user.agencyId, "upload.approved", {
-        uploadIds: approvedIds,
-        requestId,
-        requestTitle: request.title,
-        creatorId: request.creatorId,
-        creatorName: request.creator.name,
-        approvedBy: session.user.id,
-      });
+      after(() =>
+        dispatchWebhookEvent(agencyId, "upload.approved", {
+          uploadIds: approvedIds,
+          requestId,
+          requestTitle: request.title,
+          creatorId: request.creatorId,
+          creatorName: request.creator.name,
+          approvedBy: userId,
+        })
+      );
     }
 
     if (requestApproved) {
       // Fire webhook for fully approved request
-      dispatchWebhookEvent(session.user.agencyId, "request.approved", {
-        requestId,
-        requestTitle: request.title,
-        creatorId: request.creatorId,
-        creatorName: request.creator.name,
-        approvedBy: session.user.id,
-      });
+      after(() =>
+        dispatchWebhookEvent(agencyId, "request.approved", {
+          requestId,
+          requestTitle: request.title,
+          creatorId: request.creatorId,
+          creatorName: request.creator.name,
+          approvedBy: userId,
+        })
+      );
 
       // Notify creator
       try {
@@ -180,17 +187,18 @@ export async function POST(req: NextRequest) {
 
     // Log activity
     if (approvedIds.length > 0) {
-      await db.activityLog.create({
-        data: {
+      // One row per upload so the activity feed can join on entityId
+      await db.activityLog.createMany({
+        data: approvedIds.map((id) => ({
           userId: session.user.id,
           action: "upload.approved",
           entityType: "Upload",
-          entityId: approvedIds.join(","),
+          entityId: id,
           metadata: {
             count: approvedIds.length,
             requestId,
           },
-        },
+        })),
       });
     }
 

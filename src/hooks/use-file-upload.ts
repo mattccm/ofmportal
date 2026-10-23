@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { MAX_FILE_SIZE, isAllowedFileType } from "@/lib/file-utils";
+import { MAX_FILE_SIZE, isAllowedFileType, resolveMimeType } from "@/lib/file-utils";
 import { extractVideoThumbnail, isVideoFile } from "@/lib/video-thumbnail";
 import {
   uploadFileMultipart,
@@ -173,8 +173,9 @@ export function useFileUpload({
 
   // Validate file before adding to queue
   const validateFile = useCallback((file: File): string | null => {
-    if (!isAllowedFileType(file.type)) {
-      return `File type "${file.type}" is not allowed`;
+    // Browsers report empty/alias types for some valid media (HEIC, MKV, WAV)
+    if (!isAllowedFileType(resolveMimeType(file.name, file.type))) {
+      return `File type "${file.type || file.name.split(".").pop() || "unknown"}" is not allowed`;
     }
     if (file.size > MAX_FILE_SIZE) {
       return `File size exceeds 5GB limit`;
@@ -418,7 +419,13 @@ export function useFileUpload({
               : f
           )
         );
-        return uploadFileLocal(queuedFile);
+        // Await so a local failure falls through to the error state below
+        try {
+          await uploadFileLocal(queuedFile);
+          return;
+        } catch (localError) {
+          error = localError;
+        }
       }
 
       const errorMessage = error instanceof Error ? error.message : "Upload failed";
@@ -451,6 +458,9 @@ export function useFileUpload({
       return uploadFileMultipartFlow(queuedFile);
     }
 
+    // Same resolution as validateFile; the PUT Content-Type must match what was signed
+    const fileType = resolveMimeType(queuedFile.file.name, queuedFile.file.type);
+
     try {
       // Get presigned URL
       const presignResponse = await fetch("/api/uploads/presign", {
@@ -463,17 +473,21 @@ export function useFileUpload({
         body: JSON.stringify({
           requestId,
           fileName: queuedFile.file.name,
-          fileType: queuedFile.file.type,
+          fileType,
           fileSize: queuedFile.file.size,
           fieldId: queuedFile.fieldId,
         }),
       });
 
       if (!presignResponse.ok) {
-        const error = await presignResponse.json();
-        // If presign fails (e.g., S3/R2 not configured), try local upload
-        console.warn("Presign failed, attempting local upload:", error.error);
-        return uploadFileLocal(queuedFile);
+        const error = await presignResponse.json().catch(() => ({}));
+        // 409 means storage isn't configured (local dev): use the local
+        // endpoint. Awaited so a local failure is handled by the catch below.
+        if (presignResponse.status === 409) {
+          console.warn("Presign unavailable, using local upload:", error.error);
+          return await uploadFileLocal(queuedFile);
+        }
+        throw new Error(error.error || "Failed to get upload URL");
       }
 
       const { uploadUrl, uploadId, storageKey } = await presignResponse.json();
@@ -533,7 +547,7 @@ export function useFileUpload({
         xhr.onabort = () => reject(new Error("Upload was cancelled"));
 
         xhr.open("PUT", uploadUrl);
-        xhr.setRequestHeader("Content-Type", queuedFile.file.type);
+        xhr.setRequestHeader("Content-Type", fileType);
         xhr.send(queuedFile.file);
       });
 
@@ -582,31 +596,13 @@ export function useFileUpload({
         setQueue((prev) =>
           prev.map((f) =>
             f.id === queuedFile.id
-              ? { ...f, status: "cancelled" as UploadStatus, xhr: undefined }
+              ? f.status === "paused"
+                ? { ...f, xhr: undefined }
+                : { ...f, status: "cancelled" as UploadStatus, xhr: undefined }
               : f
           )
         );
         return;
-      }
-
-      // If it's a network error during S3 upload, try local fallback
-      if (errorMessage.includes("Network error") || errorMessage.includes("Upload failed with status")) {
-        console.warn("S3 upload failed, attempting local fallback:", errorMessage);
-        try {
-          // Reset progress for local upload attempt
-          setQueue((prev) =>
-            prev.map((f) =>
-              f.id === queuedFile.id
-                ? { ...f, progress: 0, status: "pending" as UploadStatus, xhr: undefined }
-                : f
-            )
-          );
-          await uploadFileLocal(queuedFile);
-          return;
-        } catch (localError) {
-          const localErrorMessage = localError instanceof Error ? localError.message : "Local upload failed";
-          console.error("Local upload also failed:", localErrorMessage);
-        }
       }
 
       // Handle error with retry logic
@@ -644,7 +640,7 @@ export function useFileUpload({
     for (const file of filesToProcess) {
       activeUploadsRef.current.add(file.id);
 
-      uploadFile(file).finally(() => {
+      uploadFile(file).catch(() => {}).finally(() => {
         activeUploadsRef.current.delete(file.id);
 
         // Check if all uploads are complete

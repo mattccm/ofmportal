@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
           sessionToken: creatorToken,
           inviteStatus: "ACCEPTED",
           sessionExpiry: { gt: new Date() },
+          archivedAt: null,
         },
       });
 
@@ -530,6 +531,7 @@ export async function GET(req: NextRequest) {
           sessionToken: creatorToken,
           inviteStatus: "ACCEPTED",
           sessionExpiry: { gt: new Date() },
+          archivedAt: null,
         },
       });
 

@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
             action === "approve"
               ? `Your upload "${upload.originalName}" has been approved.`
               : `Your upload "${upload.originalName}" needs revision: ${notes || "No details provided"}`,
-          link: `/portal/requests/${upload.requestId}`,
+          link: `/dashboard/requests/${upload.requestId}`,
         },
       });
     }
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
 
       // Send rejection notification
       try {
-        const portalLink = `${process.env.NEXTAUTH_URL}/portal/requests/${upload.requestId}`;
+        const portalLink = `${process.env.APP_URL}/creator/requests/${upload.requestId}`;
 
         await sendRevisionRequestEmail({
           to: upload.creator.email,

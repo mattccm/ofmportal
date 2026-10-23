@@ -120,12 +120,21 @@ export function BulkStatusUpdater({
     async function fetchRequests() {
       setIsLoading(true);
       try {
-        const response = await fetch("/api/requests");
-        if (response.ok) {
+        // /api/requests is paginated ({ data, pagination }, max 100 per page),
+        // so walk every page to list all requests
+        const all: Request[] = [];
+        let page = 1;
+        for (;;) {
+          const response = await fetch(`/api/requests?limit=100&page=${page}`);
+          if (!response.ok) break;
           const data = await response.json();
-          // Handle both array response and object with requests property
-          setRequests(Array.isArray(data) ? data : data.requests || []);
+          // Handle both array response and paginated object
+          const pageItems = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : data.requests ?? [];
+          all.push(...pageItems);
+          if (Array.isArray(data) || !data?.pagination?.hasNextPage) break;
+          page++;
         }
+        setRequests(all);
       } catch (error) {
         console.error("Failed to fetch requests:", error);
         toast.error("Failed to load requests");

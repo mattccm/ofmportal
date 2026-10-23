@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
-import { fileExists } from "@/lib/storage";
+import { createHash } from "crypto";
+import { fileExists, getFileMetadata, getObjectBytes } from "@/lib/storage";
+import { after } from "next/server";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
 import type { Upload, ContentRequest, Creator } from "@prisma/client";
 
@@ -42,6 +44,57 @@ export function getRequiredFileFieldIds(fields: unknown): string[] {
   const requiredFileFields = fileFields.filter((f) => f.required === true);
   const slots = requiredFileFields.length > 0 ? requiredFileFields : fileFields;
   return slots.map((f) => f.id);
+}
+
+// Content-hash scheme shared with the browser duplicate check. Files up to
+// FULL_HASH_MAX_BYTES are hashed whole; larger files hash the first and last
+// EDGE_HASH_BYTES followed by the decimal file size as UTF-8, i.e.
+// SHA-256(first 8MB || last 8MB || String(size)), hex encoded.
+export const FULL_HASH_MAX_BYTES = 100 * 1024 * 1024; // 100MB
+export const EDGE_HASH_BYTES = 8 * 1024 * 1024; // 8MB
+
+async function computeStoredFileHash(key: string, size: number): Promise<string> {
+  const hash = createHash("sha256");
+  if (size <= FULL_HASH_MAX_BYTES) {
+    hash.update(await getObjectBytes(key));
+  } else {
+    hash.update(await getObjectBytes(key, { start: 0, end: EDGE_HASH_BYTES - 1 }));
+    hash.update(await getObjectBytes(key, { start: size - EDGE_HASH_BYTES, end: size - 1 }));
+    hash.update(String(size));
+  }
+  return hash.digest("hex");
+}
+
+/**
+ * Best-effort: hash the stored object and record a ContentFingerprint so
+ * later duplicate checks can match against this upload. Never throws.
+ */
+async function storeContentFingerprint(upload: UploadWithRequest): Promise<void> {
+  try {
+    const metadata = await getFileMetadata(upload.storageKey);
+    const size = metadata?.size || Number(upload.fileSize);
+    if (!size) return;
+
+    const fileHash = await computeStoredFileHash(upload.storageKey, size);
+
+    await db.contentFingerprint.upsert({
+      where: { uploadId: upload.id },
+      create: {
+        uploadId: upload.id,
+        creatorId: upload.creatorId,
+        agencyId: upload.request.agencyId,
+        fileHash,
+        fileName: upload.originalName,
+        fileSize: BigInt(size),
+        mimeType: upload.fileType || "application/octet-stream",
+      },
+      // Server-computed hash is authoritative; keep any client-supplied
+      // perceptual hash / dimensions already stored
+      update: { fileHash },
+    });
+  } catch (error) {
+    console.error(`[UploadFinalize] Failed to store fingerprint for ${upload.id}:`, error);
+  }
 }
 
 // The API serializes fileSize (a BigInt column) down to a number.
@@ -114,55 +167,38 @@ export async function finalizeUpload(
 
   if (transitioned) {
     // Fire webhook events
-    dispatchWebhookEvent(upload.request.agencyId, "upload.completed", {
-      uploadId: updatedUpload.id,
-      fileName: updatedUpload.originalName,
-      fileSize: Number(updatedUpload.fileSize),
-      requestId: upload.requestId,
-      creatorId: upload.creatorId,
-      creatorName: upload.request.creator.name,
-    });
+    // after() keeps the serverless function alive until delivery finishes
+    after(() =>
+      dispatchWebhookEvent(upload.request.agencyId, "upload.completed", {
+        uploadId: updatedUpload.id,
+        fileName: updatedUpload.originalName,
+        fileSize: Number(updatedUpload.fileSize),
+        requestId: upload.requestId,
+        creatorId: upload.creatorId,
+        creatorName: upload.request.creator.name,
+      })
+    );
 
     // Also fire creator.uploaded
-    dispatchWebhookEvent(upload.request.agencyId, "creator.uploaded", {
-      creatorId: upload.creatorId,
-      creatorName: upload.request.creator.name,
-      uploadId: updatedUpload.id,
-      fileName: updatedUpload.originalName,
-      requestId: upload.requestId,
-    });
-
-    // Check if all uploads for this request are complete
-    // and update request status if needed
-    const pendingUploads = await db.upload.count({
-      where: {
+    after(() =>
+      dispatchWebhookEvent(upload.request.agencyId, "creator.uploaded", {
+        creatorId: upload.creatorId,
+        creatorName: upload.request.creator.name,
+        uploadId: updatedUpload.id,
+        fileName: updatedUpload.originalName,
         requestId: upload.requestId,
-        uploadStatus: { not: "COMPLETED" },
-      },
+      })
+    );
+
+    // Record a content fingerprint for duplicate detection (after the response)
+    after(() => storeContentFingerprint(upload));
+
+    // This upload just reached COMPLETED, so the creator has started submitting.
+    // Roll the request forward from PENDING (idempotent via the where clause).
+    await db.contentRequest.updateMany({
+      where: { id: upload.requestId, status: "PENDING" },
+      data: { status: "IN_PROGRESS" },
     });
-
-    if (pendingUploads === 0) {
-      // Check total uploads for this request
-      const totalUploads = await db.upload.count({
-        where: {
-          requestId: upload.requestId,
-          uploadStatus: "COMPLETED",
-        },
-      });
-
-      if (totalUploads > 0) {
-        // Update request status to IN_PROGRESS if it was PENDING
-        await db.contentRequest.updateMany({
-          where: {
-            id: upload.requestId,
-            status: "PENDING",
-          },
-          data: {
-            status: "IN_PROGRESS",
-          },
-        });
-      }
-    }
   }
 
   return {

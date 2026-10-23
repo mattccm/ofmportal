@@ -443,3 +443,60 @@ export function generateVoiceNoteKey(
 ): string {
   return `voice-notes/${sessionId}/${noteId}`;
 }
+
+/**
+ * Best-effort delete of several storage objects. Dedupes the keys, ignores
+ * empty ones and never throws: failures are logged and returned so callers
+ * can run this after the DB delete has already committed.
+ */
+export async function deleteStorageObjects(
+  keys: Array<string | null | undefined>
+): Promise<{ deleted: string[]; failed: string[] }> {
+  const unique = Array.from(new Set(keys.filter((k): k is string => Boolean(k))));
+  if (unique.length === 0 || useLocalStorage) {
+    return { deleted: [], failed: [] };
+  }
+
+  const results = await Promise.allSettled(unique.map((key) => deleteFile(key)));
+  const deleted: string[] = [];
+  const failed: string[] = [];
+  results.forEach((result, i) => {
+    if (result.status === "fulfilled") {
+      deleted.push(unique[i]);
+    } else {
+      failed.push(unique[i]);
+      console.error(`Failed to delete storage object ${unique[i]}:`, result.reason);
+    }
+  });
+  return { deleted, failed };
+}
+
+/**
+ * Read an object's bytes (optionally an inclusive byte range) from storage.
+ * Used server-side for content fingerprinting; keep reads small.
+ */
+export async function getObjectBytes(
+  key: string,
+  range?: { start: number; end: number }
+): Promise<Uint8Array> {
+  if (useLocalStorage) {
+    const { readFile } = await import("fs/promises");
+    const data = await readFile(path.join(LOCAL_UPLOAD_DIR, key));
+    const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    return range ? bytes.subarray(range.start, range.end + 1) : bytes;
+  }
+
+  const response = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      ...(range && { Range: `bytes=${range.start}-${range.end}` }),
+    })
+  );
+
+  if (!response.Body) {
+    throw new Error(`Storage returned no body for ${key}`);
+  }
+
+  return response.Body.transformToByteArray();
+}

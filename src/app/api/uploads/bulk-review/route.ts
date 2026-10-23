@@ -13,7 +13,7 @@ import {
   createUndoWindow,
   DEFAULT_REJECT_TEMPLATES,
 } from "@/lib/bulk-operations";
-import { deleteFile } from "@/lib/storage";
+import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 import { broadcastAgencyNotification, broadcastRequestUpdate } from "@/lib/realtime-broadcast";
 
 // Enhanced schema supporting both simple and advanced bulk review
@@ -104,26 +104,22 @@ export async function POST(req: NextRequest) {
 
     // Handle delete action separately
     if (action === "delete") {
-      // Delete files from storage
-      const storageErrors: string[] = [];
-      for (const upload of uploads) {
-        try {
-          await deleteFile(upload.storageKey);
-          if (upload.thumbnailKey) {
-            await deleteFile(upload.thumbnailKey);
-          }
-        } catch (storageError) {
-          console.error(`Failed to delete file from storage: ${upload.storageKey}`, storageError);
-          storageErrors.push(upload.originalName);
-        }
-      }
-
       // Delete from database
       await db.upload.deleteMany({
         where: {
           id: { in: uploads.map((u) => u.id) },
         },
       });
+
+      // Delete files from storage (best-effort), skipping objects that a
+      // media-library item imported from these uploads still points at
+      const { failed } = await deleteUnreferencedStorageObjects(
+        uploads.flatMap((u) => [u.storageKey, u.thumbnailKey])
+      );
+      const failedKeys = new Set(failed);
+      const storageErrors = uploads
+        .filter((u) => failedKeys.has(u.storageKey))
+        .map((u) => u.originalName);
 
       // Log activity
       await db.activityLog.create({
@@ -280,7 +276,7 @@ export async function POST(req: NextRequest) {
                 action === "approve"
                   ? `Your uploads for "${request.title}" have been approved.`
                   : `Your uploads for "${request.title}" need revision: ${notes || "See details"}`,
-              link: `/portal/requests/${request.id}`,
+              link: `/dashboard/requests/${request.id}`,
             },
           })
           .then(() => undefined)
@@ -324,7 +320,7 @@ export async function POST(req: NextRequest) {
           );
         }
       } else {
-        const portalLink = `${process.env.NEXTAUTH_URL}/portal/requests/${request.id}`;
+        const portalLink = `${process.env.APP_URL}/creator/requests/${request.id}`;
 
         notificationPromises.push(
           sendRevisionRequestEmail({

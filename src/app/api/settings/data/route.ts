@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { RequestStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 
 // Types
 interface RetentionPolicy {
@@ -586,7 +587,18 @@ export async function DELETE(request: NextRequest) {
     // Delete in order to respect foreign key constraints
     // Start with dependent records first
 
-    // Delete uploads (this would also need to delete files from storage)
+    // Collect storage keys before deleting the uploads so the R2 objects can
+    // be removed once the rows are gone
+    const uploadsToRemove = await db.upload.findMany({
+      where: {
+        request: {
+          agencyId,
+        },
+      },
+      select: { storageKey: true, thumbnailKey: true },
+    });
+
+    // Delete uploads
     await db.upload.deleteMany({
       where: {
         request: {
@@ -664,6 +676,11 @@ export async function DELETE(request: NextRequest) {
         agencyId,
       },
     });
+
+    // Best-effort: remove R2 objects no other Upload/MediaItem still references
+    await deleteUnreferencedStorageObjects(
+      uploadsToRemove.flatMap((u) => [u.storageKey, u.thumbnailKey])
+    );
 
     // Log completion
     await db.activityLog.create({
