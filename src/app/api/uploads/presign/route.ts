@@ -12,7 +12,8 @@ import {
   useLocalStorage,
 } from "@/lib/storage";
 import { handleCreatorResponse } from "@/lib/auto-reminder-scheduler";
-import { CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
+import { checkCreatorUploadAllowed, findCreatorForUpload } from "@/lib/upload-auth";
+import { parseJsonBody } from "@/lib/api";
 
 const presignRequestSchema = z.object({
   requestId: z.string().min(1, "Request ID is required"),
@@ -45,8 +46,9 @@ export async function POST(req: NextRequest) {
     if (session?.user?.agencyId) {
       // Agency user
       agencyId = session.user.agencyId;
-      const body = await req.json();
-      const validatedData = presignRequestSchema.parse(body);
+      const body = await parseJsonBody(req);
+      if (!body.ok) return body.response;
+      const validatedData = presignRequestSchema.parse(body.data);
 
       // Get request to verify it belongs to agency
       const contentRequest = await db.contentRequest.findFirst({
@@ -129,16 +131,7 @@ export async function POST(req: NextRequest) {
       });
     } else if (creatorToken) {
       // Creator via portal - verify session token
-      const creator = await db.creator.findFirst({
-        where: {
-          sessionToken: creatorToken,
-          inviteStatus: "ACCEPTED",
-          archivedAt: null,
-          sessionExpiry: {
-            gt: new Date(),
-          },
-        },
-      });
+      const creator = await findCreatorForUpload(creatorToken);
 
       if (!creator) {
         return NextResponse.json(
@@ -150,15 +143,15 @@ export async function POST(req: NextRequest) {
       agencyId = creator.agencyId;
       creatorId = creator.id;
 
-      const body = await req.json();
-      const validatedData = presignRequestSchema.parse(body);
+      const body = await parseJsonBody(req);
+      if (!body.ok) return body.response;
+      const validatedData = presignRequestSchema.parse(body.data);
 
-      // Verify request belongs to this creator (drafts/closed requests are hidden)
+      // Verify request belongs to this creator
       const contentRequest = await db.contentRequest.findFirst({
         where: {
           id: validatedData.requestId,
           creatorId: creator.id,
-          status: { notIn: CREATOR_HIDDEN_STATUSES },
         },
       });
 
@@ -167,6 +160,16 @@ export async function POST(req: NextRequest) {
           { error: "Request not found" },
           { status: 404 }
         );
+      }
+
+      // Closed requests (draft/approved/cancelled/archived) and archived
+      // creators can't take new uploads.
+      const closed = checkCreatorUploadAllowed({
+        creatorArchivedAt: creator.archivedAt,
+        requestStatus: contentRequest.status,
+      });
+      if (closed) {
+        return closed;
       }
 
       // Validate file type, extension, and size

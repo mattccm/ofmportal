@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { parseJsonBody } from "@/lib/api";
 import { completeMultipartUpload, fileExists } from "@/lib/storage";
 import { authorizeUploadRecord } from "@/lib/upload-auth";
 import { finalizeUpload } from "@/lib/upload-finalize";
@@ -10,17 +11,40 @@ const completeSchema = z.object({
   parts: z
     .array(
       z.object({
-        PartNumber: z.number().int().min(1).max(10000),
+        PartNumber: z
+          .number()
+          .int("Part numbers must be whole numbers")
+          .min(1, "Part numbers must be between 1 and 10000")
+          .max(10000, "Part numbers must be between 1 and 10000"),
         ETag: z.string().min(1),
       })
     )
     .min(1, "At least one part is required"),
 });
 
+// S3/R2 error names meaning this multipart upload can never be completed as
+// sent: the session is gone, or the part list doesn't match what was staged.
+// Reported with a stable `code` so the client knows to drop its resume state
+// and start over instead of retrying.
+const MULTIPART_GONE_ERRORS = new Set(["NoSuchUpload"]);
+const MULTIPART_INVALID_PARTS_ERRORS = new Set([
+  "InvalidPart",
+  "InvalidPartOrder",
+  "EntityTooSmall",
+]);
+
+function storageErrorName(err: unknown): string | undefined {
+  if (!err || typeof err !== "object") return undefined;
+  const e = err as { name?: unknown; Code?: unknown };
+  if (typeof e.Code === "string") return e.Code;
+  return typeof e.name === "string" ? e.name : undefined;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const data = completeSchema.parse(body);
+    const body = await parseJsonBody(req);
+    if (!body.ok) return body.response;
+    const data = completeSchema.parse(body.data);
 
     // Authorize against the DB record (storage key comes from the record).
     const auth = await authorizeUploadRecord(req, data.uploadId);
@@ -42,15 +66,41 @@ export async function POST(req: NextRequest) {
         // The first call may have assembled the object but failed before the
         // DB update; treat it as done if the object is there.
         if (!(await fileExists(auth.upload.storageKey))) {
+          const name = storageErrorName(err);
+          if (name && MULTIPART_GONE_ERRORS.has(name)) {
+            console.error(
+              `[MultipartComplete] Multipart upload gone for ${auth.upload.id}:`,
+              err
+            );
+            return NextResponse.json(
+              {
+                error: "This upload expired before it finished. Please upload the file again.",
+                code: "MULTIPART_UPLOAD_GONE",
+              },
+              { status: 404 }
+            );
+          }
+          if (name && MULTIPART_INVALID_PARTS_ERRORS.has(name)) {
+            console.error(
+              `[MultipartComplete] Invalid parts for ${auth.upload.id}:`,
+              err
+            );
+            return NextResponse.json(
+              {
+                error: "Some parts of this upload were invalid. Please upload the file again.",
+                code: "MULTIPART_PARTS_INVALID",
+              },
+              { status: 400 }
+            );
+          }
           throw err;
         }
       }
     }
 
-    // Run the SAME post-upload bookkeeping as the single-shot complete flow.
-    // The object is guaranteed to exist right after CompleteMultipartUpload,
-    // so skip the extra HEAD round-trip.
-    const result = await finalizeUpload(auth.upload, { verifyExists: false });
+    // Run the SAME post-upload bookkeeping as the single-shot complete flow,
+    // including the HEAD check of the assembled object's real size.
+    const result = await finalizeUpload(auth.upload);
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });

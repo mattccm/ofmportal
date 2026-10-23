@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import {
   generateStorageKey,
@@ -30,8 +31,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const parsed = initiateSchema.parse(body);
+    const body = await parseJsonBody(req);
+    if (!body.ok) return body.response;
+    const parsed = initiateSchema.parse(body.data);
     const data = { ...parsed, fileType: resolveMimeType(parsed.fileName, parsed.fileType) };
 
     // Auth + agency/creator scoping (same rules as the presign route)

@@ -8,6 +8,66 @@ import {
   MAX_FILE_SIZE,
 } from "@/lib/storage";
 import type { UploadWithRequest } from "@/lib/upload-finalize";
+import { CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
+import type { RequestStatus } from "@prisma/client";
+
+/**
+ * Request statuses that no longer accept creator uploads: everything a creator
+ * can't see (draft / cancelled / archived) plus requests that are already
+ * approved.
+ */
+export const UPLOAD_CLOSED_STATUSES: RequestStatus[] = [
+  ...CREATOR_HIDDEN_STATUSES,
+  "APPROVED",
+];
+
+/** Machine-readable code sent with the 409 so clients can tell it apart. */
+export const UPLOAD_CLOSED_CODE = "UPLOAD_CLOSED";
+
+export const UPLOAD_CLOSED_MESSAGE =
+  "This request is closed for uploads. Contact your manager if you need to add more.";
+
+const CREATOR_ARCHIVED_MESSAGE =
+  "Your account is no longer accepting uploads. Contact your manager if you need to add more.";
+
+/**
+ * Creator-side upload gate shared by the presign, local and multipart initiate
+ * routes. Returns a 409 response when the creator is archived or the request
+ * is closed for uploads, or null when the upload may proceed.
+ */
+export function checkCreatorUploadAllowed(input: {
+  creatorArchivedAt: Date | null;
+  requestStatus: RequestStatus;
+}): NextResponse | null {
+  if (input.creatorArchivedAt) {
+    return NextResponse.json(
+      { error: CREATOR_ARCHIVED_MESSAGE, code: UPLOAD_CLOSED_CODE },
+      { status: 409 }
+    );
+  }
+  if (UPLOAD_CLOSED_STATUSES.includes(input.requestStatus)) {
+    return NextResponse.json(
+      { error: UPLOAD_CLOSED_MESSAGE, code: UPLOAD_CLOSED_CODE },
+      { status: 409 }
+    );
+  }
+  return null;
+}
+
+/**
+ * Look up a creator by session token for an upload. Unlike session validation
+ * elsewhere this does NOT filter out archived creators, so the caller can tell
+ * an archived creator (409, readable message) apart from a bad session (401).
+ */
+export async function findCreatorForUpload(creatorToken: string) {
+  return db.creator.findFirst({
+    where: {
+      sessionToken: creatorToken,
+      inviteStatus: "ACCEPTED",
+      sessionExpiry: { gt: new Date() },
+    },
+  });
+}
 
 export interface UploadContext {
   agencyId: string;
@@ -56,14 +116,7 @@ export async function resolveUploadContext(
   }
 
   if (creatorToken) {
-    const creator = await db.creator.findFirst({
-      where: {
-        sessionToken: creatorToken,
-        inviteStatus: "ACCEPTED",
-        sessionExpiry: { gt: new Date() },
-        archivedAt: null,
-      },
-    });
+    const creator = await findCreatorForUpload(creatorToken);
 
     if (!creator) {
       return {
@@ -84,6 +137,15 @@ export async function resolveUploadContext(
         ok: false,
         response: NextResponse.json({ error: "Request not found" }, { status: 404 }),
       };
+    }
+
+    // Closed requests / archived creators can't take new uploads.
+    const closed = checkCreatorUploadAllowed({
+      creatorArchivedAt: creator.archivedAt,
+      requestStatus: contentRequest.status,
+    });
+    if (closed) {
+      return { ok: false, response: closed };
     }
 
     return {

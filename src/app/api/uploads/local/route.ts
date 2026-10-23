@@ -7,7 +7,7 @@ import { existsSync } from "fs";
 import path from "path";
 import { isAllowedFileType, isAllowedFileExtension, MAX_FILE_SIZE, useLocalStorage } from "@/lib/storage";
 import { resolveMimeType } from "@/lib/file-utils";
-import { CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
+import { checkCreatorUploadAllowed, findCreatorForUpload } from "@/lib/upload-auth";
 
 // Local file upload handler for development when S3/R2 is not configured
 // This endpoint receives files directly and stores them locally
@@ -34,21 +34,13 @@ export async function POST(req: NextRequest) {
 
     let agencyId: string;
     let creatorId: string | undefined;
+    let creatorArchivedAt: Date | null = null;
 
     if (session?.user?.agencyId) {
       agencyId = session.user.agencyId;
       // creatorId will be set from contentRequest below
     } else if (creatorToken) {
-      const creator = await db.creator.findFirst({
-        where: {
-          sessionToken: creatorToken,
-          inviteStatus: "ACCEPTED",
-          archivedAt: null,
-          sessionExpiry: {
-            gt: new Date(),
-          },
-        },
-      });
+      const creator = await findCreatorForUpload(creatorToken);
 
       if (!creator) {
         return NextResponse.json(
@@ -59,6 +51,7 @@ export async function POST(req: NextRequest) {
 
       agencyId = creator.agencyId;
       creatorId = creator.id;
+      creatorArchivedAt = creator.archivedAt;
     } else {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -112,7 +105,7 @@ export async function POST(req: NextRequest) {
         id: requestId,
         ...(session?.user?.agencyId
           ? { agencyId: session.user.agencyId }
-          : { creatorId, status: { notIn: CREATOR_HIDDEN_STATUSES } }),
+          : { creatorId }),
       },
     });
 
@@ -121,6 +114,17 @@ export async function POST(req: NextRequest) {
         { error: "Request not found" },
         { status: 404 }
       );
+    }
+
+    // Creators can't upload to closed requests or once archived
+    if (!session?.user?.agencyId) {
+      const closed = checkCreatorUploadAllowed({
+        creatorArchivedAt,
+        requestStatus: contentRequest.status,
+      });
+      if (closed) {
+        return closed;
+      }
     }
 
     // If agency user, get creatorId from the request

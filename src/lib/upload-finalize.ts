@@ -1,6 +1,12 @@
 import { db } from "@/lib/db";
 import { createHash } from "crypto";
-import { fileExists, getFileMetadata, getObjectBytes } from "@/lib/storage";
+import {
+  fileExists,
+  getFileMetadata,
+  getObjectBytes,
+  MAX_FILE_SIZE,
+  useLocalStorage,
+} from "@/lib/storage";
 import { after } from "next/server";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
 import type { Upload, ContentRequest, Creator } from "@prisma/client";
@@ -105,15 +111,41 @@ export type FinalizeResult =
   | { ok: false; status: number; error: string };
 
 /**
+ * Mark an upload FAILED after server-side verification rejected it. Never
+ * touches an upload that already reached COMPLETED (a retried finalize must
+ * not undo an earlier success).
+ */
+async function markUploadFailed(uploadId: string): Promise<void> {
+  await db.upload.updateMany({
+    where: { id: uploadId, uploadStatus: { not: "COMPLETED" } },
+    data: { uploadStatus: "FAILED" },
+  });
+}
+
+/**
+ * HEAD the stored object, retrying once after a short wait. Returns its real
+ * size, or null when the object isn't there.
+ */
+async function headStoredObject(key: string): Promise<number | null> {
+  let metadata = await getFileMetadata(key);
+  if (!metadata) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    metadata = await getFileMetadata(key);
+  }
+  return metadata ? metadata.size : null;
+}
+
+/**
  * Shared post-upload bookkeeping used by BOTH the single-shot presigned-PUT
  * complete flow and the multipart complete flow.
  *
  * The caller is responsible for authenticating the request and confirming the
  * upload record belongs to the caller. This function then:
- *   1. Verifies the object actually landed in storage (with a retry for R2
- *      eventual consistency). Skippable via `verifyExists: false` when the
- *      caller already knows the object exists (e.g. right after
- *      CompleteMultipartUpload).
+ *   1. Verifies the object actually landed in storage. On R2/S3 it HEADs the
+ *      object (with one retry) and checks its real size: a missing object or
+ *      one over MAX_FILE_SIZE marks the upload FAILED, and a size that differs
+ *      from the client's claim is corrected. In local-disk mode it only checks
+ *      the file exists, unless `verifyExists: false`.
  *   2. Transitions the Upload record to COMPLETED, idempotently.
  *   3. Fires the same webhooks and request-status roll-up as before.
  */
@@ -123,17 +155,41 @@ export async function finalizeUpload(
 ): Promise<FinalizeResult> {
   const { verifyExists = true } = options;
 
-  if (verifyExists) {
-    // Verify file exists in storage (with retry for eventual consistency)
-    let exists = await fileExists(upload.storageKey);
+  // Real object size from storage, when we could read it.
+  let actualSize: number | null = null;
 
-    // If not found, wait a moment and try again (R2 eventual consistency)
-    if (!exists) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      exists = await fileExists(upload.storageKey);
+  if (upload.uploadStatus === "COMPLETED") {
+    // A retried complete call after an earlier success: already verified, so
+    // skip the HEAD (a transient storage error mustn't report a failure).
+  } else if (!useLocalStorage) {
+    actualSize = await headStoredObject(upload.storageKey);
+
+    if (actualSize === null) {
+      console.error(
+        `[UploadFinalize] Stored object missing for upload ${upload.id} (${upload.storageKey}); marking FAILED`
+      );
+      await markUploadFailed(upload.id);
+      return {
+        ok: false,
+        status: 400,
+        error: "File not found in storage. Please retry the upload.",
+      };
     }
 
-    if (!exists) {
+    if (actualSize > MAX_FILE_SIZE) {
+      console.error(
+        `[UploadFinalize] Stored object for upload ${upload.id} is ${actualSize} bytes, over the ${MAX_FILE_SIZE} byte limit (client claimed ${upload.fileSize}); marking FAILED`
+      );
+      await markUploadFailed(upload.id);
+      return {
+        ok: false,
+        status: 400,
+        error: "File size exceeds 5GB limit",
+      };
+    }
+  } else if (verifyExists) {
+    // Local-disk mode (dev only): just confirm the file is there.
+    if (!(await fileExists(upload.storageKey))) {
       console.error(`[UploadFinalize] File verification failed for ${upload.storageKey}`);
       return {
         ok: false,
@@ -142,6 +198,12 @@ export async function finalizeUpload(
       };
     }
   }
+
+  // Persist the real size when it differs from what the client claimed.
+  const sizeCorrection =
+    actualSize !== null && BigInt(actualSize) !== upload.fileSize
+      ? { fileSize: BigInt(actualSize) }
+      : {};
 
   // Update upload status (only if not already completed, so retries are idempotent)
   const transition = await db.upload.updateMany({
@@ -153,6 +215,7 @@ export async function finalizeUpload(
       uploadStatus: "COMPLETED",
       uploadProgress: 100,
       uploadedAt: new Date(),
+      ...sizeCorrection,
     },
   });
   const transitioned = transition.count > 0;

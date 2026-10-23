@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { abortMultipartUpload } from "@/lib/storage";
 import { authorizeUploadRecord } from "@/lib/upload-auth";
@@ -11,8 +12,9 @@ const abortSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const data = abortSchema.parse(body);
+    const body = await parseJsonBody(req);
+    if (!body.ok) return body.response;
+    const data = abortSchema.parse(body.data);
 
     const auth = await authorizeUploadRecord(req, data.uploadId);
     if (!auth.ok) {
@@ -27,9 +29,10 @@ export async function POST(req: NextRequest) {
       console.error("[MultipartAbort] Failed to abort on storage backend:", err);
     }
 
-    // Clean up the PENDING placeholder record (never a completed upload).
+    // Clean up the placeholder record: PENDING, or FAILED server-side
+    // verification. Never a completed upload.
     await db.upload.deleteMany({
-      where: { id: data.uploadId, uploadStatus: "PENDING" },
+      where: { id: data.uploadId, uploadStatus: { in: ["PENDING", "FAILED"] } },
     });
 
     return NextResponse.json({ success: true });

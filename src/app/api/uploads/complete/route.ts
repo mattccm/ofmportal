@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { finalizeUpload } from "@/lib/upload-finalize";
+import { parseJsonBody } from "@/lib/api";
 
 const completeUploadSchema = z.object({
   uploadId: z.string().min(1, "Upload ID is required"),
@@ -16,8 +17,9 @@ export async function POST(req: NextRequest) {
 
     console.log("[UploadComplete] Request received - session:", !!session, "creatorToken:", !!creatorToken);
 
-    const body = await req.json();
-    const { uploadId } = completeUploadSchema.parse(body);
+    const body = await parseJsonBody(req);
+    if (!body.ok) return body.response;
+    const { uploadId } = completeUploadSchema.parse(body.data);
     console.log("[UploadComplete] Upload ID:", uploadId);
 
     // Get the upload record

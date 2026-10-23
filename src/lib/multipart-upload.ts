@@ -19,6 +19,16 @@ const MAX_PARTS = 10000;
 const DEFAULT_CONCURRENCY = 4;
 const SIGN_BATCH_SIZE = 20;
 const MAX_PART_ATTEMPTS = 4;
+// The complete call: 1 attempt + up to 3 retries on network errors / 5xx / 429.
+const MAX_COMPLETE_ATTEMPTS = 4;
+const COMPLETE_BACKOFF_BASE_MS = 1000;
+const COMPLETE_BACKOFF_MAX_MS = 15000;
+
+// Error codes the complete route sends when this multipart upload can never be
+// completed as sent, so the resume state must be dropped.
+const MULTIPART_DEAD_CODES = new Set(["MULTIPART_UPLOAD_GONE", "MULTIPART_PARTS_INVALID"]);
+// Sent with a 409 when the request is closed for uploads (not a storage issue).
+const UPLOAD_CLOSED_CODE = "UPLOAD_CLOSED";
 
 export interface MultipartProgress {
   bytesUploaded: number;
@@ -305,7 +315,12 @@ async function uploadFileMultipartAttempt(
       const err = await res.json().catch(() => ({}));
       const error = new Error(err.error || "Failed to initiate multipart upload");
       // Signal to the caller whether falling back to another path makes sense.
-      (error as Error & { status?: number }).status = res.status;
+      // A 409 means "storage not configured, use the local endpoint", EXCEPT
+      // when the request is closed for uploads: falling back would only hide
+      // the creator-readable message, so don't expose that status.
+      if (err.code !== UPLOAD_CLOSED_CODE) {
+        (error as Error & { status?: number }).status = res.status;
+      }
       throw error;
     }
 
@@ -534,24 +549,95 @@ async function uploadFileMultipartAttempt(
     (a, b) => a.PartNumber - b.PartNumber
   );
 
-  const completeRes = await fetch("/api/uploads/multipart/complete", {
-    method: "POST",
-    headers: jsonHeaders(headers),
+  await completeWithRetry({
+    headers,
     body: JSON.stringify({ uploadId: dbUploadId, multipartUploadId, parts }),
+    onGone: () => idbDelete(identity),
+    resumed,
   });
-
-  if (!completeRes.ok) {
-    const err = await completeRes.json().catch(() => ({}));
-    // Drop the resume state so a retry initiates fresh instead of looping on a
-    // multipart session that may no longer exist (e.g. NoSuchUpload).
-    await idbDelete(identity);
-    throw new Error(err.details || err.error || "Failed to complete upload");
-  }
 
   // Success — drop the resume state.
   await idbDelete(identity);
 
   return { dbUploadId, storageKey };
+}
+
+/**
+ * POST the multipart complete call, retrying network errors, 5xx and 429 with
+ * exponential backoff + jitter. Other 4xx responses are final. The server
+ * route is idempotent, so a retry after a lost response is safe.
+ *
+ * Resume state is only dropped (via `onGone`) when the server says the
+ * multipart upload is gone or its parts are invalid; on any other failure it
+ * is kept so the next attempt with the same file resumes straight to complete
+ * instead of re-uploading every part.
+ *
+ * Deliberately not tied to the AbortSignal: once every part is uploaded,
+ * pausing shouldn't strand an almost-finished upload.
+ */
+async function completeWithRetry(input: {
+  headers: Record<string, string>;
+  body: string;
+  onGone: () => Promise<void>;
+  resumed: boolean;
+}): Promise<void> {
+  let lastError: Error = new Error("Failed to complete upload");
+
+  for (let attempt = 1; attempt <= MAX_COMPLETE_ATTEMPTS; attempt++) {
+    let res: Response | null = null;
+    try {
+      res = await fetch("/api/uploads/multipart/complete", {
+        method: "POST",
+        headers: jsonHeaders(input.headers),
+        body: input.body,
+      });
+    } catch (error) {
+      // Network error (offline, connection reset): retryable.
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+
+    if (res?.ok) return;
+
+    let retryAfterMs = 0;
+    if (res) {
+      const err = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        details?: string;
+        code?: string;
+      };
+      lastError = new Error(err.error || err.details || "Failed to complete upload");
+      (lastError as Error & { status?: number }).status = res.status;
+
+      // 404 = the Upload record or the multipart session no longer exists.
+      const gone =
+        res.status === 404 || (err.code !== undefined && MULTIPART_DEAD_CODES.has(err.code));
+      if (gone) {
+        await input.onGone();
+        // A resumed session that died server-side: let the caller start fresh.
+        (lastError as Error & { staleSession?: boolean }).staleSession = input.resumed;
+        throw lastError;
+      }
+
+      const retryable = res.status >= 500 || res.status === 429;
+      if (!retryable) throw lastError;
+
+      const retryAfter = Number(res.headers.get("Retry-After"));
+      if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        retryAfterMs = Math.min(retryAfter * 1000, COMPLETE_BACKOFF_MAX_MS);
+      }
+    }
+
+    if (attempt < MAX_COMPLETE_ATTEMPTS) {
+      const backoff = Math.min(
+        COMPLETE_BACKOFF_BASE_MS * 2 ** (attempt - 1),
+        COMPLETE_BACKOFF_MAX_MS
+      );
+      const jitter = Math.random() * backoff * 0.5;
+      await sleep(Math.max(retryAfterMs, backoff + jitter));
+    }
+  }
+
+  throw lastError;
 }
 
 /**
