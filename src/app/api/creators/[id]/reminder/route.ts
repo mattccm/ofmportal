@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendReminderEmail } from "@/lib/email";
 import { format, differenceInDays } from "date-fns";
+import { getAppUrl } from "@/lib/app-url";
 
 /**
  * POST /api/creators/[id]/reminder
@@ -63,13 +64,13 @@ export async function POST(
       });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+    const appUrl = getAppUrl();
     const today = new Date();
     let sent = 0;
     let failed = 0;
 
     for (const request of activeRequests) {
-      const portalLink = `${appUrl}/portal/${creator.id}/requests/${request.id}`;
+      const portalLink = `${appUrl}/creator/requests/${request.id}`;
       const dueDate = request.dueDate
         ? format(request.dueDate, "MMMM d, yyyy")
         : "No due date";

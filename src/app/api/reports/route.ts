@@ -151,27 +151,32 @@ async function generateCreatorPerformanceReport(
     };
   });
 
-  // Calculate summary metrics
+  // Calculate summary metrics (averages only over creators with uploads in range)
+  const active = reportData.filter((c) => c.totalUploads > 0);
   const summary = {
     totalCreators: reportData.length,
     totalUploads: reportData.reduce((acc, c) => acc + c.totalUploads, 0),
     avgApprovalRate:
-      reportData.length > 0
+      active.length > 0
         ? Math.round(
-            (reportData.reduce((acc, c) => acc + c.approvalRate, 0) / reportData.length) * 10
+            (active.reduce((acc, c) => acc + c.approvalRate, 0) / active.length) * 10
           ) / 10
         : 0,
     avgResponseHours:
-      reportData.length > 0
+      active.length > 0
         ? Math.round(
-            (reportData.reduce((acc, c) => acc + c.avgResponseHours, 0) / reportData.length) * 10
+            (active.reduce((acc, c) => acc + c.avgResponseHours, 0) / active.length) * 10
           ) / 10
         : 0,
-    topPerformer: reportData.sort((a, b) => b.approvalRate - a.approvalRate)[0]?.name || "N/A",
+    topPerformer: [...active].sort((a, b) => b.approvalRate - a.approvalRate)[0]?.name || "N/A",
   };
 
   return { data: reportData, summary };
 }
+
+// A request is only delivered once approved/archived; reviewedAt is also set on NEEDS_REVISION
+const isCompleted = (r: { status: string; reviewedAt: Date | null }) =>
+  !!r.reviewedAt && (r.status === "APPROVED" || r.status === "ARCHIVED");
 
 // Content Delivery Report
 async function generateContentDeliveryReport(
@@ -199,13 +204,14 @@ async function generateContentDeliveryReport(
   });
 
   const reportData = requests.map((request) => {
-    const deliveryHours = request.reviewedAt
-      ? differenceInHours(request.reviewedAt, request.createdAt)
+    const completedAt = isCompleted(request) ? request.reviewedAt : null;
+    const deliveryHours = completedAt
+      ? differenceInHours(completedAt, request.createdAt)
       : null;
 
     const isOnTime = request.dueDate
-      ? request.reviewedAt
-        ? request.reviewedAt <= request.dueDate
+      ? completedAt
+        ? completedAt <= request.dueDate
         : new Date() <= request.dueDate
       : null;
 
@@ -217,7 +223,7 @@ async function generateContentDeliveryReport(
       urgency: request.urgency,
       createdAt: format(request.createdAt, "yyyy-MM-dd"),
       dueDate: request.dueDate ? format(request.dueDate, "yyyy-MM-dd") : "N/A",
-      completedAt: request.reviewedAt ? format(request.reviewedAt, "yyyy-MM-dd") : "Pending",
+      completedAt: completedAt ? format(completedAt, "yyyy-MM-dd") : "Pending",
       deliveryHours: deliveryHours ?? "N/A",
       isOnTime: isOnTime === null ? "N/A" : isOnTime ? "Yes" : "No",
       uploadCount: request.uploads.length,
@@ -225,7 +231,7 @@ async function generateContentDeliveryReport(
   });
 
   // Calculate delivery metrics
-  const completedRequests = requests.filter((r) => r.reviewedAt);
+  const completedRequests = requests.filter(isCompleted);
   const onTimeDeliveries = completedRequests.filter(
     (r) => r.dueDate && r.reviewedAt && r.reviewedAt <= r.dueDate
   );
@@ -294,7 +300,7 @@ async function generateRequestSummaryReport(
   );
 
   // Group by time period
-  const formatKey = groupBy === "day" ? "yyyy-MM-dd" : groupBy === "week" ? "yyyy-'W'ww" : "yyyy-MM";
+  const formatKey = groupBy === "day" ? "yyyy-MM-dd" : groupBy === "week" ? "RRRR-'W'II" : "yyyy-MM";
   const byPeriod = requests.reduce(
     (acc, r) => {
       const key = format(r.createdAt, formatKey);

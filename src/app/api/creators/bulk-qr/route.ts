@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import QRCode from "qrcode";
+import { getAppUrl } from "@/lib/app-url";
 
 /**
  * GET /api/creators/bulk-qr
@@ -40,11 +41,11 @@ export async function GET() {
       });
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const baseUrl = getAppUrl();
 
     const creatorsWithQr = await Promise.all(
       creators.map(async (creator) => {
-        const inviteUrl = `${baseUrl}/portal/setup?token=${creator.inviteToken}`;
+        const inviteUrl = `${baseUrl}/portal/setup/${creator.inviteToken}`;
         const qrDataUrl = await QRCode.toDataURL(inviteUrl, {
           width: 300,
           margin: 2,

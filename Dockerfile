@@ -6,7 +6,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Install dependencies
 FROM base AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json prisma.config.ts ./
+COPY prisma ./prisma
 RUN npm ci
 
 # Build the app (prisma generate + next build -> .next/standalone)

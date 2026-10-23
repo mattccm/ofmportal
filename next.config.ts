@@ -3,8 +3,9 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // Self-contained server build for containerized (Railway/Docker) deploys.
-  // Skipped on Vercel, which manages its own build output.
-  output: process.env.VERCEL ? undefined : "standalone",
+  // Skipped on Vercel, which manages its own build output, and on Windows,
+  // where traced chunk names like "node:inspector" are invalid file names.
+  output: process.env.VERCEL || process.platform === "win32" ? undefined : "standalone",
   // Pin the tracing root to this project (a stray parent lockfile can otherwise
   // make Next misdetect the workspace root and nest the standalone output).
   outputFileTracingRoot: __dirname,
@@ -13,6 +14,15 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "10mb",
     },
+  },
+  // Older notifications/emails linked creators to /portal and /portal/requests/<id>,
+  // which have no pages; send them to the creator area instead.
+  async redirects() {
+    return [
+      { source: "/portal", destination: "/creator/dashboard", permanent: false },
+      { source: "/portal/requests", destination: "/creator/requests", permanent: false },
+      { source: "/portal/requests/:id", destination: "/creator/requests/:id", permanent: false },
+    ];
   },
   async headers() {
     return [

@@ -1283,14 +1283,15 @@ html.reduce-motion *::after {
   :root {
     --border: oklch(0.3 0 0);
     --input: oklch(0.3 0 0);
-    --ring: oklch(0.3 0.3 270);
-    --primary: oklch(0.45 0.3 270);
+    --ring: oklch(0.32 0.08 158);
+    --primary: oklch(0.38 0.085 158);
   }
 
   .dark {
     --border: oklch(0.8 0 0);
     --input: oklch(0.8 0 0);
-    --ring: oklch(0.8 0.2 270);
+    --ring: oklch(0.82 0.1 158);
+    --primary: oklch(0.78 0.11 158);
   }
 }
 

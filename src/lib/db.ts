@@ -40,10 +40,14 @@ function parseConnectionUrl(url: string) {
 function createPrismaClient(): PrismaClient {
   // Check if DATABASE_URL is set
   if (!process.env.DATABASE_URL) {
-    console.warn("DATABASE_URL is not set. Using mock client for build.");
-    // Return a minimal client for build time - real queries will fail
-    return new PrismaClient({
-      log: ["error"],
+    console.warn("DATABASE_URL is not set. DB access will throw until it is configured.");
+    // Prisma 7 can't construct a client without an adapter, so return a lazy
+    // proxy that only throws when the client is actually used (e.g. at build time)
+    return new Proxy({} as PrismaClient, {
+      get(_target, prop) {
+        if (prop === "then") return undefined; // keep it from looking like a thenable
+        throw new Error(`DATABASE_URL is not set; cannot access prisma.${String(prop)}`);
+      },
     });
   }
 
@@ -82,4 +86,5 @@ export const prisma = db;
 
 // Reuse a single client across the serverless instance's lifetime (and dev HMR)
 // so we never accumulate connection pools from repeated module evaluation.
-globalForPrisma.prisma = db;
+// Don't cache the no-DATABASE_URL proxy so a later evaluation can pick up a real client.
+if (process.env.DATABASE_URL) globalForPrisma.prisma = db;

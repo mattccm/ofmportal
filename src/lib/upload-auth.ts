@@ -61,6 +61,7 @@ export async function resolveUploadContext(
         sessionToken: creatorToken,
         inviteStatus: "ACCEPTED",
         sessionExpiry: { gt: new Date() },
+        archivedAt: null,
       },
     });
 
@@ -170,6 +171,7 @@ export async function authorizeUploadRecord(
         sessionToken: creatorToken,
         inviteStatus: "ACCEPTED",
         sessionExpiry: { gt: new Date() },
+        archivedAt: null,
       },
     });
 

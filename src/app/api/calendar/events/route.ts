@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { rescheduleReminders } from "@/lib/auto-reminder-scheduler";
 
 // VALIDATION SCHEMAS
 
@@ -327,6 +328,15 @@ export async function PATCH(req: NextRequest) {
           where: { id },
           data: { dueDate: newDateObj },
         });
+
+        // Move auto-reminders to match the new due date (same as PATCH /api/requests/[id])
+        if (["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(request.status)) {
+          try {
+            await rescheduleReminders(id);
+          } catch (e) {
+            console.error("Failed to reschedule reminders:", e);
+          }
+        }
 
         // Log activity
         await db.activityLog.create({

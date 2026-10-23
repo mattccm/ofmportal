@@ -18,45 +18,39 @@ export async function POST(request: NextRequest) {
 
     // Either mark specific comments or all comments on a request. We also collect
     // the affected requestIds so any related unread notifications can be cleared.
-    let commentsToMark: { id: string; readBy: unknown; userId: string; requestId: string | null }[] = [];
+    let commentsToMark: { id: string; userId: string; requestId: string | null }[] = [];
 
     if (commentIds && Array.isArray(commentIds)) {
       commentsToMark = await db.comment.findMany({
         where: { id: { in: commentIds } },
-        select: { id: true, readBy: true, userId: true, requestId: true },
+        select: { id: true, userId: true, requestId: true },
       });
     } else if (requestId) {
       commentsToMark = await db.comment.findMany({
         where: { requestId },
-        select: { id: true, readBy: true, userId: true, requestId: true },
+        select: { id: true, userId: true, requestId: true },
       });
     }
 
     const now = new Date().toISOString();
 
-    // Update each comment's readBy array
-    let markedCount = 0;
     const affectedRequestIds = new Set<string>();
-    for (const comment of commentsToMark) {
-      if (comment.requestId) affectedRequestIds.add(comment.requestId);
+    for (const c of commentsToMark) if (c.requestId) affectedRequestIds.add(c.requestId);
 
-      // Don't need to mark your own comments as read
-      if (comment.userId === userId) continue;
+    // Don't need to mark your own comments as read
+    const ids = commentsToMark.filter((c) => c.userId !== userId).map((c) => c.id);
 
-      const readBy = (comment.readBy as Array<{ userId: string; readAt: string }>) || [];
-
-      // Check if already read by this user
-      if (readBy.some((r) => r.userId === userId)) continue;
-
-      // Add this user to readBy
-      await db.comment.update({
-        where: { id: comment.id },
-        data: {
-          readBy: [...readBy, { userId, readAt: now }],
-        },
-      });
-      markedCount++;
-    }
+    // Append this user to readBy atomically in one statement, so concurrent readers
+    // can't overwrite each other's marks; the @> guard skips already-read comments.
+    const markedCount =
+      ids.length === 0
+        ? 0
+        : await db.$executeRaw`
+            UPDATE "Comment"
+            SET "readBy" = COALESCE("readBy", '[]'::jsonb) || jsonb_build_array(jsonb_build_object('userId', ${userId}::text, 'readAt', ${now}::text))
+            WHERE id = ANY(${ids}::text[])
+              AND "userId" <> ${userId}
+              AND NOT (COALESCE("readBy", '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('userId', ${userId}::text)))`;
 
     // Clear any unread comment/mention notifications for this user that point at
     // the affected requests, so the bell count stays in sync with what's read.

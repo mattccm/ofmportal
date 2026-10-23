@@ -8,6 +8,8 @@ import { sendReminderSms } from "@/lib/sms";
 import { format } from "date-fns";
 import { invalidateCache } from "@/lib/cache";
 import { broadcastAgencyNotification } from "@/lib/realtime-broadcast";
+import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
+import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 
 const bulkActionSchema = z.object({
   action: z.enum([
@@ -83,15 +85,19 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // Batch create activity logs (more efficient than individual creates)
+          // Batch create activity logs (more efficient than individual creates).
+          // previousStatus lets PUT /api/requests/archive restore the real status;
+          // skip requests that were already archived so it isn't logged as ARCHIVED.
           await tx.activityLog.createMany({
-            data: requests.map((request) => ({
-              userId: session.user.id,
-              action: "request.archived",
-              entityType: "ContentRequest",
-              entityId: request.id,
-              metadata: { title: request.title },
-            })),
+            data: requests
+              .filter((request) => request.status !== "ARCHIVED")
+              .map((request) => ({
+                userId: session.user.id,
+                action: "request.archived",
+                entityType: "ContentRequest",
+                entityId: request.id,
+                metadata: { title: request.title, previousStatus: request.status },
+              })),
           });
 
           return updateResult;
@@ -101,6 +107,15 @@ export async function POST(req: NextRequest) {
       }
 
       case "delete": {
+        // Collect storage keys before the cascade removes the upload rows
+        const uploadsToRemove = await db.upload.findMany({
+          where: {
+            requestId: { in: validatedData.requestIds },
+            request: { agencyId: session.user.agencyId },
+          },
+          select: { storageKey: true, thumbnailKey: true },
+        });
+
         // Use transaction for atomicity
         const deleted = await db.$transaction(async (tx) => {
           // Batch create activity logs first (before deletion)
@@ -124,6 +139,11 @@ export async function POST(req: NextRequest) {
           return deleteResult;
         });
         result.affected = deleted.count;
+
+        // Best-effort: remove R2 objects no other Upload/MediaItem still references
+        await deleteUnreferencedStorageObjects(
+          uploadsToRemove.flatMap((u) => [u.storageKey, u.thumbnailKey])
+        );
         break;
       }
 
@@ -332,6 +352,18 @@ export async function POST(req: NextRequest) {
           return updateResult;
         });
         result.affected = updated.count;
+
+        // Drafts moved to an active status need their auto-reminders scheduled
+        if (["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(validatedData.status)) {
+          for (const request of requests) {
+            if (request.status !== "DRAFT" || !request.dueDate) continue;
+            try {
+              await scheduleRemindersForRequest(request.id);
+            } catch (error) {
+              console.error(`Failed to schedule auto-reminders for ${request.id}:`, error);
+            }
+          }
+        }
         break;
       }
 

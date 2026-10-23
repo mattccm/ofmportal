@@ -156,7 +156,7 @@ export default function DataManagementPage() {
         const [statsRes, policyRes, creatorsRes, templatesRes, jobsRes] = await Promise.all([
           fetch("/api/settings/data?type=storage"),
           fetch("/api/settings/data?type=policy"),
-          fetch("/api/creators"),
+          fetch("/api/creators?limit=100&sortBy=name&sortOrder=asc"),
           fetch("/api/templates"),
           fetch("/api/settings/data?type=jobs"),
         ]);
@@ -175,7 +175,8 @@ export default function DataManagementPage() {
 
         if (creatorsRes.ok) {
           const data = await creatorsRes.json();
-          setCreators(data.creators || []);
+          // /api/creators is paginated ({ data, pagination })
+          setCreators(Array.isArray(data) ? data : data.data ?? data.creators ?? []);
         }
 
         if (templatesRes.ok) {

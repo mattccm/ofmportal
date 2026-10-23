@@ -3,6 +3,7 @@
 // Backed entirely by real Prisma data (ActivityLog, Conversation, Message, etc.).
 
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 import { ConversationType, RequestStatus } from "@prisma/client";
 import type {
   ActivityLog as OversightActivityLog,
@@ -126,7 +127,7 @@ function daysAgo(n: number): Date {
 
 async function getAgencyUserIds(agencyId: string): Promise<string[]> {
   const users = await db.user.findMany({
-    where: { agencyId },
+    where: { agencyId, ...excludePseudoUsers },
     select: { id: true },
   });
   return users.map((u) => u.id);
@@ -288,7 +289,8 @@ export async function getStaffMetrics(
   agencyId: string
 ): Promise<StaffActivityMetrics[]> {
   const users = await db.user.findMany({
-    where: { agencyId },
+    where: { agencyId, ...excludePseudoUsers },
+    orderBy: [{ lastActiveAt: { sort: "desc", nulls: "last" } }, { name: "asc" }],
     take: STAFF_LIMIT,
     select: {
       id: true,
@@ -708,7 +710,7 @@ export async function getOversightStats(
           where: { userId: { in: userIds }, createdAt: { gte: weekAgo } },
         })
       : Promise.resolve(0),
-    db.user.count({ where: { agencyId, lastActiveAt: { gte: dayAgo } } }),
+    db.user.count({ where: { agencyId, ...excludePseudoUsers, lastActiveAt: { gte: dayAgo } } }),
     db.creator.count({ where: { agencyId, lastLoginAt: { gte: dayAgo } } }),
     db.message.count({
       where: { conversation: { agencyId }, createdAt: { gte: today } },

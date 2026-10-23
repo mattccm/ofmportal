@@ -45,10 +45,8 @@ import {
   Bookmark,
   Trash2,
   Play,
-  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { ShareDialog } from "@/components/share/share-dialog";
 
 interface Creator {
   id: string;
@@ -200,7 +198,6 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
   const [reportName, setReportName] = useState("");
   const [scheduleFrequency, setScheduleFrequency] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [scheduleRecipients, setScheduleRecipients] = useState("");
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
   // Sorting state
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -760,16 +757,6 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                 </DialogContent>
               </Dialog>
 
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => setIsShareDialogOpen(true)}
-                disabled={!reportData}
-              >
-                <Link2 className="h-4 w-4" />
-                Share Report
-              </Button>
-
               <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="gap-2">
@@ -919,14 +906,6 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
         </TabsContent>
       </Tabs>
 
-      {/* Share Dialog */}
-      <ShareDialog
-        open={isShareDialogOpen}
-        onOpenChange={setIsShareDialogOpen}
-        resourceType="REPORT"
-        resourceId={`${reportType}-${dateRange}`}
-        resourceTitle={`${REPORT_TYPES.find((r) => r.value === reportType)?.label || "Report"} - ${DATE_RANGE_PRESETS.find((p) => p.value === dateRange)?.label || dateRange}`}
-      />
     </div>
   );
 }

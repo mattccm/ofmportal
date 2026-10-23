@@ -10,6 +10,7 @@ import {
   createPaginatedResponse,
 } from "@/lib/pagination";
 import { invalidateCache } from "@/lib/cache";
+import { getAppUrl } from "@/lib/app-url";
 
 const createCreatorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Generate invite link
-    const inviteLink = `${process.env.APP_URL}/portal/setup/${inviteToken}`;
+    const inviteLink = `${getAppUrl()}/portal/setup/${inviteToken}`;
 
     // Send invitation email
     try {

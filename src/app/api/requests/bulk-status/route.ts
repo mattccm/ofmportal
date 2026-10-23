@@ -6,6 +6,8 @@ import { z } from "zod";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
 import { format } from "date-fns";
+import { excludePseudoUsers } from "@/lib/staff";
+import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 
 // Schema for bulk status update requests
 const bulkStatusSchema = z.object({
@@ -123,6 +125,20 @@ export async function POST(req: NextRequest) {
               error: errorMessage,
             });
             errors.push(`Failed to update "${request.title}": ${errorMessage}`);
+            continue;
+          }
+
+          // Drafts moved to an active status need their auto-reminders scheduled
+          if (
+            request.status === "DRAFT" &&
+            request.dueDate &&
+            ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(validatedData.status)
+          ) {
+            try {
+              await scheduleRemindersForRequest(request.id);
+            } catch (error) {
+              console.error(`Failed to schedule auto-reminders for ${request.id}:`, error);
+            }
           }
         }
         break;
@@ -192,6 +208,7 @@ export async function POST(req: NextRequest) {
           where: {
             id: validatedData.teamMemberId,
             agencyId: session.user.agencyId,
+            ...excludePseudoUsers,
           },
         });
 

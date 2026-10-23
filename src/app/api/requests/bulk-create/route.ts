@@ -11,6 +11,8 @@ import {
   createUndoWindow,
 } from "@/lib/bulk-operations";
 import { sendNewRequestEmail } from "@/lib/email";
+import { expandQuantityFields, type TemplateField } from "@/lib/template-types";
+import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 import { z } from "zod";
 
 interface BulkRequestResult {
@@ -65,6 +67,35 @@ export async function POST(req: NextRequest) {
           agencyId: session.user.agencyId,
         },
       });
+    }
+
+    // Build template fields and requirements once (same mapping as New Request)
+    let templateFields: unknown[] = [];
+    let baseRequirements: Record<string, unknown> = {};
+    if (template) {
+      let raw: unknown = template.fields;
+      if (typeof raw === "string") {
+        try {
+          raw = JSON.parse(raw);
+        } catch {
+          raw = [];
+        }
+      }
+      const expanded = Array.isArray(raw) ? expandQuantityFields(raw as TemplateField[]) : [];
+      templateFields = expanded.map((f) => ({
+        id: f.id,
+        label: f.label,
+        value: f.defaultValue !== undefined ? String(f.defaultValue) : "",
+        type: f.type,
+        required: f.required,
+        helpText: f.helpText,
+        richContent: f.richContent,
+        acceptedFileTypes: f.acceptedFileTypes,
+        maxFileSize: f.maxFileSize,
+        maxFiles: f.maxFiles,
+        minFiles: f.minFiles,
+      }));
+      if (template.richContent) baseRequirements = { _richContent: template.richContent };
     }
 
     // Calculate staggered dates if enabled
@@ -137,10 +168,20 @@ export async function POST(req: NextRequest) {
               agencyId: session.user.agencyId,
               creatorId: creator.id,
               templateId: validatedData.templateId || null,
+              fields: JSON.parse(JSON.stringify(templateFields)),
+              requirements: JSON.parse(JSON.stringify(baseRequirements)),
             },
           });
 
           createdRequestIds.push(request.id);
+
+          if (dueDate) {
+            try {
+              await scheduleRemindersForRequest(request.id);
+            } catch (e) {
+              console.error("Failed to schedule auto-reminders:", e);
+            }
+          }
 
           return {
             creatorId: creator.id,

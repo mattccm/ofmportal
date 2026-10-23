@@ -57,8 +57,9 @@ export const cursorPaginationQuerySchema = z.object({
  * Parse pagination params from URL search params
  */
 export function parsePaginationParams(searchParams: URLSearchParams): PaginationParams {
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "25", 10)));
+  // `|| default` guards against NaN from non-numeric input (e.g. "?page=undefined")
+  const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "", 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get("limit") ?? "", 10) || 25));
   const offset = (page - 1) * limit;
 
   return { page, limit, offset };
@@ -69,7 +70,7 @@ export function parsePaginationParams(searchParams: URLSearchParams): Pagination
  */
 export function parseCursorPaginationParams(searchParams: URLSearchParams): CursorPaginationParams {
   const cursor = searchParams.get("cursor") || undefined;
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "25", 10)));
+  const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get("limit") ?? "", 10) || 25));
 
   return { cursor, limit };
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-session";
+import { useCreatorMessagesCount } from "@/hooks/use-creator-messages";
 import {
   LayoutDashboard,
   Users,
@@ -27,6 +28,9 @@ import {
   Repeat,
   Sun,
   Eye,
+  MessageCircle,
+  CalendarDays,
+  type LucideIcon,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { clearRememberToken, setSignedOutFlag } from "@/lib/remember-token";
@@ -63,7 +67,9 @@ const mainNavItems = [
 ];
 
 // Additional items for the "More" menu
-const moreMenuItems = [
+const moreMenuItems: { name: string; href: string; icon: LucideIcon; showBadge?: boolean }[] = [
+  { name: "Comments", href: "/dashboard/creator-messages", icon: MessageCircle, showBadge: true },
+  { name: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
   { name: "Uploads", href: "/dashboard/uploads", icon: Upload },
   { name: "Templates", href: "/dashboard/templates", icon: LayoutTemplate },
   { name: "Recurring Requests", href: "/dashboard/recurring-requests", icon: Repeat },
@@ -229,12 +235,14 @@ export function MobileNav() {
   } | null>(null);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
 
+  const { count: creatorMessagesCount } = useCreatorMessagesCount();
+
   const isAdmin = user?.role === "OWNER" || user?.role === "ADMIN";
   const canViewOversight =
     user?.role === "OWNER" ||
     user?.role === "ADMIN" ||
     user?.role === "MANAGER";
-  const navItems = canViewOversight
+  const navItems: typeof moreMenuItems = canViewOversight
     ? [...moreMenuItems, oversightItem]
     : moreMenuItems;
 
@@ -496,6 +504,9 @@ export function MobileNav() {
                   isMoreActive && "scale-110"
                 )}
               />
+              {creatorMessagesCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
+              )}
               {isMoreActive && (
                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full bg-gradient-to-r from-primary to-violet-500" />
               )}
@@ -612,6 +623,11 @@ export function MobileNav() {
                     <item.icon className="h-5 w-5" />
                   </div>
                   <span className="font-medium">{item.name}</span>
+                  {item.showBadge && creatorMessagesCount > 0 && (
+                    <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-primary text-white text-xs flex items-center justify-center">
+                      {creatorMessagesCount > 99 ? "99+" : creatorMessagesCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

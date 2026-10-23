@@ -30,9 +30,7 @@ import {
   Clock,
   Loader2,
   Users,
-  FileSpreadsheet,
   FileJson,
-  File,
   Trash2,
   Play,
   Upload,
@@ -135,7 +133,7 @@ const EXPORT_PRESETS: ExportPreset[] = [
     entity: "requests",
     fields: ["title", "creatorName", "status", "urgency", "dueDate", "createdAt"],
     filters: {},
-    format: "excel",
+    format: "csv",
     icon: FileText,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
@@ -145,7 +143,7 @@ const EXPORT_PRESETS: ExportPreset[] = [
     name: "Uploads History",
     description: "Export upload records with file details and review status",
     entity: "uploads",
-    fields: ["fileName", "creatorName", "requestTitle", "status", "fileSize", "uploadedAt"],
+    fields: ["fileName", "creatorName", "requestTitle", "approvalStatus", "uploadStatus", "fileSize", "uploadedAt"],
     filters: {},
     format: "csv",
     icon: Upload,
@@ -157,9 +155,20 @@ const EXPORT_PRESETS: ExportPreset[] = [
     name: "Analytics Report",
     description: "Export performance metrics and statistics",
     entity: "analytics",
-    fields: ["metric", "value", "period", "change"],
+    fields: [
+      "period",
+      "totalRequests",
+      "completedRequests",
+      "pendingRequests",
+      "totalUploads",
+      "approvedUploads",
+      "rejectedUploads",
+      "avgApprovalRate",
+      "activeCreators",
+      "newCreators",
+    ],
     filters: {},
-    format: "pdf",
+    format: "csv",
     icon: BarChart3,
     color: "text-amber-500",
     bgColor: "bg-amber-500/10",
@@ -168,9 +177,7 @@ const EXPORT_PRESETS: ExportPreset[] = [
 
 const FORMAT_OPTIONS: { value: ExportFormat; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[] = [
   { value: "csv", label: "CSV", icon: FileText, description: "Comma-separated values" },
-  { value: "excel", label: "Excel", icon: FileSpreadsheet, description: "Microsoft Excel format" },
   { value: "json", label: "JSON", icon: FileJson, description: "JavaScript Object Notation" },
-  { value: "pdf", label: "PDF", icon: File, description: "Portable Document Format" },
 ];
 
 export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) {
@@ -253,7 +260,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const extension = preset.format === "excel" ? "xlsx" : preset.format;
+      const extension = preset.format === "json" || preset.format === "pdf" ? "json" : "csv";
       a.download = `${preset.entity}-export-${new Date().toISOString().split("T")[0]}.${extension}`;
       document.body.appendChild(a);
       a.click();
@@ -294,7 +301,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const extension = config.format === "excel" ? "xlsx" : config.format;
+      const extension = config.format === "json" || config.format === "pdf" ? "json" : "csv";
       a.download = `${config.entity}-custom-export-${new Date().toISOString().split("T")[0]}.${extension}`;
       document.body.appendChild(a);
       a.click();
@@ -325,7 +332,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const extension = item.format === "excel" ? "xlsx" : item.format;
+      const extension = item.format === "json" || item.format === "pdf" ? "json" : "csv";
       a.download = `${item.name}.${extension}`;
       document.body.appendChild(a);
       a.click();
@@ -547,7 +554,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
                       <div>
                         <h4 className="font-semibold text-sm">{format.label}</h4>
                         <p className="text-xs text-muted-foreground">
-                          .{format.value === "excel" ? "xlsx" : format.value}
+                          .{format.value}
                         </p>
                       </div>
                     </div>

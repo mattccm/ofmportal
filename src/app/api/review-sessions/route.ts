@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate invite link
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const baseUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3001").replace(/\/$/, "");
     const inviteLink = `${baseUrl}/review-sessions/${session.id}`;
 
     const response: CreateSessionResponse = {

@@ -199,23 +199,21 @@ export function calculateNextRunDate(
       break;
 
     case "WEEKLY":
-      next.setDate(next.getDate() + 7);
-      // Adjust to specific day of week if set
+      // Align to the next occurrence of the target weekday (from currentDate)
       if (dayOfWeek !== undefined) {
-        const currentDay = next.getDay();
-        const diff = (dayOfWeek - currentDay + 7) % 7;
+        const diff = (dayOfWeek - next.getDay() + 7) % 7;
         next.setDate(next.getDate() + (diff === 0 ? 7 : diff));
+      } else {
+        next.setDate(next.getDate() + 7);
       }
       break;
 
     case "BIWEEKLY":
-      next.setDate(next.getDate() + 14);
       if (dayOfWeek !== undefined) {
-        const currentDay = next.getDay();
-        const diff = (dayOfWeek - currentDay + 7) % 7;
-        if (diff !== 0) {
-          next.setDate(next.getDate() + diff);
-        }
+        const diff = (dayOfWeek - next.getDay() + 7) % 7;
+        next.setDate(next.getDate() + (diff === 0 ? 14 : diff + 7));
+      } else {
+        next.setDate(next.getDate() + 14);
       }
       break;
 

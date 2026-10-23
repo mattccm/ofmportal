@@ -99,10 +99,11 @@ export function GroupEditor({
   const loadCreators = async () => {
     setLoadingCreators(true);
     try {
-      const response = await fetch("/api/creators");
+      const response = await fetch("/api/creators?limit=100&sortBy=name&sortOrder=asc");
       if (response.ok) {
         const data = await response.json();
-        setAllCreators(data);
+        // /api/creators returns a paginated { data, pagination } response
+        setAllCreators(Array.isArray(data) ? data : data.data ?? []);
       }
     } catch (error) {
       console.error("Failed to load creators:", error);

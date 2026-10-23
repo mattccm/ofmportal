@@ -138,10 +138,11 @@ export default function ArchivedRequestsPage() {
   // Fetch creators for filter
   const fetchCreators = useCallback(async () => {
     try {
-      const response = await fetch("/api/creators");
+      const response = await fetch("/api/creators?limit=100&sortBy=name&sortOrder=asc");
       if (response.ok) {
         const data = await response.json();
-        setCreators(data);
+        // /api/creators returns a paginated { data, pagination } response
+        setCreators(Array.isArray(data) ? data : data.data ?? []);
       }
     } catch (error) {
       console.error("Failed to fetch creators:", error);

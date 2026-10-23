@@ -164,19 +164,14 @@ export async function GET(
     });
 
     if (unreadMessages.length > 0) {
-      // Use a transaction to atomically update all messages
-      // Each update reads current readBy and appends, preventing race conditions
-      await db.$transaction(
-        unreadMessages.map((msg) => {
-          const readBy = (msg.readBy as Array<{ userId: string; readAt: string }>) || [];
-          return db.message.update({
-            where: { id: msg.id },
-            data: {
-              readBy: [...readBy, { userId, readAt: now }],
-            },
-          });
-        })
-      );
+      // Append in SQL (not from the stale readBy we fetched) so concurrent readers
+      // can't overwrite each other's marks; the @> guard skips already-read rows.
+      const ids = unreadMessages.map((msg) => msg.id);
+      await db.$executeRaw`
+        UPDATE "Message"
+        SET "readBy" = COALESCE("readBy", '[]'::jsonb) || jsonb_build_array(jsonb_build_object('userId', ${userId}::text, 'readAt', ${now}::text))
+        WHERE id = ANY(${ids}::text[])
+          AND NOT (COALESCE("readBy", '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('userId', ${userId}::text)))`;
     }
 
     return NextResponse.json({

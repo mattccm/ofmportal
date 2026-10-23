@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { cache, cacheKeys, cacheTTL } from "@/lib/cache";
+import { excludePseudoUsers } from "@/lib/staff";
 
 // Activity types for filtering
 export const ACTIVITY_TYPES = {
@@ -37,6 +38,30 @@ export async function GET(req: NextRequest) {
 
     const agencyId = session.user.agencyId;
     const skip = (page - 1) * pageSize;
+
+    // Search is applied in SQL so pagination and totals reflect all matches
+    const searchFilter = search ? (() => {
+      const p = `%${search.replace(/[\\%_]/g, "\\$&")}%`;
+      return Prisma.sql`AND (
+        a.action ILIKE ${p} OR a.metadata::text ILIKE ${p}
+        OR EXISTS (SELECT 1 FROM "User" su WHERE su.id = a."userId" AND su.name ILIKE ${p})
+        OR (a."entityType" = 'Upload' AND EXISTS (
+          SELECT 1 FROM "Upload" up
+          JOIN "ContentRequest" cr ON up."requestId" = cr.id
+          LEFT JOIN "Creator" c ON up."creatorId" = c.id
+          WHERE up.id = a."entityId" AND (up."originalName" ILIKE ${p} OR cr.title ILIKE ${p} OR c.name ILIKE ${p})
+        ))
+        OR (a."entityType" = 'ContentRequest' AND EXISTS (
+          SELECT 1 FROM "ContentRequest" cr
+          LEFT JOIN "Creator" c ON cr."creatorId" = c.id
+          WHERE cr.id = a."entityId" AND (cr.title ILIKE ${p} OR c.name ILIKE ${p})
+        ))
+        OR (a."entityType" = 'Creator' AND EXISTS (
+          SELECT 1 FROM "Creator" c
+          WHERE c.id = a."entityId" AND c.name ILIKE ${p}
+        ))
+      )`;
+    })() : Prisma.empty;
 
     // Use raw SQL with EXISTS subqueries for efficient agency filtering
     // This avoids fetching all entity IDs upfront - the database handles the filtering
@@ -78,6 +103,7 @@ export async function GET(req: NextRequest) {
         ${entityId && entityType ? Prisma.sql`AND a."entityId" = ${entityId} AND a."entityType" = ${entityType}` : Prisma.empty}
         ${dateFrom ? Prisma.sql`AND a."createdAt" >= ${new Date(dateFrom)}` : Prisma.empty}
         ${dateTo ? Prisma.sql`AND a."createdAt" <= ${(() => { const d = new Date(dateTo); d.setHours(23, 59, 59, 999); return d; })()}` : Prisma.empty}
+        ${searchFilter}
         ORDER BY a."createdAt" DESC
         LIMIT ${pageSize}
         OFFSET ${skip}
@@ -109,6 +135,7 @@ export async function GET(req: NextRequest) {
         ${entityId && entityType ? Prisma.sql`AND a."entityId" = ${entityId} AND a."entityType" = ${entityType}` : Prisma.empty}
         ${dateFrom ? Prisma.sql`AND a."createdAt" >= ${new Date(dateFrom)}` : Prisma.empty}
         ${dateTo ? Prisma.sql`AND a."createdAt" <= ${(() => { const d = new Date(dateTo); d.setHours(23, 59, 59, 999); return d; })()}` : Prisma.empty}
+        ${searchFilter}
       `
     );
     const total = Number(countResult[0]?.count || 0);
@@ -204,22 +231,6 @@ export async function GET(req: NextRequest) {
 
       const description = getActivityDescription(activity.action, { ...metadata, ...entityDetails });
 
-      // Search filtering
-      if (search) {
-        const searchLower = search.toLowerCase();
-        const searchableText = [
-          description,
-          activity.userName,
-          entityDetails.creatorName as string | undefined,
-          entityDetails.requestTitle as string | undefined,
-          entityDetails.uploadName as string | undefined,
-        ].filter(Boolean).join(" ").toLowerCase();
-
-        if (!searchableText.includes(searchLower)) {
-          return null;
-        }
-      }
-
       return {
         id: activity.id,
         action: activity.action,
@@ -240,15 +251,13 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const filteredActivities = formattedActivities.filter(Boolean);
-
     // Get unique users for filter dropdown (cached for 5 minutes - rarely changes)
     const usersCacheKey = `${cacheKeys.agencyCreators(agencyId)}:activity-users`;
     const users = await cache.getOrSet(
       usersCacheKey,
       async () => {
         return db.user.findMany({
-          where: { agencyId },
+          where: { agencyId, ...excludePseudoUsers },
           select: { id: true, name: true, avatar: true },
           orderBy: { name: "asc" },
           take: 100,
@@ -258,13 +267,13 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({
-      activities: filteredActivities,
+      activities: formattedActivities,
       pagination: {
-        total: search ? filteredActivities.length : total,
+        total,
         pageSize,
         currentPage: page,
-        totalPages: Math.ceil((search ? filteredActivities.length : total) / pageSize),
-        hasMore: page * pageSize < (search ? filteredActivities.length : total),
+        totalPages: Math.ceil(total / pageSize),
+        hasMore: page * pageSize < total,
       },
       filters: {
         users,

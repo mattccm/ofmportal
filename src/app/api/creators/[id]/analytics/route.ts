@@ -76,10 +76,13 @@ export async function GET(
 
     // Calculate upload frequency by week
     const uploadsByWeek: Record<string, { week: string; count: number; approved: number; rejected: number }> = {};
-    const weeksInRange = Math.ceil(daysBack / 7);
+    const firstWeek = startOfWeek(startDate, { weekStartsOn: 1 });
 
-    for (let i = 0; i < weeksInRange; i++) {
-      const weekStart = startOfWeek(subDays(new Date(), i * 7));
+    for (
+      let weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+      weekStart >= firstWeek;
+      weekStart = subDays(weekStart, 7)
+    ) {
       const weekKey = format(weekStart, "yyyy-MM-dd");
       uploadsByWeek[weekKey] = {
         week: format(weekStart, "MMM d"),
@@ -91,7 +94,7 @@ export async function GET(
 
     currentPeriodUploads.forEach((upload) => {
       if (upload.uploadedAt) {
-        const weekStart = startOfWeek(upload.uploadedAt);
+        const weekStart = startOfWeek(upload.uploadedAt, { weekStartsOn: 1 });
         const weekKey = format(weekStart, "yyyy-MM-dd");
         if (uploadsByWeek[weekKey]) {
           uploadsByWeek[weekKey].count++;
@@ -123,7 +126,9 @@ export async function GET(
       }
     });
 
-    Object.entries(uploadsByMonth).forEach(([monthKey, data]) => {
+    Object.entries(uploadsByMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([monthKey, data]) => {
       monthlyApprovalRate.push({
         month: format(new Date(monthKey + "-01"), "MMM yyyy"),
         rate: data.total > 0 ? Math.round((data.approved / data.total) * 100) : 0,
@@ -152,7 +157,7 @@ export async function GET(
 
     requestsWithUploads.forEach((request) => {
       if (request.uploads[0]) {
-        const weekStart = startOfWeek(request.createdAt);
+        const weekStart = startOfWeek(request.createdAt, { weekStartsOn: 1 });
         const weekKey = format(weekStart, "yyyy-MM-dd");
         if (!responseTimesByWeek[weekKey]) {
           responseTimesByWeek[weekKey] = { times: [], week: format(weekStart, "MMM d") };
@@ -163,7 +168,9 @@ export async function GET(
       }
     });
 
-    const responseTimeTrend = Object.values(responseTimesByWeek).map((data) => ({
+    const responseTimeTrend = Object.entries(responseTimesByWeek)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, data]) => ({
       week: data.week,
       avgHours:
         data.times.length > 0

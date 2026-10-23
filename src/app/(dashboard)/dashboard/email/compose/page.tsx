@@ -192,10 +192,11 @@ export default function EmailComposePage() {
   useEffect(() => {
     async function fetchCreators() {
       try {
-        const res = await fetch("/api/creators");
+        const res = await fetch("/api/creators?limit=100&sortBy=name&sortOrder=asc");
         if (!res.ok) throw new Error("Failed to fetch creators");
         const data = await res.json();
-        setCreators(data);
+        // /api/creators returns a paginated { data, pagination } response
+        setCreators(Array.isArray(data) ? data : data.data ?? []);
       } catch (error) {
         console.error("Error fetching creators:", error);
         toast.error("Failed to load creators");
@@ -225,7 +226,7 @@ export default function EmailComposePage() {
         "creator.email": creator?.email || "john@example.com",
         "creator.phone": creator?.phone || "+1 555-0123",
         "agency.name": "Your Agency", // Would come from session
-        "portal.link": `${window.location.origin}/portal`,
+        "portal.link": `${window.location.origin}/creator/dashboard`,
         "request.title": "Sample Request",
         "request.dueDate": now.toLocaleDateString("en-US", {
           year: "numeric",

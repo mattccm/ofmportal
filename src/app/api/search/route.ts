@@ -297,7 +297,7 @@ export async function GET(req: NextRequest) {
             title: template.name,
             subtitle: template.description || "No description",
             highlight: highlightMatch(template.name, query),
-            href: `/dashboard/templates/${template.id}`,
+            href: `/dashboard/templates/${template.id}/edit`,
             metadata: {
               active: template.isActive ? "Active" : "Inactive",
               usedCount: template._count.requests.toString(),

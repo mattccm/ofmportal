@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { sendCreatorInviteEmail } from "@/lib/email";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
+import { getAppUrl } from "@/lib/app-url";
 
 // Schema for validating a single creator row
 const creatorRowSchema = z.object({
@@ -178,7 +180,7 @@ export async function POST(req: NextRequest) {
           // Create new creator
           const inviteToken = uuidv4();
 
-          await db.creator.create({
+          const created = await db.creator.create({
             data: {
               agencyId: session.user.agencyId,
               name: creatorData.name,
@@ -187,10 +189,36 @@ export async function POST(req: NextRequest) {
               preferredContact: creatorData.preferredContact || "EMAIL",
               notes: creatorData.notes || null,
               inviteToken,
-              inviteStatus: validatedData.sendInvites ? "PENDING" : "PENDING",
-              inviteSentAt: validatedData.sendInvites ? new Date() : null,
+              inviteStatus: "PENDING",
+              inviteSentAt: null,
             },
           });
+
+          // Send invites sequentially to stay under the email provider's rate limit;
+          // only stamp inviteSentAt once the email actually went out
+          if (validatedData.sendInvites) {
+            try {
+              await sendCreatorInviteEmail({
+                to: created.email,
+                creatorName: created.name,
+                agencyName: session.user.agencyName,
+                inviteLink: `${getAppUrl()}/portal/setup/${inviteToken}`,
+                agencyId: session.user.agencyId,
+              });
+              await db.creator.update({
+                where: { id: created.id },
+                data: { inviteSentAt: new Date() },
+              });
+            } catch (emailError) {
+              console.error("Import invite email failed:", emailError);
+              results.errors.push({
+                row: i + 1,
+                name: creatorData.name,
+                email: creatorData.email,
+                error: "Creator created but invite email failed; use Resend invite",
+              });
+            }
+          }
 
           results.created.push({
             name: creatorData.name,

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { notifyMention } from "@/lib/notifications";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
+import { excludePseudoUsers } from "@/lib/staff";
 
 // SCHEMAS
 
@@ -52,7 +53,7 @@ async function filterMentionsToAgency(
   if (userIds.length === 0) return [];
 
   const users = await db.user.findMany({
-    where: { id: { in: userIds }, agencyId },
+    where: { id: { in: userIds }, agencyId, ...excludePseudoUsers },
     select: { id: true },
   });
 
@@ -60,7 +61,7 @@ async function filterMentionsToAgency(
 }
 
 /**
- * Send notifications to mentioned users
+ * Record Mention rows (for the Mentions page) and notify mentioned users
  */
 async function sendMentionNotifications(
   mentionedUserIds: string[],
@@ -68,7 +69,9 @@ async function sendMentionNotifications(
   message: string,
   requestId: string | null,
   uploadId: string | null,
-  currentUserId: string
+  currentUserId: string,
+  agencyId: string,
+  commentId: string
 ) {
   // Don't notify yourself
   const usersToNotify = mentionedUserIds.filter((id) => id !== currentUserId);
@@ -83,6 +86,23 @@ async function sendMentionNotifications(
   const link = requestId
     ? `/dashboard/requests/${requestId}${uploadId ? `?upload=${uploadId}` : ""}`
     : "#";
+
+  // Record mentions so they show up on the Mentions page and unread counts
+  if (usersToNotify.length > 0) {
+    await db.mention
+      .createMany({
+        data: usersToNotify.map((userId) => ({
+          agencyId,
+          mentionedById: currentUserId,
+          mentionedUserId: userId,
+          contextType: "COMMENT" as const,
+          contextId: commentId,
+          contextUrl: link === "#" ? null : link,
+          content: cleanMessage.substring(0, 500),
+        })),
+      })
+      .catch((error) => console.warn("Failed to record mentions:", error));
+  }
 
   // Send notifications (use allSettled so one failure doesn't block others)
   const results = await Promise.allSettled(
@@ -354,7 +374,9 @@ export async function POST(req: NextRequest) {
         validatedData.message,
         validatedData.requestId || null,
         validatedData.uploadId || null,
-        session.user.id
+        session.user.id,
+        session.user.agencyId,
+        comment.id
       );
     }
 
@@ -458,7 +480,9 @@ export async function PATCH(req: NextRequest) {
         validatedData.message,
         existingComment.requestId,
         existingComment.uploadId,
-        session.user.id
+        session.user.id,
+        session.user.agencyId,
+        existingComment.id
       );
     }
 

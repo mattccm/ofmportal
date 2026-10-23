@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
+// Truncate oversized fields instead of rejecting them, so long minified
+// stacks still get logged.
+const clip = (n: number) => z.string().transform((s) => s.slice(0, n));
 const errorLogSchema = z.object({
-  message: z.string().max(2000),
-  digest: z.string().optional(),
-  stack: z.string().max(10000).optional(),
-  componentStack: z.string().max(10000).optional(),
-  timestamp: z.string(),
-  url: z.string().max(2000).optional(),
-  userAgent: z.string().max(500).optional(),
+  message: clip(2000),
+  digest: clip(200).optional(),
+  stack: clip(10000).optional(),
+  componentStack: clip(10000).optional(),
+  timestamp: clip(100),
+  url: clip(2000).optional(),
+  userAgent: clip(500).optional(),
 });
 
 export async function POST(req: NextRequest) {

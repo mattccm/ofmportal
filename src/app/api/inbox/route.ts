@@ -194,6 +194,13 @@ export async function POST(request: NextRequest) {
       });
 
       if (existingConv) {
+        // Make sure the current user can see the existing thread
+        await db.conversationParticipant.upsert({
+          where: { conversationId_userId: { conversationId: existingConv.id, userId } },
+          create: { conversationId: existingConv.id, userId },
+          update: {},
+        });
+
         return NextResponse.json({
           conversation: existingConv,
           existing: true,

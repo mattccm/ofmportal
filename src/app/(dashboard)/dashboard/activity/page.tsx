@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { excludePseudoUsers } from "@/lib/staff";
 import { ActivityPageClient } from "./activity-page-client";
 
 export const metadata = {
@@ -11,23 +12,27 @@ export const metadata = {
 };
 
 async function getInitialData(agencyId: string) {
-  // Get initial activities
-  let uploads, requests, creators;
+  // Get initial activities. Single-agency tool: filter by entity type only,
+  // avoiding IN-lists that grow with every upload.
+  const entityFilter = { entityType: { in: ["Upload", "ContentRequest", "Creator"] } };
+
+  let activities;
   try {
-    [uploads, requests, creators] = await Promise.all([
-      db.upload.findMany({
-        where: { request: { agencyId } },
-        select: { id: true },
-      }),
-      db.contentRequest.findMany({
-        where: { agencyId },
-        select: { id: true },
-      }),
-      db.creator.findMany({
-        where: { agencyId },
-        select: { id: true },
-      }),
-    ]);
+    activities = await db.activityLog.findMany({
+      where: entityFilter,
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            email: true,
+          },
+        },
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch initial activity data:", error);
     return {
@@ -37,35 +42,9 @@ async function getInitialData(agencyId: string) {
     };
   }
 
-  const uploadIds = uploads.map((u) => u.id);
-  const requestIds = requests.map((r) => r.id);
-  const creatorIds = creators.map((c) => c.id);
-
-  const activities = await db.activityLog.findMany({
-    where: {
-      OR: [
-        { entityType: "Upload", entityId: { in: uploadIds } },
-        { entityType: "ContentRequest", entityId: { in: requestIds } },
-        { entityType: "Creator", entityId: { in: creatorIds } },
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          avatar: true,
-          email: true,
-        },
-      },
-    },
-  });
-
   // Get users for filter dropdown
   const users = await db.user.findMany({
-    where: { agencyId },
+    where: { agencyId, ...excludePseudoUsers },
     select: { id: true, name: true, avatar: true },
     orderBy: { name: "asc" },
   });
@@ -81,32 +60,18 @@ async function getInitialData(agencyId: string) {
     [todayCount, weekCount, totalCount] = await Promise.all([
       db.activityLog.count({
         where: {
-          OR: [
-            { entityType: "Upload", entityId: { in: uploadIds } },
-            { entityType: "ContentRequest", entityId: { in: requestIds } },
-            { entityType: "Creator", entityId: { in: creatorIds } },
-          ],
+          ...entityFilter,
           createdAt: { gte: startOfDay },
         },
       }),
       db.activityLog.count({
         where: {
-          OR: [
-            { entityType: "Upload", entityId: { in: uploadIds } },
-            { entityType: "ContentRequest", entityId: { in: requestIds } },
-            { entityType: "Creator", entityId: { in: creatorIds } },
-          ],
+          ...entityFilter,
           createdAt: { gte: startOfWeek },
         },
       }),
       db.activityLog.count({
-        where: {
-          OR: [
-            { entityType: "Upload", entityId: { in: uploadIds } },
-            { entityType: "ContentRequest", entityId: { in: requestIds } },
-            { entityType: "Creator", entityId: { in: creatorIds } },
-          ],
-        },
+        where: entityFilter,
       }),
     ]);
   } catch (error) {

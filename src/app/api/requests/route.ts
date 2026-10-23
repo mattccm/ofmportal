@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -260,15 +260,19 @@ export async function POST(req: NextRequest) {
     });
 
     // Fire webhook for new request (not drafts)
+    // after() keeps the serverless function alive until delivery finishes
     if (!validatedData.saveAsDraft) {
-      dispatchWebhookEvent(session.user.agencyId, "request.created", {
-        requestId: contentRequest.id,
-        title: contentRequest.title,
-        creatorId: contentRequest.creatorId,
-        creatorName: contentRequest.creator.name,
-        dueDate: contentRequest.dueDate?.toISOString() || null,
-        urgency: contentRequest.urgency,
-      });
+      const agencyId = session.user.agencyId;
+      after(() =>
+        dispatchWebhookEvent(agencyId, "request.created", {
+          requestId: contentRequest.id,
+          title: contentRequest.title,
+          creatorId: contentRequest.creatorId,
+          creatorName: contentRequest.creator.name,
+          dueDate: contentRequest.dueDate?.toISOString() || null,
+          urgency: contentRequest.urgency,
+        })
+      );
     }
 
     // Send notification if requested (and not a draft)

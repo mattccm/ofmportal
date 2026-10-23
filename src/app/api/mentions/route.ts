@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
             if (message) {
               contextDetails = {
                 title: "Message",
-                url: `/dashboard/messages/${message.conversationId}`,
+                url: `/dashboard/messages?conversation=${message.conversationId}`,
               };
             }
           }

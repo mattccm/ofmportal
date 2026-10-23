@@ -66,8 +66,12 @@ function getDateRangeFromPreset(
 
 function escapeCSV(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
-  const str = String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+  let str = String(value);
+  // Neutralise spreadsheet formula injection in text cells (numbers are left as-is)
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+  if (/[",\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
@@ -78,6 +82,10 @@ function arrayToCSV(headers: string[], rows: (string | number | null | undefined
   const dataLines = rows.map((row) => row.map(escapeCSV).join(","));
   return [headerLine, ...dataLines].join("\n");
 }
+
+// A request is only delivered once approved/archived; reviewedAt is also set on NEEDS_REVISION
+const isCompleted = (r: { status: string; reviewedAt: Date | null }) =>
+  !!r.reviewedAt && (r.status === "APPROVED" || r.status === "ARCHIVED");
 
 async function generateCreatorPerformanceCSV(
   agencyId: string,
@@ -142,7 +150,7 @@ async function generateCreatorPerformanceCSV(
         : 0;
 
     const totalRequests = creator.requests.length;
-    const completedRequests = creator.requests.filter((r) => r.status === "APPROVED").length;
+    const completedRequests = creator.requests.filter(isCompleted).length;
     const completionRate = totalRequests > 0 ? (completedRequests / totalRequests) * 100 : 0;
 
     return [
@@ -198,13 +206,14 @@ async function generateContentDeliveryCSV(
   ];
 
   const rows = requests.map((request) => {
-    const deliveryHours = request.reviewedAt
-      ? differenceInHours(request.reviewedAt, request.createdAt)
+    const completedAt = isCompleted(request) ? request.reviewedAt : null;
+    const deliveryHours = completedAt
+      ? differenceInHours(completedAt, request.createdAt)
       : null;
 
     const isOnTime = request.dueDate
-      ? request.reviewedAt
-        ? request.reviewedAt <= request.dueDate
+      ? completedAt
+        ? completedAt <= request.dueDate
         : new Date() <= request.dueDate
       : null;
 
@@ -215,7 +224,7 @@ async function generateContentDeliveryCSV(
       request.urgency,
       format(request.createdAt, "yyyy-MM-dd"),
       request.dueDate ? format(request.dueDate, "yyyy-MM-dd") : "N/A",
-      request.reviewedAt ? format(request.reviewedAt, "yyyy-MM-dd") : "Pending",
+      completedAt ? format(completedAt, "yyyy-MM-dd") : "Pending",
       deliveryHours ?? "N/A",
       isOnTime === null ? "N/A" : isOnTime ? "Yes" : "No",
       request.uploads.length,

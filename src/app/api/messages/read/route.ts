@@ -11,6 +11,9 @@ export interface ReadReceiptData {
   readAt: string;
 }
 
+// Stored shape of Message.readBy (same format as /api/inbox)
+type ReadByEntry = { userId: string; readAt: string };
+
 export interface MessageReadStatus {
   messageId: string;
   isRead: boolean;
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
       const messages = await db.message.findMany({
         where: {
           conversationId,
-          senderId: { not: userId },
+          OR: [{ senderId: null }, { senderId: { not: userId } }],
         },
         select: {
           id: true,
@@ -80,12 +83,12 @@ export async function POST(req: NextRequest) {
 
       // Update each message that hasn't been read by this user
       for (const message of messages) {
-        const readByArray = (message.readBy as string[]) || [];
-        if (!readByArray.includes(userId)) {
+        const readByArray = (message.readBy as ReadByEntry[]) || [];
+        if (!readByArray.some((r) => r.userId === userId)) {
           await db.message.update({
             where: { id: message.id },
             data: {
-              readBy: [...readByArray, userId],
+              readBy: [...readByArray, { userId, readAt: now.toISOString() }],
             },
           });
           updatedMessages.push(message.id);
@@ -124,8 +127,8 @@ export async function POST(req: NextRequest) {
         }
 
         // Check if already read
-        const readByArray = (message.readBy as string[]) || [];
-        if (readByArray.includes(userId)) {
+        const readByArray = (message.readBy as ReadByEntry[]) || [];
+        if (readByArray.some((r) => r.userId === userId)) {
           continue;
         }
 
@@ -133,7 +136,7 @@ export async function POST(req: NextRequest) {
         await db.message.update({
           where: { id },
           data: {
-            readBy: [...readByArray, userId],
+            readBy: [...readByArray, { userId, readAt: now.toISOString() }],
           },
         });
 
@@ -217,14 +220,14 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const readByArray = (message.readBy as string[]) || [];
+      const readByArray = (message.readBy as ReadByEntry[]) || [];
       const readByUsers = message.conversation.participants
-        .filter((p) => readByArray.includes(p.userId))
+        .filter((p) => readByArray.some((r) => r.userId === p.userId))
         .map((p) => ({
           userId: p.userId,
           userName: p.user.name,
           userAvatar: p.user.avatar,
-          readAt: new Date().toISOString(), // Would be actual read time with proper tracking
+          readAt: readByArray.find((r) => r.userId === p.userId)!.readAt,
         }));
 
       const status: MessageReadStatus = {
@@ -268,14 +271,14 @@ export async function GET(req: NextRequest) {
           message.conversation.participants.some((p) => p.userId === userId)
         )
         .map((message) => {
-          const readByArray = (message.readBy as string[]) || [];
+          const readByArray = (message.readBy as ReadByEntry[]) || [];
           const readByUsers = message.conversation.participants
-            .filter((p) => readByArray.includes(p.userId))
+            .filter((p) => readByArray.some((r) => r.userId === p.userId))
             .map((p) => ({
               userId: p.userId,
               userName: p.user.name,
               userAvatar: p.user.avatar,
-              readAt: new Date().toISOString(),
+              readAt: readByArray.find((r) => r.userId === p.userId)!.readAt,
             }));
 
           return {
@@ -311,7 +314,7 @@ export async function GET(req: NextRequest) {
       const messages = await db.message.findMany({
         where: {
           conversationId,
-          senderId: { not: userId },
+          OR: [{ senderId: null }, { senderId: { not: userId } }],
         },
         select: {
           id: true,
@@ -320,8 +323,8 @@ export async function GET(req: NextRequest) {
       });
 
       const unreadCount = messages.filter((message) => {
-        const readByArray = (message.readBy as string[]) || [];
-        return !readByArray.includes(userId);
+        const readByArray = (message.readBy as ReadByEntry[]) || [];
+        return !readByArray.some((r) => r.userId === userId);
       }).length;
 
       return NextResponse.json({
@@ -368,7 +371,7 @@ export async function DELETE(req: NextRequest) {
       const messages = await db.message.findMany({
         where: {
           conversationId,
-          senderId: { not: userId },
+          OR: [{ senderId: null }, { senderId: { not: userId } }],
         },
         select: {
           id: true,
@@ -379,12 +382,12 @@ export async function DELETE(req: NextRequest) {
       let removedCount = 0;
 
       for (const message of messages) {
-        const readByArray = (message.readBy as string[]) || [];
-        if (readByArray.includes(userId)) {
+        const readByArray = (message.readBy as ReadByEntry[]) || [];
+        if (readByArray.some((r) => r.userId === userId)) {
           await db.message.update({
             where: { id: message.id },
             data: {
-              readBy: readByArray.filter((id) => id !== userId),
+              readBy: readByArray.filter((r) => r.userId !== userId),
             },
           });
           removedCount++;
@@ -409,9 +412,9 @@ export async function DELETE(req: NextRequest) {
         );
       }
 
-      const readByArray = (message.readBy as string[]) || [];
+      const readByArray = (message.readBy as ReadByEntry[]) || [];
 
-      if (!readByArray.includes(userId)) {
+      if (!readByArray.some((r) => r.userId === userId)) {
         return NextResponse.json({
           success: true,
           message: "Read receipt not found",
@@ -421,7 +424,7 @@ export async function DELETE(req: NextRequest) {
       await db.message.update({
         where: { id: messageId },
         data: {
-          readBy: readByArray.filter((id) => id !== userId),
+          readBy: readByArray.filter((r) => r.userId !== userId),
         },
       });
 

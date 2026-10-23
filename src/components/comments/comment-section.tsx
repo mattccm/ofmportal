@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -95,20 +95,6 @@ export function CommentSection({
 
       const comment = await response.json();
 
-      // Create mentions if there are any
-      if (mentionIds.length > 0) {
-        await fetch("/api/mentions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            commentId: comment.id,
-            message: newComment,
-            resourceType: uploadId ? "upload" : "request",
-            resourceId: uploadId || requestId,
-          }),
-        });
-      }
-
       setComments([comment, ...comments]);
       setNewComment("");
       setMentionIds([]);
@@ -144,6 +130,7 @@ export function CommentSection({
   );
 
   const formId = fieldId ? `comment-form-${fieldId}` : "comment-form";
+  const internalId = useId();
 
   return (
     <div className={compact ? "space-y-4" : "space-y-6"}>
@@ -185,13 +172,13 @@ export function CommentSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Checkbox
-              id="internal"
+              id={internalId}
               checked={isInternal}
               onCheckedChange={(checked) => setIsInternal(!!checked)}
               disabled={submitting}
             />
             <Label
-              htmlFor="internal"
+              htmlFor={internalId}
               className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1"
             >
               <Lock className="h-3 w-3" />

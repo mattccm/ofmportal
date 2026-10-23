@@ -178,9 +178,9 @@ function MentionHoverCard({ user, username, isLoading }: MentionHoverCardProps) 
           </Link>
         </Button>
         <Button variant="ghost" size="sm" className="flex-1 h-8" asChild>
-          <Link href={`/dashboard/team/${user.id}`}>
+          <Link href="/dashboard/team">
             <ExternalLink className="h-4 w-4 mr-1.5" />
-            View Profile
+            View Team
           </Link>
         </Button>
       </div>

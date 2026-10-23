@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
 import crypto from "crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 // POST - Send password reset link to creator
 export async function POST(
@@ -47,7 +48,6 @@ export async function POST(
 
     // Generate a reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Store the reset token in the creator's inviteToken field temporarily
     // In a production app, you'd have a separate password_reset_tokens table
@@ -61,7 +61,7 @@ export async function POST(
 
     // In a production app, send an email here
     // For now, we'll just log it and simulate success
-    const resetUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/portal/reset-password?token=${resetToken}`;
+    const resetUrl = `${getAppUrl()}/reset-password?token=${resetToken}&type=creator`;
 
     // Only log reset URL in development
     if (process.env.NODE_ENV === "development") {

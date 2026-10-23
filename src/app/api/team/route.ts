@@ -15,6 +15,7 @@ import {
 import { excludePseudoUsers } from "@/lib/staff";
 import crypto from "crypto";
 import { Prisma, UserRole } from "@prisma/client";
+import { getAppUrl } from "@/lib/app-url";
 
 // GET - List all team members for the current agency
 export async function GET(request: NextRequest) {
@@ -221,7 +222,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Send invitation email
-    const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const appUrl = getAppUrl();
     const loginLink = `${appUrl}/login`;
 
     const branding = await loadEmailBranding(

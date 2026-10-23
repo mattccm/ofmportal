@@ -27,31 +27,16 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(url.searchParams.get("offset") || "0");
     const unreadOnly = url.searchParams.get("unreadOnly") === "true";
 
-    // Find the system user for creator comments
-    const systemUser = await db.user.findFirst({
-      where: {
-        email: {
-          endsWith: `@${agencyId}.internal`,
-        },
-      },
-    });
-
-    if (!systemUser) {
-      // No creator comments exist yet
-      return NextResponse.json({
-        messages: [],
-        total: 0,
-        unreadCount: 0,
-      });
-    }
-
-    // Get all comments from the system user (these are creator comments)
+    // Creator comments are authored by per-creator pseudo-users
+    // (creator-<id>@<agencyId>.internal), so match all of them, not just one.
     // Only non-internal comments (visible to creators = from creators)
     const whereClause = {
-      userId: systemUser.id,
       isInternal: false,
       request: {
         agencyId: agencyId,
+      },
+      user: {
+        email: { endsWith: `@${agencyId}.internal` },
       },
     };
 
@@ -184,28 +169,17 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { commentIds, markAllRead } = body as { commentIds?: string[]; markAllRead?: boolean };
 
-    // Find the system user for creator comments
-    const systemUser = await db.user.findFirst({
-      where: {
-        email: {
-          endsWith: `@${agencyId}.internal`,
-        },
-      },
-    });
-
-    if (!systemUser) {
-      return NextResponse.json({ marked: 0 });
-    }
-
     let commentsToMark: { id: string; readBy: unknown }[] = [];
 
     if (markAllRead) {
       // Get all unread creator comments
       const whereClause = {
-        userId: systemUser.id,
         isInternal: false,
         request: {
           agencyId: agencyId,
+        },
+        user: {
+          email: { endsWith: `@${agencyId}.internal` },
         },
       };
 
@@ -221,8 +195,9 @@ export async function POST(req: NextRequest) {
       commentsToMark = await db.comment.findMany({
         where: {
           id: { in: commentIds },
-          userId: systemUser.id,
           isInternal: false,
+          request: { agencyId },
+          user: { email: { endsWith: `@${agencyId}.internal` } },
         },
         select: {
           id: true,
@@ -231,28 +206,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Mark each comment as read
-    let marked = 0;
+    // Append this user to readBy atomically in one statement, so concurrent readers
+    // can't overwrite each other's marks; the @> guard skips already-read comments.
     const now = new Date().toISOString();
-
-    for (const comment of commentsToMark) {
-      const readBy = (comment.readBy as Array<{ userId: string; readAt: string }>) || [];
-
-      // Skip if already read by this user
-      if (readBy.some((r) => r.userId === userId)) {
-        continue;
-      }
-
-      // Add current user to readBy
-      await db.comment.update({
-        where: { id: comment.id },
-        data: {
-          readBy: [...readBy, { userId, readAt: now }],
-        },
-      });
-
-      marked++;
-    }
+    const ids = commentsToMark.map((c) => c.id);
+    const marked =
+      ids.length === 0
+        ? 0
+        : await db.$executeRaw`
+            UPDATE "Comment"
+            SET "readBy" = COALESCE("readBy", '[]'::jsonb) || jsonb_build_array(jsonb_build_object('userId', ${userId}::text, 'readAt', ${now}::text))
+            WHERE id = ANY(${ids}::text[])
+              AND NOT (COALESCE("readBy", '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('userId', ${userId}::text)))`;
 
     return NextResponse.json({ marked });
   } catch (error) {

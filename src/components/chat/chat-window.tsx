@@ -76,7 +76,8 @@ interface ChatWindowProps {
   isLoading?: boolean;
   isSending?: boolean;
   hasMore?: boolean;
-  onSendMessage: (content: string, attachments?: File[]) => void;
+  // Resolve to false when the send failed, so the draft is kept for a retry
+  onSendMessage: (content: string, attachments?: File[]) => Promise<boolean | void> | boolean | void;
   onLoadMore: () => void;
   onBack?: () => void;
   onMarkAsRead?: (messageIds: string[]) => void;
@@ -151,11 +152,13 @@ export function ChatWindow({
   }, [hasMore, isLoading, onLoadMore]);
 
   // Handle send message
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmedContent = inputValue.trim();
-    if (!trimmedContent && attachments.length === 0) return;
+    // A message needs text (attachments alone aren't sent yet); ignore repeats while sending
+    if (!trimmedContent || isSending) return;
 
-    onSendMessage(trimmedContent, attachments.length > 0 ? attachments : undefined);
+    const sent = await onSendMessage(trimmedContent, attachments.length > 0 ? attachments : undefined);
+    if (sent === false) return;
     setInputValue("");
     setAttachments([]);
     setIsAtBottom(true);
@@ -550,7 +553,7 @@ export function ChatWindow({
           {/* Send button */}
           <Button
             onClick={handleSend}
-            disabled={(!inputValue.trim() && attachments.length === 0) || isSending}
+            disabled={!inputValue.trim() || isSending}
             className="flex-shrink-0 btn-gradient rounded-xl h-10 w-10 p-0"
           >
             {isSending ? (

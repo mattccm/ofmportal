@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 
 // Schema for archive operations
 const archiveSchema = z.object({
@@ -330,6 +331,12 @@ export async function DELETE(req: NextRequest) {
       });
     }
 
+    // Collect storage keys before the cascade removes the upload rows
+    const uploadsToRemove = await db.upload.findMany({
+      where: { requestId: { in: requests.map((r) => r.id) } },
+      select: { storageKey: true, thumbnailKey: true },
+    });
+
     // Permanently delete the requests (cascade will handle related records)
     const deleted = await db.contentRequest.deleteMany({
       where: {
@@ -338,6 +345,11 @@ export async function DELETE(req: NextRequest) {
         status: "ARCHIVED",
       },
     });
+
+    // Best-effort: remove R2 objects no other Upload/MediaItem still references
+    await deleteUnreferencedStorageObjects(
+      uploadsToRemove.flatMap((u) => [u.storageKey, u.thumbnailKey])
+    );
 
     return NextResponse.json({
       success: true,

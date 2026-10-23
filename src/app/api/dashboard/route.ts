@@ -218,7 +218,7 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
       userName: message.sender.name,
       link: message.conversation.requestId
         ? `/dashboard/requests/${message.conversation.requestId}`
-        : `/dashboard/messages/${message.conversation.id}`,
+        : `/dashboard/messages?conversation=${message.conversation.id}`,
     });
   }
 

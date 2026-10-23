@@ -169,14 +169,12 @@ export async function POST(
               description: template.description || null,
               dueDate,
               urgency,
-              requirements: {},
-              fields: (fields as Array<{ id?: string; label?: string; type?: string; required?: boolean }>).map((f) => ({
-                id: f.id,
-                label: f.label,
-                value: "",
-                type: f.type,
-                required: f.required,
-              })),
+              requirements: template.richContent
+                ? JSON.parse(JSON.stringify({ _richContent: template.richContent }))
+                : {},
+              fields: JSON.parse(
+                JSON.stringify((fields as Record<string, unknown>[]).map((f) => ({ ...f, value: "" })))
+              ),
               status: "PENDING",
             },
           });

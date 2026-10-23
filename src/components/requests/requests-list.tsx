@@ -297,6 +297,16 @@ function getUrgencyConfig(urgency: string) {
   return configs[urgency] || configs.NORMAL;
 }
 
+// Shared by the "Overdue" quick filter and its badge count so they agree:
+// past due and not already finished or withdrawn.
+function isActiveOverdue(r: ContentRequest) {
+  return (
+    !!r.dueDate &&
+    isPast(new Date(r.dueDate)) &&
+    !["APPROVED", "CANCELLED", "ARCHIVED"].includes(r.status)
+  );
+}
+
 function getDueDateStatus(dueDate: string | null) {
   if (!dueDate) return null;
 
@@ -436,7 +446,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
     if (quickFilter === "needs-review") {
       filtered = filtered.filter((r) => (r.pendingReviewCount ?? 0) > 0);
     } else if (quickFilter === "overdue") {
-      filtered = filtered.filter((r) => r.dueDate && isPast(new Date(r.dueDate)));
+      filtered = filtered.filter(isActiveOverdue);
     } else if (quickFilter === "due-today") {
       filtered = filtered.filter((r) => r.dueDate && isToday(new Date(r.dueDate)));
     } else if (quickFilter === "due-this-week") {
@@ -777,18 +787,27 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
   const loadRequests = useCallback(async () => {
     setLoadState("loading");
     try {
-      const response = await fetch("/api/requests?limit=100", {
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load requests (${response.status})`);
+      // The API caps pages at 100, so walk every page; the server page loads
+      // all requests and the tabs/filters/search here are client-side.
+      const all: ContentRequest[] = [];
+      let page = 1;
+      for (;;) {
+        const response = await fetch(`/api/requests?limit=100&page=${page}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load requests (${response.status})`);
+        }
+        const payload = await response.json();
+        const data = Array.isArray(payload) ? payload : payload?.data;
+        if (!Array.isArray(data)) {
+          throw new Error("Unexpected requests response shape");
+        }
+        all.push(...data);
+        if (Array.isArray(payload) || !payload?.pagination?.hasNextPage) break;
+        page++;
       }
-      const payload = await response.json();
-      const data = Array.isArray(payload) ? payload : payload?.data;
-      if (!Array.isArray(data)) {
-        throw new Error("Unexpected requests response shape");
-      }
-      setRequests(data);
+      setRequests(all);
       setLoadState("success");
       return true;
     } catch (error) {
@@ -821,7 +840,7 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
   }, [requests]);
   const overdueCount = useMemo(() => {
     if (!requests || !Array.isArray(requests)) return 0;
-    return requests.filter((r) => r.dueDate && isPast(new Date(r.dueDate)) && !["APPROVED", "ARCHIVED"].includes(r.status)).length;
+    return requests.filter(isActiveOverdue).length;
   }, [requests]);
 
   return (

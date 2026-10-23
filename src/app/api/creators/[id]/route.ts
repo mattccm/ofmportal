@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deleteFile } from "@/lib/storage";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 
@@ -231,6 +232,11 @@ export async function PATCH(
     // Archive / unarchive toggle (reversible). Leaves inviteStatus untouched.
     if (archived !== undefined) {
       updateData.archivedAt = archived ? new Date() : null;
+      if (archived) {
+        // Sign the creator out of the portal; they log in again after unarchiving
+        updateData.sessionToken = null;
+        updateData.sessionExpiry = null;
+      }
     }
 
     // Archiving cascades to requests + recurring schedules; run in one
@@ -323,7 +329,26 @@ export async function DELETE(
       // Favorite, EmailQueueItem) — the DB won't cascade those, so we clean
       // them up explicitly to avoid orphaned rows. Everything runs in one
       // transaction so a failure leaves the creator intact.
+      // Collect storage keys first so the R2 objects can be removed after commit.
+      const uploads = await db.upload.findMany({
+        where: { creatorId: id },
+        select: { id: true, storageKey: true, thumbnailKey: true },
+      });
+      const media = await db.mediaItem.findMany({
+        where: { creatorId: id, agencyId: session.user.agencyId },
+        select: { storageKey: true, thumbnailKey: true },
+      });
+      const keys = new Set(
+        [...uploads, ...media]
+          .flatMap((u) => [u.storageKey, u.thumbnailKey])
+          .filter((k): k is string => Boolean(k))
+      );
+
       await db.$transaction(async (tx) => {
+        // VideoTimestamp has no FK to Upload, so it won't cascade
+        await tx.videoTimestamp.deleteMany({
+          where: { uploadId: { in: uploads.map((u) => u.id) } },
+        });
         await tx.mediaItem.deleteMany({
           where: { creatorId: id, agencyId: session.user.agencyId },
         });
@@ -343,6 +368,18 @@ export async function DELETE(
         await tx.creator.delete({
           where: { id },
         });
+        // Remove the hidden pseudo-user that backs this creator's comments
+        await tx.user.deleteMany({
+          where: { email: `creator-${id}@${session.user.agencyId}.internal` },
+        });
+      });
+
+      // Best-effort storage cleanup; failures must not fail the response
+      const results = await Promise.allSettled([...keys].map((k) => deleteFile(k)));
+      results.forEach((r) => {
+        if (r.status === "rejected") {
+          console.error("Failed to delete creator file from storage:", r.reason);
+        }
       });
     } else {
       // Archive: mark as archived (reversible). Leave inviteStatus alone so the
@@ -353,6 +390,9 @@ export async function DELETE(
           where: { id },
           data: {
             archivedAt: new Date(),
+            // Sign the creator out of the portal
+            sessionToken: null,
+            sessionExpiry: null,
           },
         });
         await cascadeCreatorArchive(tx, id, session.user.agencyId);

@@ -64,6 +64,14 @@ export async function PATCH(
       );
     }
 
+    // ADMINs cannot change the role of OWNERs or other ADMINs (mirrors DELETE)
+    if (session.user.role === "ADMIN" && ["OWNER", "ADMIN"].includes(member.role)) {
+      return NextResponse.json(
+        { error: "Admins cannot change the role of owners or other admins" },
+        { status: 403 }
+      );
+    }
+
     // Prevent demoting the last OWNER
     if (member.role === "OWNER" && role !== "OWNER") {
       const ownerCount = await db.user.count({

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
+import { getRequiredFileFieldIds } from "@/lib/upload-finalize";
 
 interface FieldSubmission {
   status: "PENDING" | "SUBMITTED" | "APPROVED" | "NEEDS_REVISION";
@@ -122,15 +123,22 @@ export async function POST(
     // Check if all file fields are approved to update request status
     const fields = request.fields as Array<{ id: string; type: string }> || [];
     const fileFields = fields.filter(f => f.type === "file");
-    const allFieldsApproved = fileFields.every(f =>
-      fieldSubmissions[f.id]?.status === "APPROVED"
-    );
+    const slotIds = getRequiredFileFieldIds(request.fields);
+    // Required slots must be approved; optional fields with no submission are ignored,
+    // but a submitted optional field must still be reviewed (not SUBMITTED/NEEDS_REVISION).
+    const allFieldsApproved =
+      slotIds.length > 0 &&
+      slotIds.every(fid => fieldSubmissions[fid]?.status === "APPROVED") &&
+      fileFields.every(f => {
+        const s = fieldSubmissions[f.id];
+        return !s || s.status === "PENDING" || s.status === "APPROVED";
+      });
     const anyNeedsRevision = fileFields.some(f =>
       fieldSubmissions[f.id]?.status === "NEEDS_REVISION"
     );
 
     let newStatus = request.status;
-    if (allFieldsApproved && fileFields.length > 0) {
+    if (allFieldsApproved) {
       newStatus = "APPROVED";
     } else if (anyNeedsRevision) {
       newStatus = "NEEDS_REVISION";

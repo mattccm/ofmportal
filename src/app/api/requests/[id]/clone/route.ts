@@ -6,6 +6,7 @@ import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
 import { format, addDays } from "date-fns";
+import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 
 const cloneRequestSchema = z.object({
   targetCreatorIds: z.array(z.string()).min(1, "At least one creator is required"),
@@ -20,7 +21,7 @@ const cloneRequestSchema = z.object({
       value: z.string(),
       type: z.string(),
       required: z.boolean(),
-    })).optional(),
+    }).passthrough()).optional(),
   }).optional(),
   sendNotification: z.boolean().default(true),
 });
@@ -126,6 +127,15 @@ export async function POST(
         });
 
         clonedRequests.push(clonedRequest.id);
+
+        // Schedule auto-reminders like a normal new request
+        if (dueDate) {
+          try {
+            await scheduleRemindersForRequest(clonedRequest.id);
+          } catch (error) {
+            console.error("Failed to schedule auto-reminders:", error);
+          }
+        }
 
         // Send notification if requested
         if (validatedData.sendNotification) {

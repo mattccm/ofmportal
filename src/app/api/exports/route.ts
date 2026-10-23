@@ -72,9 +72,11 @@ function toCSV(data: Record<string, unknown>[], fields: string[]): string {
         const value = row[field];
         if (value === null || value === undefined) return "";
         if (typeof value === "string") {
-          // Escape quotes and wrap in quotes if contains comma or newline
-          const escaped = value.replace(/"/g, '""');
-          if (escaped.includes(",") || escaped.includes("\n") || escaped.includes('"')) {
+          // Neutralise spreadsheet formula injection (=, +, -, @, tab, CR prefixes)
+          const safe = /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
+          // Escape quotes and wrap in quotes if contains comma, quote or line break
+          const escaped = safe.replace(/"/g, '""');
+          if (/[",\r\n]/.test(escaped)) {
             return `"${escaped}"`;
           }
           return escaped;
@@ -100,6 +102,51 @@ function toJSON(data: Record<string, unknown>[], fields: string[]): string {
   });
   return JSON.stringify(filteredData, null, 2);
 }
+
+// Allowlisted custom-condition fields per entity, mapped to Prisma paths
+const CONDITION_FIELDS: Record<EntityType, Record<string, string[]>> = {
+  creators: {
+    name: ["name"],
+    email: ["email"],
+    phone: ["phone"],
+    inviteStatus: ["inviteStatus"],
+    preferredContact: ["preferredContact"],
+    timezone: ["timezone"],
+    lastLoginAt: ["lastLoginAt"],
+    createdAt: ["createdAt"],
+    updatedAt: ["updatedAt"],
+  },
+  requests: {
+    title: ["title"],
+    description: ["description"],
+    status: ["status"],
+    urgency: ["urgency"],
+    dueDate: ["dueDate"],
+    submittedAt: ["submittedAt"],
+    reviewedAt: ["reviewedAt"],
+    createdAt: ["createdAt"],
+    updatedAt: ["updatedAt"],
+    creatorName: ["creator", "name"],
+    creatorEmail: ["creator", "email"],
+  },
+  uploads: {
+    fileName: ["fileName"],
+    originalName: ["originalName"],
+    fileType: ["fileType"],
+    uploadStatus: ["uploadStatus"],
+    approvalStatus: ["status"],
+    reviewNote: ["reviewNote"],
+    rating: ["rating"],
+    uploadedAt: ["uploadedAt"],
+    createdAt: ["createdAt"],
+    creatorName: ["creator", "name"],
+    creatorEmail: ["creator", "email"],
+    requestTitle: ["request", "title"],
+  },
+  analytics: {},
+};
+
+class UnsupportedFilterError extends Error {}
 
 // Helper function to build where clause from filters
 function buildWhereClause(
@@ -144,14 +191,31 @@ function buildWhereClause(
     }
   }
 
-  // Custom conditions
+  // Custom conditions (allowlisted fields only, combined with AND)
   if (filters.conditions && filters.conditions.length > 0) {
+    const allowed = CONDITION_FIELDS[entity] || {};
+    const and: Record<string, unknown>[] = [];
     filters.conditions.forEach((condition) => {
+      const path = Object.prototype.hasOwnProperty.call(allowed, condition.field)
+        ? allowed[condition.field]
+        : undefined;
+      if (!path) {
+        throw new UnsupportedFilterError(`Unsupported filter field: ${condition.field}`);
+      }
       const fieldWhere = buildConditionWhere(condition);
       if (fieldWhere) {
-        where[condition.field] = fieldWhere;
+        // Build a nested object from the path, e.g. { creator: { name: fieldWhere } }
+        and.push(
+          path.reduceRight<Record<string, unknown>>(
+            (acc, key, i) => ({ [key]: i === path.length - 1 ? fieldWhere : acc }),
+            {}
+          )
+        );
       }
     });
+    if (and.length > 0) {
+      where.AND = and;
+    }
   }
 
   return where;
@@ -192,7 +256,7 @@ async function fetchEntityData(
   switch (entity) {
     case "creators": {
       const creators = await db.creator.findMany({
-        where: { agencyId, ...where },
+        where: { ...where, agencyId },
         include: {
           _count: {
             select: { requests: true, uploads: true },
@@ -219,7 +283,7 @@ async function fetchEntityData(
 
     case "requests": {
       const requests = await db.contentRequest.findMany({
-        where: { agencyId, ...where },
+        where: { ...where, agencyId },
         include: {
           creator: { select: { name: true, email: true } },
           _count: {
@@ -250,8 +314,8 @@ async function fetchEntityData(
     case "uploads": {
       const uploads = await db.upload.findMany({
         where: {
-          request: { agencyId },
           ...where,
+          request: { agencyId },
         },
         include: {
           creator: { select: { name: true, email: true } },
@@ -424,6 +488,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const agencyId = session.user.agencyId;
     const body = await request.json();
 
@@ -526,6 +594,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof UnsupportedFilterError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Export API POST error:", error);
     return NextResponse.json({ error: "Failed to generate export" }, { status: 500 });
   }

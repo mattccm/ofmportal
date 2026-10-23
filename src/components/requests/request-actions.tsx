@@ -32,8 +32,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { ShareButton } from "@/components/share/share-dialog";
-import { createZipFromUrls, downloadBlob } from "@/lib/client-zip";
+import { createZipFromUrlsWithReport, downloadBlob } from "@/lib/client-zip";
 
 interface Request {
   id: string;
@@ -82,14 +81,12 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
   }>({ open: false, action: null });
 
   const isDraft = request.status === "DRAFT";
-  const isCompleted = request.status === "APPROVED";
   const canSubmit = request.status === "IN_PROGRESS" && request.uploads.length > 0;
   const canApprove = request.status === "SUBMITTED" || request.status === "UNDER_REVIEW";
   const canCancel = request.status !== "CANCELLED" && request.status !== "APPROVED" && request.status !== "ARCHIVED";
   const isArchived = request.status === "ARCHIVED";
   const canArchive = !isArchived && request.status !== "DRAFT";
   const canSendReminder = ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(request.status);
-  const canShare = isCompleted && request.uploads.length > 0;
 
   const handleAction = async (action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder" | "delete") => {
     if (loading) return;
@@ -131,15 +128,9 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
           action === "archive" ? "Request archived" : "Reminder sent to creator"
         );
       } else if (action === "publish") {
-        // Publish draft - change status to PENDING
-        const response = await fetch("/api/requests/bulk", {
+        // Publish draft - moves it to PENDING and notifies the creator
+        const response = await fetch(`/api/requests/${request.id}/publish`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "changeStatus",
-            requestIds: [request.id],
-            status: "PENDING",
-          }),
         });
 
         if (!response.ok) {
@@ -149,12 +140,35 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
 
         toast.success("Request published and sent to creator");
       } else {
-        const response = await fetch(`/api/requests/${request.id}/${action}`, {
-          method: "POST",
+        if (action === "approve") {
+          // Approve any outstanding uploads first (schema requires at least one id).
+          // Only PENDING ones: never silently overturn an explicit rejection.
+          const ids = request.uploads.filter((u) => u.status === "PENDING").map((u) => u.id);
+          if (ids.length > 0) {
+            const approveResponse = await fetch("/api/uploads/approve", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ uploadIds: ids, requestId: request.id }),
+            });
+
+            if (!approveResponse.ok) {
+              const data = await approveResponse.json().catch(() => ({}));
+              throw new Error(data.error || "Failed to approve request");
+            }
+          }
+        }
+
+        // submit / approve / cancel map to a status change on the request
+        const status =
+          action === "submit" ? "SUBMITTED" : action === "approve" ? "APPROVED" : "CANCELLED";
+        const response = await fetch(`/api/requests/${request.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
         });
 
         if (!response.ok) {
-          const data = await response.json();
+          const data = await response.json().catch(() => ({}));
           throw new Error(data.error || `Failed to ${action} request`);
         }
 
@@ -194,7 +208,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
       const toastId = toast.loading(`Preparing ${files.length} file(s)...`);
 
       // Create ZIP client-side (files fetched directly from R2 - no Vercel bandwidth)
-      const zipBlob = await createZipFromUrls(files, (progress) => {
+      const { blob: zipBlob, failedFiles, addedCount } = await createZipFromUrlsWithReport(files, (progress) => {
         if (progress.phase === "fetching") {
           toast.loading(`Downloading ${progress.current}/${progress.total}: ${progress.fileName}`, { id: toastId });
         } else if (progress.phase === "zipping") {
@@ -205,7 +219,14 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
       const filename = `${request.title.replace(/[^a-z0-9]/gi, "_")}_${request.id}.zip`;
       downloadBlob(zipBlob, filename);
 
-      toast.success(`Downloaded ${files.length} file(s)`, { id: toastId });
+      if (failedFiles.length > 0) {
+        toast.warning(
+          `ZIP contains ${addedCount} of ${files.length} file(s). ${failedFiles.length} failed to download: ${failedFiles.slice(0, 3).join(", ")}${failedFiles.length > 3 ? ", ..." : ""}`,
+          { id: toastId }
+        );
+      } else {
+        toast.success(`Downloaded ${files.length} file(s)`, { id: toastId });
+      }
     } catch (error) {
       console.error("Download error:", error);
       toast.dismiss(); // Clear loading toast
@@ -309,15 +330,6 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             <CheckCircle className="mr-2 h-4 w-4" />
             Approve All
           </Button>
-        )}
-
-        {canShare && (
-          <ShareButton
-            resourceType="REQUEST"
-            resourceId={request.id}
-            resourceTitle={request.title}
-            variant="outline"
-          />
         )}
 
         <DropdownMenu>

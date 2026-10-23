@@ -16,6 +16,10 @@ import {
 import { toZonedTime } from "date-fns-tz";
 import type { DateRangeParams } from "./analytics";
 
+// A request is only complete once approved/archived; reviewedAt is also set on NEEDS_REVISION
+const isCompleted = (r: { status: string; reviewedAt: Date | null }) =>
+  !!r.reviewedAt && (r.status === "APPROVED" || r.status === "ARCHIVED");
+
 // Re-export types from response-time-types for convenience
 export {
   SLA_THRESHOLDS,
@@ -237,6 +241,7 @@ export async function getResponseTimeMetrics(
       id: true,
       createdAt: true,
       reviewedAt: true,
+      status: true,
       urgency: true,
       uploads: {
         select: {
@@ -273,7 +278,7 @@ export async function getResponseTimeMetrics(
     }
 
     // Completion time (reviewed)
-    if (request.reviewedAt) {
+    if (isCompleted(request) && request.reviewedAt) {
       const hours = calculateHours(request.createdAt, request.reviewedAt);
       completionTimes.push(hours);
 
@@ -350,6 +355,7 @@ export async function getSLAComplianceMetrics(
       id: true,
       createdAt: true,
       reviewedAt: true,
+      status: true,
       urgency: true,
       uploads: {
         select: {
@@ -403,7 +409,7 @@ export async function getSLAComplianceMetrics(
     }
 
     // Completion SLA
-    if (request.reviewedAt) {
+    if (isCompleted(request) && request.reviewedAt) {
       completionTotal++;
       const slaStatus = calculateSLAStatus(
         request.createdAt,
@@ -476,6 +482,7 @@ export async function getResponseTimeByCreator(
             select: {
               createdAt: true,
               reviewedAt: true,
+              status: true,
               urgency: true,
             },
           },
@@ -515,7 +522,7 @@ export async function getResponseTimeByCreator(
           if (slaStatus.status === "met") slaMet++;
         }
 
-        if (upload.request.reviewedAt) {
+        if (isCompleted(upload.request) && upload.request.reviewedAt) {
           const completionHours = calculateHours(upload.request.createdAt, upload.request.reviewedAt);
           completionTimes.push(completionHours);
         }
@@ -585,6 +592,7 @@ export async function getResponseTimeByRequestType(
       id: true,
       createdAt: true,
       reviewedAt: true,
+      status: true,
       urgency: true,
       template: {
         select: {
@@ -629,7 +637,7 @@ export async function getResponseTimeByRequestType(
       typeGroups[type].firstResponseTimes.push(hours);
     }
 
-    if (request.reviewedAt) {
+    if (isCompleted(request) && request.reviewedAt) {
       const hours = calculateHours(request.createdAt, request.reviewedAt);
       typeGroups[type].completionTimes.push(hours);
     }
@@ -676,6 +684,7 @@ export async function getResponseTimeTrends(
       id: true,
       createdAt: true,
       reviewedAt: true,
+      status: true,
       urgency: true,
       uploads: {
         select: {
@@ -732,7 +741,7 @@ export async function getResponseTimeTrends(
       if (slaStatus.status === "met") dateGroups[dateStr].slaMet++;
     }
 
-    if (request.reviewedAt) {
+    if (isCompleted(request) && request.reviewedAt) {
       const hours = calculateHours(request.createdAt, request.reviewedAt);
       dateGroups[dateStr].completionTimes.push(hours);
     }

@@ -35,6 +35,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
+import QRCode from "qrcode";
 import { EXPIRATION_OPTIONS } from "@/lib/share-types";
 
 type ShareResourceType = "UPLOAD" | "REQUEST" | "REPORT" | "COLLECTION";
@@ -423,17 +424,16 @@ function QRCodeDisplay({ url }: { url: string }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // Generate QR code using a simple API or library
-    const generateQR = async () => {
-      try {
-        // Use QR code API (fallback to a placeholder)
-        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
-        setQrDataUrl(qrApiUrl);
-      } catch {
-        console.error("Failed to generate QR code");
-      }
+    // Generate the QR code locally so the share token never leaves the browser
+    let cancelled = false;
+    QRCode.toDataURL(url, { width: 150, margin: 1 })
+      .then((dataUrl) => {
+        if (!cancelled) setQrDataUrl(dataUrl);
+      })
+      .catch(() => console.error("Failed to generate QR code"));
+    return () => {
+      cancelled = true;
     };
-    generateQR();
   }, [url]);
 
   if (!qrDataUrl) {

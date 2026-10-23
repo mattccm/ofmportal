@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendCreatorInviteEmail } from "@/lib/email";
 import crypto from "crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 // POST - Resend invite to creator
 export async function POST(
@@ -67,7 +68,7 @@ export async function POST(
     });
 
     // Build the invite URL
-    const inviteUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/portal/setup?token=${inviteToken}`;
+    const inviteUrl = `${getAppUrl()}/portal/setup/${inviteToken}`;
 
     // Only log invite URL in development
     if (process.env.NODE_ENV === "development") {

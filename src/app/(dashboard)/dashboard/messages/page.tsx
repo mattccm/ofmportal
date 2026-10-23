@@ -151,6 +151,7 @@ export default function MessagesPage() {
           isFromCreator: boolean;
           attachments: unknown[];
           forwardedContent: unknown[];
+          readBy?: Array<string | { userId: string; readAt?: string }>;
           createdAt: string;
         }) => ({
           id: msg.id,
@@ -158,7 +159,8 @@ export default function MessagesPage() {
           senderId: msg.isFromCreator ? msg.creator?.id || "creator" : msg.sender?.id || "unknown",
           content: msg.content,
           attachments: msg.attachments || [],
-          readBy: [],
+          // DB stores {userId, readAt}; the chat UI expects plain user ids
+          readBy: (msg.readBy || []).map((r) => (typeof r === "string" ? r : r.userId)),
           createdAt: new Date(msg.createdAt),
           updatedAt: new Date(msg.createdAt),
           sender: msg.isFromCreator
@@ -222,18 +224,14 @@ export default function MessagesPage() {
   };
 
   // Send message handler using unified inbox API
-  const handleSendMessage = async (content: string, attachments?: File[]) => {
-    if (!selectedConversationId) return;
+  const handleSendMessage = async (content: string): Promise<boolean> => {
+    if (!selectedConversationId) return false;
 
     try {
       setIsSending(true);
 
-      // Handle file uploads if any
+      // File attachment upload isn't wired up yet
       const attachmentData: { id: string; name: string; url: string; type: string; size: number }[] = [];
-      if (attachments && attachments.length > 0) {
-        // File attachment upload isn't wired up yet
-        console.log("File attachments:", attachments);
-      }
 
       const response = await fetch(`/api/inbox/${selectedConversationId}`, {
         method: "POST",
@@ -275,9 +273,16 @@ export default function MessagesPage() {
             return bTime - aTime;
           })
         );
+        return true;
       }
+
+      const data = await response.json().catch(() => null);
+      toast.error(data?.error || "Failed to send message");
+      return false;
     } catch (error) {
       console.error("Failed to send message:", error);
+      toast.error("Failed to send message");
+      return false;
     } finally {
       setIsSending(false);
     }

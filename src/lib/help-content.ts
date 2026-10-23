@@ -54,10 +54,6 @@ export const dashboardHelp: Record<string, HelpContent> = {
       "Higher upload counts may indicate need for more reviewers",
       "Monitor for sudden drops which may indicate creator issues",
     ],
-    docsLink: {
-      label: "Understanding Upload Metrics",
-      url: "/help/metrics/uploads",
-    },
     category: "dashboard",
   },
 
@@ -71,10 +67,6 @@ export const dashboardHelp: Record<string, HelpContent> = {
       "Use templates to standardize requirements",
       "Consider providing example content for reference",
     ],
-    docsLink: {
-      label: "Improving Approval Rates",
-      url: "/help/best-practices/approval-rates",
-    },
     videoLink: {
       label: "Video: Quality Guidelines",
       url: "https://youtube.com/watch?v=example",
@@ -93,10 +85,6 @@ export const dashboardHelp: Record<string, HelpContent> = {
       "Use priority flags for urgent content",
       "Send reminder notifications for pending items",
     ],
-    docsLink: {
-      label: "Optimizing Workflow",
-      url: "/help/workflow/turnaround",
-    },
     category: "dashboard",
   },
 
@@ -181,10 +169,6 @@ export const formFieldHelp: Record<string, HelpContent> = {
       "Reference example content when possible",
       "List any brand guidelines or restrictions",
     ],
-    docsLink: {
-      label: "Writing Effective Briefs",
-      url: "/help/requests/writing-briefs",
-    },
     category: "forms",
   },
 
@@ -278,10 +262,6 @@ export const settingsHelp: Record<string, HelpContent> = {
       "Save backup codes in a secure location",
       "Required for team admin accounts",
     ],
-    docsLink: {
-      label: "Setting Up 2FA",
-      url: "/help/security/two-factor",
-    },
     videoLink: {
       label: "Video Tutorial",
       url: "https://youtube.com/watch?v=2fa-setup",
@@ -352,10 +332,6 @@ export const settingsHelp: Record<string, HelpContent> = {
       "Rotate keys periodically for security",
       "Revoke unused keys immediately",
     ],
-    docsLink: {
-      label: "API Documentation",
-      url: "/api/docs",
-    },
     category: "security",
   },
 
@@ -369,10 +345,6 @@ export const settingsHelp: Record<string, HelpContent> = {
       "Implement signature verification",
       "Handle retries for failed deliveries",
     ],
-    docsLink: {
-      label: "Webhook Guide",
-      url: "/help/integrations/webhooks",
-    },
     category: "settings",
   },
 
@@ -399,10 +371,6 @@ export const settingsHelp: Record<string, HelpContent> = {
       "Delete rejected uploads after review",
       "Upgrade plan if consistently near limit",
     ],
-    docsLink: {
-      label: "Storage Management",
-      url: "/help/storage/managing-storage",
-    },
     category: "settings",
   },
 };
@@ -628,10 +596,6 @@ export const templatesHelp: Record<string, HelpContent> = {
       "Set default file type restrictions",
       "Add helpful description examples",
     ],
-    docsLink: {
-      label: "Template Best Practices",
-      url: "/help/templates/best-practices",
-    },
     category: "templates",
   },
 

@@ -4,6 +4,20 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, format } from "date-fns";
 import { sendContentRequestEmail } from "@/lib/email";
+import type { Prisma } from "@prisma/client";
+
+// Template fields may be stored as a JSON string; always return an array
+function parseTemplateFields(raw: unknown): unknown[] {
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(raw) ? raw : [];
+}
 
 // TASK EXECUTION LOGIC
 
@@ -63,7 +77,7 @@ async function executeCreateRequest(
         dueDate,
         urgency: template.defaultUrgency,
         requirements: {},
-        fields: template.fields || [],
+        fields: parseTemplateFields(template.fields) as Prisma.InputJsonValue,
         status: "PENDING",
       },
     });
@@ -139,7 +153,7 @@ async function executeApplyBundle(
           dueDate,
           urgency: template.defaultUrgency,
           requirements: {},
-          fields: template.fields || [],
+          fields: parseTemplateFields(template.fields) as Prisma.InputJsonValue,
           status: "PENDING",
         },
       });

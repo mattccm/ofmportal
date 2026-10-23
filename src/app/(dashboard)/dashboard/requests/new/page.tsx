@@ -712,7 +712,7 @@ function NewRequestForm() {
     async function loadData() {
       try {
         const [creatorsRes, templatesRes, groupsRes] = await Promise.all([
-          fetch("/api/creators"),
+          fetch("/api/creators?limit=100&sortBy=name&sortOrder=asc"),
           fetch("/api/templates"),
           fetch("/api/creators/groups"),
         ]);

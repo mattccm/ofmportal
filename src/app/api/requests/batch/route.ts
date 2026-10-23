@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -6,6 +6,20 @@ import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
 import { format } from "date-fns";
+import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
+
+// Template fields may be stored as a JSON string; always return an array
+function parseTemplateFields(raw: unknown): unknown[] {
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(raw) ? raw : [];
+}
 
 // Schema for individual request in batch
 const batchRequestItemSchema = z.object({
@@ -30,7 +44,7 @@ const batchRequestItemSchema = z.object({
         value: z.string(),
         type: z.string(),
         required: z.boolean(),
-      })
+      }).passthrough()
     )
     .optional(),
 });
@@ -122,74 +136,84 @@ export async function POST(req: NextRequest) {
       requestIds: [],
     };
 
-    // Process requests in transaction for atomicity
+    // Process requests in transaction for atomicity. Any failure rolls back the
+    // whole batch (Postgres aborts the transaction on the first failed statement).
     const createdRequests = await db.$transaction(async (tx) => {
       const requests = [];
 
       for (const requestData of validatedData.requests) {
-        try {
-          const creator = creatorMap.get(requestData.creatorId)!;
+        const creator = creatorMap.get(requestData.creatorId)!;
 
-          // Create the content request
-          const contentRequest = await tx.contentRequest.create({
-            data: {
-              agencyId: session.user.agencyId,
-              creatorId: requestData.creatorId,
-              templateId: validatedData.templateId || null,
+        // Create the content request
+        const contentRequest = await tx.contentRequest.create({
+          data: {
+            agencyId: session.user.agencyId,
+            creatorId: requestData.creatorId,
+            templateId: validatedData.templateId || null,
+            title: requestData.title,
+            description: requestData.description || null,
+            dueDate: requestData.dueDate ? new Date(requestData.dueDate) : null,
+            urgency: requestData.urgency,
+            // Template-level richContent is stored in requirements._richContent
+            requirements: JSON.parse(JSON.stringify({
+              ...(requestData.requirements || {}),
+              ...(template?.richContent ? { _richContent: template.richContent } : {}),
+            })),
+            fields: JSON.parse(JSON.stringify(requestData.fields || (template ? parseTemplateFields(template.fields) : []))),
+            status: "PENDING",
+          },
+          include: {
+            creator: true,
+          },
+        });
+
+        requests.push(contentRequest);
+
+        // Log activity
+        await tx.activityLog.create({
+          data: {
+            userId: session.user.id,
+            action: "request.created.batch",
+            entityType: "ContentRequest",
+            entityId: contentRequest.id,
+            metadata: {
               title: requestData.title,
-              description: requestData.description || null,
-              dueDate: requestData.dueDate ? new Date(requestData.dueDate) : null,
-              urgency: requestData.urgency,
-              requirements: JSON.parse(JSON.stringify(requestData.requirements || {})),
-              fields: JSON.parse(JSON.stringify(requestData.fields || (template ? template.fields : []))),
-              status: "PENDING",
+              creatorName: creator.name,
+              batchCreation: true,
             },
-            include: {
-              creator: true,
-            },
-          });
-
-          requests.push(contentRequest);
-          results.created++;
-          results.requestIds.push(contentRequest.id);
-
-          // Log activity
-          await tx.activityLog.create({
-            data: {
-              userId: session.user.id,
-              action: "request.created.batch",
-              entityType: "ContentRequest",
-              entityId: contentRequest.id,
-              metadata: {
-                title: requestData.title,
-                creatorName: creator.name,
-                batchCreation: true,
-              },
-            },
-          });
-        } catch (error) {
-          results.failed++;
-          results.errors.push(
-            `Failed to create request for creator ${requestData.creatorId}: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`
-          );
-        }
+          },
+        });
       }
 
       return requests;
-    });
+    }, { maxWait: 10000, timeout: 30000 });
 
-    // Send notifications in batches (non-blocking)
+    results.created = createdRequests.length;
+    results.requestIds = createdRequests.map((r) => r.id);
+
+    // Schedule auto-reminders for requests with a due date
+    for (const request of createdRequests) {
+      if (!request.dueDate) continue;
+      try {
+        await scheduleRemindersForRequest(request.id);
+      } catch (error) {
+        console.error(`Failed to schedule auto-reminders for ${request.id}:`, error);
+      }
+    }
+
+    // Send notifications in batches after the response; after() keeps the
+    // serverless function alive until they finish
     if (validatedData.sendNotifications && createdRequests.length > 0) {
-      // Process notifications asynchronously
-      sendBatchNotifications(
-        createdRequests,
-        session.user.agencyName || "Agency",
-        NOTIFICATION_BATCH_SIZE
-      ).catch((error) => {
-        console.error("Failed to send some notifications:", error);
-      });
+      const agencyName = session.user.agencyName || "Agency";
+      after(() =>
+        sendBatchNotifications(
+          createdRequests,
+          agencyName,
+          NOTIFICATION_BATCH_SIZE
+        ).catch((error) => {
+          console.error("Failed to send some notifications:", error);
+        })
+      );
     }
 
     return NextResponse.json(
@@ -243,7 +267,7 @@ async function sendBatchNotifications(
   for (const batch of batches) {
     await Promise.allSettled(
       batch.map(async (request) => {
-        const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
+        const portalLink = `${process.env.APP_URL}/creator/requests/${request.id}`;
         const dueDate = request.dueDate
           ? format(request.dueDate, "MMMM d, yyyy")
           : "No specific due date";

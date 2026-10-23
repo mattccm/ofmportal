@@ -131,12 +131,14 @@ function LogoUpload({
   onChange,
   description,
   variant = "light",
+  assetType,
 }: {
   label: string;
   value: string | null;
-  onChange: (base64: string | null) => void;
+  onChange: (url: string | null) => void;
   description?: string;
   variant?: "light" | "dark";
+  assetType: "logoLight" | "logoDark" | "logoFavicon";
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -159,20 +161,21 @@ function LogoUpload({
     setIsUploading(true);
 
     try {
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string;
-        onChange(base64);
-        setIsUploading(false);
-      };
-      reader.onerror = () => {
-        toast.error("Failed to read file");
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
+      // Upload to storage so we keep a hosted URL, not a base64 data URI
+      // (data URIs bloat every branded email and portal load)
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("assetType", assetType);
+      const res = await fetch("/api/agency/branding", { method: "POST", body: fd });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json.error || "Failed to upload logo");
+        return;
+      }
+      onChange(json.url);
     } catch {
-      toast.error("Failed to process file");
+      toast.error("Failed to upload logo");
+    } finally {
       setIsUploading(false);
     }
   };
@@ -649,6 +652,7 @@ export function BrandingForm({
                   onChange={(v) => updateField("logoLight", v)}
                   description="Used on light backgrounds"
                   variant="light"
+                  assetType="logoLight"
                 />
                 <LogoUpload
                   label="Dark Mode Logo"
@@ -656,6 +660,7 @@ export function BrandingForm({
                   onChange={(v) => updateField("logoDark", v)}
                   description="Used on dark backgrounds (optional)"
                   variant="dark"
+                  assetType="logoDark"
                 />
               </CardContent>
             </Card>

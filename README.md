@@ -73,19 +73,19 @@ npm run setup:db
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to access the portal.
+Open [http://localhost:3001](http://localhost:3001) to access the portal.
 
 ### Test Accounts
 
 After seeding, you can log in with:
 
-**Agency Dashboard** (http://localhost:3000/login):
-- Email: `admin@demo-agency.com`
-- Password: `password123`
+**Agency Dashboard** (http://localhost:3001/login):
+- Email: `admin@agency.com` (or `manager@agency.com`)
+- Password: `Password123`
 
-**Creator Portal** (http://localhost:3000/portal/login):
-- Email: `creator1@example.com` (or creator2, creator3)
-- Password: `creator123`
+**Creator Portal** (http://localhost:3001/portal/login):
+- Email: `sarah@example.com` (or `mike@example.com`)
+- Password: `Creator123`
 
 ### Local Services
 
@@ -109,7 +109,7 @@ When external services aren't configured:
 
 ### Environment Variables
 
-Copy `.env` and update with production values:
+Copy `.env.example` to `.env` and update with production values:
 
 Required:
 - `DATABASE_URL`: PostgreSQL connection string

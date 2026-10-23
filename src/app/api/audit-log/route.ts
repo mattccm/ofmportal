@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { excludePseudoUsers } from "@/lib/staff";
 
 // VALIDATION SCHEMAS
 
@@ -24,9 +25,13 @@ const getAuditLogQuerySchema = z.object({
 
 function escapeCSVField(field: string | null | undefined): string {
   if (field === null || field === undefined) return "";
-  const stringField = String(field);
-  // Escape quotes and wrap in quotes if contains comma, quote, or newline
-  if (stringField.includes(",") || stringField.includes('"') || stringField.includes("\n")) {
+  let stringField = String(field);
+  // Neutralise spreadsheet formula injection (=, +, -, @, tab, CR prefixes)
+  if (/^[=+\-@\t\r]/.test(stringField)) {
+    stringField = `'${stringField}`;
+  }
+  // Escape quotes and wrap in quotes if contains comma, quote, CR or newline
+  if (/[",\r\n]/.test(stringField)) {
     return `"${stringField.replace(/"/g, '""')}"`;
   }
   return stringField;
@@ -222,7 +227,7 @@ export async function GET(req: NextRequest) {
       }),
       db.activityLog.findMany({
         distinct: ["userId"],
-        where: { userId: { not: null } },
+        where: { userId: { not: null }, user: excludePseudoUsers },
         select: {
           user: {
             select: {

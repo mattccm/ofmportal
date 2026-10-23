@@ -132,6 +132,7 @@ export async function getOverviewStats(
   const [
     currentUploads,
     currentApprovedUploads,
+    currentRejectedUploads,
     currentRequests,
     currentActiveCreators,
     completedRequests,
@@ -149,6 +150,16 @@ export async function getOverviewStats(
       where: {
         request: { agencyId },
         status: "APPROVED",
+        updatedAt: { gte: start, lte: end },
+        ...creatorFilter,
+      },
+    }),
+    // Rejected uploads in period (approval rate = approved / (approved + rejected),
+    // matching getApprovalMetrics and staying <= 100%)
+    db.upload.count({
+      where: {
+        request: { agencyId },
+        status: "REJECTED",
         updatedAt: { gte: start, lte: end },
         ...creatorFilter,
       },
@@ -186,7 +197,13 @@ export async function getOverviewStats(
   ]);
 
   // Previous period stats
-  const [prevUploads, prevApprovedUploads, prevRequests, prevActiveCreators] =
+  const [
+    prevUploads,
+    prevApprovedUploads,
+    prevRejectedUploads,
+    prevRequests,
+    prevActiveCreators,
+  ] =
     await Promise.all([
       db.upload.count({
         where: {
@@ -199,6 +216,14 @@ export async function getOverviewStats(
         where: {
           request: { agencyId },
           status: "APPROVED",
+          updatedAt: { gte: prevStart, lte: prevEnd },
+          ...creatorFilter,
+        },
+      }),
+      db.upload.count({
+        where: {
+          request: { agencyId },
+          status: "REJECTED",
           updatedAt: { gte: prevStart, lte: prevEnd },
           ...creatorFilter,
         },
@@ -221,10 +246,12 @@ export async function getOverviewStats(
     ]);
 
   // Calculate approval rates
+  const currentDecided = currentApprovedUploads + currentRejectedUploads;
+  const prevDecided = prevApprovedUploads + prevRejectedUploads;
   const approvalRate =
-    currentUploads > 0 ? (currentApprovedUploads / currentUploads) * 100 : 0;
+    currentDecided > 0 ? (currentApprovedUploads / currentDecided) * 100 : 0;
   const prevApprovalRate =
-    prevUploads > 0 ? (prevApprovedUploads / prevUploads) * 100 : 0;
+    prevDecided > 0 ? (prevApprovedUploads / prevDecided) * 100 : 0;
 
   // Calculate average turnaround time
   const turnaroundHours = completedRequests
@@ -366,9 +393,20 @@ export async function getCreatorLeaderboard(
   const thirtyDaysAgo = subDays(new Date(), 30);
   const sixtyDaysAgo = subDays(new Date(), 60);
 
+  // Rank all creators by 30-day upload count first, then load stats for the top N
+  const top = await db.upload.groupBy({
+    by: ["creatorId"],
+    where: { request: { agencyId }, uploadedAt: { gte: thirtyDaysAgo } },
+    _count: { id: true },
+    orderBy: { _count: { id: "desc" } },
+    take: limit,
+  });
+  const topIds = top.map((t) => t.creatorId);
+  if (topIds.length === 0) return [];
+
   // Get creators with upload stats
   const creators = await db.creator.findMany({
-    where: { agencyId },
+    where: { agencyId, id: { in: topIds } },
     include: {
       uploads: {
         where: {
@@ -386,7 +424,6 @@ export async function getCreatorLeaderboard(
         },
       },
     },
-    take: limit * 2, // Get more for filtering
   });
 
   const creatorStats: CreatorStats[] = creators

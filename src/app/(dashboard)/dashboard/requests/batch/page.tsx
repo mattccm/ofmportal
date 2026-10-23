@@ -107,13 +107,14 @@ export default function BatchRequestPage() {
       setIsLoading(true);
       try {
         const [creatorsRes, templatesRes] = await Promise.all([
-          fetch("/api/creators"),
+          fetch("/api/creators?limit=100&sortBy=name&sortOrder=asc"),
           fetch("/api/templates"),
         ]);
 
         if (creatorsRes.ok) {
           const creatorsData = await creatorsRes.json();
-          setCreators(creatorsData);
+          // /api/creators returns a paginated { data, pagination } response
+          setCreators(Array.isArray(creatorsData) ? creatorsData : creatorsData.data ?? []);
         }
 
         if (templatesRes.ok) {

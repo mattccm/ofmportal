@@ -437,6 +437,8 @@ async function main() {
   console.log("\n✅ Database seeded successfully!\n");
   console.log("📋 Test Accounts:");
   console.log("─────────────────────────────────────────");
+  console.log("Login (staff and creators): http://localhost:3000/login");
+  console.log("");
   console.log("Agency Admin:");
   console.log("  Email: admin@agency.com");
   console.log("  Password: Password123");

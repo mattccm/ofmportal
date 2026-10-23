@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import QRCode from "qrcode";
+import { getAppUrl } from "@/lib/app-url";
 
 /**
  * GET /api/creators/[id]/qr-invite
@@ -54,8 +55,8 @@ export async function GET(
       );
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const inviteUrl = `${baseUrl}/portal/setup?token=${creator.inviteToken}`;
+    const baseUrl = getAppUrl();
+    const inviteUrl = `${baseUrl}/portal/setup/${creator.inviteToken}`;
 
     const { searchParams } = new URL(req.url);
     const format = searchParams.get("format") || "png";

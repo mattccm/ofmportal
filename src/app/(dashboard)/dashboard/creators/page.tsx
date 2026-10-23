@@ -28,6 +28,7 @@ async function getCreators(agencyId: string) {
         select: { id: true },
       },
       uploads: {
+        where: { uploadedAt: { not: null } },
         orderBy: { uploadedAt: "desc" },
         take: 1,
         select: { uploadedAt: true },
