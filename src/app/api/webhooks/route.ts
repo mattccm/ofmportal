@@ -38,7 +38,10 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ webhooks });
+    // Mask secrets: they are only shown once, at creation
+    return NextResponse.json({
+      webhooks: webhooks.map((w) => ({ ...w, secret: `${w.secret.slice(0, 10)}...` })),
+    });
   } catch (error) {
     console.error("List webhooks error:", error);
     return NextResponse.json(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { deleteFile } from "@/lib/storage";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { finalizeBulkEmails } from "@/lib/email";
 
 /**
  * Cron: Automated cleanup of orphaned data
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
     expiredTokens: 0,
     oldActivityLogs: 0,
     staleEmailQueue: 0,
+    finalizedBulkEmails: 0,
     storageCleanupErrors: [] as string[],
   };
 
@@ -106,6 +108,10 @@ export async function GET(req: NextRequest) {
       },
     });
     results.staleEmailQueue = staleEmails.count;
+
+    // 6. Finalise bulk emails whose queue items are all done (including the
+    // ones just expired above) so they don't stay in SENDING forever
+    results.finalizedBulkEmails = await finalizeBulkEmails(500);
 
     console.log("[Cleanup Cron] Results:", results);
 

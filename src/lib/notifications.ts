@@ -448,7 +448,7 @@ export async function notifyUploadApproved(
     type: NotificationType.UPLOAD_APPROVED,
     title: "Content Approved",
     message: `Your content for "${requestTitle}" has been approved`,
-    link: `/portal/requests/${requestId}`,
+    link: `/creator/requests/${requestId}`,
     metadata: { requestId },
   });
 }
@@ -469,7 +469,7 @@ export async function notifyUploadRejected(
     message: reason
       ? `Your content for "${requestTitle}" needs revision: ${reason}`
       : `Your content for "${requestTitle}" needs revision`,
-    link: `/portal/requests/${requestId}`,
+    link: `/creator/requests/${requestId}`,
     metadata: { requestId },
   });
 }
@@ -491,7 +491,7 @@ export async function notifyRequestCreated(
     type: NotificationType.REQUEST_CREATED,
     title: "New Content Request",
     message: `You have a new content request: "${requestTitle}"${dueDateStr}`,
-    link: `/portal/requests/${requestId}`,
+    link: `/creator/requests/${requestId}`,
     metadata: { requestId },
   });
 }
@@ -517,7 +517,7 @@ export async function notifyRequestDueSoon(
     type: NotificationType.REQUEST_DUE_SOON,
     title: "Request Due Soon",
     message: `"${requestTitle}" is due ${timeStr}`,
-    link: `/portal/requests/${requestId}`,
+    link: `/creator/requests/${requestId}`,
     metadata: { requestId, daysRemaining },
   });
 }

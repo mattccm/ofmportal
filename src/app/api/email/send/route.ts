@@ -4,6 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendEmail, buildBulkEmailVariables, renderBulkEmail } from "@/lib/email";
 import { z } from "zod";
+import { getAppUrl } from "@/lib/app-url";
+
+// Bulk sends run sequentially; give them room to finish before the function is killed
+export const maxDuration = 300;
 
 // Email variables that can be used in templates
 const EMAIL_VARIABLES = [
@@ -34,6 +38,11 @@ export async function POST(req: NextRequest) {
 
     if (!session?.user?.agencyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Members are view/comment only
+    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role || "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -140,7 +149,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Send emails immediately
-    const portalBaseUrl = process.env.APP_URL || "https://portal.example.com";
+    const portalBaseUrl = getAppUrl();
     const results = {
       sent: 0,
       failed: 0,
@@ -174,7 +183,7 @@ export async function POST(req: NextRequest) {
           creatorEmail: creator.email,
           creatorPhone: creator.phone,
           agencyName: agency.name,
-          portalLink: `${portalBaseUrl}/portal`,
+          portalLink: `${portalBaseUrl}/creator/dashboard`,
           senderName: sender?.name || session.user.name,
           senderEmail: sender?.email || session.user.email,
         });

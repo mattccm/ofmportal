@@ -13,7 +13,6 @@ export const WEBHOOK_EVENTS = {
   "request.created": "Fired when a new content request is created",
   "request.submitted": "Fired when a creator submits content for a request",
   "request.approved": "Fired when a request is fully approved",
-  "request.overdue": "Fired when a request passes its due date",
 
   // Creator events
   "creator.joined": "Fired when a creator accepts their invite",
@@ -228,16 +227,29 @@ async function handleDeliveryFailure(
   ]);
 }
 
+// Well above the 10s fetch timeout and the function max duration
+const STRANDED_DELIVERY_MS = 15 * 60 * 1000;
+
 /**
  * Retry failed webhook deliveries (called from cron)
  */
 export async function retryFailedDeliveries(): Promise<{ retried: number; succeeded: number; failed: number }> {
   const results = { retried: 0, succeeded: 0, failed: 0 };
 
+  const now = new Date();
+  // Callers dispatch fire-and-forget, so a serverless freeze can strand a
+  // delivery as PENDING. Recover those well after any real in-flight attempt.
+  const strandedCutoff = new Date(now.getTime() - STRANDED_DELIVERY_MS);
+
   const pendingRetries = await db.webhookDelivery.findMany({
     where: {
-      status: "RETRYING",
-      nextRetry: { lte: new Date() },
+      OR: [
+        { status: "RETRYING", nextRetry: { lte: now } },
+        // First attempt never finished
+        { status: "PENDING", nextRetry: null, createdAt: { lt: strandedCutoff } },
+        // Retry claim whose lease expired without finishing
+        { status: "PENDING", nextRetry: { lte: now } },
+      ],
     },
     include: {
       webhook: {
@@ -245,7 +257,7 @@ export async function retryFailedDeliveries(): Promise<{ retried: number; succee
       },
     },
     take: 20, // Process 20 retries per run
-    orderBy: { nextRetry: "asc" },
+    orderBy: { createdAt: "asc" },
   });
 
   for (const delivery of pendingRetries) {
@@ -258,10 +270,16 @@ export async function retryFailedDeliveries(): Promise<{ retried: number; succee
       continue;
     }
 
-    // Claim the row atomically so overlapping runs can't double-send
+    // Claim the row atomically so overlapping runs can't double-send.
+    // nextRetry acts as a lease: if this attempt is killed mid-fetch the row
+    // is picked up again once the lease expires.
     const claimed = await db.webhookDelivery.updateMany({
-      where: { id: delivery.id, status: "RETRYING" },
-      data: { status: "PENDING", attempt: { increment: 1 }, nextRetry: null },
+      where: { id: delivery.id, status: delivery.status, attempt: delivery.attempt },
+      data: {
+        status: "PENDING",
+        attempt: { increment: 1 },
+        nextRetry: new Date(Date.now() + STRANDED_DELIVERY_MS),
+      },
     });
     if (claimed.count === 0) continue;
 

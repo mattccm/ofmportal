@@ -395,7 +395,7 @@ export async function sendUploadApprovedNotification(
     type: NotificationType.UPLOAD_APPROVED,
     title: "Content Approved",
     message: `Your content for "${requestTitle}" has been approved`,
-    link: `/portal/requests/${requestId}`,
+    link: `/creator/requests/${requestId}`,
     smsMessage: `Great news! Your content for "${requestTitle}" was approved.`,
   });
 }
@@ -417,7 +417,7 @@ export async function sendUploadRejectedNotification(
     type: NotificationType.UPLOAD_REJECTED,
     title: "Content Needs Revision",
     message,
-    link: `/portal/requests/${requestId}`,
+    link: `/creator/requests/${requestId}`,
     smsMessage: `Revision needed for "${requestTitle}". Please check the feedback.`,
   });
 }
@@ -439,7 +439,7 @@ export async function sendRequestCreatedNotification(
     type: NotificationType.REQUEST_CREATED,
     title: "New Content Request",
     message: `You have a new content request: "${requestTitle}"${dueDateStr}`,
-    link: `/portal/requests/${requestId}`,
+    link: `/creator/requests/${requestId}`,
     smsMessage: `New request: "${requestTitle}"${dueDateStr}`,
   });
 }
@@ -464,7 +464,7 @@ export async function sendRequestDueSoonNotification(
     type: NotificationType.REQUEST_DUE_SOON,
     title: "Request Due Soon",
     message: `"${requestTitle}" is due ${timeStr}`,
-    link: `/portal/requests/${requestId}`,
+    link: `/creator/requests/${requestId}`,
     smsMessage: `Reminder: "${requestTitle}" is due ${timeStr}`,
   });
 }

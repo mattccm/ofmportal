@@ -210,7 +210,7 @@ export async function PUT(
         const nextRun = calculateNextRunDate(
           frequency as "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY",
           existing.lastRunAt || new Date(),
-          dayOfWeek || undefined,
+          dayOfWeek ?? undefined,
           dayOfMonth || undefined,
           endDate || undefined,
           existing.maxOccurrences || undefined,

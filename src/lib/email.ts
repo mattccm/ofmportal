@@ -301,7 +301,9 @@ export async function sendEmail({
   }
 
   try {
-    const result = await client.emails.send({
+    // Resend resolves (does not throw) on API errors such as rate limits or
+    // unverified domains, so surface them as thrown errors for callers.
+    const { data, error } = await client.emails.send({
       from: buildFrom(fromName),
       to,
       subject,
@@ -310,7 +312,13 @@ export async function sendEmail({
       ...(replyTo ? { replyTo } : {}),
     });
 
-    return { success: true, data: result };
+    if (error) {
+      const err = new Error(`Resend ${error.name}: ${error.message}`);
+      (err as Error & { resendError?: unknown }).resendError = error;
+      throw err;
+    }
+
+    return { success: true, data };
   } catch (error) {
     console.error("Failed to send email:", error);
     throw error;
@@ -338,22 +346,34 @@ function processVariables(
 }
 
 /** Convert markdown-like syntax to HTML (escapes HTML entities first) */
-function convertToHtml(text: string): string {
+function convertToHtml(text: string, linkColor: string): string {
   let html = text;
 
   // Escape HTML entities
   html = html.replace(/&/g, "&amp;");
   html = html.replace(/</g, "&lt;");
   html = html.replace(/>/g, "&gt;");
+  html = html.replace(/"/g, "&quot;");
+
+  // Links: [text](url) - converted first and swapped for placeholder tokens so
+  // the emphasis rules below never touch `_` or `*` inside an href
+  const links: string[] = [];
+  html = html.replace(/\[([^\]]*?)\]\(([^)\s]*?)\)/g, (_m, label: string, url: string) => {
+    const link = /^(https?:|mailto:)/i.test(url)
+      ? `<a href="${url}" style="color: ${linkColor}; text-decoration: none;">${label}</a>`
+      : label;
+    links.push(link);
+    return `\u0000LINK${links.length - 1}\u0000`;
+  });
 
   // Convert markdown-like syntax
-  // Bold: **text** or __text__
+  // Bold: **text** or __text__ (underscore forms skip intraword underscores)
   html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/__(.*?)__/g, "<strong>$1</strong>");
+  html = html.replace(/(^|[^\w])__(?=\S)([^\n]*?\S)__(?!\w)/g, "$1<strong>$2</strong>");
 
   // Italic: *text* or _text_
   html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
-  html = html.replace(/_(.*?)_/g, "<em>$1</em>");
+  html = html.replace(/(^|[^\w])_(?=\S)([^_\n]*?\S)_(?!\w)/g, "$1<em>$2</em>");
 
   // Underline: <u>text</u> (already HTML)
   html = html.replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/g, "<u>$1</u>");
@@ -371,8 +391,8 @@ function convertToHtml(text: string): string {
   // Horizontal rule
   html = html.replace(/^---$/gm, "<hr style=\"border: none; border-top: 1px solid #ddd; margin: 1.5em 0;\">");
 
-  // Links: [text](url)
-  html = html.replace(/\[(.*?)\]\((.*?)\)/g, "<a href=\"$2\" style=\"color: #667eea; text-decoration: none;\">$1</a>");
+  // Restore links
+  html = html.replace(/\u0000LINK(\d+)\u0000/g, (_m, i: string) => links[Number(i)]);
 
   // Lists
   html = html.replace(/^- (.*$)/gm, "<li style=\"margin-left: 1.5em;\">$1</li>");
@@ -462,7 +482,7 @@ export async function renderBulkEmail(
   const html = renderEmail({
     subject: processedSubject,
     branding,
-    content: convertToHtml(processedBody),
+    content: convertToHtml(processedBody, branding.primaryColor),
   });
 
   return {
@@ -841,10 +861,10 @@ export async function sendBatchedReminderEmail({
             : branding.primaryColor;
       const statusText =
         req.daysUntilDue < 0
-          ? `${Math.abs(req.daysUntilDue)} days overdue`
+          ? `${Math.abs(req.daysUntilDue)} day${Math.abs(req.daysUntilDue) !== 1 ? "s" : ""} overdue`
           : req.daysUntilDue === 0
             ? "Due today"
-            : `Due in ${req.daysUntilDue} days`;
+            : `Due in ${req.daysUntilDue} day${req.daysUntilDue !== 1 ? "s" : ""}`;
 
       return `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;background-color:#f9fafb;border:1px solid #eef0f2;border-left:4px solid ${urgencyColor};border-radius:8px;">
@@ -875,4 +895,54 @@ export async function sendBatchedReminderEmail({
   });
 
   return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
+}
+
+/**
+ * Finalise bulk emails stuck in SENDING: for each one with no queue items left
+ * in PENDING/SENDING, set SENT (or FAILED when nothing was sent) and record the
+ * sent/failed counts. Safe to call on every cron run. Returns how many were
+ * finalised.
+ */
+export async function finalizeBulkEmails(limit = 50): Promise<number> {
+  const sending = await db.bulkEmail.findMany({
+    where: {
+      status: "SENDING",
+      // Skip just-created rows: the immediate send path creates the BulkEmail
+      // before its queue items, so it can briefly have none
+      updatedAt: { lt: new Date(Date.now() - 60 * 1000) },
+    },
+    select: { id: true },
+    orderBy: { updatedAt: "asc" },
+    take: limit,
+  });
+
+  let finalized = 0;
+  for (const { id } of sending) {
+    const remaining = await db.emailQueueItem.count({
+      where: { bulkEmailId: id, status: { in: ["PENDING", "SENDING"] } },
+    });
+    if (remaining > 0) continue;
+
+    const counts = await db.emailQueueItem.groupBy({
+      by: ["status"],
+      where: { bulkEmailId: id },
+      _count: true,
+    });
+
+    const sentCount = counts.find((c) => c.status === "SENT")?._count || 0;
+    const failedCount = counts.find((c) => c.status === "FAILED")?._count || 0;
+
+    const updated = await db.bulkEmail.updateMany({
+      where: { id, status: "SENDING" },
+      data: {
+        status: failedCount > 0 && sentCount === 0 ? "FAILED" : "SENT",
+        sentAt: new Date(),
+        sentCount,
+        failedCount,
+      },
+    });
+    finalized += updated.count;
+  }
+
+  return finalized;
 }

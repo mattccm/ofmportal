@@ -838,7 +838,8 @@ export async function getBatchedRemindersForCreator(
   // Get all pending reminders for this creator on this date
   const reminders = await db.reminder.findMany({
     where: {
-      request: { creatorId },
+      // Only active requests: approved/cancelled/archived ones keep stale PENDING reminders
+      request: { creatorId, status: { in: ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"] } },
       status: "PENDING",
       scheduledAt: { gte: dayStart, lt: dayEnd },
     },
@@ -905,7 +906,7 @@ export async function getAllBatchedRemindersForDate(
   // Get all unique creators with pending reminders on this date
   const creatorsWithReminders = await db.reminder.findMany({
     where: {
-      request: { agencyId },
+      request: { agencyId, status: { in: ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"] } },
       status: "PENDING",
       scheduledAt: { gte: dayStart, lt: dayEnd },
     },
@@ -947,7 +948,7 @@ export async function createBatchedReminder(
   // Get all individual reminders for this batch
   const individualReminders = await db.reminder.findMany({
     where: {
-      request: { creatorId: batch.creatorId },
+      request: { creatorId: batch.creatorId, status: { in: ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"] } },
       status: "PENDING",
       channel: batch.channel,
       scheduledAt: { gte: dayStart, lt: dayEnd },

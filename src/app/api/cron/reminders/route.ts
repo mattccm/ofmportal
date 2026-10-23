@@ -7,7 +7,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 // {
 //   "crons": [{
 //     "path": "/api/cron/reminders",
-//     "schedule": "0 9 * * *"
+//     "schedule": "0 * * * *"
 //   }]
 // }
 

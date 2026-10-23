@@ -18,8 +18,14 @@ const updateWebhookSchema = z.object({
     .optional(),
   description: z.string().max(500).optional(),
   events: z
-    .array(z.enum(validEvents as [string, ...string[]]))
-    .min(1, "At least one event is required")
+    // Drop retired events (e.g. "request.overdue") still stored on older
+    // webhooks, so saving one with its events echoed back doesn't 400
+    .preprocess(
+      (v) => (Array.isArray(v) ? v.filter((e) => e !== "request.overdue") : v),
+      z
+        .array(z.enum(validEvents as [string, ...string[]]))
+        .min(1, "At least one event is required")
+    )
     .optional(),
   active: z.boolean().optional(),
 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sendEmail, buildBulkEmailVariables, renderBulkEmail } from "@/lib/email";
+import { sendEmail, buildBulkEmailVariables, renderBulkEmail, finalizeBulkEmails } from "@/lib/email";
 import { verifyCronAuth } from "@/lib/cron-auth";
 
 /**
@@ -66,9 +66,12 @@ export async function GET(req: NextRequest) {
     });
 
     if (pendingItems.length === 0) {
+      // Still finalise bulk emails whose last items were sent by an earlier run
+      const finalized = await finalizeBulkEmails();
       return NextResponse.json({
         message: "No pending emails to process",
         activated: scheduledEmails.length,
+        finalized,
       });
     }
 
@@ -115,7 +118,7 @@ export async function GET(req: NextRequest) {
           creatorEmail: creator?.email || item.email,
           creatorPhone: creator?.phone,
           agencyName,
-          portalLink: `${portalBaseUrl}/portal`,
+          portalLink: `${portalBaseUrl}/creator/dashboard`,
           senderName: item.bulkEmail.sender?.name,
           senderEmail: item.bulkEmail.sender?.email,
         });
@@ -161,39 +164,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Step 4: Update bulk email statuses for completed batches
-    const bulkEmailIds = [...new Set(pendingItems.map((i) => i.bulkEmail.id))];
-
-    for (const bulkEmailId of bulkEmailIds) {
-      const remaining = await db.emailQueueItem.count({
-        where: { bulkEmailId, status: { in: ["PENDING", "SENDING"] } },
-      });
-
-      if (remaining === 0) {
-        const counts = await db.emailQueueItem.groupBy({
-          by: ["status"],
-          where: { bulkEmailId },
-          _count: true,
-        });
-
-        const sentCount = counts.find((c) => c.status === "SENT")?._count || 0;
-        const failedCount = counts.find((c) => c.status === "FAILED")?._count || 0;
-
-        await db.bulkEmail.update({
-          where: { id: bulkEmailId },
-          data: {
-            status: failedCount > 0 && sentCount === 0 ? "FAILED" : "SENT",
-            sentAt: new Date(),
-            sentCount,
-            failedCount,
-          },
-        });
-      }
-    }
+    // Step 4: Mark finished bulk emails SENT/FAILED. Runs across every
+    // SENDING bulk email, not just this batch's, so none stay stuck in SENDING.
+    const finalized = await finalizeBulkEmails();
 
     return NextResponse.json({
       message: "Email queue processed",
       ...results,
+      finalized,
     });
   } catch (error) {
     console.error("Email queue cron error:", error);

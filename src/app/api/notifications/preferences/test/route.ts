@@ -12,6 +12,7 @@ import {
   note,
 } from "@/lib/email";
 import { sendSMS } from "@/lib/sms";
+import { shouldSuppressNotification } from "@/lib/notification-sender";
 import {
   NotificationPreferences,
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
         name: true,
         phone: true,
         preferences: true,
+        timezone: true,
       },
     });
 
@@ -61,48 +63,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check if Do Not Disturb is enabled
-    if (preferences.doNotDisturb) {
+    // Merge over defaults so a partial preferences object can't throw below
+    preferences = {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      ...preferences,
+      categories: {
+        ...DEFAULT_NOTIFICATION_PREFERENCES.categories,
+        ...preferences.categories,
+      },
+      quietHours: {
+        ...DEFAULT_NOTIFICATION_PREFERENCES.quietHours,
+        ...preferences.quietHours,
+        timezone: user.timezone || "UTC",
+      },
+    };
+
+    // Check Do Not Disturb and quiet hours (in the user's timezone)
+    const suppression = shouldSuppressNotification(preferences);
+    if (suppression.suppress) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Do Not Disturb is enabled. Disable it to receive test notifications.",
+          message: `${suppression.reason}. Test notification not sent.`,
         },
         { status: 400 }
       );
-    }
-
-    // Check quiet hours
-    if (preferences.quietHours.enabled) {
-      const now = new Date();
-      const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}`;
-
-      const startTime = preferences.quietHours.startTime;
-      const endTime = preferences.quietHours.endTime;
-
-      // Check if current time is within quiet hours
-      let isQuietHours = false;
-      if (startTime <= endTime) {
-        // Same day quiet hours (e.g., 09:00 - 17:00)
-        isQuietHours = currentTime >= startTime && currentTime <= endTime;
-      } else {
-        // Overnight quiet hours (e.g., 22:00 - 08:00)
-        isQuietHours = currentTime >= startTime || currentTime <= endTime;
-      }
-
-      if (isQuietHours) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Quiet hours are active (${startTime} - ${endTime}). Notifications will be queued.`,
-          },
-          { status: 400 }
-        );
-      }
     }
 
     // Collect results for each channel
@@ -191,11 +176,9 @@ export async function POST(req: NextRequest) {
       errors.push("SMS enabled but no phone number configured");
     }
 
-    // Push notifications (placeholder - would integrate with service worker / web push)
-    if (systemSettings.enabled && systemSettings.channels.push) {
-      // In a real implementation, this would send a push notification
-      // via Web Push API or a service like Firebase Cloud Messaging
-      results.push = true; // Simulated success for now
+    // Push notifications are not implemented yet; never report them as sent
+    if (systemSettings?.enabled && systemSettings.channels.push) {
+      errors.push("Push notifications are not supported yet");
     }
 
     // Determine success
