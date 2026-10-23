@@ -22,6 +22,7 @@ import {
 import type { DuplicateCheckResult } from "@/lib/duplicate-detection";
 import type { DuplicateCheckResult as FingerprintCheckResult } from "@/types/content-fingerprint";
 import { resolveMimeType } from "@/lib/file-utils";
+import { stripImageLocation } from "@/lib/image-privacy";
 import { isRequestOverdue } from "@/lib/request-status";
 import {
   Loader2,
@@ -467,6 +468,7 @@ export default function CreatorRequestDetailPage({
   const handleFilesSelected = async (files: FileList | File[], fieldId?: string) => {
     const fileArray = Array.from(files);
 
+    // Every creator upload enters here (per-field and fallback dropzones).
     // Check every file (sequentially, to bound memory while hashing). Likely
     // duplicates are held for the dialog; everything else uploads right away.
     const flagged: File[] = [];
@@ -474,7 +476,11 @@ export default function CreatorRequestDetailPage({
     let flaggedResult: FingerprintCheckResult | null = null;
     let alert: { result: FingerprintCheckResult; fileName: string } | null = null;
 
-    for (const file of fileArray) {
+    for (const selected of fileArray) {
+      // Remove GPS location from photos first: everything after this (the
+      // duplicate hash, the upload, the stored fingerprint) must use the
+      // stripped bytes so the hash matches what the server stores.
+      const file = await stripImageLocation(selected);
       const duplicateCheck = await checkDuplicates(file);
 
       if (

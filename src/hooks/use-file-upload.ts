@@ -483,7 +483,9 @@ export function useFileUpload({
         const error = await presignResponse.json().catch(() => ({}));
         // 409 means storage isn't configured (local dev): use the local
         // endpoint. Awaited so a local failure is handled by the catch below.
-        if (presignResponse.status === 409) {
+        // A 409 with code UPLOAD_CLOSED is a closed request / archived
+        // creator instead: show its message rather than falling back.
+        if (presignResponse.status === 409 && error.code !== "UPLOAD_CLOSED") {
           console.warn("Presign unavailable, using local upload:", error.error);
           return await uploadFileLocal(queuedFile);
         }
@@ -802,6 +804,22 @@ export function useFileUpload({
 
   // Calculate stats
   const isUploading = queue.some((f) => f.status === "uploading");
+
+  // Ask the browser to confirm ("Leave site?") while anything is uploading or
+  // queued to upload. Removed as soon as uploads finish, fail or are cancelled.
+  const hasInFlightUploads = queue.some(
+    (f) => f.status === "uploading" || f.status === "pending"
+  );
+  useEffect(() => {
+    if (!hasInFlightUploads) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Legacy browsers need returnValue set to show the prompt.
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasInFlightUploads]);
   const totalSize = queue.reduce((sum, f) => sum + f.file.size, 0);
   const uploadedSize = queue.reduce((sum, f) => {
     if (f.status === "completed") return sum + f.file.size;

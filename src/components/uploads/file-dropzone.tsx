@@ -13,6 +13,7 @@ import {
   Sparkles,
   AlertCircle,
   Clipboard,
+  MapPinOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -101,6 +102,12 @@ export function FileDropzone({
   // Determine which file types to show based on acceptedTypes
   const showImages = acceptedTypes.some(t => t.startsWith("image") || t === "*/*");
   const showVideos = acceptedTypes.some(t => t.startsWith("video") || t === "*/*");
+  // Photos have GPS stripped before upload (see stripImageLocation); videos can't be.
+  const locationNote = showVideos
+    ? "Location data is removed from photos automatically. For videos, turn off location in your camera settings."
+    : showImages
+      ? "Location data is removed from photos automatically."
+      : null;
   const showAudio = acceptedTypes.some(t => t.startsWith("audio") || t === "*/*");
 
   // Check if a file type matches the accepted types for this field
@@ -504,6 +511,12 @@ export function FileDropzone({
               <p className="text-xs text-muted-foreground truncate">
                 {getFileTypeDescription().charAt(0).toUpperCase() + getFileTypeDescription().slice(1)}{showMaxFileSize && maxFileSize < MAX_FILE_SIZE && ` up to ${formatFileSize(maxFileSize)}`}
               </p>
+              {locationNote && (
+                <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+                  <MapPinOff className="h-3 w-3 mt-0.5 shrink-0" />
+                  <span>{locationNote}</span>
+                </p>
+              )}
             </div>
 
             <input
@@ -669,6 +682,13 @@ export function FileDropzone({
               {showMaxFileSize && maxFileSize < MAX_FILE_SIZE && `Maximum file size: ${formatFileSize(maxFileSize)}`}
               {showMaxFileSize && maxFileSize < MAX_FILE_SIZE && fullPageDrop && " • "}
               {fullPageDrop && "Drop anywhere on the page"}
+            </p>
+          )}
+
+          {locationNote && (
+            <p className="text-xs text-muted-foreground mt-4 flex items-start justify-center gap-1.5 max-w-sm mx-auto">
+              <MapPinOff className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{locationNote}</span>
             </p>
           )}
         </div>
