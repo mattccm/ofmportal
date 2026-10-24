@@ -70,7 +70,7 @@ function getFileTypeInfo(mimeType: string): { icon: React.ReactNode; label: stri
     return {
       icon: <Music className="h-4 w-4" />,
       label: "Audio",
-      color: "text-violet-500 bg-violet-50 dark:bg-violet-900/30",
+      color: "text-primary bg-primary/10 dark:bg-primary/15",
     };
   }
   return {
@@ -458,8 +458,8 @@ export function FileDropzone({
               )}
               {showAudio && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <div className="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-                    <Music className="h-4 w-4 text-violet-500" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/15 flex items-center justify-center">
+                    <Music className="h-4 w-4 text-primary" />
                   </div>
                 </div>
               )}
@@ -494,7 +494,7 @@ export function FileDropzone({
                 "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                 isDragging
                   ? "bg-primary text-white"
-                  : "bg-violet-50 text-violet-500 dark:bg-violet-900/30"
+                  : "bg-primary/10 text-primary dark:bg-primary/15"
               )}
             >
               {isDragging ? (
@@ -577,7 +577,7 @@ export function FileDropzone({
         {/* Animated background for drag state */}
         <div
           className={cn(
-            "absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-purple-500/10 opacity-0 transition-opacity duration-300",
+            "absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 opacity-0 transition-opacity duration-300",
             (isDragging || dropTargetHighlight) && "opacity-100"
           )}
         />
@@ -589,7 +589,7 @@ export function FileDropzone({
               "mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300",
               isDragging
                 ? "bg-primary text-white scale-110 shadow-lg shadow-primary/30"
-                : "bg-violet-50 text-violet-500 dark:bg-violet-900/30"
+                : "bg-primary/10 text-primary dark:bg-primary/15"
             )}
           >
             {isDragging ? (
@@ -642,8 +642,8 @@ export function FileDropzone({
             )}
             {showAudio && (
               <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-                  <Music className="h-5 w-5 text-violet-500" />
+                <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center">
+                  <Music className="h-5 w-5 text-primary" />
                 </div>
                 <span className="text-xs font-medium">Audio</span>
               </div>

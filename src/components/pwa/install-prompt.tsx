@@ -4,6 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { X, Download, Smartphone, Share, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { BRAND } from "@/lib/brand";
+
+// Fixed brand greens (not --primary, which lightens in dark mode) so the white
+// text on these panels keeps its contrast in both themes.
+const BRAND_GRADIENT = {
+  backgroundImage: `linear-gradient(135deg, ${BRAND.primaryColor}, ${BRAND.secondaryColor})`,
+};
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -148,9 +155,9 @@ export function InstallPrompt() {
         <div
           className={cn(
             "relative overflow-hidden rounded-2xl",
-            "bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700",
             "p-4 shadow-xl shadow-primary/25"
           )}
+          style={BRAND_GRADIENT}
         >
           {/* Close button */}
           <button
@@ -196,10 +203,11 @@ export function InstallPrompt() {
               onClick={handleInstall}
               className={cn(
                 "flex-1 h-12 rounded-xl",
-                "bg-white text-violet-700 font-semibold",
+                "bg-white font-semibold",
                 "hover:bg-white/90 active:scale-[0.98]",
                 "touch-manipulation transition-all"
               )}
+              style={{ color: BRAND.primaryColor }}
             >
               <Download className="h-5 w-5 mr-2" />
               Install App
@@ -238,7 +246,7 @@ export function InstallPrompt() {
             }}
           >
             {/* Header */}
-            <div className="relative bg-gradient-to-br from-violet-600 to-indigo-700 p-6 text-center">
+            <div className="relative p-6 text-center" style={BRAND_GRADIENT}>
               <button
                 onClick={handleDismiss}
                 className={cn(

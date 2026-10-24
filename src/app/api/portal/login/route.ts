@@ -3,18 +3,13 @@ import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth";
 import { z } from "zod";
-import { randomBytes } from "crypto";
 import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
+import { createCreatorSessionToken } from "@/lib/portal-auth";
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
-
-// Generate a secure session token
-function generateSessionToken(): string {
-  return randomBytes(32).toString("hex");
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -97,8 +92,9 @@ export async function POST(req: NextRequest) {
     // device doesn't sign out the first one; otherwise generate a new one.
     // Session expires after 30 days of inactivity (extended on each API call)
     const reuse = creator.sessionToken && creator.sessionExpiry && creator.sessionExpiry > new Date();
-    const sessionToken = reuse ? creator.sessionToken! : generateSessionToken();
-    const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const fresh = createCreatorSessionToken();
+    const sessionToken = reuse ? creator.sessionToken! : fresh.token;
+    const sessionExpiry = fresh.expiresAt; // 30 days
 
     // Store session token in database
     await db.creator.update({

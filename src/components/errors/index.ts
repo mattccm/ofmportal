@@ -29,3 +29,7 @@ export {
   DashboardSectionWrapper,
   AsyncWrapper,
 } from "./error-wrapper";
+
+// Branded full-page error card (error.tsx / not-found.tsx)
+export { ErrorShell } from "./error-shell";
+export type { ErrorShellAction, ErrorShellProps } from "./error-shell";

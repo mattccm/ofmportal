@@ -203,7 +203,7 @@ function QueueItem({
           <div className="pt-1">
             <Progress value={file.progress}>
               <ProgressTrack className="h-1.5">
-                <ProgressIndicator className="bg-gradient-to-r from-blue-500 to-violet-500 transition-all duration-300" />
+                <ProgressIndicator className="bg-gradient-to-r from-primary/70 to-primary transition-all duration-300" />
               </ProgressTrack>
             </Progress>
           </div>
@@ -368,7 +368,7 @@ export function UploadQueue({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Upload className="h-5 w-5 text-violet-500" />
+            <Upload className="h-5 w-5 text-primary" />
             Upload Queue
             <span className="text-sm font-normal text-muted-foreground">
               ({queue.length} file{queue.length !== 1 ? "s" : ""})
@@ -424,7 +424,7 @@ export function UploadQueue({
             </div>
             <Progress value={totalProgress}>
               <ProgressTrack className="h-2">
-                <ProgressIndicator className="bg-gradient-to-r from-violet-500 to-purple-500 transition-all duration-300" />
+                <ProgressIndicator className="bg-gradient-to-r from-primary to-primary/70 transition-all duration-300" />
               </ProgressTrack>
             </Progress>
           </div>

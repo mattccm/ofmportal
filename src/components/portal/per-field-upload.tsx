@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { BRAND } from "@/lib/brand";
 import {
   Upload,
   Check,
@@ -164,7 +165,7 @@ function UploadPreviewCard({
             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
               <div
                 className="h-12 w-12 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: primaryColor || "#6366f1" }}
+                style={{ backgroundColor: primaryColor || BRAND.primaryColor }}
               >
                 <Play className="h-5 w-5 text-white ml-0.5" />
               </div>
@@ -174,7 +175,7 @@ function UploadPreviewCard({
           <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4">
             <div
               className="h-14 w-14 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${primaryColor || "#6366f1"}20` }}
+              style={{ backgroundColor: `${primaryColor || BRAND.primaryColor}20` }}
             >
               {getFileTypeIcon(upload.fileType, "h-7 w-7")}
             </div>
@@ -386,7 +387,7 @@ function FieldUploadSection({
   // Get icon and color based on status
   const getStatusIcon = () => {
     if (isApproved) return <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
-    if (isSubmitted) return <Send className="h-5 w-5 text-violet-600 dark:text-violet-400" />;
+    if (isSubmitted) return <Send className="h-5 w-5 text-primary" />;
     if (needsRevision) return <X className="h-5 w-5 text-red-600 dark:text-red-400" />;
     if (hasUploads) return <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
     return <Upload className="h-5 w-5" style={{ color: primaryColor }} />;
@@ -394,7 +395,7 @@ function FieldUploadSection({
 
   const getStatusBgClass = () => {
     if (isApproved) return "bg-emerald-100 dark:bg-emerald-900/30";
-    if (isSubmitted) return "bg-violet-100 dark:bg-violet-900/30";
+    if (isSubmitted) return "bg-primary/10";
     if (needsRevision) return "bg-red-100 dark:bg-red-900/30";
     if (hasUploads) return "bg-emerald-100 dark:bg-emerald-900/30";
     return "bg-slate-100 dark:bg-slate-800";
@@ -410,7 +411,7 @@ function FieldUploadSection({
               "h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-colors",
               getStatusBgClass()
             )}
-            style={!hasUploads && !isSubmitted && !isApproved && !needsRevision ? { backgroundColor: `${primaryColor || "#6366f1"}15` } : undefined}
+            style={!hasUploads && !isSubmitted && !isApproved && !needsRevision ? { backgroundColor: `${primaryColor || BRAND.primaryColor}15` } : undefined}
           >
             {getStatusIcon()}
           </div>
@@ -450,7 +451,7 @@ function FieldUploadSection({
             </Badge>
           )}
           {isSubmitted && (
-            <Badge className="bg-violet-500 hover:bg-violet-600 text-xs">
+            <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs">
               <Send className="h-3 w-3 mr-1" />
               Submitted
             </Badge>
@@ -683,7 +684,7 @@ export function PerFieldUpload({
   onFieldRedact,
   onDeleteUpload,
   isUploading,
-  primaryColor = "#6366f1",
+  primaryColor = BRAND.primaryColor,
   className,
   canUpload = true,
   comments = [],

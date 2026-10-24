@@ -1,4 +1,13 @@
 import Image from "next/image";
+import { BRAND } from "@/lib/brand";
+
+// The branding panel is always dark, so the highlighted word uses the light
+// brand green rather than --primary (which is too dark on slate-900 in light mode).
+const highlightStyle: React.CSSProperties = {
+  backgroundImage: `linear-gradient(90deg, ${BRAND.accentColor}, #a3d4b6)`,
+};
+// "CCM Portal" -> "Portal"
+const productSuffix = BRAND.productName.replace(BRAND.name, "").trim();
 
 export default function AuthLayout({
   children,
@@ -18,7 +27,7 @@ export default function AuthLayout({
       <div className="lg:hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden flex-shrink-0">
         {/* Gradient orbs - smaller for mobile */}
         <div className="absolute top-0 -left-10 w-40 h-40 bg-primary/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-32 h-32 bg-violet-500/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
 
         {/* Content */}
         <div className="relative z-10 px-6 py-6 text-center">
@@ -26,8 +35,8 @@ export default function AuthLayout({
           <div className="flex justify-center mb-3">
             <div className="relative h-12 w-12">
               <Image
-                src="/ccm-logo.png"
-                alt="CCM"
+                src={BRAND.logoPath}
+                alt={BRAND.name}
                 fill
                 className="object-contain brightness-0 invert"
               />
@@ -36,7 +45,10 @@ export default function AuthLayout({
 
           {/* Title */}
           <h1 className="text-xl font-bold text-white mb-1">
-            CCM <span className="bg-gradient-to-r from-primary via-violet-400 to-purple-400 bg-clip-text text-transparent">Portal</span>
+            {BRAND.name}{" "}
+            <span className="bg-clip-text text-transparent" style={highlightStyle}>
+              {productSuffix}
+            </span>
           </h1>
           <p className="text-xs text-slate-400">
             Your content, your requests, one place.
@@ -48,8 +60,8 @@ export default function AuthLayout({
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
         {/* Gradient orbs */}
         <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-0 w-80 h-80 bg-violet-500/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/10 rounded-full blur-2xl" />
+        <div className="absolute bottom-1/4 right-0 w-80 h-80 bg-primary/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-2xl" />
 
         {/* Grid pattern */}
         <div
@@ -67,8 +79,8 @@ export default function AuthLayout({
           <div>
             <div className="relative h-14 w-14">
               <Image
-                src="/ccm-logo.png"
-                alt="CCM"
+                src={BRAND.logoPath}
+                alt={BRAND.name}
                 fill
                 className="object-contain brightness-0 invert"
               />
@@ -78,14 +90,14 @@ export default function AuthLayout({
           {/* Main content */}
           <div className="space-y-6">
             <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight">
-              CCM
+              {BRAND.name}
               <br />
-              <span className="bg-gradient-to-r from-primary via-violet-400 to-purple-400 bg-clip-text text-transparent">
-                Content Portal
+              <span className="bg-clip-text text-transparent" style={highlightStyle}>
+                {productSuffix}
               </span>
             </h1>
             <p className="text-lg text-slate-400 max-w-md">
-              All your content, all your requests handled in one place. Built by CCM for our creators.
+              All your content, all your requests handled in one place. Built by {BRAND.name} for our creators.
             </p>
 
             {/* Features */}
@@ -96,7 +108,7 @@ export default function AuthLayout({
                 "Everything in one place",
               ].map((feature, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-violet-500" />
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: BRAND.accentColor }} />
                   <span className="text-slate-300">{feature}</span>
                 </div>
               ))}
@@ -106,7 +118,7 @@ export default function AuthLayout({
           {/* Footer */}
           <div className="space-y-2">
             <p className="text-sm text-slate-500">
-              &copy; {new Date().getFullYear()} Content Creation Management Pty Ltd. All rights reserved.
+              &copy; {new Date().getFullYear()} {BRAND.legalName}. All rights reserved.
             </p>
           </div>
         </div>
@@ -122,7 +134,7 @@ export default function AuthLayout({
       {/* Mobile Footer */}
       <div className="lg:hidden py-3 px-6 text-center bg-background border-t border-border flex-shrink-0">
         <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} CCM Pty Ltd
+          &copy; {new Date().getFullYear()} {BRAND.legalName}
         </p>
       </div>
     </div>

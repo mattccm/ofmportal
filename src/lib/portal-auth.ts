@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { RequestStatus } from "@prisma/client";
+import { randomBytes } from "crypto";
 
 // Session configuration
 const SESSION_DURATION_DAYS = 30;
 const SESSION_DURATION_MS = SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Creates a new creator portal session token and its expiry. Shared by
+ * POST /api/portal/login and the invite setup route, so both issue the same
+ * kind of session.
+ */
+export function createCreatorSessionToken(): { token: string; expiresAt: Date } {
+  return {
+    token: randomBytes(32).toString("hex"),
+    expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
+  };
+}
 
 /**
  * Request statuses a creator must never see or act on.

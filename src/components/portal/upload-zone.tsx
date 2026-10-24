@@ -182,7 +182,7 @@ export function UploadZone({
         {/* Animated background for drag state */}
         <div
           className={cn(
-            "absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-purple-500/10 opacity-0 transition-opacity duration-300",
+            "absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 opacity-0 transition-opacity duration-300",
             isDragging && "opacity-100"
           )}
         />
@@ -194,7 +194,7 @@ export function UploadZone({
               "mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300",
               isDragging
                 ? "bg-primary text-white scale-110 shadow-lg shadow-primary/30"
-                : "bg-violet-50 text-violet-500 dark:bg-violet-900/30"
+                : "bg-primary/10 text-primary"
             )}
           >
             {isDragging ? (
@@ -234,8 +234,8 @@ export function UploadZone({
             )}
             {showAudio && (
               <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-                  <Music className="h-5 w-5 text-violet-500" />
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Music className="h-5 w-5 text-primary" />
                 </div>
                 <span className="text-xs font-medium">Audio</span>
               </div>
@@ -382,7 +382,7 @@ function UploadFileItem({
           <div className="mt-2">
             <Progress value={file.progress}>
               <ProgressTrack className="h-1.5">
-                <ProgressIndicator className="bg-gradient-to-r from-blue-500 to-violet-500" />
+                <ProgressIndicator className="bg-gradient-to-r from-primary/70 to-primary" />
               </ProgressTrack>
             </Progress>
           </div>

@@ -338,7 +338,7 @@ function ProgressRing({
       <defs>
         <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="var(--primary)" />
-          <stop offset="100%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="color-mix(in oklch, var(--primary) 60%, white)" />
         </linearGradient>
       </defs>
     </svg>

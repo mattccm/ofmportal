@@ -147,7 +147,7 @@ export function BackToTop({
     default:
       "bg-background border border-border shadow-lg hover:bg-accent hover:shadow-xl",
     gradient:
-      "bg-gradient-to-r from-primary to-violet-500 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
+      "bg-gradient-to-r from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
     ghost: "bg-background/80 backdrop-blur-sm border border-border/50 shadow-md hover:bg-background",
   };
 

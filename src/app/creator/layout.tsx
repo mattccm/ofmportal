@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { BrandingProvider, useBranding } from "@/components/providers/branding-provider";
-import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -461,7 +460,7 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-violet-950/30 safe-area-top"
+      className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 safe-area-top"
       style={brandingStyle}
     >
       {/* Background decorations */}
@@ -615,10 +614,10 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
 export default function CreatorLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider>
-      <BrandingProvider>
-        <CreatorLayoutInner>{children}</CreatorLayoutInner>
-      </BrandingProvider>
-    </ThemeProvider>
+    // The root layout already provides ThemeProvider; nesting a second one
+    // here gave creator pages their own (out-of-sync) theme state.
+    <BrandingProvider>
+      <CreatorLayoutInner>{children}</CreatorLayoutInner>
+    </BrandingProvider>
   );
 }

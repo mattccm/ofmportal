@@ -62,9 +62,9 @@ const statusConfig: Record<
   },
   SUBMITTED: {
     label: "Submitted",
-    color: "text-violet-600",
-    icon: <Upload className="h-3 w-3 text-violet-500" />,
-    bgClass: "bg-violet-50 border-violet-200 dark:bg-violet-900/20 dark:border-violet-800",
+    color: "text-primary",
+    icon: <Upload className="h-3 w-3 text-primary" />,
+    bgClass: "bg-primary/5 border-primary/30",
   },
   UNDER_REVIEW: {
     label: "Under Review",
@@ -161,7 +161,7 @@ export function RequestCard({
             "absolute top-0 left-0 w-1 h-full rounded-l-xl transition-all duration-300",
             status === "PENDING" && "bg-amber-500",
             status === "IN_PROGRESS" && "bg-blue-500",
-            status === "SUBMITTED" && "bg-violet-500",
+            status === "SUBMITTED" && "bg-primary",
             status === "UNDER_REVIEW" && "bg-orange-500",
             status === "NEEDS_REVISION" && "bg-red-500",
             status === "APPROVED" && "bg-emerald-500"
@@ -210,7 +210,7 @@ export function RequestCard({
                     className={cn(
                       uploadProgress >= 100
                         ? "bg-emerald-500"
-                        : "bg-gradient-to-r from-violet-500 to-purple-500"
+                        : "bg-gradient-to-r from-primary/80 to-primary"
                     )}
                   />
                 </ProgressTrack>
@@ -303,7 +303,7 @@ export function RequestCardCompact({
             "w-2 h-2 rounded-full shrink-0",
             status === "PENDING" && "bg-amber-500",
             status === "IN_PROGRESS" && "bg-blue-500",
-            status === "SUBMITTED" && "bg-violet-500",
+            status === "SUBMITTED" && "bg-primary",
             status === "UNDER_REVIEW" && "bg-orange-500",
             status === "NEEDS_REVISION" && "bg-red-500",
             status === "APPROVED" && "bg-emerald-500"

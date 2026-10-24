@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
+import { createCreatorSessionToken } from "@/lib/portal-auth";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
 
 const setupSchema = z.object({
@@ -60,15 +61,35 @@ export async function POST(req: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Update creator
-    await db.creator.update({
-      where: { id: creator.id },
+    // Signed in straight away (same 30-day session the portal login issues),
+    // except for archived creators, who are denied portal access and so get
+    // no session. A fresh token is always issued: setting a new password should
+    // not keep any older session alive.
+    const canSignIn = creator.archivedAt === null;
+    const session = canSignIn ? createCreatorSessionToken() : null;
+    const sessionToken = session?.token ?? null;
+    const sessionExpiry = session?.expiresAt ?? null;
+
+    // Update creator. Conditional on the token still being pending so two
+    // concurrent submits of the same invite can't both succeed.
+    const updated = await db.creator.updateMany({
+      where: { id: creator.id, inviteToken: token, inviteStatus: "PENDING" },
       data: {
         portalPassword: hashedPassword,
         inviteStatus: "ACCEPTED",
         inviteToken: null, // Clear the token
+        ...(canSignIn
+          ? { sessionToken, sessionExpiry, lastLoginAt: new Date() }
+          : { sessionToken: null, sessionExpiry: null }),
       },
     });
+
+    if (updated.count === 0) {
+      return NextResponse.json(
+        { error: "Invalid or expired invite link" },
+        { status: 404 }
+      );
+    }
 
     // Fire webhook for creator joining (after() keeps it alive past the response)
     after(() =>
@@ -79,9 +100,20 @@ export async function POST(req: NextRequest) {
       })
     );
 
+    // Same session payload as POST /api/portal/login (session is null when the
+    // creator can't sign in, and the client falls back to the login page)
     return NextResponse.json({
       success: true,
       message: "Account set up successfully",
+      session: sessionToken
+        ? {
+            token: sessionToken,
+            creatorId: creator.id,
+            name: creator.name,
+            email: creator.email,
+            onboardingCompleted: !!creator.onboardingCompletedAt,
+          }
+        : null,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -36,6 +36,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BRAND } from "@/lib/brand";
 
 // TYPES
 
@@ -147,7 +148,7 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
       {/* Agency Logo */}
       {agencyInfo.logo ? (
         <div className="flex justify-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 flex items-center justify-center overflow-hidden">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center overflow-hidden">
             <Image
               src={agencyInfo.logo}
               alt={agencyInfo.name}
@@ -160,7 +161,7 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
         </div>
       ) : (
         <div className="flex justify-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-indigo-500/25">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-primary/25">
             {agencyInfo.name.charAt(0)}
           </div>
         </div>
@@ -189,7 +190,7 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
             className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 animate-fade-in"
             style={{ animationDelay: `${index * 100}ms` }}
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/10 to-violet-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary">
               <item.icon className="w-4 h-4" />
             </div>
             <span className="text-sm font-medium">{item.text}</span>
@@ -328,14 +329,14 @@ function TimezoneStep({ timezone, onTimezoneChange }: TimezoneStepProps) {
     <div className="space-y-6">
       {/* Detected timezone notice */}
       {detectedTimezone && (
-        <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800">
+        <div className="p-3 rounded-xl bg-primary/5 border border-primary/30">
           <div className="flex items-start gap-3">
-            <Globe className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+            <Globe className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-indigo-900 dark:text-indigo-200">
+              <p className="text-sm font-medium text-foreground">
                 We detected your timezone
               </p>
-              <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Based on your browser settings: {detectedTimezone}
               </p>
             </div>
@@ -392,8 +393,8 @@ function TutorialStep({ onStartTutorial, onSkipTutorial }: TutorialStepProps) {
     <div className="space-y-6 text-center py-4">
       {/* Tutorial illustration */}
       <div className="flex justify-center">
-        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 flex items-center justify-center">
-          <Sparkles className="w-12 h-12 text-indigo-500" />
+        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+          <Sparkles className="w-12 h-12 text-primary" />
         </div>
       </div>
 
@@ -418,7 +419,7 @@ function TutorialStep({ onStartTutorial, onSkipTutorial }: TutorialStepProps) {
             key={index}
             className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 text-sm"
           >
-            <item.icon className="w-4 h-4 text-indigo-500" />
+            <item.icon className="w-4 h-4 text-primary" />
             <span>{item.text}</span>
           </div>
         ))}
@@ -459,7 +460,7 @@ export default function CreatorOnboardingPage() {
   // Agency info from the portal's BrandingProvider
   const { agencyName, branding } = useBranding();
   const agencyInfo: AgencyInfo = {
-    name: agencyName || "CCM",
+    name: agencyName || BRAND.name,
     logo: branding.logoLight ?? undefined,
   };
 
@@ -757,7 +758,7 @@ export default function CreatorOnboardingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="h-10 w-10 animate-spin text-indigo-500 mx-auto" />
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -768,9 +769,9 @@ export default function CreatorOnboardingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
       {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-200/30 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-violet-200/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 right-1/3 w-72 h-72 bg-purple-200/25 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/15 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 right-1/3 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
       </div>
 
       {/* Main content */}
@@ -804,7 +805,7 @@ export default function CreatorOnboardingPage() {
       {isSaving && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card rounded-xl p-6 flex items-center gap-4 shadow-xl">
-            <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
             <span className="font-medium">Saving your profile...</span>
           </div>
         </div>

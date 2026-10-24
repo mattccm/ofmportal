@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
+import { BRAND } from "@/lib/brand";
 
 type Proxy = {
   host: string;
@@ -22,8 +23,8 @@ const CSS = `
   --cv-ink:var(--foreground);--cv-muted:var(--muted-foreground);--cv-line:var(--border);--cv-chip:var(--secondary);
   --cv-accent:var(--primary);--cv-accent-ink:var(--primary-foreground);
   --cv-soft:var(--accent);--cv-soft-ink:var(--accent-foreground);--cv-bad:var(--destructive);
-  --cv-grad:linear-gradient(90deg,var(--primary),#7c3aed);
-  --cv-grad-text:linear-gradient(90deg,var(--primary),#a78bfa 55%,#c084fc);
+  --cv-grad:linear-gradient(90deg,var(--primary),#3f7f5c);
+  --cv-grad-text:linear-gradient(90deg,#6aa884,#8cc2a2 55%,#b5dcc4);
   --cv-fsans:var(--font-sans),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --cv-fhead:var(--font-display),var(--font-sans),sans-serif;--cv-mono:var(--font-mono),ui-monospace,Menlo,monospace;
   min-height:100%;background:var(--cv-bg);color:var(--cv-ink);font-family:var(--cv-fsans);line-height:1.5}
@@ -33,8 +34,8 @@ const CSS = `
   padding:24px 16px 22px;color:#fff}
 .cv-hero::before{content:"";position:absolute;inset:0;
   background:radial-gradient(28rem 28rem at 12% 20%,color-mix(in srgb,var(--primary) 34%,transparent),transparent 60%),
-    radial-gradient(22rem 22rem at 92% 85%,rgba(139,92,246,.22),transparent 55%),
-    radial-gradient(16rem 16rem at 55% 50%,rgba(147,51,234,.12),transparent 60%)}
+    radial-gradient(22rem 22rem at 92% 85%,rgba(106,168,132,.22),transparent 55%),
+    radial-gradient(16rem 16rem at 55% 50%,rgba(63,127,92,.12),transparent 60%)}
 .cv-hero::after{content:"";position:absolute;inset:0;opacity:.04;
   background-image:linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px);
   background-size:52px 52px}
@@ -76,7 +77,7 @@ const CSS = `
   font-weight:600;font-size:12.5px;padding:7px 12px;border-radius:9px;cursor:pointer}
 .cv-copy.ok{color:var(--cv-accent);border-color:color-mix(in srgb,var(--cv-accent) 45%,var(--cv-line))}
 .cv-expect{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--cv-soft);border-radius:12px;padding:12px}
-.cv-expect .ip{font-family:var(--cv-mono);font-weight:700;font-size:17px;background:var(--cv-grad-text);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cv-expect .ip{font-family:var(--cv-mono);font-weight:700;font-size:17px;color:var(--cv-accent)}
 .cv-expect small{display:block;color:var(--cv-muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 .cv-check{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px dashed var(--cv-line);cursor:pointer;user-select:none}
 .cv-check input{width:20px;height:20px;accent-color:var(--cv-accent);flex:0 0 auto}
@@ -134,7 +135,7 @@ function Hero({ lead, accent, sub, children }: { lead: string; accent: string; s
   return (
     <div className="cv-hero">
       <div className="cv-hero-in">
-        <Image className="cv-logo" src="/ccm-logo.png" alt="CCM" width={38} height={38} priority />
+        <Image className="cv-logo" src={BRAND.logoPath} alt={BRAND.name} width={38} height={38} priority />
         <h1 className="cv-kicker">
           {lead} <span className="cv-grad">{accent}</span>
         </h1>

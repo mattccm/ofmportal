@@ -120,9 +120,9 @@ const statusConfig: Record<
   },
   SUBMITTED: {
     label: "Submitted",
-    color: "text-violet-600",
-    bgClass: "bg-violet-50 border-violet-200 dark:bg-violet-900/20 dark:border-violet-800",
-    icon: <Send className="h-4 w-4 text-violet-500" />,
+    color: "text-primary",
+    bgClass: "bg-primary/5 border-primary/30",
+    icon: <Send className="h-4 w-4 text-primary" />,
   },
   UNDER_REVIEW: {
     label: "Under Review",
@@ -1002,10 +1002,10 @@ export default function CreatorRequestDetailPage({
 
       {/* Status Messages */}
       {(request.status === "SUBMITTED" || request.status === "UNDER_REVIEW") && (
-        <Card className="border-violet-200 bg-violet-50/50 dark:bg-violet-900/20 dark:border-violet-800">
+        <Card className="border-primary/30 bg-primary/5">
           <CardContent className="py-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mx-auto mb-4">
-              <Timer className="h-6 w-6 text-violet-600" />
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Timer className="h-6 w-6 text-primary" />
             </div>
             <h3 className="font-semibold text-lg mb-1">Under Review</h3>
             <p className="text-muted-foreground text-sm">

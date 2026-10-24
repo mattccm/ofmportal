@@ -209,12 +209,12 @@
 
   /* Gradient text */
   .gradient-text {
-    @apply bg-gradient-to-r from-primary via-violet-500 to-purple-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary via-primary/85 to-primary/70 bg-clip-text text-transparent;
   }
 
   /* Premium button gradients */
   .btn-gradient {
-    @apply bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90;
+    @apply bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70;
     @apply text-white font-medium shadow-lg shadow-primary/25;
     @apply transition-all duration-200;
   }
@@ -230,7 +230,7 @@
 
   .stat-card::before {
     content: '';
-    @apply absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-violet-600 rounded-l-xl;
+    @apply absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-primary/60 rounded-l-xl;
   }
 
   /* Animated gradient border */
@@ -241,7 +241,7 @@
   .gradient-border::before {
     content: '';
     @apply absolute inset-0 rounded-xl p-[1px];
-    background: linear-gradient(135deg, var(--primary), #8b5cf6, var(--primary));
+    background: linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary) 55%, transparent), var(--primary));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -281,7 +281,7 @@
   }
 
   .badge-purple {
-    @apply bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800;
+    @apply bg-primary/10 text-primary border-primary/30;
   }
 }
 
@@ -916,16 +916,16 @@ main {
 @layer components {
   /* Portal-specific gradient backgrounds */
   .portal-gradient-bg {
-    @apply bg-gradient-to-br from-slate-50 via-white to-violet-50/30;
+    @apply bg-gradient-to-br from-slate-50 via-white to-primary/5;
   }
 
   .portal-gradient-bg-dark {
-    @apply bg-gradient-to-br from-slate-900 via-slate-950 to-violet-950/30;
+    @apply bg-gradient-to-br from-slate-900 via-slate-950 to-primary/10;
   }
 
   /* Welcome banner gradient */
   .portal-welcome-gradient {
-    @apply bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700;
+    @apply bg-gradient-to-br from-primary via-primary/90 to-primary/75;
   }
 
   /* Upload zone styling */
@@ -940,7 +940,7 @@ main {
 
   .upload-zone-icon {
     @apply w-16 h-16 rounded-2xl flex items-center justify-center mb-4;
-    @apply bg-violet-50 text-violet-500 transition-all duration-300;
+    @apply bg-primary/10 text-primary transition-all duration-300;
   }
 
   .upload-zone.dragging .upload-zone-icon {
@@ -961,7 +961,7 @@ main {
   }
 
   .status-dot-submitted {
-    @apply bg-violet-500;
+    @apply bg-primary;
   }
 
   .status-dot-review {
@@ -996,7 +996,7 @@ main {
   }
 
   .request-card[data-status="submitted"]::before {
-    @apply bg-violet-500;
+    @apply bg-primary;
   }
 
   .request-card[data-status="review"]::before {
@@ -1053,7 +1053,7 @@ main {
 
   .chat-bubble-sent {
     @apply inline-block rounded-2xl px-4 py-2 max-w-[80%];
-    @apply bg-violet-500 text-white rounded-tr-none;
+    @apply bg-primary text-primary-foreground rounded-tr-none;
   }
 
   /* Portal header glass effect */
@@ -1081,7 +1081,7 @@ main {
   }
 
   .notification-toggle.active {
-    @apply border-violet-200 bg-violet-50/50;
+    @apply border-primary/30 bg-primary/5;
   }
 
   .notification-toggle:not(.active) {
@@ -1112,7 +1112,7 @@ main {
 
   .quick-stat::before {
     content: '';
-    @apply absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-violet-600 rounded-l-xl;
+    @apply absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-primary/60 rounded-l-xl;
   }
 
   /* File grid item */
@@ -1157,10 +1157,10 @@ main {
 
 @keyframes glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 20px color-mix(in oklch, var(--primary) 30%, transparent);
   }
   50% {
-    box-shadow: 0 0 40px rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 40px color-mix(in oklch, var(--primary) 50%, transparent);
   }
 }
 

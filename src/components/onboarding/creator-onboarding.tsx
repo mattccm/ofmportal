@@ -91,7 +91,7 @@ function ProfileSetupStep({
 
   return (
     <div className="space-y-6">
-      <div className="text-center p-6 bg-gradient-to-br from-primary/5 to-violet-500/5 rounded-xl border border-primary/10">
+      <div className="text-center p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/10">
         <h3 className="text-xl font-semibold mb-2">
           Welcome to Your Creator Portal!
         </h3>
@@ -477,7 +477,7 @@ function PortalTourStep() {
         </div>
 
         <div className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-          <div className="w-12 h-12 rounded-lg bg-violet-500/10 flex items-center justify-center text-violet-500">
+          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
             <Eye className="w-6 h-6" />
           </div>
           <div className="flex-1">
@@ -501,7 +501,7 @@ function PortalTourStep() {
         </div>
       </div>
 
-      <div className="p-4 bg-gradient-to-br from-primary/5 to-violet-500/5 rounded-lg border border-primary/10">
+      <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/10">
         <p className="text-sm font-medium mb-2">Ready to start?</p>
         <p className="text-sm text-muted-foreground">
           Click &quot;Complete&quot; to finish setup and start viewing your content requests!

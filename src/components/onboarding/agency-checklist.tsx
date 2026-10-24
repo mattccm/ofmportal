@@ -205,7 +205,7 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="text-center py-6 px-4">
       <div className="relative inline-flex items-center justify-center mb-4">
-        <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-500 rounded-full blur-xl opacity-50 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-emerald-400 to-primary rounded-full blur-xl opacity-50 animate-pulse" />
         <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
           <PartyPopper className="h-8 w-8 text-white" />
         </div>
@@ -407,7 +407,7 @@ export function AgencyChecklist({
                 <CheckCircle2 className="h-5 w-5 text-white" />
               </div>
             ) : (
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shadow-sm">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-sm">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
             )}

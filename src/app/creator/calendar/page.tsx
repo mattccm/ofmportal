@@ -151,9 +151,9 @@ export default function CreatorCalendarPage() {
       case "IN_PROGRESS":
         return "bg-blue-500";
       case "SUBMITTED":
-        return "bg-violet-500";
+        return "bg-primary";
       case "UNDER_REVIEW":
-        return "bg-indigo-500";
+        return "bg-muted-foreground";
       case "NEEDS_REVISION":
         return "bg-red-500";
       case "APPROVED":
@@ -170,9 +170,9 @@ export default function CreatorCalendarPage() {
       case "IN_PROGRESS":
         return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
       case "SUBMITTED":
-        return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
+        return "bg-primary/10 text-primary";
       case "UNDER_REVIEW":
-        return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400";
+        return "bg-muted text-foreground";
       case "NEEDS_REVISION":
         return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
       case "APPROVED":
