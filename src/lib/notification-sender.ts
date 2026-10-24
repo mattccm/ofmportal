@@ -11,6 +11,7 @@ import {
   escapeHtml,
   p,
   ctaButton,
+  textFooter,
 } from "./email";
 import { sendSms } from "./sms";
 import {
@@ -272,10 +273,15 @@ export async function sendNotificationWithPreferences(
       const subject = notification.emailSubject || notification.title;
 
       if (notification.emailHtml) {
+        // Pre-built HTML: send from the agency like every other email; sendEmail
+        // derives the plain-text part from the HTML
+        const branding = await loadEmailBranding(user.agencyId ?? undefined);
         await sendEmail({
           to: user.email,
           subject,
           html: notification.emailHtml,
+          fromName: branding.fromName,
+          replyTo: branding.replyTo ?? undefined,
         });
       } else {
         const branding = await loadEmailBranding(user.agencyId ?? undefined);
@@ -289,10 +295,20 @@ export async function sendNotificationWithPreferences(
             branding
           ),
         });
+        const linkUrl = absoluteLink(notification.link);
+        const text =
+          [
+            `Hello ${user.name || "there"},`,
+            notification.message,
+            linkUrl ? `View details: ${linkUrl}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n\n") + textFooter(branding);
         await sendEmail({
           to: user.email,
           subject,
           html,
+          text,
           fromName: branding.fromName,
           replyTo: branding.replyTo ?? undefined,
         });
@@ -309,7 +325,9 @@ export async function sendNotificationWithPreferences(
     try {
       await sendSms({
         to: user.phone,
-        message: notification.smsMessage || `${notification.title}: ${notification.message}`,
+        // Lock-screen safe: fall back to the generic title only, never the
+        // message (it often quotes the request title). sendSms adds "CCM: ".
+        message: notification.smsMessage || notification.title,
       });
       result.sms = true;
     } catch (error) {
@@ -347,6 +365,19 @@ export async function sendBulkNotificationsWithPreferences(
 
 // HELPER FUNCTIONS
 
+/** Email links must be absolute; resolve app-relative paths against APP_URL */
+function absoluteLink(link?: string): string | null {
+  if (!link) return null;
+  if (/^(https?:|mailto:)/i.test(link)) return link;
+  const base = (
+    process.env.APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    ""
+  ).replace(/\/+$/, "");
+  return base ? `${base}${link.startsWith("/") ? "" : "/"}${link}` : link;
+}
+
 /**
  * Build the branded body content for a default notification email. The agency
  * shell (logo, colour, sender, footer) is applied by renderEmail.
@@ -359,7 +390,7 @@ function renderNotificationContent(
   return `
     ${p(`Hello ${escapeHtml(userName)},`)}
     ${p(escapeHtml(notification.message))}
-    ${notification.link ? ctaButton(notification.link, "View details", branding) : ""}
+    ${notification.link ? ctaButton(absoluteLink(notification.link) ?? notification.link, "View details", branding) : ""}
   `;
 }
 

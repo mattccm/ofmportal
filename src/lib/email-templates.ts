@@ -1,5 +1,7 @@
 // Email Template Types and Defaults
 
+import { BRAND } from "./brand";
+
 export type EmailTemplateType =
   | "WELCOME"
   | "REQUEST_SENT"
@@ -35,7 +37,7 @@ export const TEMPLATE_VARIABLES: Record<EmailTemplateType, EmailTemplateVariable
     { key: "creator.name", label: "Creator Name", description: "The creator's full name", example: "John Doe" },
     { key: "agency.name", label: "Agency Name", description: "Your agency name", example: "Creative Agency" },
     { key: "invite.link", label: "Invite Link", description: "The setup link for the creator", example: "https://portal.example.com/setup/abc123" },
-    { key: "app.name", label: "App Name", description: "The application name", example: "Content Portal" },
+    { key: "app.name", label: "App Name", description: "The application name", example: BRAND.productName },
   ],
   REQUEST_SENT: [
     { key: "creator.name", label: "Creator Name", description: "The creator's full name", example: "John Doe" },
@@ -66,6 +68,7 @@ export const TEMPLATE_VARIABLES: Record<EmailTemplateType, EmailTemplateVariable
     { key: "portal.link", label: "Portal Link", description: "Link to view the request", example: "https://portal.example.com/request/xyz" },
   ],
   REMINDER_UPCOMING: [
+    { key: "agency.name", label: "Agency Name", description: "Your agency name", example: "Creative Agency" },
     { key: "creator.name", label: "Creator Name", description: "The creator's full name", example: "John Doe" },
     { key: "request.title", label: "Request Title", description: "The title of the content request", example: "Summer Campaign Photos" },
     { key: "request.dueDate", label: "Due Date", description: "The request due date", example: "March 30, 2026" },
@@ -73,12 +76,14 @@ export const TEMPLATE_VARIABLES: Record<EmailTemplateType, EmailTemplateVariable
     { key: "portal.link", label: "Portal Link", description: "Link to view the request", example: "https://portal.example.com/request/xyz" },
   ],
   REMINDER_DUE_TODAY: [
+    { key: "agency.name", label: "Agency Name", description: "Your agency name", example: "Creative Agency" },
     { key: "creator.name", label: "Creator Name", description: "The creator's full name", example: "John Doe" },
     { key: "request.title", label: "Request Title", description: "The title of the content request", example: "Summer Campaign Photos" },
     { key: "request.dueDate", label: "Due Date", description: "The request due date", example: "March 30, 2026" },
     { key: "portal.link", label: "Portal Link", description: "Link to view the request", example: "https://portal.example.com/request/xyz" },
   ],
   REMINDER_OVERDUE: [
+    { key: "agency.name", label: "Agency Name", description: "Your agency name", example: "Creative Agency" },
     { key: "creator.name", label: "Creator Name", description: "The creator's full name", example: "John Doe" },
     { key: "request.title", label: "Request Title", description: "The title of the content request", example: "Summer Campaign Photos" },
     { key: "request.dueDate", label: "Due Date", description: "The request due date", example: "March 30, 2026" },
@@ -86,11 +91,13 @@ export const TEMPLATE_VARIABLES: Record<EmailTemplateType, EmailTemplateVariable
     { key: "portal.link", label: "Portal Link", description: "Link to view the request", example: "https://portal.example.com/request/xyz" },
   ],
   PASSWORD_RESET: [
+    { key: "agency.name", label: "Agency Name", description: "Your agency name", example: "Creative Agency" },
     { key: "user.name", label: "User Name", description: "The user's full name", example: "John Doe" },
     { key: "reset.link", label: "Reset Link", description: "The password reset link", example: "https://portal.example.com/reset/abc123" },
-    { key: "app.name", label: "App Name", description: "The application name", example: "Content Portal" },
+    { key: "app.name", label: "App Name", description: "The application name", example: BRAND.productName },
   ],
   REVISION_REQUESTED: [
+    { key: "agency.name", label: "Agency Name", description: "Your agency name", example: "Creative Agency" },
     { key: "creator.name", label: "Creator Name", description: "The creator's full name", example: "John Doe" },
     { key: "request.title", label: "Request Title", description: "The title of the content request", example: "Summer Campaign Photos" },
     { key: "feedback", label: "Feedback", description: "The revision feedback", example: "Please adjust the lighting in the photos." },
@@ -109,7 +116,7 @@ const EMAIL_STYLES = `
 `;
 
 const HEADER_GRADIENT = `
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, ${BRAND.primaryColor} 0%, ${BRAND.secondaryColor} 100%);
   padding: 30px;
   border-radius: 10px 10px 0 0;
 `;
@@ -123,7 +130,7 @@ const CONTENT_BOX = `
 `;
 
 const BUTTON_STYLE = `
-  background: #667eea;
+  background: ${BRAND.primaryColor};
   color: white;
   padding: 14px 28px;
   text-decoration: none;
@@ -131,6 +138,23 @@ const BUTTON_STYLE = `
   font-weight: 600;
   display: inline-block;
 `;
+
+// Stop dark-mode mail clients from inverting the brand colours
+const COLOR_SCHEME_META = `<meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light">`;
+
+// Shared brand footer (legal name + why you're receiving this). A privacy
+// link will be added here later.
+const HTML_FOOTER = `<div style="max-width: 600px; margin: 24px auto 0; padding: 16px 0 0; border-top: 1px solid #e5e5e5; text-align: center; font-size: 12px; line-height: 1.5; color: #999;">
+      <p style="margin: 0 0 4px;">You're receiving this because you work with {{agency.name}}.</p>
+      <p style="margin: 0;">${BRAND.legalName}</p>
+    </div>`;
+
+const TEXT_FOOTER = `
+
+--
+You're receiving this because you work with {{agency.name}}.
+${BRAND.legalName}`;
 
 // Default templates
 export const DEFAULT_TEMPLATES: Record<EmailTemplateType, Omit<EmailTemplateConfig, "type">> = {
@@ -145,6 +169,7 @@ export const DEFAULT_TEMPLATES: Record<EmailTemplateType, Omit<EmailTemplateConf
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
     <title>Welcome to {{app.name}}</title>
   </head>
   <body style="${EMAIL_STYLES}">
@@ -166,6 +191,7 @@ export const DEFAULT_TEMPLATES: Record<EmailTemplateType, Omit<EmailTemplateConf
         If you didn't expect this invitation, you can safely ignore this email.
       </p>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -177,7 +203,7 @@ Set up your account here: {{invite.link}}
 
 This link will expire in 7 days.
 
-If you didn't expect this invitation, you can safely ignore this email.`.trim(),
+If you didn't expect this invitation, you can safely ignore this email.`.trim() + TEXT_FOOTER,
   },
 
   REQUEST_SENT: {
@@ -191,6 +217,7 @@ If you didn't expect this invitation, you can safely ignore this email.`.trim(),
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
     <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
@@ -205,6 +232,7 @@ If you didn't expect this invitation, you can safely ignore this email.`.trim(),
         <a href="{{portal.link}}" style="${BUTTON_STYLE}">View Request & Upload</a>
       </div>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -215,7 +243,7 @@ Hi {{creator.name}},
 {{request.title}}
 Due: {{request.dueDate}}
 
-View and upload here: {{portal.link}}`.trim(),
+View and upload here: {{portal.link}}`.trim() + TEXT_FOOTER,
   },
 
   UPLOAD_RECEIVED: {
@@ -229,6 +257,7 @@ View and upload here: {{portal.link}}`.trim(),
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
     <div style="background: #f0fdf4; padding: 20px; border-radius: 10px; border-left: 4px solid #22c55e;">
@@ -241,6 +270,7 @@ View and upload here: {{portal.link}}`.trim(),
         <a href="{{dashboard.link}}" style="${BUTTON_STYLE}">Review Uploads</a>
       </div>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -248,7 +278,7 @@ New Content Uploaded
 
 {{creator.name}} has uploaded {{upload.count}} file(s) for "{{request.title}}".
 
-Review the uploads here: {{dashboard.link}}`.trim(),
+Review the uploads here: {{dashboard.link}}`.trim() + TEXT_FOOTER,
   },
 
   REQUEST_APPROVED: {
@@ -262,6 +292,7 @@ Review the uploads here: {{dashboard.link}}`.trim(),
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
     <div style="background: #f0fdf4; padding: 20px; border-radius: 10px; border-left: 4px solid #22c55e;">
@@ -271,6 +302,7 @@ Review the uploads here: {{dashboard.link}}`.trim(),
       <p>Thank you for your submission!</p>
       <p style="color: #666; font-size: 14px; margin-top: 20px;">- {{agency.name}}</p>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -282,7 +314,7 @@ Great news! Your content for "{{request.title}}" has been approved.
 
 Thank you for your submission!
 
-- {{agency.name}}`.trim(),
+- {{agency.name}}`.trim() + TEXT_FOOTER,
   },
 
   REQUEST_REJECTED: {
@@ -296,6 +328,7 @@ Thank you for your submission!
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
     <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #ef4444;">
@@ -311,6 +344,7 @@ Thank you for your submission!
         <a href="{{portal.link}}" style="background: #dc2626; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Upload New Content</a>
       </div>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -322,7 +356,7 @@ We've reviewed your content for "{{request.title}}" and unfortunately it doesn't
 
 Reason: {{rejection.reason}}
 
-Please upload new content here: {{portal.link}}`.trim(),
+Please upload new content here: {{portal.link}}`.trim() + TEXT_FOOTER,
   },
 
   REMINDER_UPCOMING: {
@@ -336,9 +370,10 @@ Please upload new content here: {{portal.link}}`.trim(),
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid ${BRAND.primaryColor};">
       <h2 style="margin: 0 0 20px 0; color: #333;">Content Reminder</h2>
       <p>Hi {{creator.name}},</p>
       <p>This is a friendly reminder that your content for <strong>"{{request.title}}"</strong> is due in <strong>{{days.remaining}} days</strong>.</p>
@@ -349,6 +384,7 @@ Please upload new content here: {{portal.link}}`.trim(),
         <a href="{{portal.link}}" style="${BUTTON_STYLE}">Upload Content Now</a>
       </div>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -360,7 +396,7 @@ This is a friendly reminder that your content for "{{request.title}}" is due in 
 
 Due date: {{request.dueDate}}
 
-Upload your content here: {{portal.link}}`.trim(),
+Upload your content here: {{portal.link}}`.trim() + TEXT_FOOTER,
   },
 
   REMINDER_DUE_TODAY: {
@@ -374,6 +410,7 @@ Upload your content here: {{portal.link}}`.trim(),
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
     <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
@@ -385,6 +422,7 @@ Upload your content here: {{portal.link}}`.trim(),
         <a href="{{portal.link}}" style="background: #f59e0b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Upload Content Now</a>
       </div>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -394,7 +432,7 @@ Hi {{creator.name}},
 
 Your content for "{{request.title}}" is due today.
 
-Please upload your content as soon as possible: {{portal.link}}`.trim(),
+Please upload your content as soon as possible: {{portal.link}}`.trim() + TEXT_FOOTER,
   },
 
   REMINDER_OVERDUE: {
@@ -408,6 +446,7 @@ Please upload your content as soon as possible: {{portal.link}}`.trim(),
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
     <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #ef4444;">
@@ -419,6 +458,7 @@ Please upload your content as soon as possible: {{portal.link}}`.trim(),
         <a href="{{portal.link}}" style="background: #dc2626; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Upload Content Now</a>
       </div>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -430,7 +470,7 @@ Your content for "{{request.title}}" is {{days.overdue}} days overdue.
 
 The original due date was {{request.dueDate}}. Please upload your content immediately.
 
-Upload here: {{portal.link}}`.trim(),
+Upload here: {{portal.link}}`.trim() + TEXT_FOOTER,
   },
 
   PASSWORD_RESET: {
@@ -444,6 +484,7 @@ Upload here: {{portal.link}}`.trim(),
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
     <div style="${HEADER_GRADIENT}">
@@ -464,6 +505,7 @@ Upload here: {{portal.link}}`.trim(),
         If you didn't request a password reset, you can safely ignore this email. Your password will not be changed.
       </p>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -477,7 +519,7 @@ Reset your password here: {{reset.link}}
 
 This link will expire in 1 hour.
 
-If you didn't request a password reset, you can safely ignore this email.`.trim(),
+If you didn't request a password reset, you can safely ignore this email.`.trim() + TEXT_FOOTER,
   },
 
   REVISION_REQUESTED: {
@@ -491,6 +533,7 @@ If you didn't request a password reset, you can safely ignore this email.`.trim(
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
     <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
@@ -505,6 +548,7 @@ If you didn't request a password reset, you can safely ignore this email.`.trim(
         <a href="{{portal.link}}" style="background: #f59e0b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">View Feedback & Resubmit</a>
       </div>
     </div>
+    ${HTML_FOOTER}
   </body>
 </html>`,
     defaultText: `
@@ -516,7 +560,7 @@ We've reviewed your content for "{{request.title}}" and have some feedback:
 
 {{feedback}}
 
-Please make the necessary changes and resubmit: {{portal.link}}`.trim(),
+Please make the necessary changes and resubmit: {{portal.link}}`.trim() + TEXT_FOOTER,
   },
 };
 

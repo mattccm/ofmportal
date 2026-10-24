@@ -1,11 +1,11 @@
 import { Resend } from "resend";
 import { db } from "./db";
 import {
-  DEFAULT_BRANDING,
   isValidHexColor,
   getContrastColor,
   type BrandingSettings,
 } from "./branding";
+import { BRAND } from "./brand";
 
 // Lazy initialization to avoid errors when API key is not configured
 let resend: Resend | null = null;
@@ -55,15 +55,46 @@ interface EmailBranding {
 }
 
 const FALLBACK_BRANDING: EmailBranding = {
-  agencyName: DEFAULT_BRANDING.emailFromName,
-  fromName: DEFAULT_BRANDING.emailFromName,
+  agencyName: BRAND.name,
+  fromName: BRAND.name,
   logoUrl: null,
-  primaryColor: DEFAULT_BRANDING.primaryColor,
-  buttonTextColor: getContrastColor(DEFAULT_BRANDING.primaryColor),
-  signature: DEFAULT_BRANDING.emailSignature,
+  primaryColor: BRAND.primaryColor,
+  buttonTextColor: getContrastColor(BRAND.primaryColor),
+  signature: null,
   supportEmail: null,
   replyTo: null,
 };
+
+/**
+ * Violet/purple defaults left over from the old theme. Agencies that saved
+ * their settings while these were the defaults still have them stored, so
+ * treat them as "unset" and use the brand green instead.
+ */
+const LEGACY_THEME_COLORS = new Set([
+  "#7c3aed",
+  "#8b5cf6",
+  "#a855f7",
+  "#6d28d9",
+  "#9333ea",
+  "#667eea",
+  "#764ba2",
+]);
+
+function resolvePrimaryColor(saved: string | null | undefined): string {
+  if (!saved || !isValidHexColor(saved)) return BRAND.primaryColor;
+  if (LEGACY_THEME_COLORS.has(saved.toLowerCase())) return BRAND.primaryColor;
+  return saved;
+}
+
+/** Swap old product-name literals in a saved signature for the current brand */
+function normalizeSignature(signature: string | null | undefined): string | null {
+  const trimmed = signature?.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(
+    /\b(?:CCM Content Portal|Content Portal|Upload Portal)\b/g,
+    BRAND.productName
+  );
+}
 
 /** Only absolute URLs render in email clients; relative paths must be dropped. */
 function usableLogoUrl(url: string | null | undefined): string | null {
@@ -98,10 +129,7 @@ export async function loadEmailBranding(
     const settings = (agency.settings as Record<string, unknown>) || {};
     const branding = (settings.branding as Partial<BrandingSettings>) || {};
 
-    const primaryColor =
-      branding.primaryColor && isValidHexColor(branding.primaryColor)
-        ? branding.primaryColor
-        : DEFAULT_BRANDING.primaryColor;
+    const primaryColor = resolvePrimaryColor(branding.primaryColor);
 
     const senderName =
       (branding.emailFromName && branding.emailFromName.trim()) || agency.name;
@@ -117,8 +145,7 @@ export async function loadEmailBranding(
       logoUrl,
       primaryColor,
       buttonTextColor: getContrastColor(primaryColor),
-      signature:
-        (branding.emailSignature && branding.emailSignature.trim()) || null,
+      signature: normalizeSignature(branding.emailSignature),
       supportEmail: branding.supportEmail || null,
       replyTo: branding.emailReplyTo || null,
     };
@@ -192,7 +219,6 @@ export function renderEmail(options: {
 }): string {
   const { subject, branding, heading, content } = options;
   const safeAgency = escapeHtml(branding.agencyName);
-  const year = new Date().getFullYear();
 
   const headerInner = branding.logoUrl
     ? `<img src="${escapeHtml(branding.logoUrl)}" alt="${safeAgency}" height="36" style="display:block;height:36px;max-height:36px;width:auto;border:0;line-height:100%;outline:none;text-decoration:none;">`
@@ -216,6 +242,8 @@ export function renderEmail(options: {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light">
     <title>${escapeHtml(subject)}</title>
   </head>
   <body style="margin:0;padding:0;width:100%;background-color:#f4f4f7;-webkit-text-size-adjust:100%;">
@@ -246,7 +274,8 @@ export function renderEmail(options: {
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
             <tr>
               <td style="padding:16px 40px;text-align:center;">
-                <p style="margin:0;font-family:${FONT_STACK};font-size:12px;line-height:1.5;color:${TEXT.faint};">&copy; ${year} ${safeAgency}</p>
+                <p style="margin:0 0 4px;font-family:${FONT_STACK};font-size:12px;line-height:1.5;color:${TEXT.faint};">You're receiving this because you work with ${safeAgency}.</p>
+                <p style="margin:0;font-family:${FONT_STACK};font-size:12px;line-height:1.5;color:${TEXT.faint};">${escapeHtml(BRAND.legalName)}</p>
               </td>
             </tr>
           </table>
@@ -255,6 +284,63 @@ export function renderEmail(options: {
     </table>
   </body>
 </html>`;
+}
+
+/** Plain-text version of the shared brand footer rendered by renderEmail */
+export function textFooter(branding: Pick<EmailBranding, "agencyName">): string {
+  return `\n\n--\nYou're receiving this because you work with ${branding.agencyName}.\n${BRAND.legalName}`;
+}
+
+const NAMED_ENTITIES: Record<string, string> = {
+  nbsp: " ",
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  mdash: "\u2014",
+  ndash: "\u2013",
+  middot: "\u00b7",
+  copy: "\u00a9",
+  zwnj: "",
+};
+
+/**
+ * Derive a readable plain-text part from email HTML. Used when a caller
+ * doesn't supply its own text so every email goes out multipart.
+ */
+export function htmlToText(html: string): string {
+  const stripTags = (value: string) => value.replace(/<[^>]+>/g, "");
+  const text = html
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
+    .replace(/<(style|script|title)[^>]*>[\s\S]*?<\/\1>/gi, "")
+    // Hidden preheader
+    .replace(/<div[^>]*display:\s*none[^>]*>[\s\S]*?<\/div>/gi, "")
+    .replace(
+      /<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi,
+      (_m, href: string, label: string) => {
+        const cleanLabel = stripTags(label).trim();
+        return cleanLabel && cleanLabel !== href ? `${cleanLabel} (${href})` : href;
+      }
+    )
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<hr[^>]*>/gi, "\n---\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<\/(p|div|h[1-6]|li|tr|table|blockquote|ul|ol)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&#(\d+);/g, (_m, code: string) => {
+      const n = Number(code);
+      // &#847; (combining grapheme joiner) is preheader padding only
+      return n === 847 ? "" : String.fromCodePoint(n);
+    })
+    .replace(/&([a-z]+);/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m);
+
+  return text
+    .split("\n")
+    .map((line) => line.replace(/[ \t\u00a0]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 interface SendEmailOptions {
@@ -289,6 +375,8 @@ export async function sendEmail({
   replyTo,
 }: SendEmailOptions) {
   const client = getResendClient();
+  // Always send a plain-text alternative alongside the HTML
+  const textPart = text && text.trim() ? text : htmlToText(html);
 
   if (!client) {
     console.log("[MOCK EMAIL] Would be sent:", {
@@ -308,7 +396,7 @@ export async function sendEmail({
       to,
       subject,
       html,
-      text,
+      text: textPart,
       ...(replyTo ? { replyTo } : {}),
     });
 
@@ -488,7 +576,7 @@ export async function renderBulkEmail(
   return {
     subject: processedSubject,
     html,
-    text: processedBody,
+    text: processedBody + textFooter(branding),
     fromName: branding.fromName,
     replyTo: branding.replyTo ?? undefined,
   };
@@ -548,7 +636,7 @@ We can't wait to see what you create.
 — The ${displayAgency} team
 
 If you weren't expecting this invitation, you can safely ignore this email.
-  `.trim();
+  `.trim() + textFooter(branding);
 
   return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
@@ -592,7 +680,18 @@ export async function sendContentRequestEmail({
     content,
   });
 
-  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
+  const text = `
+Hi ${creatorName},
+
+We have a new content request ready for you:
+
+${requestTitle}
+Due ${dueDate}
+
+See the details and upload your content here: ${portalLink}
+  `.trim() + textFooter(branding);
+
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendReminderEmail({
@@ -656,7 +755,18 @@ export async function sendReminderEmail({
     content,
   });
 
-  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
+  const text =
+    [
+      `Hi ${creatorName},`,
+      customMessage || "",
+      `This is a friendly reminder that your content for "${requestTitle}" is ${urgencyText}.`,
+      `Due date: ${dueDate}`,
+      `Upload your content here: ${portalLink}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n") + textFooter(branding);
+
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendContentApprovedEmail({
@@ -691,7 +801,17 @@ export async function sendContentApprovedEmail({
     content,
   });
 
-  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
+  const text =
+    [
+      `Hi ${creatorName},`,
+      `Great news - your submission for "${requestTitle}" has been approved.`,
+      `Thank you for the great work. We really appreciate it!`,
+      portalLink ? `View it in your portal: ${portalLink}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n") + textFooter(branding);
+
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendRevisionRequestEmail({
@@ -731,7 +851,17 @@ export async function sendRevisionRequestEmail({
     content,
   });
 
-  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
+  const text = `
+Hi ${creatorName},
+
+Thanks for your submission for "${requestTitle}". Before we can approve it, we'd love a few changes:
+
+${feedback}
+
+Once you've made the updates, just re-upload and we'll take another look: ${portalLink}
+  `.trim() + textFooter(branding);
+
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 export async function sendNewRequestEmail({
@@ -774,7 +904,7 @@ Hi ${creatorName},
 You have a new content request: ${requestTitle}
 
 View the request and upload your content: ${portalLink}
-  `.trim();
+  `.trim() + textFooter(branding);
 
   return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
@@ -819,7 +949,7 @@ Reset your password here: ${resetLink}
 This link will expire in 24 hours.
 
 If you didn't request a password reset, you can safely ignore this email.
-  `.trim();
+  `.trim() + textFooter(branding);
 
   return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
@@ -901,7 +1031,29 @@ export async function sendBatchedReminderEmail({
     content,
   });
 
-  return sendEmail({ to, subject, html, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
+  const requestListText = requests
+    .map((req) => {
+      const statusText =
+        req.daysUntilDue < 0
+          ? `${Math.abs(req.daysUntilDue)} day${Math.abs(req.daysUntilDue) !== 1 ? "s" : ""} overdue`
+          : req.daysUntilDue === 0
+            ? "Due today"
+            : `Due in ${req.daysUntilDue} day${req.daysUntilDue !== 1 ? "s" : ""}`;
+      return `- ${req.title}: ${statusText} (due ${req.dueDate})`;
+    })
+    .join("\n");
+
+  const text = `
+Hi ${creatorName},
+
+Here's a summary of your pending content requests:
+
+${requestListText}
+
+View all requests: ${portalLink}
+  `.trim() + textFooter(branding);
+
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
 /**

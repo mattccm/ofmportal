@@ -1,3 +1,5 @@
+import { BRAND } from "./brand";
+
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
@@ -7,7 +9,21 @@ interface SendSmsOptions {
   message: string;
 }
 
-export async function sendSms({ to, message }: SendSmsOptions) {
+const SMS_PREFIX = `${BRAND.name}: `;
+
+/**
+ * Prefix the body with the brand ("CCM: ...") so creators recognise the
+ * sender, unless the message already starts with the brand name.
+ */
+export function withSmsBrandPrefix(message: string): string {
+  const trimmed = message.trimStart();
+  if (trimmed.toLowerCase().startsWith(BRAND.name.toLowerCase())) return trimmed;
+  return `${SMS_PREFIX}${trimmed}`;
+}
+
+export async function sendSms({ to, message: rawMessage }: SendSmsOptions) {
+  const message = withSmsBrandPrefix(rawMessage);
+
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
     console.log("[MOCK SMS] Would be sent:", { to, message });
     return { success: true, mock: true };
@@ -52,9 +68,7 @@ export async function sendSms({ to, message }: SendSmsOptions) {
 // Lock-screen safe: SMS previews show on locked phones, and request titles can
 // be explicit, so bodies never include the request title or other
 // request-specific wording. `requestTitle` is still accepted for caller
-// compatibility but intentionally unused.
-
-const SMS_BRAND = "CCM";
+// compatibility but intentionally unused. sendSms adds the "CCM: " prefix.
 
 export async function sendContentRequestSms({
   to,
@@ -66,7 +80,7 @@ export async function sendContentRequestSms({
   requestTitle?: string;
   portalLink: string;
 }) {
-  const message = `Hi ${creatorName}, you have a new content request from ${SMS_BRAND}. View it here: ${portalLink}`;
+  const message = `Hi ${creatorName}, you have a new content request. View it here: ${portalLink}`;
   return sendSms({ to, message });
 }
 
@@ -93,7 +107,7 @@ export async function sendReminderSms({
 
   const testPrefix = isTest ? "[TEST] " : "";
 
-  const message = `${testPrefix}Hi ${creatorName}, you have ${SMS_BRAND} content ${urgencyText}. View it here: ${portalLink}`;
+  const message = `${testPrefix}Hi ${creatorName}, you have content ${urgencyText}. View it here: ${portalLink}`;
   return sendSms({ to, message });
 }
 
@@ -105,7 +119,7 @@ export async function sendContentApprovedSms({
   creatorName: string;
   requestTitle?: string;
 }) {
-  const message = `Hi ${creatorName}, your content for ${SMS_BRAND} has been approved.`;
+  const message = `Hi ${creatorName}, your content has been approved.`;
   return sendSms({ to, message });
 }
 
@@ -120,7 +134,7 @@ export async function sendRevisionRequestSms({
   portalLink?: string;
 }) {
   const linkPart = portalLink ? ` View feedback here: ${portalLink}` : "";
-  const message = `Hi ${creatorName}, ${SMS_BRAND} has requested changes to your content.${linkPart}`;
+  const message = `Hi ${creatorName}, changes have been requested on your content.${linkPart}`;
   return sendSms({ to, message });
 }
 
@@ -135,7 +149,7 @@ export async function sendBatchedReminderSms({
   requestCount: number;
   portalLink: string;
 }) {
-  const message = `Hi ${creatorName}, you have ${requestCount} content requests pending from ${SMS_BRAND}. View all: ${portalLink}`;
+  const message = `Hi ${creatorName}, you have ${requestCount} content requests pending. View all: ${portalLink}`;
   return sendSms({ to, message });
 }
 

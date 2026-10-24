@@ -39,4 +39,4 @@ jobs:
       # Warning budget: the exact `npx eslint src` warning count as of
       # 2026-10-24. Lower it as warnings get fixed so new ones fail CI.
       - name: Lint
-        run: npx eslint src --max-warnings=300
+        run: npx eslint src --max-warnings=297
