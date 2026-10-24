@@ -315,6 +315,7 @@ export const authOptions: NextAuthOptions = {
         token.agencyName = user.agencyName || "";
         token.twoFactorEnabled = user.twoFactorEnabled;
         token.checkedAt = Date.now();
+        token.loginAt = Date.now();
       }
 
       // Periodically re-read role/agency so removed or demoted staff lose access
@@ -326,10 +327,16 @@ export const authOptions: NextAuthOptions = {
         try {
           const fresh = await db.user.findUnique({
             where: { id: token.id as string },
-            select: { role: true, agencyId: true, agency: { select: { name: true } } },
+            select: { role: true, agencyId: true, preferences: true, agency: { select: { name: true } } },
           });
-          if (!fresh) {
-            // User removed: strip identity so every session.user.id / agencyId / role check fails
+          // preferences.sessionsValidAfter (ms) signs out every session issued before it
+          const validAfter = Number(
+            (fresh?.preferences as Record<string, unknown> | null)?.sessionsValidAfter ?? 0
+          );
+          // loginAt is stamped once at sign-in (iat changes whenever the cookie is re-encoded)
+          const loginAt = typeof token.loginAt === "number" ? token.loginAt : 0;
+          if (!fresh || (validAfter > 0 && loginAt < validAfter)) {
+            // User removed or sessions revoked: strip identity so every session.user.id / agencyId / role check fails
             return { checkedAt: Date.now() } as unknown as typeof token;
           }
           token.role = fresh.role;

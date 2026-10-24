@@ -20,6 +20,19 @@ const AVATARS = {
 };
 
 async function main() {
+  // The seed creates accounts with publicly documented passwords, so it must
+  // never run against a hosted database
+  const dbHost = (() => {
+    try {
+      return new URL(process.env.DATABASE_URL || "").hostname;
+    } catch {
+      return "";
+    }
+  })();
+  if (!["localhost", "127.0.0.1", "postgres", "db"].includes(dbHost)) {
+    throw new Error(`Refusing to seed non-local database host "${dbHost}". The seed is for local development only.`);
+  }
+
   console.log("🌱 Seeding database...");
 
   // Create test agency

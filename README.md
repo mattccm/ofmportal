@@ -77,7 +77,7 @@ Open [http://localhost:3001](http://localhost:3001) to access the portal.
 
 ### Test Accounts
 
-After seeding, you can log in with:
+After seeding a **local** database, you can log in with the accounts below. These passwords are public: never seed a hosted database (`prisma/seed.ts` refuses to run against a non-local host).
 
 **Agency Dashboard** (http://localhost:3001/login):
 - Email: `admin@agency.com` (or `manager@agency.com`)
