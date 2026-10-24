@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { BRAND } from "@/lib/brand";
 
 // TYPES
 
@@ -437,7 +438,7 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
   {
     id: "welcome",
     target: "[data-tour='dashboard-header']",
-    title: "Welcome to CCM Content Portal!",
+    title: `Welcome to ${BRAND.productName}!`,
     content: "Let's take a quick tour of your dashboard to help you get started.",
     position: "bottom",
     spotlight: false,

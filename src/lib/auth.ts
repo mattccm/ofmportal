@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { db } from "./db";
 import { rateLimitAsync, RATE_LIMITS } from "./rate-limit";
 import * as OTPAuth from "otpauth";
+import { BRAND } from "./brand";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -406,7 +407,7 @@ export function generateTwoFactorQRCodeUrl(
   secret: string
 ): string {
   const totp = new OTPAuth.TOTP({
-    issuer: "CCM",
+    issuer: BRAND.name,
     label: email,
     algorithm: "SHA1",
     digits: 6,
@@ -418,7 +419,7 @@ export function generateTwoFactorQRCodeUrl(
 
 export function verifyTwoFactorCode(secret: string, code: string): boolean {
   const totp = new OTPAuth.TOTP({
-    issuer: "CCM",
+    issuer: BRAND.name,
     label: "user",
     algorithm: "SHA1",
     digits: 6,

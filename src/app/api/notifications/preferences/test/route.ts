@@ -12,6 +12,7 @@ import {
   note,
 } from "@/lib/email";
 import { sendSMS } from "@/lib/sms";
+import { BRAND } from "@/lib/brand";
 import { shouldSuppressNotification } from "@/lib/notification-sender";
 import {
   NotificationPreferences,
@@ -161,7 +162,7 @@ export async function POST(req: NextRequest) {
         await sendSMS({
           to: user.phone,
           message:
-            "Upload Portal: This is a test notification to verify your SMS settings are working correctly.",
+            `${BRAND.name}: This is a test notification to verify your SMS settings are working correctly.`,
         });
         results.sms = true;
       } catch (error) {

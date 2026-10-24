@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { BRAND } from "@/lib/brand";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { useUser } from "@/hooks/use-session";
 import { useCreatorMessagesCount } from "@/hooks/use-creator-messages";
 import {
@@ -463,7 +465,7 @@ export function MobileNav() {
                   />
                   {/* Active indicator */}
                   {active && (
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full bg-gradient-to-r from-primary to-violet-500" />
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full bg-gradient-to-r from-primary to-primary/60" />
                   )}
                 </div>
                 <span
@@ -508,7 +510,7 @@ export function MobileNav() {
                 <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
               )}
               {isMoreActive && (
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full bg-gradient-to-r from-primary to-violet-500" />
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full bg-gradient-to-r from-primary to-primary/60" />
               )}
             </div>
             <span
@@ -559,7 +561,7 @@ export function MobileNav() {
           {/* User Section */}
           <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/50">
             <Avatar className="h-12 w-12 ring-2 ring-primary/20">
-              <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white font-semibold text-lg">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/75 text-white font-semibold text-lg">
                 {user?.name?.charAt(0).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
@@ -727,8 +729,8 @@ export function MobileNav() {
           {/* App Version & Gesture Hints */}
           <div className="text-center pt-4 space-y-3">
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <img src="/ccm-logo.png" alt="CCM" className="h-3 w-3 dark:invert" />
-              <span>CCM Portal v1.0</span>
+              <BrandLogo size={12} imageClassName="dark:invert" />
+              <span>{BRAND.productName} v1.0</span>
             </div>
 
             {/* Gesture hints */}

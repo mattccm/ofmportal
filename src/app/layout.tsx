@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
+import { BRAND } from "@/lib/brand";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { KeyboardShortcutsProvider } from "@/components/providers/keyboard-shortcuts-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -34,19 +35,25 @@ export const viewport: Viewport = {
   userScalable: true,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#2f6a4a" },
-    { media: "(prefers-color-scheme: dark)", color: "#2f6a4a" },
+    { media: "(prefers-color-scheme: light)", color: BRAND.primaryColor },
+    { media: "(prefers-color-scheme: dark)", color: BRAND.primaryColor },
   ],
 };
 
+const ICON_VERSION = "v=4";
+const DESCRIPTION = `${BRAND.name} content collection and management portal`;
+
 export const metadata: Metadata = {
-  title: "CCM Content Portal",
-  description: "CCM content collection and management portal",
-  applicationName: "CCM",
+  title: {
+    default: BRAND.productName,
+    template: "%s · " + BRAND.productName,
+  },
+  description: DESCRIPTION,
+  applicationName: BRAND.productName,
   keywords: ["ccm", "content", "portal", "management", "upload", "creator"],
-  authors: [{ name: "CCM" }],
-  creator: "CCM",
-  publisher: "CCM",
+  authors: [{ name: BRAND.legalName }],
+  creator: BRAND.name,
+  publisher: BRAND.legalName,
   // Internal tool: keep it out of search engines
   robots: { index: false, follow: false },
   formatDetection: {
@@ -57,77 +64,36 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "CCM",
-    startupImage: [
-      {
-        url: "/splash/splash-1125x2436.png",
-        media:
-          "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)",
-      },
-      {
-        url: "/splash/splash-1170x2532.png",
-        media:
-          "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)",
-      },
-      {
-        url: "/splash/splash-1284x2778.png",
-        media:
-          "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)",
-      },
-      {
-        url: "/splash/splash-1179x2556.png",
-        media:
-          "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)",
-      },
-      {
-        url: "/splash/splash-1290x2796.png",
-        media:
-          "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)",
-      },
-      {
-        url: "/splash/splash-2048x2732.png",
-        media:
-          "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)",
-      },
-    ],
+    title: BRAND.name,
   },
   openGraph: {
     type: "website",
-    siteName: "CCM",
-    title: "CCM Content Portal",
-    description: "CCM content collection and management portal",
+    siteName: BRAND.productName,
+    title: BRAND.productName,
+    description: DESCRIPTION,
   },
   twitter: {
-    card: "summary_large_image",
-    title: "CCM Content Portal",
-    description: "CCM content collection and management portal",
+    card: "summary",
+    title: BRAND.productName,
+    description: DESCRIPTION,
   },
   icons: {
     icon: [
-      { url: "/favicon.ico?v=3", sizes: "48x48" },
-      { url: "/favicon.svg?v=3", type: "image/svg+xml" },
-      { url: "/icons/icon-32x32.png?v=3", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-192x192.png?v=3", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png?v=3", sizes: "512x512", type: "image/png" },
+      { url: `/favicon.ico?${ICON_VERSION}`, sizes: "16x16 32x32 48x48" },
+      { url: `/favicon.svg?${ICON_VERSION}`, type: "image/svg+xml" },
+      { url: `/icons/icon-32x32.png?${ICON_VERSION}`, sizes: "32x32", type: "image/png" },
+      { url: `/icons/icon-192x192.png?${ICON_VERSION}`, sizes: "192x192", type: "image/png" },
+      { url: `/icons/icon-512x512.png?${ICON_VERSION}`, sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.ico?v=3",
+    shortcut: `/favicon.ico?${ICON_VERSION}`,
     apple: [
-      { url: "/icons/apple-icon-180x180.png?v=3", sizes: "180x180", type: "image/png" },
-    ],
-    other: [
-      {
-        rel: "mask-icon",
-        url: "/favicon.svg?v=3",
-        color: "#2f6a4a",
-      },
+      { url: `/icons/apple-icon-180x180.png?${ICON_VERSION}`, sizes: "180x180", type: "image/png" },
     ],
   },
   manifest: "/manifest.webmanifest",
   other: {
     "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "msapplication-TileColor": "#2f6a4a",
+    "msapplication-TileColor": BRAND.primaryColor,
     "msapplication-tap-highlight": "no",
   },
 };

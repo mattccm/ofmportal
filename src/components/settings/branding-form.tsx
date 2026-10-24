@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { BRAND } from "@/lib/brand";
 import { toast } from "sonner";
 import {
   DEFAULT_BRANDING,
@@ -108,7 +109,7 @@ function ColorPicker({
             type="text"
             value={inputValue}
             onChange={handleInputChange}
-            placeholder="#7c3aed"
+            placeholder={BRAND.primaryColor}
             className={cn(
               "font-mono uppercase",
               !isValid && "border-destructive focus-visible:ring-destructive/20"
@@ -297,7 +298,7 @@ function PortalPreview({
   agencyName?: string;
 }) {
   return (
-    <div className="relative rounded-xl border overflow-hidden bg-gradient-to-br from-slate-50 via-white to-violet-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-violet-950/30">
+    <div className="relative rounded-xl border overflow-hidden bg-gradient-to-br from-slate-50 via-white to-primary/5 dark:from-slate-900 dark:via-slate-900 dark:to-primary/10">
       {/* Preview Header */}
       <div className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm px-4 py-3">
         <div className="flex items-center justify-between">
@@ -323,7 +324,7 @@ function PortalPreview({
                 className="font-semibold text-sm"
                 style={{ color: branding.primaryColor }}
               >
-                {branding.portalTitle || "Creator Portal"}
+                {branding.portalTitle || BRAND.productName}
               </p>
               <p className="text-xs text-muted-foreground">
                 {agencyName || "Your Agency"}
@@ -427,7 +428,7 @@ function EmailPreview({
             className="text-lg font-bold"
             style={{ color: branding.primaryColor }}
           >
-            {branding.emailFromName || agencyName || "Upload Portal"}
+            {branding.emailFromName || agencyName || BRAND.name}
           </p>
         )}
       </div>
@@ -731,7 +732,7 @@ export function BrandingForm({
                     id="portalTitle"
                     value={branding.portalTitle}
                     onChange={(e) => updateField("portalTitle", e.target.value)}
-                    placeholder="Creator Portal"
+                    placeholder={BRAND.productName}
                   />
                 </div>
                 <div className="space-y-2">
@@ -882,7 +883,7 @@ export function BrandingForm({
                     id="emailSignature"
                     value={branding.emailSignature}
                     onChange={(e) => updateField("emailSignature", e.target.value)}
-                    placeholder="Sent via Upload Portal"
+                    placeholder={`Sent via ${BRAND.productName}`}
                   />
                 </div>
 

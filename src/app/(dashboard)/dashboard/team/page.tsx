@@ -120,6 +120,6 @@ export default async function TeamPage() {
 }
 
 export const metadata = {
-  title: "Team Management | Content Portal",
+  title: "Team Management",
   description: "Manage your team members and their roles",
 };

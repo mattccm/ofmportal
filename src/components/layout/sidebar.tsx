@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { clearRememberToken, setSignedOutFlag } from "@/lib/remember-token";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { useUser } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -99,7 +100,7 @@ const NavItem = React.memo(function NavItem({
         className={cn(
           "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
           isActive
-            ? "bg-gradient-to-br from-primary to-violet-600 text-white shadow-md shadow-primary/25"
+            ? "bg-gradient-to-br from-primary to-primary/75 text-white shadow-md shadow-primary/25"
             : "bg-sidebar-accent text-sidebar-foreground/70 group-hover:bg-sidebar-accent group-hover:text-sidebar-foreground"
         )}
       >
@@ -160,21 +161,13 @@ function SidebarComponent() {
     <div className="flex h-full w-[280px] flex-col bg-sidebar border-r border-sidebar-border">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
-        <div className="relative h-9 w-9">
-          <img
-            src="/ccm-logo.png"
-            alt="CCM"
-            className="h-full w-full object-contain brightness-0 invert"
-          />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[15px] font-semibold text-sidebar-foreground tracking-tight">
-            CCM
-          </span>
-          <span className="text-[11px] text-sidebar-foreground/50 font-medium">
-            Content Portal
-          </span>
-        </div>
+        <BrandLogo
+          size={36}
+          priority
+          showWordmark
+          imageClassName="brightness-0 invert"
+          wordmarkClassName="text-[15px] text-sidebar-foreground"
+        />
       </div>
 
       {/* Search Button */}

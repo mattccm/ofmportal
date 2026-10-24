@@ -23,7 +23,7 @@ interface ResponsiveLayoutProps {
 // Memoized gradient accent line
 const GradientAccent = React.memo(function GradientAccent({ height = "h-1" }: { height?: string }) {
   return (
-    <div className={`${height} bg-gradient-to-r from-primary via-violet-500 to-purple-600`} />
+    <div className={`${height} bg-gradient-to-r from-primary via-primary/80 to-primary/60`} />
   );
 });
 

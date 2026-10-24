@@ -1,5 +1,7 @@
 // Branding utilities and types for portal customization
 
+import { BRAND } from "./brand";
+
 export interface BrandingSettings {
   // Logo settings
   logoLight: string | null;  // URL or base64 for light mode logo
@@ -32,20 +34,20 @@ export interface BrandingSettings {
 }
 
 export const DEFAULT_BRANDING: BrandingSettings = {
-  logoLight: "/ccm-logo.png",
-  logoDark: "/ccm-logo.png",
-  logoFavicon: "/ccm-logo.png",
-  primaryColor: "#7c3aed", // Violet-600
-  secondaryColor: "#8b5cf6", // Violet-500
-  accentColor: "#a855f7", // Purple-500
+  logoLight: BRAND.logoPath,
+  logoDark: BRAND.logoPath,
+  logoFavicon: BRAND.logoPath,
+  primaryColor: BRAND.primaryColor,
+  secondaryColor: BRAND.secondaryColor,
+  accentColor: BRAND.accentColor,
   subdomain: null,
   customDomain: null,
-  emailFromName: "CCM",
+  emailFromName: BRAND.name,
   emailReplyTo: null,
-  emailSignature: "Sent via CCM Content Portal",
+  emailSignature: `Sent via ${BRAND.productName}`,
   emailLogoEnabled: true,
-  portalTitle: "CCM Content Portal",
-  welcomeMessage: "Welcome to the CCM Content Portal",
+  portalTitle: BRAND.productName,
+  welcomeMessage: `Welcome to the ${BRAND.productName}`,
   supportEmail: null,
   supportUrl: null,
 };
@@ -128,15 +130,20 @@ export function isValidHexColor(color: string): boolean {
 
 // Generate CSS variables from branding settings
 export function generateBrandingCssVariables(branding: BrandingSettings): string {
-  const primary = hexToHsl(branding.primaryColor);
-  const secondary = hexToHsl(branding.secondaryColor);
-  const accent = hexToHsl(branding.accentColor);
+  const primary = hexToHsl(safeHex(branding.primaryColor, DEFAULT_BRANDING.primaryColor));
+  const secondary = hexToHsl(safeHex(branding.secondaryColor, DEFAULT_BRANDING.secondaryColor));
+  const accent = hexToHsl(safeHex(branding.accentColor, DEFAULT_BRANDING.accentColor));
 
   return `
     --brand-primary: ${primary.h} ${primary.s}% ${primary.l}%;
     --brand-secondary: ${secondary.h} ${secondary.s}% ${secondary.l}%;
     --brand-accent: ${accent.h} ${accent.s}% ${accent.l}%;
   `;
+}
+
+// Return the colour if it is a valid hex, otherwise the (green) brand fallback
+export function safeHex(color: unknown, fallback: string): string {
+  return typeof color === "string" && isValidHexColor(color) ? color : fallback;
 }
 
 // Get contrast color (black or white) for a given background

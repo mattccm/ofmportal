@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -132,13 +133,7 @@ export function MobileHeader({
               href="/dashboard"
               className="flex items-center gap-2 touch-manipulation active:opacity-80 transition-opacity"
             >
-              <div className="relative h-7 w-7">
-                <img
-                  src="/ccm-logo.png"
-                  alt="CCM"
-                  className="h-full w-full object-contain dark:brightness-0 dark:invert"
-                />
-              </div>
+              <BrandLogo size={28} priority imageClassName="dark:brightness-0 dark:invert" />
             </Link>
           )}
         </div>

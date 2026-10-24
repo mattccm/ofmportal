@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { BulkOperationsCenter } from "@/components/bulk-operations";
 
 export const metadata: Metadata = {
-  title: "Bulk Operations | Upload Portal",
+  title: "Bulk Operations",
   description: "Manage bulk operations for requests, reviews, status updates, and reminders",
 };
 
