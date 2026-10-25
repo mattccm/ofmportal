@@ -57,6 +57,7 @@ import { ContactCreatorModal } from "@/components/creators/contact-creator-modal
 import { EditCreatorProfileModal } from "@/components/creators/edit-creator-profile-modal";
 import { CreatorUploads, type VaultUpload } from "@/components/creators/creator-uploads";
 import { OnTimeChart, type OnTimePoint } from "@/components/creators/on-time-chart";
+import { CreatorInviteActions, type CreatorInviteUiState } from "@/components/creators/creator-invite-actions";
 import { BackLink, EmptyLine, Panel, Pill, SectionHead, UnreadCount } from "@/components/creators/people-ui";
 import {
   ago,
@@ -82,6 +83,8 @@ export interface ProfileData {
     phone: string | null;
     avatar: string | null;
     inviteStatus: string;
+    /** Until they accept: the invite's state and when its link expires */
+    invite?: { state: CreatorInviteUiState; expiresAt: string | null } | null;
     archivedAt: string | null;
     timezone: string;
     preferredContact: string;
@@ -171,7 +174,12 @@ export function CreatorVaultClient({
 
   const status = creatorStatus({
     archived,
-    inviteStatus: creator.inviteStatus,
+    inviteStatus:
+      creator.invite?.state === "cancelled"
+        ? "CANCELLED"
+        : creator.invite?.state === "expired"
+          ? "EXPIRED"
+          : creator.inviteStatus,
     paused: pause.paused,
     pausedUntil: pause.resumeAt ? new Date(pause.resumeAt) : null,
     active: data.active.map((r) => ({ ...r, due: r.due ? new Date(r.due) : null })),
@@ -478,6 +486,18 @@ export function CreatorVaultClient({
               <UnreadCount n={unread} />
             </Link>
           </Button>
+          {canManage && !archived && creator.invite && (
+            <div className="mt-3">
+              <CreatorInviteActions
+                variant="panel"
+                creatorId={creator.id}
+                name={creator.name}
+                email={creator.email}
+                state={creator.invite.state}
+                expiresAt={creator.invite.expiresAt}
+              />
+            </div>
+          )}
           {canManage && !archived && (
             <div className="mt-3">
               <p className="mb-1.5 text-[13px] text-ink-2" id="pause-label">

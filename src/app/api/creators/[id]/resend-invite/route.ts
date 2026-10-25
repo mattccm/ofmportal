@@ -3,8 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendCreatorInviteEmail } from "@/lib/email";
-import crypto from "crypto";
-import { getAppUrl } from "@/lib/app-url";
+import { creatorInvite, creatorInviteLink, newInviteToken } from "@/lib/invites";
 
 // POST - Resend invite to creator
 export async function POST(
@@ -54,10 +53,20 @@ export async function POST(
       );
     }
 
-    // Generate a new invite token
-    const inviteToken = crypto.randomBytes(32).toString("hex");
+    if (creator.archivedAt) {
+      return NextResponse.json(
+        { error: `Restore ${creator.name} before inviting them` },
+        { status: 400 }
+      );
+    }
 
-    // Update the creator with new invite token
+    // Email the link that is out there now if it still works (so a link staff
+    // already shared keeps working), otherwise make a new one. Either way the
+    // 7 days start again from now.
+    const current = creatorInvite(creator);
+    const inviteToken =
+      current.state === "pending" && creator.inviteToken ? creator.inviteToken : newInviteToken();
+
     await db.creator.update({
       where: { id },
       data: {
@@ -67,13 +76,8 @@ export async function POST(
       },
     });
 
-    // Build the invite URL
-    const inviteUrl = `${getAppUrl()}/portal/setup/${inviteToken}`;
-
-    // Only log invite URL in development
-    if (process.env.NODE_ENV === "development") {
-      console.log(`Invite link for ${creator.email}: ${inviteUrl}`);
-    }
+    // The link is a bearer secret: never logged
+    const inviteUrl = creatorInviteLink(inviteToken);
 
     // Log the activity
     await db.activityLog.create({

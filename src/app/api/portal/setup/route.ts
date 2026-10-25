@@ -6,6 +6,7 @@ import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
 import { createCreatorSessionToken } from "@/lib/portal-auth";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
+import { creatorInvite } from "@/lib/invites";
 
 const setupSchema = z.object({
   token: z.string().min(1),
@@ -42,20 +43,17 @@ export async function POST(req: NextRequest) {
 
     if (!creator) {
       return NextResponse.json(
-        { error: "Invalid or expired invite link" },
+        { error: "This invite link has already been used, was replaced or was cancelled. Ask your team for a new link." },
         { status: 404 }
       );
     }
 
-    // Verify invite hasn't expired (7 day window)
-    if (creator.inviteSentAt) {
-      const daysSinceInvite = (Date.now() - creator.inviteSentAt.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceInvite > 7) {
-        return NextResponse.json(
-          { error: "Invite link has expired. Please ask your agency to resend the invitation." },
-          { status: 410 }
-        );
-      }
+    // Links work for 7 days from when they were issued
+    if (creatorInvite(creator).state === "expired") {
+      return NextResponse.json(
+        { error: "This invite link has expired. Ask your team for a new link." },
+        { status: 410 }
+      );
     }
 
     // Hash password

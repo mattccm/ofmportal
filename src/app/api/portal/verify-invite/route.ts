@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { creatorInvite } from "@/lib/invites";
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     const creator = await db.creator.findFirst({
       where: {
         inviteToken: token,
-        inviteStatus: "PENDING",
+        inviteStatus: { in: ["PENDING", "EXPIRED"] },
       },
       include: {
         agency: {
@@ -25,32 +26,28 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // A used, replaced or cancelled link no longer matches any creator.
+    // Answered as data (200, valid: false), not an HTTP error: a dead link is
+    // an expected outcome the setup page explains calmly.
     if (!creator) {
-      return NextResponse.json(
-        { error: "Invalid or expired invite link" },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        valid: false,
+        error: "It may have been used already, replaced by a newer link, or cancelled.",
+        reason: "invalid",
+      });
     }
 
-    // Check if invite is expired (7 days)
-    if (creator.inviteSentAt) {
-      const daysSinceInvite =
-        (Date.now() - creator.inviteSentAt.getTime()) / (1000 * 60 * 60 * 24);
-
-      if (daysSinceInvite > 7) {
-        await db.creator.update({
-          where: { id: creator.id },
-          data: { inviteStatus: "EXPIRED" },
-        });
-
-        return NextResponse.json(
-          { error: "This invite link has expired. Please request a new one." },
-          { status: 410 }
-        );
-      }
+    // Links work for 7 days from when they were issued
+    if (creatorInvite(creator).state === "expired") {
+      return NextResponse.json({
+        valid: false,
+        error: "Invite links work for 7 days from when they're sent.",
+        reason: "expired",
+      });
     }
 
     return NextResponse.json({
+      valid: true,
       id: creator.id,
       name: creator.name,
       email: creator.email,

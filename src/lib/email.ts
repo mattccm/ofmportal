@@ -645,6 +645,58 @@ If you weren't expecting this invitation, you can safely ignore this email.
   return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
 
+/**
+ * A teammate's invite: a link to /join/<token> where they choose their own
+ * password. The subject stays generic (no role, no names).
+ */
+export async function sendStaffInviteEmail({
+  to,
+  name,
+  roleName,
+  inviterName,
+  joinLink,
+  agencyId,
+}: {
+  to: string;
+  name?: string | null;
+  roleName: string;
+  inviterName?: string | null;
+  joinLink: string;
+  agencyId?: string;
+}) {
+  const branding = await loadEmailBranding(agencyId);
+  const displayAgency = branding.agencyName;
+  const subject = `You're invited to join ${displayAgency}`;
+  const greeting = name ? `Hi ${escapeHtml(name)},` : "Hi,";
+  const who = inviterName ? `${escapeHtml(inviterName)} invited you` : "You've been invited";
+
+  const content = `
+    ${p(greeting)}
+    ${p(`${who} to join the <strong>${escapeHtml(displayAgency)}</strong> team on the portal as <strong>${escapeHtml(roleName)}</strong>.`)}
+    ${p(`Choose your password to set up your account:`)}
+    ${ctaButton(joinLink, "Join the team", branding)}
+    ${linkFallback(joinLink)}
+    ${note(`This link works once and expires in 7 days.`)}
+    ${note(`If you weren't expecting this invitation, you can safely ignore this email.`)}
+  `;
+
+  const html = renderEmail({ subject, branding, heading: "Join the team", content });
+
+  const text = `
+${name ? `Hi ${name},` : "Hi,"}
+
+${inviterName ? `${inviterName} invited you` : "You've been invited"} to join the ${displayAgency} team on the portal as ${roleName}.
+
+Choose your password to set up your account: ${joinLink}
+
+This link works once and expires in 7 days.
+
+If you weren't expecting this invitation, you can safely ignore this email.
+  `.trim() + textFooter(branding);
+
+  return sendEmail({ to, subject, html, text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
+}
+
 export async function sendContentRequestEmail({
   to,
   creatorName,

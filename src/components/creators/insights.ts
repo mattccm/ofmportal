@@ -163,6 +163,7 @@ export function creatorStatus(input: {
   if (input.archived) return { label: "Archived", tone: "quiet" };
   if (input.inviteStatus === "PENDING") return { label: "Invite not accepted yet", tone: "quiet" };
   if (input.inviteStatus === "EXPIRED") return { label: "Invite expired", tone: "quiet" };
+  if (input.inviteStatus === "CANCELLED") return { label: "Invite cancelled", tone: "quiet" };
   if (input.paused) {
     return {
       label: input.pausedUntil

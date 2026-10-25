@@ -62,6 +62,7 @@ model User {
   watchedRequests          RequestWatcher[]
   bulkEmails               BulkEmail[]
   rememberTokens           RememberToken[]
+  staffInvitesSent         StaffInvite[]             @relation("StaffInvitesSent")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -77,6 +78,35 @@ enum UserRole {
   ADMIN // Full access except billing
   MANAGER // Can manage creators and requests
   MEMBER // Can view and comment only
+}
+
+// Invite a teammate by link and/or email. The link is a bearer secret: only a
+// SHA-256 of its token is stored, so a link can be shown once (when made) and
+// otherwise only replaced. Single use, expires, revocable.
+model StaffInvite {
+  id           String      @id @default(cuid())
+  agencyId     String
+  agency       Agency      @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  tokenHash    String      @unique
+  role         UserRole    @default(MEMBER)
+  customRoleId String?
+  customRole   CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  email        String?
+  name         String?
+  invitedById  String?
+  invitedBy    User?       @relation("StaffInvitesSent", fields: [invitedById], references: [id], onDelete: SetNull)
+  emailSentAt  DateTime?
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId, acceptedAt, revokedAt])
+  @@index([email])
+  @@index([invitedById])
+  @@index([customRoleId])
 }
 
 model Session {
@@ -288,6 +318,7 @@ model Agency {
   requests      ContentRequest[]
   templates     RequestTemplate[]
   reminders     ReminderConfig[]
+  staffInvites  StaffInvite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1840,7 +1871,8 @@ model CustomRole {
   isSystem Boolean @default(false)
 
   // Relations
-  users User[]
+  users        User[]
+  staffInvites StaffInvite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

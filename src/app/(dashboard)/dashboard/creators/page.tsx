@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { CreatorsList, type CreatorTile } from "@/components/creators/creators-list";
 import { PageHead } from "@/components/creators/people-ui";
+import { creatorInvite } from "@/lib/invites";
 import {
   ACTIVE_STATUSES,
   ago,
@@ -32,6 +33,9 @@ async function getCreatorTiles(agencyId: string, userId: string, now: Date): Pro
       email: true,
       phone: true,
       inviteStatus: true,
+      inviteToken: true,
+      inviteSentAt: true,
+      createdAt: true,
       archivedAt: true,
       lastLoginAt: true,
       preferredContact: true,
@@ -88,9 +92,13 @@ async function getCreatorTiles(agencyId: string, userId: string, now: Date): Pro
     const delivery = deliverySummary(finishedPoints(c.requests));
     const p = pause.get(c.id);
     const paused = !!p?.isPaused && (!p.pauseResumeAt || p.pauseResumeAt > now);
+    // The invite as staff see it (the raw token never leaves the server here)
+    const invite = creatorInvite(c, now);
+    const inviteStatus =
+      invite.state === "accepted" ? "ACCEPTED" : invite.state === "cancelled" ? "CANCELLED" : invite.state === "expired" ? "EXPIRED" : "PENDING";
     const status = creatorStatus({
       archived: c.archivedAt !== null,
-      inviteStatus: c.inviteStatus,
+      inviteStatus,
       paused,
       pausedUntil: paused ? p?.pauseResumeAt ?? null : null,
       active,
@@ -106,7 +114,11 @@ async function getCreatorTiles(agencyId: string, userId: string, now: Date): Pro
       email: c.email,
       phone: c.phone,
       archived: c.archivedAt !== null,
-      inviteStatus: c.inviteStatus,
+      inviteStatus,
+      invite:
+        invite.state === "accepted"
+          ? null
+          : { state: invite.state, expiresAt: invite.expiresAt ? invite.expiresAt.toISOString() : null },
       meta: `${contactLabel(c.preferredContact)} · ${cityOf(c.timezone)} · ${
         c.lastLoginAt ? `last seen ${ago(c.lastLoginAt, now)}` : "not signed in yet"
       }`,
@@ -183,7 +195,7 @@ export default async function CreatorsPage() {
           </>
         }
       />
-      <CreatorsList creators={tiles} />
+      <CreatorsList creators={tiles} canManageInvites={["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)} />
     </div>
   );
 }

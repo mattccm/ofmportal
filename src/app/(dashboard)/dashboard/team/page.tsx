@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { excludePseudoUsers } from "@/lib/staff";
+import { listOpenStaffInvites, type StaffInviteRow } from "@/lib/staff-invites";
 import TeamClient from "./team-client";
 
 async function getTeamMembers(agencyId: string) {
@@ -96,12 +97,15 @@ export default async function TeamPage() {
     redirect("/login");
   }
 
+  const canInvite = ["OWNER", "ADMIN"].includes(session.user.role);
   let members: Awaited<ReturnType<typeof getTeamMembers>>;
   let customRoles: Awaited<ReturnType<typeof getCustomRoles>>;
+  let invites: StaffInviteRow[] = [];
   try {
-    [members, customRoles] = await Promise.all([
+    [members, customRoles, invites] = await Promise.all([
       getTeamMembers(session.user.agencyId),
       getCustomRoles(session.user.agencyId),
+      canInvite ? listOpenStaffInvites(session.user.agencyId) : Promise.resolve([]),
     ]);
   } catch (error) {
     console.error("Failed to fetch team data:", error);
@@ -113,6 +117,7 @@ export default async function TeamPage() {
     <TeamClient
       initialMembers={members}
       customRoles={customRoles}
+      initialInvites={invites}
       currentUserRole={session.user.role}
       currentUserId={session.user.id}
     />
@@ -120,6 +125,6 @@ export default async function TeamPage() {
 }
 
 export const metadata = {
-  title: "Team Management",
+  title: "Team",
   description: "Manage your team members and their roles",
 };

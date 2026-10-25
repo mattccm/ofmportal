@@ -30,7 +30,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
 import { RemoveConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -77,6 +76,8 @@ import {
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import type { StaffInviteRow } from "@/lib/staff-invites";
+import { InviteTeammateButton, InviteTeammateDialog, PendingInvites } from "@/components/team/staff-invites";
 
 type ActivityLog = {
   id: string;
@@ -114,6 +115,7 @@ type TeamMember = {
 type TeamClientProps = {
   initialMembers: TeamMember[];
   customRoles: CustomRole[];
+  initialInvites: StaffInviteRow[];
   currentUserRole: string;
   currentUserId: string;
 };
@@ -190,6 +192,11 @@ function formatActivityAction(action: string, metadata: Record<string, unknown>)
     "upload.rejected": "Rejected an upload",
     "comment.created": "Added a comment",
     "team.member_invited": `Invited ${metadata.invitedEmail || "a new member"}`,
+    "team.invite_created": `Invited ${metadata.invitedEmail || metadata.invitedName || "a teammate"} by ${metadata.delivery === "email" ? "email" : "link"}`,
+    "team.invite_resent": `Emailed the invite to ${metadata.invitedEmail || "a teammate"} again`,
+    "team.invite_link_replaced": `Made a new invite link for ${metadata.invitedEmail || metadata.invitedName || "a teammate"}`,
+    "team.invite_cancelled": `Cancelled the invite for ${metadata.invitedEmail || metadata.invitedName || "a teammate"}`,
+    "team.invite_accepted": "Joined the team from an invite",
     "team.role_updated": `Updated role for ${metadata.memberName || "a member"}`,
     "team.member_removed": `Removed ${metadata.removedMemberName || "a member"}`,
     "creator.invited": "Invited a new creator",
@@ -205,11 +212,12 @@ function formatActivityAction(action: string, metadata: Record<string, unknown>)
 export default function TeamClient({
   initialMembers,
   customRoles,
+  initialInvites,
   currentUserRole,
   currentUserId,
 }: TeamClientProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [members, setMembers] = useState<TeamMember[]>(initialMembers);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
@@ -218,7 +226,7 @@ export default function TeamClient({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-  const [inviteForm, setInviteForm] = useState({ email: "", name: "", role: "MEMBER", customRoleId: "" });
+  const [invites, setInvites] = useState<StaffInviteRow[]>(initialInvites);
   const [editRole, setEditRole] = useState<string>("");
   const [editCustomRoleId, setEditCustomRoleId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -242,52 +250,6 @@ export default function TeamClient({
 
     return matchesSearch && matchesRole;
   });
-
-  // Handle invite
-  const handleInvite = async () => {
-    if (!inviteForm.email || !inviteForm.name) {
-      toast.error("Please fill in name and email");
-      return;
-    }
-
-    if (!inviteForm.role && !inviteForm.customRoleId) {
-      toast.error("Please select a role");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch("/api/team", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: inviteForm.email,
-          name: inviteForm.name,
-          role: inviteForm.customRoleId ? "MEMBER" : inviteForm.role,
-          customRoleId: inviteForm.customRoleId || undefined,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to invite member");
-      }
-
-      toast.success("Invite sent");
-      setInviteDialogOpen(false);
-      setInviteForm({ email: "", name: "", role: "MEMBER", customRoleId: "" });
-
-      // Refresh the page to get updated data
-      startTransition(() => {
-        router.refresh();
-      });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to invite member");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // Handle role update
   const handleUpdateRole = async () => {
@@ -386,7 +348,7 @@ export default function TeamClient({
           <h1 className="text-[22px] font-bold leading-tight tracking-[-0.015em] text-ink sm:text-[26px]">Team</h1>
           <p className="mt-1.5 text-[15px] text-ink">{teamLede}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 max-sm:[&>*]:h-11 max-sm:[&>*]:w-full sm:flex-row sm:items-center">
           {canManageMembers && (
             <>
               <Button
@@ -396,121 +358,25 @@ export default function TeamClient({
                 <Settings className="mr-2 h-4 w-4" />
                 Roles and permissions
               </Button>
-              <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="light">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Invite a team member
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Invite Team Member</DialogTitle>
-                    <DialogDescription>
-                      Send an invitation to join your team. They will receive an email with login credentials.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Name</Label>
-                      <Input
-                        id="name"
-                        placeholder="John Doe"
-                        value={inviteForm.name}
-                        onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="john@example.com"
-                        value={inviteForm.email}
-                        onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="role">Role</Label>
-                      <Select
-                        value={inviteForm.customRoleId ? `custom:${inviteForm.customRoleId}` : inviteForm.role}
-                        onValueChange={(value) => {
-                          if (value.startsWith("custom:")) {
-                            setInviteForm({
-                              ...inviteForm,
-                              role: "",
-                              customRoleId: value.replace("custom:", ""),
-                            });
-                          } else {
-                            setInviteForm({
-                              ...inviteForm,
-                              role: value,
-                              customRoleId: "",
-                            });
-                          }
-                        }}
-                      >
-                        <SelectTrigger aria-label="Role">
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectLabel>Default Roles</SelectLabel>
-                            <SelectItem value="ADMIN">
-                              <div className="flex items-center gap-2">
-                                <Shield className="h-4 w-4" style={{ color: defaultRoleConfig.ADMIN.color }} />
-                                <span>Admin</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="MANAGER">
-                              <div className="flex items-center gap-2">
-                                <UserCog className="h-4 w-4" style={{ color: defaultRoleConfig.MANAGER.color }} />
-                                <span>Manager</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="MEMBER">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4" style={{ color: defaultRoleConfig.MEMBER.color }} />
-                                <span>Member</span>
-                              </div>
-                            </SelectItem>
-                          </SelectGroup>
-                          {customRoles.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>Custom Roles</SelectLabel>
-                              {customRoles.map((role) => (
-                                <SelectItem key={role.id} value={`custom:${role.id}`}>
-                                  <div className="flex items-center gap-2">
-                                    <Shield className="h-4 w-4" style={{ color: role.color || "#6b7280" }} />
-                                    <span>{role.name}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        {inviteForm.customRoleId
-                          ? customRoles.find((r) => r.id === inviteForm.customRoleId)?.description
-                          : defaultRoleConfig[inviteForm.role]?.description}
-                      </p>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="outline">Cancel</Button>
-                    </DialogClose>
-                    <Button onClick={handleInvite} disabled={isSubmitting}>
-                      {isSubmitting ? "Sending..." : "Send Invitation"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <InviteTeammateButton onClick={() => setInviteDialogOpen(true)} />
             </>
           )}
         </div>
       </div>
+
+      {canManageMembers && (
+        <InviteTeammateDialog
+          open={inviteDialogOpen}
+          onOpenChange={setInviteDialogOpen}
+          customRoles={customRoles}
+          onCreated={(invite) => setInvites((prev) => [invite, ...prev])}
+        />
+      )}
+
+      {/* Invites not accepted yet: owners and admins only */}
+      {canManageMembers && invites.length > 0 && (
+        <PendingInvites invites={invites} onChange={setInvites} onInvite={() => setInviteDialogOpen(true)} />
+      )}
 
       {/* Role filter: counts as a segmented control, not stat tiles */}
       <div role="group" aria-label="Show role" className="inline-flex max-w-full flex-wrap gap-0.5 rounded-[8px] bg-well p-0.5">
@@ -638,7 +504,7 @@ export default function TeamClient({
               {canManageMembers && !searchQuery && roleFilter === "ALL" && (
                 <Button className="mt-6 min-h-[44px]" onClick={() => setInviteDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Invite Member
+                  Invite teammate
                 </Button>
               )}
             </div>

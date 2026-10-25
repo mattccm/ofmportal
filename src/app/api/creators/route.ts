@@ -3,14 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
 import { sendCreatorInviteEmail } from "@/lib/email";
 import {
   parsePaginationParams,
   createPaginatedResponse,
 } from "@/lib/pagination";
 import { invalidateCache } from "@/lib/cache";
-import { getAppUrl } from "@/lib/app-url";
+import { creatorInviteLink, inviteExpiry, newInviteToken } from "@/lib/invites";
 
 const createCreatorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -18,6 +17,8 @@ const createCreatorSchema = z.object({
   phone: z.string().optional(),
   preferredContact: z.enum(["EMAIL", "SMS", "BOTH"]).default("EMAIL"),
   notes: z.string().optional(),
+  // false: make the invite link only (staff share it themselves), no email
+  sendInvite: z.boolean().default(true),
 });
 
 // Optimized select for list view (reduced payload)
@@ -135,8 +136,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate invite token
-    const inviteToken = uuidv4();
+    // Invite link token (a bearer secret: never logged)
+    const inviteToken = newInviteToken();
+    const issuedAt = new Date();
 
     // Create creator
     const creator = await db.creator.create({
@@ -149,25 +151,29 @@ export async function POST(req: NextRequest) {
         notes: validatedData.notes || null,
         inviteToken,
         inviteStatus: "PENDING",
-        inviteSentAt: new Date(),
+        // When the link was issued: it works for 7 days from here
+        inviteSentAt: issuedAt,
       },
     });
 
-    // Generate invite link
-    const inviteLink = `${getAppUrl()}/portal/setup/${inviteToken}`;
+    const inviteLink = creatorInviteLink(inviteToken);
 
-    // Send invitation email
-    try {
-      await sendCreatorInviteEmail({
-        to: creator.email,
-        creatorName: creator.name,
-        agencyName: session.user.agencyName,
-        inviteLink,
-        agencyId: session.user.agencyId,
-      });
-    } catch (emailError) {
-      console.error("Failed to send invite email:", emailError);
-      // Continue - we still created the creator, just email failed
+    // Send invitation email (unless staff chose to share the link themselves)
+    let emailed = false;
+    if (validatedData.sendInvite) {
+      try {
+        await sendCreatorInviteEmail({
+          to: creator.email,
+          creatorName: creator.name,
+          agencyName: session.user.agencyName,
+          inviteLink,
+          agencyId: session.user.agencyId,
+        });
+        emailed = true;
+      } catch (emailError) {
+        console.error("Failed to send invite email:", emailError);
+        // Continue - we still created the creator, just email failed
+      }
     }
 
     // Log activity
@@ -180,6 +186,8 @@ export async function POST(req: NextRequest) {
         metadata: {
           creatorName: creator.name,
           creatorEmail: creator.email,
+          delivery: validatedData.sendInvite ? "email" : "link",
+          emailed,
         },
       },
     });
@@ -187,10 +195,18 @@ export async function POST(req: NextRequest) {
     // Invalidate creator list cache
     invalidateCache.creator(creator.id, session.user.agencyId);
 
+    // Never echo the stored token fields back beside the link
+    const { inviteToken: _t, portalPassword: _p, sessionToken: _s, ...safeCreator } = creator;
+    void _t;
+    void _p;
+    void _s;
+
     return NextResponse.json(
       {
-        creator,
+        creator: safeCreator,
         inviteLink,
+        inviteExpiresAt: inviteExpiry(issuedAt).toISOString(),
+        emailed,
         message: "Creator invited successfully",
       },
       { status: 201 }

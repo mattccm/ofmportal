@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Loader2, MessageSquare, Plus, Search, Send } from "lucide-react";
-import { toast } from "sonner";
+import { MessageSquare, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,6 +16,7 @@ import { useFlipLayout } from "@/components/title-wall";
 import { cn } from "@/lib/utils";
 import type { CreatorStatus } from "./insights";
 import { EmptyLine, Initials, Pill, UnreadCount } from "./people-ui";
+import { CreatorInviteActions, type CreatorInviteUiState } from "./creator-invite-actions";
 
 export interface CreatorTile {
   id: string;
@@ -25,6 +25,8 @@ export interface CreatorTile {
   phone: string | null;
   archived: boolean;
   inviteStatus: string;
+  /** Set until the creator accepts: the invite's state and when its link expires */
+  invite?: { state: CreatorInviteUiState; expiresAt: string | null } | null;
   /** "SMS and email · Sydney · last seen 5 days ago" (sits after the name) */
   meta: string;
   /** One sentence: "2 active, on time 8 of 9, usually 2 days early." */
@@ -56,7 +58,7 @@ const SORTS: { key: SortKey; label: string; cmp: (a: CreatorTile, b: CreatorTile
   { key: "name", label: "Name A to Z", cmp: (a, b) => a.name.localeCompare(b.name) },
 ];
 
-export function CreatorsList({ creators }: { creators: CreatorTile[] }) {
+export function CreatorsList({ creators, canManageInvites = false }: { creators: CreatorTile[]; canManageInvites?: boolean }) {
   const [view, setView] = React.useState<"active" | "archived">("active");
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<SortKey>("chase");
@@ -186,7 +188,7 @@ export function CreatorsList({ creators }: { creators: CreatorTile[] }) {
         <ul ref={gridRef} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">
           {shown.map((c) => (
             <li key={c.id} data-creator={c.id}>
-              <CreatorCard c={c} />
+              <CreatorCard c={c} canManageInvites={canManageInvites} />
             </li>
           ))}
         </ul>
@@ -195,25 +197,9 @@ export function CreatorsList({ creators }: { creators: CreatorTile[] }) {
   );
 }
 
-function CreatorCard({ c }: { c: CreatorTile }) {
-  const [sending, setSending] = React.useState(false);
-  const canResend = !c.archived && (c.inviteStatus === "PENDING" || c.inviteStatus === "EXPIRED");
-
-  const resend = async () => {
-    setSending(true);
-    try {
-      const res = await fetch(`/api/creators/${c.id}/resend-invite`, { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "The invite could not be sent");
-      }
-      toast.success(`Invite sent to ${c.name}`);
-    } catch (e) {
-      toast.error(`${e instanceof Error ? e.message : "The invite could not be sent"}. Try again in a minute.`);
-    } finally {
-      setSending(false);
-    }
-  };
+function CreatorCard({ c, canManageInvites }: { c: CreatorTile; canManageInvites: boolean }) {
+  // Until they accept, the card's second action is the invite (copy, email, new link, cancel)
+  const showInvite = !c.archived && !!c.invite && canManageInvites;
 
   return (
     <article
@@ -250,11 +236,14 @@ function CreatorCard({ c }: { c: CreatorTile }) {
             <UnreadCount n={c.unread} />
           </Link>
         </Button>
-        {canResend ? (
-          <Button variant="outline" size="sm" onClick={resend} disabled={sending}>
-            {sending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
-            {sending ? "Sending" : "Resend invite"}
-          </Button>
+        {showInvite && c.invite ? (
+          <CreatorInviteActions
+            creatorId={c.id}
+            name={c.name}
+            email={c.email}
+            state={c.invite.state}
+            expiresAt={c.invite.expiresAt}
+          />
         ) : (
           !c.archived && (
             <Button asChild variant="outline" size="sm">

@@ -14,6 +14,7 @@ import {
   quietOf,
   requestFields,
 } from "@/components/creators/insights";
+import { creatorInvite } from "@/lib/invites";
 
 // Generic on purpose: no creator or request name in the tab title
 export const metadata = {
@@ -112,6 +113,7 @@ async function getProfile(creatorId: string, agencyId: string, userId: string): 
     timezone: creator.timezone || "UTC",
   };
 
+  const invite = creatorInvite(creator, now);
   const paused = !!override?.isPaused && (!override.pauseResumeAt || override.pauseResumeAt > now);
   const isRead = (readBy: unknown) =>
     ((readBy as Array<{ userId?: string } | string>) || []).some((r) => (typeof r === "string" ? r : r?.userId) === userId);
@@ -124,6 +126,10 @@ async function getProfile(creatorId: string, agencyId: string, userId: string): 
       phone: creator.phone,
       avatar: creator.avatar,
       inviteStatus: creator.inviteStatus,
+      invite:
+        invite.state === "accepted"
+          ? null
+          : { state: invite.state, expiresAt: invite.expiresAt ? invite.expiresAt.toISOString() : null },
       archivedAt: creator.archivedAt ? creator.archivedAt.toISOString() : null,
       timezone: creator.timezone,
       preferredContact: creator.preferredContact,

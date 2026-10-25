@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Check, X, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Check, X, Clock, Link2Off } from "lucide-react";
 import { toast } from "sonner";
 import { BRAND } from "@/lib/brand";
 import { storeCreatorSession, clearSignedOutFlag } from "@/lib/remember-token";
@@ -122,7 +123,7 @@ export default function PortalSetupPage({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [creator, setCreator] = useState<Creator | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ reason: "expired" | "invalid" | "network"; text: string } | null>(null);
 
   const [formData, setFormData] = useState({
     password: "",
@@ -135,15 +136,18 @@ export default function PortalSetupPage({
         const response = await fetch(`/api/portal/verify-invite?token=${encodeURIComponent(token)}`);
         const data = await response.json();
 
-        if (!response.ok) {
-          setError(data.error || "Invalid or expired invite link");
+        if (!response.ok || data.valid === false) {
+          setError({
+            reason: data.reason === "expired" ? "expired" : "invalid",
+            text: data.error || "This invite link no longer works.",
+          });
           setLoading(false);
           return;
         }
 
         setCreator(data);
       } catch {
-        setError("We couldn't check this invite. Check your connection and reload the page.");
+        setError({ reason: "network", text: "We couldn't check this invite. Check your connection and reload the page." });
       } finally {
         setLoading(false);
       }
@@ -215,15 +219,35 @@ export default function PortalSetupPage({
   }
 
   if (error) {
+    const Icon = error.reason === "expired" ? Clock : Link2Off;
     return (
       <SetupFrame>
-        <BrandHeader title="This invite can't be used" />
+        <BrandHeader
+          title={
+            error.reason === "expired"
+              ? "This invite link has expired"
+              : error.reason === "network"
+                ? "We couldn't check this invite"
+                : "This invite link no longer works"
+          }
+        />
         <div className="flex gap-3 rounded-[var(--tw-r-ctl)] bg-well p-3.5">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-late" aria-hidden="true" />
-          <p className="text-[15px] text-ink">{error}</p>
+          <Icon className="mt-0.5 size-4 shrink-0 text-icon" aria-hidden="true" />
+          <p className="text-[15px] text-ink">{error.text}</p>
         </div>
-        <p className="text-[15px] leading-normal text-ink-2">
-          Ask CCM to send you a new invite link. Links stop working once they&apos;re used or after they expire.
+        {error.reason !== "network" && (
+          <p className="text-[15px] leading-normal text-ink-2">
+            Ask your team for a new link.
+          </p>
+        )}
+        <p className="text-[15px] text-ink-2">
+          Already set up your account?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-ink underline decoration-ctl-hi underline-offset-[3px] hover:decoration-ink"
+          >
+            Sign in
+          </Link>
         </p>
       </SetupFrame>
     );
