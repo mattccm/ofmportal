@@ -1,142 +1,77 @@
 import Image from "next/image";
 import { BRAND } from "@/lib/brand";
 
-// The branding panel is always dark, so the highlighted word uses the light
-// brand green rather than --primary (which is too dark on slate-900 in light mode).
-const highlightStyle: React.CSSProperties = {
-  backgroundImage: `linear-gradient(90deg, ${BRAND.accentColor}, #a3d4b6)`,
-};
-// "CCM Portal" -> "Portal"
-const productSuffix = BRAND.productName.replace(BRAND.name, "").trim();
-
+/**
+ * Sign-in, reset and register share this frame. On a desktop the left half is
+ * a typeset cover in the Title Wall world: the product's name set as display
+ * lettering on a tile that fades into the ground. On a phone the cover folds
+ * into a short bar above the form.
+ */
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const year = new Date().getFullYear();
+
   return (
     <div
-      className="min-h-screen flex flex-col lg:flex-row"
+      className="flex min-h-screen flex-col bg-background text-foreground lg:flex-row"
       style={{
         minHeight: "100dvh",
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
     >
-      {/* Mobile Header - Shows on mobile only */}
-      <div className="lg:hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden flex-shrink-0">
-        {/* Gradient orbs - smaller for mobile */}
-        <div className="absolute top-0 -left-10 w-40 h-40 bg-primary/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
+      {/* Phone: the mark and the name in one bar */}
+      <div className="flex shrink-0 items-center gap-3 px-6 pt-6 lg:hidden">
+        <Image
+          src={BRAND.logoPath}
+          alt=""
+          width={36}
+          height={36}
+          className="h-9 w-9 object-contain invert"
+          priority
+        />
+        <p className="text-lg font-bold tracking-tight">{BRAND.productName}</p>
+      </div>
 
-        {/* Content */}
-        <div className="relative z-10 px-6 py-6 text-center">
-          {/* Logo */}
-          <div className="flex justify-center mb-3">
-            <div className="relative h-12 w-12">
-              <Image
-                src={BRAND.logoPath}
-                alt={BRAND.name}
-                fill
-                className="object-contain brightness-0 invert"
-              />
-            </div>
+      {/* Desktop: the cover */}
+      <div className="relative isolate hidden overflow-hidden lg:flex lg:w-1/2">
+        <div className="tw-billboard-plate" aria-hidden="true" />
+        <div className="relative flex w-full flex-col justify-between p-12 xl:p-16">
+          <Image
+            src={BRAND.logoPath}
+            alt={BRAND.name}
+            width={48}
+            height={48}
+            className="h-12 w-12 object-contain invert"
+            priority
+          />
+
+          <div className="max-w-xl">
+            <p className="text-[clamp(64px,7vw,104px)] font-extrabold leading-[0.92] tracking-[-0.04em]">
+              {BRAND.productName}
+            </p>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-ink-2">
+              Requests, uploads and review for {BRAND.name} and its creators, in one place.
+            </p>
           </div>
 
-          {/* Title */}
-          <h1 className="text-xl font-bold text-white mb-1">
-            {BRAND.name}{" "}
-            <span className="bg-clip-text text-transparent" style={highlightStyle}>
-              {productSuffix}
-            </span>
-          </h1>
-          <p className="text-xs text-slate-400">
-            Your content, your requests, one place.
+          <p className="text-sm text-ink-2">
+            &copy; {year} {BRAND.legalName}
           </p>
         </div>
       </div>
 
-      {/* Desktop Left side - Branding (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-        {/* Gradient orbs */}
-        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-0 w-80 h-80 bg-primary/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-2xl" />
-
-        {/* Grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px',
-          }}
-        />
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          {/* Logo - top left, no text */}
-          <div>
-            <div className="relative h-14 w-14">
-              <Image
-                src={BRAND.logoPath}
-                alt={BRAND.name}
-                fill
-                className="object-contain brightness-0 invert"
-              />
-            </div>
-          </div>
-
-          {/* Main content */}
-          <div className="space-y-6">
-            <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight">
-              {BRAND.name}
-              <br />
-              <span className="bg-clip-text text-transparent" style={highlightStyle}>
-                {productSuffix}
-              </span>
-            </h1>
-            <p className="text-lg text-slate-400 max-w-md">
-              All your content, all your requests handled in one place. Built by {BRAND.name} for our creators.
-            </p>
-
-            {/* Features */}
-            <div className="grid gap-4 pt-4">
-              {[
-                "Lightning-fast secure uploads",
-                "Real-time progress tracking",
-                "Everything in one place",
-              ].map((feature, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: BRAND.accentColor }} />
-                  <span className="text-slate-300">{feature}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="space-y-2">
-            <p className="text-sm text-slate-500">
-              &copy; {new Date().getFullYear()} {BRAND.legalName}. All rights reserved.
-            </p>
-          </div>
-        </div>
+      {/* The form */}
+      <div className="flex flex-1 items-start justify-center overflow-y-auto px-6 py-8 md:items-center lg:p-12">
+        <div className="w-full max-w-md space-y-6">{children}</div>
       </div>
 
-      {/* Right side / Main content - Form */}
-      <div className="flex-1 flex items-start lg:items-center justify-center bg-background px-6 py-8 lg:p-12 overflow-y-auto">
-        <div className="w-full max-w-md space-y-6 animate-fade-in">
-          {children}
-        </div>
-      </div>
-
-      {/* Mobile Footer */}
-      <div className="lg:hidden py-3 px-6 text-center bg-background border-t border-border flex-shrink-0">
-        <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} {BRAND.legalName}
-        </p>
-      </div>
+      <p className="shrink-0 px-6 py-4 text-center text-xs text-ink-2 lg:hidden">
+        &copy; {year} {BRAND.legalName}
+      </p>
     </div>
   );
 }

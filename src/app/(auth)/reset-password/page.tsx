@@ -94,7 +94,7 @@ function ResetPasswordForm() {
   if (validating) {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-ink-2" />
         <p className="text-muted-foreground">Validating reset link...</p>
       </div>
     );
@@ -117,7 +117,7 @@ function ResetPasswordForm() {
 
         <div className="flex flex-col gap-3">
           <Link href="/forgot-password">
-            <Button className="w-full h-12 rounded-xl btn-gradient text-base font-semibold">
+            <Button className="w-full h-12 text-base">
               Request new reset link
             </Button>
           </Link>
@@ -137,8 +137,8 @@ function ResetPasswordForm() {
     return (
       <div className="space-y-6">
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-            <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+          <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-success" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Password reset!
@@ -149,7 +149,7 @@ function ResetPasswordForm() {
         </div>
 
         <Link href="/login">
-          <Button className="w-full h-12 rounded-xl btn-gradient text-base font-semibold">
+          <Button className="w-full h-12 text-base">
             Sign in now
           </Button>
         </Link>
@@ -191,9 +191,9 @@ function ResetPasswordForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
-                className="h-12 rounded-xl border-border bg-background px-4 pr-12 transition-all focus:ring-2 focus:ring-primary/20"
+                className="h-12 px-4 pr-12 "
               />
-              <button
+              <button aria-label={showPassword ? "Hide password" : "Show password"}
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
@@ -218,7 +218,7 @@ function ResetPasswordForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               disabled={loading}
-              className="h-12 rounded-xl border-border bg-background px-4 transition-all focus:ring-2 focus:ring-primary/20"
+              className="h-12 px-4 "
             />
           </div>
         </div>
@@ -226,7 +226,7 @@ function ResetPasswordForm() {
         <Button
           type="submit"
           disabled={loading}
-          className="w-full h-12 rounded-xl btn-gradient text-base font-semibold"
+          className="w-full h-12 text-base"
         >
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -253,7 +253,7 @@ function ResetPasswordForm() {
 function ResetPasswordFallback() {
   return (
     <div className="flex flex-col items-center justify-center space-y-4 py-8">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <Loader2 className="h-8 w-8 animate-spin text-ink-2" />
       <p className="text-muted-foreground">Loading...</p>
     </div>
   );

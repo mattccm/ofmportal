@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
         // Calculate breakdown by type
         const breakdown: Record<string, StorageBreakdown> = {
-          videos: { type: "videos", label: "Videos", size: 0, count: 0, color: "bg-violet-500" },
+          videos: { type: "videos", label: "Videos", size: 0, count: 0, color: "bg-raised-hi" },
           images: { type: "images", label: "Images", size: 0, count: 0, color: "bg-blue-500" },
           documents: { type: "documents", label: "Documents", size: 0, count: 0, color: "bg-amber-500" },
           other: { type: "other", label: "Other", size: 0, count: 0, color: "bg-gray-500" },

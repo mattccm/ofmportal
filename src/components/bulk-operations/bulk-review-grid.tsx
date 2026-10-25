@@ -586,7 +586,7 @@ export function BulkReviewGrid({
   if (uploads.length === 0) {
     return (
       <div className="text-center py-12">
-        <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+        <CheckCircle className="h-12 w-12 text-approved mx-auto" />
         <h3 className="mt-4 text-lg font-semibold">All caught up!</h3>
         <p className="mt-2 text-muted-foreground">
           There are no pending uploads to review.
@@ -632,7 +632,7 @@ export function BulkReviewGrid({
                 </div>
 
                 <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger aria-label="Filter by creator" className="w-[180px]">
                     <Filter className="mr-2 h-4 w-4" />
                     <SelectValue placeholder="All Creators" />
                   </SelectTrigger>
@@ -659,7 +659,7 @@ export function BulkReviewGrid({
 
               {/* View controls */}
               <div className="flex gap-2">
-                <Button
+                <Button aria-label="Grid view"
                   variant={viewMode === "grid" ? "default" : "outline"}
                   size="icon"
                   onClick={() => setViewMode("grid")}
@@ -667,7 +667,7 @@ export function BulkReviewGrid({
                 >
                   <Grid3X3 className="h-4 w-4" />
                 </Button>
-                <Button
+                <Button aria-label="List view"
                   variant={viewMode === "list" ? "default" : "outline"}
                   size="icon"
                   onClick={() => setViewMode("list")}
@@ -675,7 +675,7 @@ export function BulkReviewGrid({
                 >
                   <List className="h-4 w-4" />
                 </Button>
-                <Button
+                <Button aria-label="Keyboard shortcuts"
                   variant="outline"
                   size="icon"
                   onClick={() => setShowShortcutsHelp(true)}
@@ -697,7 +697,7 @@ export function BulkReviewGrid({
                 </span>
               )}
               {stats.approved > 0 && (
-                <span className="flex items-center gap-1 text-green-600">
+                <span className="flex items-center gap-1 text-approved">
                   <Check className="h-4 w-4" />
                   {stats.approved} to approve
                 </span>
@@ -717,7 +717,6 @@ export function BulkReviewGrid({
                   variant="default"
                   size="sm"
                   onClick={approveSelected}
-                  className="bg-green-600 hover:bg-green-700"
                 >
                   <Check className="mr-2 h-4 w-4" />
                   Approve Selected ({selectedIds.size})
@@ -759,7 +758,7 @@ export function BulkReviewGrid({
                   className={cn(
                     "relative overflow-hidden cursor-pointer transition-all group",
                     isSelected && "ring-2 ring-primary",
-                    reviewState?.action === "approve" && "ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20",
+                    reviewState?.action === "approve" && "ring-2 ring-approved bg-approved/10",
                     reviewState?.action === "reject" && "ring-2 ring-red-500 bg-red-50 dark:bg-red-950/20"
                   )}
                   onClick={() => toggleSelection(upload.id)}
@@ -782,9 +781,9 @@ export function BulkReviewGrid({
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
+                          <Button aria-label={`Approve ${upload.originalName}`}
                             size="icon"
-                            className="bg-green-600 hover:bg-green-700"
+                            variant="outline"
                             onClick={(e) => {
                               e.stopPropagation();
                               setReviewAction(upload.id, "approve");
@@ -798,7 +797,7 @@ export function BulkReviewGrid({
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
+                          <Button aria-label={`Reject ${upload.originalName}`}
                             size="icon"
                             variant="destructive"
                             onClick={(e) => {
@@ -814,7 +813,7 @@ export function BulkReviewGrid({
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
+                          <Button aria-label={`Preview ${upload.originalName}`}
                             size="icon"
                             variant="secondary"
                             onClick={(e) => {
@@ -831,7 +830,7 @@ export function BulkReviewGrid({
 
                     {/* Selection checkbox */}
                     <div className="absolute top-2 left-2">
-                      <Checkbox
+                      <Checkbox aria-label={`Select ${upload.originalName}`}
                         checked={isSelected}
                         onClick={(e) => e.stopPropagation()}
                         onCheckedChange={() => toggleSelection(upload.id)}
@@ -844,7 +843,7 @@ export function BulkReviewGrid({
                       <div className="absolute top-2 right-2">
                         <Badge
                           className={cn(
-                            reviewState.action === "approve" && "bg-green-500",
+                            reviewState.action === "approve" && "bg-approved",
                             reviewState.action === "reject" && "bg-red-500"
                           )}
                         >
@@ -881,13 +880,13 @@ export function BulkReviewGrid({
                   className={cn(
                     "cursor-pointer transition-all",
                     isSelected && "ring-2 ring-primary",
-                    reviewState?.action === "approve" && "ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20",
+                    reviewState?.action === "approve" && "ring-2 ring-approved bg-approved/10",
                     reviewState?.action === "reject" && "ring-2 ring-red-500 bg-red-50 dark:bg-red-950/20"
                   )}
                   onClick={() => toggleSelection(upload.id)}
                 >
                   <CardContent className="p-3 flex items-center gap-4">
-                    <Checkbox
+                    <Checkbox aria-label={`Select ${upload.originalName}`}
                       checked={isSelected}
                       onClick={(e) => e.stopPropagation()}
                       onCheckedChange={() => toggleSelection(upload.id)}
@@ -925,7 +924,7 @@ export function BulkReviewGrid({
                     {reviewState?.action && (
                       <Badge
                         className={cn(
-                          reviewState.action === "approve" && "bg-green-500",
+                          reviewState.action === "approve" && "bg-approved",
                           reviewState.action === "reject" && "bg-red-500"
                         )}
                       >
@@ -935,9 +934,9 @@ export function BulkReviewGrid({
 
                     {/* Actions */}
                     <div className="flex gap-2">
-                      <Button
+                      <Button aria-label={`Approve ${upload.originalName}`}
                         size="icon-sm"
-                        className="bg-green-600 hover:bg-green-700"
+                        variant="outline"
                         onClick={(e) => {
                           e.stopPropagation();
                           setReviewAction(upload.id, "approve");
@@ -945,7 +944,7 @@ export function BulkReviewGrid({
                       >
                         <Check className="h-4 w-4" />
                       </Button>
-                      <Button
+                      <Button aria-label={`Reject ${upload.originalName}`}
                         size="icon-sm"
                         variant="destructive"
                         onClick={(e) => {
@@ -958,7 +957,7 @@ export function BulkReviewGrid({
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button size="icon-sm" variant="outline">
+                          <Button aria-label={`More actions for ${upload.originalName}`} size="icon-sm" variant="outline">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -1139,7 +1138,6 @@ export function BulkReviewGrid({
 
             <DialogFooter>
               <Button
-                className="bg-green-600 hover:bg-green-700"
                 onClick={() => {
                   if (previewUpload) {
                     setReviewAction(previewUpload.id, "approve");

@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
       id: upload.id,
       originalName: upload.originalName,
       fileType: upload.fileType,
-      fileSize: upload.fileSize,
+      fileSize: Number(upload.fileSize), // BigInt is not JSON-serialisable
       status: upload.status,
       rating: upload.rating,
       reviewNote: upload.reviewNote,

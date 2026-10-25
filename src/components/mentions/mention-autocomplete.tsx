@@ -123,16 +123,16 @@ export function MentionAutocomplete({
       {/* Keyboard hint */}
       <div className="border-t px-3 py-1.5 flex items-center justify-between text-xs text-muted-foreground bg-muted/30">
         <span>
-          <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] mr-1">↑</kbd>
-          <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] mr-1">↓</kbd>
+          <kbd className="px-1 py-0.5 rounded bg-muted text-[12px] mr-1">↑</kbd>
+          <kbd className="px-1 py-0.5 rounded bg-muted text-[12px] mr-1">↓</kbd>
           to navigate
         </span>
         <span>
-          <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] mr-1">Enter</kbd>
+          <kbd className="px-1 py-0.5 rounded bg-muted text-[12px] mr-1">Enter</kbd>
           to select
         </span>
         <span>
-          <kbd className="px-1 py-0.5 rounded bg-muted text-[10px]">Esc</kbd>
+          <kbd className="px-1 py-0.5 rounded bg-muted text-[12px]">Esc</kbd>
           to close
         </span>
       </div>
@@ -192,7 +192,7 @@ const SuggestionItem = forwardRef<HTMLButtonElement, SuggestionItemProps>(
             size="sm"
           />
           {suggestion.isOnline && (
-            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-emerald-500 rounded-full border-2 border-popover" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-success rounded-full border-2 border-popover" />
           )}
         </div>
 
@@ -203,12 +203,12 @@ const SuggestionItem = forwardRef<HTMLButtonElement, SuggestionItemProps>(
               <HighlightedText segments={nameSegments} />
             </span>
             {suggestion.role && (
-              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 capitalize">
+              <Badge variant="secondary" className="text-[12px] px-1 py-0 h-5 capitalize">
                 {suggestion.role.toLowerCase()}
               </Badge>
             )}
             {isRecent && (
-              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-0.5 text-[12px] text-muted-foreground">
                 <Clock className="h-2.5 w-2.5" />
                 Recent
               </span>

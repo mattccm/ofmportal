@@ -363,7 +363,7 @@ export function TemplateGroupManager({
             value={selectedPlatform}
             onValueChange={(value) => setSelectedPlatform(value as Platform | "all")}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger aria-label="Filter by platform" className="w-[180px]">
               <SelectValue placeholder="All Platforms" />
             </SelectTrigger>
             <SelectContent>
@@ -397,7 +397,7 @@ export function TemplateGroupManager({
             </Button>
           )}
           <div className="flex items-center rounded-lg border bg-muted/50 p-1">
-            <Button
+            <Button aria-label="Grid view" aria-pressed={viewMode === "grid"}
               variant={viewMode === "grid" ? "secondary" : "ghost"}
               size="icon"
               className="h-8 w-8"
@@ -405,7 +405,7 @@ export function TemplateGroupManager({
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label="List view" aria-pressed={viewMode === "list"}
               variant={viewMode === "list" ? "secondary" : "ghost"}
               size="icon"
               className="h-8 w-8"
@@ -420,7 +420,7 @@ export function TemplateGroupManager({
       {/* Groups Display */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-ink border-t-transparent" />
         </div>
       ) : filteredGroups.length === 0 ? (
         <EmptyState onCreateClick={() => setShowCreateDialog(true)} />
@@ -654,7 +654,7 @@ function GroupListView({
               {/* Actions */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button aria-label={`More actions for ${group.name}`} variant="ghost" size="icon" className="h-8 w-8">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -699,12 +699,12 @@ function GroupListView({
                         variant={template.isActive ? "default" : "secondary"}
                         className={cn(
                           template.isActive &&
-                            "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            "bg-tile-hi text-ink"
                         )}
                       >
                         {template.isActive ? "Active" : "Inactive"}
                       </Badge>
-                      <Button
+                      <Button aria-label={`Remove ${template.name} from ${group.name}`}
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
@@ -762,8 +762,8 @@ function GroupCard({
     <Card
       className={cn(
         "group relative overflow-hidden transition-all duration-200",
-        "hover:shadow-md hover:border-border",
-        isExpanded && "ring-2 ring-primary/20"
+        " hover:border-border",
+        isExpanded && "ring-2 ring-ink/20"
       )}
     >
       {/* Color Bar */}
@@ -800,7 +800,7 @@ function GroupCard({
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
+                <Button aria-label={`More actions for ${group.name}`}
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -872,7 +872,7 @@ function GroupCard({
                     className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-1.5 text-sm"
                   >
                     <span className="truncate flex-1">{template.name}</span>
-                    <Button
+                    <Button aria-label={`Remove ${template.name} from ${group.name}`}
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-muted-foreground hover:text-destructive"
@@ -1001,7 +1001,7 @@ function GroupFormDialog({
           <div className="space-y-2">
             <Label>Platform</Label>
             <Select value={platform} onValueChange={(value) => setPlatform(value as Platform)}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Platform">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1044,7 +1044,7 @@ function GroupFormDialog({
 
           {/* Default Toggle */}
           <div className="flex items-center gap-2">
-            <Checkbox
+            <Checkbox aria-label={`Set as default group for ${selectedConfig.label}`}
               id="isDefault"
               checked={isDefault}
               onCheckedChange={(checked) => setIsDefault(checked === true)}
@@ -1118,7 +1118,7 @@ function BulkAssignDialog({
           <div className="space-y-2">
             <Label>Select Group</Label>
             <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Select Group">
                 <SelectValue placeholder="Choose a group..." />
               </SelectTrigger>
               <SelectContent>

@@ -99,6 +99,7 @@ export async function POST(
         fields: JSON.stringify(updatedFields),
         defaultDueDays: originalTemplate.defaultDueDays,
         defaultUrgency: originalTemplate.defaultUrgency,
+        categoryId: originalTemplate.categoryId, // stays in the same group
         isActive: false, // Start as draft
       },
       include: {
@@ -114,6 +115,7 @@ export async function POST(
       description: duplicatedTemplate.description,
       fields: updatedFields,
       fieldCount: updatedFields.length,
+      categoryId: duplicatedTemplate.categoryId,
       usageCount: 0,
       isActive: duplicatedTemplate.isActive,
       defaultDueDays: duplicatedTemplate.defaultDueDays,

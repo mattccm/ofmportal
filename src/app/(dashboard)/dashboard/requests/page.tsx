@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { excludePseudoUsers } from "@/lib/staff";
 import { RequestsList } from "@/components/requests/requests-list";
+import { fileFieldsOf, mapFields, type MapSubmission } from "@/components/requests/title-wall-map";
 
 async function getRequests(agencyId: string) {
   return db.contentRequest.findMany({
@@ -18,6 +19,10 @@ async function getRequests(agencyId: string) {
       },
       _count: {
         select: { uploads: true, comments: true },
+      },
+      // Minimal upload rows for the field strip and "approve ready" targets.
+      uploads: {
+        select: { id: true, fieldId: true, status: true, uploadStatus: true },
       },
     },
   });
@@ -85,15 +90,34 @@ export default async function RequestsPage() {
   }
 
   // Convert dates to strings for serialization
-  const serializedRequests = requests.map((request) => ({
+  const now = new Date();
+  const serializedRequests = requests.map(({ uploads, fields, fieldSubmissions, ...request }) => {
+    const subs = (fieldSubmissions ?? {}) as unknown as Record<string, MapSubmission>;
+    const strip = mapFields({ fields, fieldSubmissions, uploads, status: request.status, dueDate: request.dueDate, now });
+    const hasFileFields = fileFieldsOf(fields).length > 0;
+    // What "Approve ready" acts on: each ready field, approved through the
+    // field review route when the creator submitted it, else its pending uploads.
+    const readyTargets = strip
+      .filter((f) => f.state === "ready")
+      .map((f) => ({
+        fieldId: hasFileFields ? (f.id as string) : null,
+        submitted: hasFileFields && !!subs[f.id as string] && subs[f.id as string].status !== "PENDING",
+        uploadIds: uploads
+          .filter((u) => u.status === "PENDING" && u.uploadStatus === "COMPLETED" && (!hasFileFields || u.fieldId === f.id))
+          .map((u) => u.id),
+      }));
+    return {
     ...request,
+    strip,
+    readyTargets,
     dueDate: request.dueDate?.toISOString() || null,
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString(),
     submittedAt: request.submittedAt?.toISOString() || null,
     reviewedAt: request.reviewedAt?.toISOString() || null,
     pendingReviewCount: pendingReviewCounts.get(request.id) ?? 0,
-  }));
+    };
+  });
 
   return (
     <RequestsList

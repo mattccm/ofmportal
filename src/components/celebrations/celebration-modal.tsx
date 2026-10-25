@@ -152,7 +152,7 @@ export function CelebrationModal({
               <DialogTitle
                 className={cn(
                   "text-2xl font-bold animate-in fade-in-0 slide-in-from-bottom-4 duration-500",
-                  "bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
+                  " text-foreground"
                 )}
                 style={{ animationDelay: "300ms" }}
               >

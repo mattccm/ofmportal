@@ -123,8 +123,8 @@ const EXPORT_PRESETS: ExportPreset[] = [
     filters: {},
     format: "csv",
     icon: Users,
-    color: "text-violet-500",
-    bgColor: "bg-violet-500/10",
+    color: "text-foreground",
+    bgColor: "bg-tile-hi",
   },
   {
     id: "requests-summary",
@@ -147,8 +147,8 @@ const EXPORT_PRESETS: ExportPreset[] = [
     filters: {},
     format: "csv",
     icon: Upload,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
+    color: "text-success",
+    bgColor: "bg-success/10",
   },
   {
     id: "analytics-report",
@@ -615,14 +615,14 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
                         className={cn(
                           "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
                           item.status === "completed"
-                            ? "bg-emerald-500/10"
+                            ? "bg-success/10"
                             : item.status === "processing"
                             ? "bg-blue-500/10"
                             : "bg-red-500/10"
                         )}
                       >
                         {item.status === "completed" ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                          <CheckCircle2 className="h-5 w-5 text-success" />
                         ) : item.status === "processing" ? (
                           <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
                         ) : (
@@ -644,7 +644,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
                           {item.format.toUpperCase()}
                         </Badge>
                         {item.status === "completed" && item.downloadUrl && (
-                          <Button
+                          <Button aria-label={`Download ${item.name}`}
                             variant="ghost"
                             size="sm"
                             onClick={() => downloadExport(item)}
@@ -714,7 +714,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
                             }))
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger aria-label="Frequency">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -792,13 +792,13 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
                       <div
                         className={cn(
                           "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
-                          schedule.isActive ? "bg-emerald-500/10" : "bg-muted"
+                          schedule.isActive ? "bg-success/10" : "bg-muted"
                         )}
                       >
                         <Clock
                           className={cn(
                             "h-5 w-5",
-                            schedule.isActive ? "text-emerald-500" : "text-muted-foreground"
+                            schedule.isActive ? "text-success" : "text-muted-foreground"
                           )}
                         />
                       </div>
@@ -823,7 +823,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
                         <Badge variant="outline" className="text-xs">
                           {schedule.format.toUpperCase()}
                         </Badge>
-                        <Button
+                        <Button aria-label={schedule.isActive ? `Pause ${schedule.name}` : `Resume ${schedule.name}`}
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleScheduledExport(schedule.id, !schedule.isActive)}
@@ -834,7 +834,7 @@ export function ExportsDashboard({ creators, requests }: ExportsDashboardProps) 
                             <Play className="h-4 w-4" />
                           )}
                         </Button>
-                        <Button
+                        <Button aria-label={`Delete ${schedule.name}`}
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteScheduledExport(schedule.id)}

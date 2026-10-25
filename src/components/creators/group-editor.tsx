@@ -50,7 +50,6 @@ const colorPresets = [
   "#ef4444", // red
   "#f97316", // orange
   "#eab308", // yellow
-  "#22c55e", // green
   "#14b8a6", // teal
   "#06b6d4", // cyan
   "#3b82f6", // blue
@@ -261,7 +260,7 @@ export function GroupEditor({
                   onClick={() => setColor(presetColor)}
                   className={`w-8 h-8 rounded-full transition-all ${
                     color === presetColor
-                      ? "ring-2 ring-offset-2 ring-indigo-500 scale-110"
+                      ? "ring-2 ring-offset-2 ring-ctl scale-110"
                       : "hover:scale-105"
                   }`}
                   style={{ backgroundColor: presetColor }}
@@ -287,8 +286,8 @@ export function GroupEditor({
                     onDragEnd={handleDragEnd}
                     className={`flex items-center gap-3 p-2 bg-background rounded-lg border cursor-move transition-all ${
                       draggedIndex === index
-                        ? "opacity-50 border-indigo-500"
-                        : "border-border hover:border-indigo-200 dark:hover:border-indigo-800"
+                        ? "opacity-50 border-ctl"
+                        : "border-border hover:border-line dark:hover:border-line"
                     }`}
                   >
                     <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -307,7 +306,7 @@ export function GroupEditor({
                         {member.email}
                       </p>
                     </div>
-                    <Button
+                    <Button aria-label={`Remove ${member.name}`}
                       type="button"
                       variant="ghost"
                       size="icon-sm"
@@ -367,14 +366,14 @@ export function GroupEditor({
                       disabled={saving}
                       className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${
                         isSelected
-                          ? "bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800"
+                          ? "bg-tile-hi dark:bg-tile-hi border border-line dark:border-line"
                           : "hover:bg-muted"
                       }`}
                     >
                       <div
                         className={`flex items-center justify-center w-5 h-5 rounded border-2 flex-shrink-0 ${
                           isSelected
-                            ? "bg-indigo-600 border-indigo-600"
+                            ? "bg-raised-hi border-ctl"
                             : "border-muted-foreground/30"
                         }`}
                       >
@@ -424,7 +423,7 @@ export function GroupEditor({
           <Button
             onClick={handleSave}
             disabled={saving || !name.trim()}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-raised-hi text-ink hover:bg-raised-hi"
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {group ? "Save Changes" : "Create Group"}

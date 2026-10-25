@@ -111,11 +111,11 @@ function getMediaTypeIcon(type: MediaType, className?: string) {
 function getMediaTypeColor(type: MediaType) {
   switch (type) {
     case "image":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+      return "bg-success/10 text-success";
     case "video":
       return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
     case "audio":
-      return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
+      return "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground";
     case "document":
       return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
   }
@@ -440,7 +440,7 @@ export function MediaUploader({
                     "mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all",
                     isDragging
                       ? "bg-primary text-white scale-110"
-                      : "bg-violet-50 text-violet-500 dark:bg-violet-900/30"
+                      : "bg-tile-hi text-foreground dark:bg-tile-hi"
                   )}
                 >
                   {isDragging ? (
@@ -500,7 +500,7 @@ export function MediaUploader({
                       className={cn(
                         "flex items-center gap-3 p-2 rounded-lg border",
                         file.status === "error" && "border-destructive bg-destructive/5",
-                        file.status === "complete" && "border-green-500 bg-green-50 dark:bg-green-900/10"
+                        file.status === "complete" && "border-success bg-success/10"
                       )}
                     >
                       {/* Thumbnail */}
@@ -532,7 +532,7 @@ export function MediaUploader({
                       {/* Status/Progress */}
                       {file.status === "uploading" && (
                         <div className="w-24">
-                          <Progress value={file.progress} className="h-1.5" />
+                          <Progress aria-label={`Uploading ${file.name}`} value={file.progress} className="h-1.5" />
                         </div>
                       )}
                       {file.status === "processing" && (
@@ -541,7 +541,7 @@ export function MediaUploader({
                         </Badge>
                       )}
                       {file.status === "complete" && (
-                        <div className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-success text-ground flex items-center justify-center">
                           <Check className="h-4 w-4" />
                         </div>
                       )}
@@ -554,7 +554,7 @@ export function MediaUploader({
 
                       {/* Remove button */}
                       {file.status === "pending" && (
-                        <Button
+                        <Button aria-label={`Remove ${file.name}`}
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => removeFile(file.id)}
@@ -579,7 +579,7 @@ export function MediaUploader({
                   value={selectedFolder || "none"}
                   onValueChange={(v) => setSelectedFolder(v === "none" ? null : v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Destination folder">
                     <Folder className="mr-2 h-4 w-4" />
                     <SelectValue placeholder="Select folder" />
                   </SelectTrigger>
@@ -609,7 +609,7 @@ export function MediaUploader({
                       }
                     }}
                   />
-                  <Button variant="outline" onClick={addGlobalTag}>
+                  <Button aria-label="Add tag" variant="outline" onClick={addGlobalTag}>
                     <Tag className="h-4 w-4" />
                   </Button>
                 </div>
@@ -636,7 +636,7 @@ export function MediaUploader({
           {(completedCount > 0 || errorCount > 0) && (
             <div className="flex items-center gap-4 p-3 rounded-lg bg-muted">
               {completedCount > 0 && (
-                <div className="flex items-center gap-2 text-green-600">
+                <div className="flex items-center gap-2 text-success">
                   <Check className="h-4 w-4" />
                   <span className="text-sm">{completedCount} uploaded</span>
                 </div>

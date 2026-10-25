@@ -66,35 +66,35 @@ const TIER_CONFIG = {
   UPCOMING: {
     label: "Upcoming",
     icon: Clock,
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    description: "Reminders sent before the due date",
+    color: "text-icon",
+    description: "Sent before the due date",
   },
   DUE_TODAY: {
-    label: "Due Today",
+    label: "Due today",
     icon: AlertTriangle,
-    color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    description: "Reminders sent on the due date",
+    color: "text-icon",
+    description: "Sent on the due date",
   },
   OVERDUE: {
     label: "Overdue",
     icon: AlertTriangle,
-    color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    description: "Reminders sent after the due date",
+    color: "text-icon",
+    description: "Sent after the due date",
   },
 };
 
 const TONE_CONFIG = {
   FRIENDLY: { label: "Friendly", description: "Gentle, casual tone" },
   NORMAL: { label: "Normal", description: "Professional, neutral tone" },
-  FIRM: { label: "Firm", description: "More assertive, emphasizes deadline" },
+  FIRM: { label: "Firm", description: "More assertive, stresses the deadline" },
   URGENT: { label: "Urgent", description: "Strong urgency, calls for immediate action" },
 };
 
 const URGENCY_CONFIG = {
-  LOW: { label: "Low", color: "bg-gray-100 text-gray-700" },
-  NORMAL: { label: "Normal", color: "bg-blue-100 text-blue-700" },
-  HIGH: { label: "High", color: "bg-amber-100 text-amber-700" },
-  URGENT: { label: "Urgent", color: "bg-red-100 text-red-700" },
+  LOW: { label: "Low", color: "bg-tile-hi text-ink-2" },
+  NORMAL: { label: "Normal", color: "bg-tile-hi text-ink" },
+  HIGH: { label: "High", color: "bg-tile-hi text-ink" },
+  URGENT: { label: "Urgent", color: "bg-late/14 text-late" },
 };
 
 const DEFAULT_TEMPLATES: Omit<ReminderTemplate, "id">[] = [
@@ -291,7 +291,7 @@ function TemplateEditor({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Switch
+            <Switch aria-label={template.isActive ? "Active" : "Inactive"}
               checked={template.isActive}
               onCheckedChange={(checked) => onChange({ isActive: checked })}
             />
@@ -305,12 +305,12 @@ function TemplateEditor({
         {/* Timing Configuration */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label>Tier Type</Label>
+            <Label>Tier</Label>
             <Select
               value={template.tierType}
               onValueChange={(v) => onChange({ tierType: v as ReminderTemplate["tierType"] })}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Tier">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -369,7 +369,7 @@ function TemplateEditor({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
-              Urgency Filter
+              Urgency
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
@@ -385,11 +385,11 @@ function TemplateEditor({
               value={template.urgency ?? "all"}
               onValueChange={(v) => onChange({ urgency: v === "all" ? null : v as ReminderTemplate["urgency"] })}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Urgency">
                 <SelectValue placeholder="All urgencies" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Urgencies</SelectItem>
+                <SelectItem value="all">All urgencies</SelectItem>
                 {Object.entries(URGENCY_CONFIG).map(([key, config]) => (
                   <SelectItem key={key} value={key}>
                     <Badge className={config.color}>{config.label}</Badge>
@@ -405,7 +405,7 @@ function TemplateEditor({
               value={template.tone}
               onValueChange={(v) => onChange({ tone: v as ReminderTemplate["tone"] })}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Tone">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -425,9 +425,9 @@ function TemplateEditor({
         </div>
 
         {/* Email Template */}
-        <div className="space-y-4 p-4 rounded-lg bg-muted/50">
+        <div className="space-y-4 p-4 rounded-lg bg-well">
           <h4 className="font-medium flex items-center gap-2">
-            Email Template
+            Email
           </h4>
           <div className="space-y-2">
             <Label>Subject</Label>
@@ -450,14 +450,14 @@ function TemplateEditor({
         </div>
 
         {/* SMS Template */}
-        <div className="space-y-4 p-4 rounded-lg bg-muted/50">
-          <h4 className="font-medium">SMS Template (optional)</h4>
+        <div className="space-y-4 p-4 rounded-lg bg-well">
+          <h4 className="font-medium">SMS (optional)</h4>
           <div className="space-y-2">
             <Label>Message</Label>
             <Textarea
               value={template.smsBody ?? ""}
               onChange={(e) => onChange({ smsBody: e.target.value || null })}
-              placeholder="SMS message (160 characters recommended)"
+              placeholder="SMS message (160 characters or fewer)"
               rows={3}
               className="font-mono text-sm"
             />
@@ -468,8 +468,8 @@ function TemplateEditor({
         </div>
 
         {/* Variable Help */}
-        <div className="p-4 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/30">
-          <h4 className="font-medium text-sm mb-2">Available Variables</h4>
+        <div className="p-4 rounded-lg bg-well">
+          <h4 className="font-medium text-sm mb-2">Variables you can use</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
             {[
               "{{creatorName}}",
@@ -496,7 +496,7 @@ function TemplateEditor({
                 variant="ghost"
                 size="sm"
                 onClick={onDelete}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="text-late hover:bg-late/12"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
@@ -509,13 +509,13 @@ function TemplateEditor({
                 Cancel
               </Button>
             )}
-            <Button onClick={onSave} disabled={isSaving} size="sm">
+            <Button onClick={onSave} disabled={isSaving} size="sm" variant="light">
               {isSaving ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              {isNew ? "Create Template" : "Save Changes"}
+              {isNew ? "Create template" : "Save changes"}
             </Button>
           </div>
         </div>
@@ -530,7 +530,6 @@ export function TieredTemplatesPanel() {
   const [templates, setTemplates] = React.useState<ReminderTemplate[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState<string | null>(null);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
   const [newTemplate, setNewTemplate] = React.useState<ReminderTemplate | null>(null);
   const [expandedTiers, setExpandedTiers] = React.useState<Set<string>>(
     new Set(["UPCOMING", "DUE_TODAY", "OVERDUE"])
@@ -659,151 +658,108 @@ export function TieredTemplatesPanel() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading templates...</p>
-        </div>
+      <div className="space-y-3" role="status" aria-label="Loading templates">
+        <div className="h-5 w-48 rounded bg-tile-hi" />
+        <div className="h-16 rounded-[10px] bg-tile" />
       </div>
     );
   }
 
+  const startNew = (tier?: ReminderTemplate["tierType"]) =>
+    setNewTemplate(DEFAULT_TEMPLATES.find((t) => !tier || t.tierType === tier) ?? DEFAULT_TEMPLATES[0]);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold">Tiered Message Templates</h3>
-          <p className="text-sm text-muted-foreground">
-            Customize reminder messages based on timing relative to the due date
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0 max-w-[60ch] grow basis-[30ch]">
+          <h3 className="text-[15px] font-semibold text-ink">Wording by tier</h3>
+          <p className="mt-1 text-sm leading-normal text-ink-2">
+            Before the due date, on the day and once overdue. Each reminder uses the most specific template that matches its
+            timing and urgency; higher priority wins a tie.
           </p>
         </div>
-        <Button onClick={() => setNewTemplate(DEFAULT_TEMPLATES[0])}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Template
-        </Button>
+        {templates.length > 0 && !newTemplate && (
+          <Button variant="outline" onClick={() => startNew()}>
+            <Plus aria-hidden="true" />
+            Add template
+          </Button>
+        )}
       </div>
 
-      {/* Info Card */}
-      <Card className="card-elevated bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200/50 dark:border-blue-800/30">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-500 mt-0.5" />
-            <div className="text-sm text-muted-foreground">
-              <p>
-                <strong>How tiered templates work:</strong> When sending a reminder,
-                the system finds the most specific matching template based on timing and urgency.
-              </p>
-              <p className="mt-2">
-                Templates with higher priority are matched first. Use different messages for
-                different stages: friendly reminders well before due date, firm reminders
-                close to deadline, and urgent messages for overdue items.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* New Template Form */}
       {newTemplate && (
-        <div className="animate-fade-in">
-          <TemplateEditor
-            template={newTemplate}
-            onChange={(updates) => setNewTemplate({ ...newTemplate, ...updates })}
-            onSave={() => saveTemplate(newTemplate)}
-            onCancel={() => setNewTemplate(null)}
-            isNew
-            isSaving={isSaving === "new"}
-          />
-        </div>
+        <TemplateEditor
+          template={newTemplate}
+          onChange={(updates) => setNewTemplate({ ...newTemplate, ...updates })}
+          onSave={() => saveTemplate(newTemplate)}
+          onCancel={() => setNewTemplate(null)}
+          isNew
+          isSaving={isSaving === "new"}
+        />
       )}
 
-      {/* Templates by Tier */}
-      {Object.entries(TIER_CONFIG).map(([tierKey, tierConfig]) => {
-        const tierTemplates = groupedTemplates[tierKey] || [];
-        const TierIcon = tierConfig.icon;
-        const isExpanded = expandedTiers.has(tierKey);
+      {templates.length === 0 ? (
+        !newTemplate && (
+          <div className="flex flex-col items-start gap-3 rounded-[10px] bg-tile p-4 text-sm leading-normal sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-[52ch] text-ink-2">
+              No templates yet, so every reminder uses the standard wording shown in the lock-screen preview.
+            </p>
+            <Button variant="outline" size="sm" className="shrink-0" onClick={addDefaultTemplates}>
+              <Plus aria-hidden="true" />
+              Start from the standard set
+            </Button>
+          </div>
+        )
+      ) : (
+        Object.entries(TIER_CONFIG).map(([tierKey, tierConfig]) => {
+          const tierTemplates = groupedTemplates[tierKey] || [];
+          const isExpanded = expandedTiers.has(tierKey);
+          const Chevron = isExpanded ? ChevronDown : ChevronRight;
 
-        return (
-          <Collapsible key={tierKey} open={isExpanded} onOpenChange={() => toggleTier(tierKey)}>
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center justify-between w-full p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={cn("p-2 rounded-lg", tierConfig.color)}>
-                    <TierIcon className="h-4 w-4" />
-                  </div>
-                  <div className="text-left">
-                    <h4 className="font-medium">{tierConfig.label} Templates</h4>
-                    <p className="text-xs text-muted-foreground">{tierConfig.description}</p>
-                  </div>
-                  <Badge variant="secondary">{tierTemplates.length}</Badge>
-                </div>
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          return (
+            <Collapsible key={tierKey} open={isExpanded} onOpenChange={() => toggleTier(tierKey)}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-[10px] bg-tile px-4 py-3 text-left transition-colors hover:bg-tile-hi focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-ink">
+                      {tierConfig.label}{" "}
+                      <span className="font-normal tabular-nums text-ink-2">{tierTemplates.length}</span>
+                    </span>
+                    <span className="block text-[13px] text-ink-2">{tierConfig.description}</span>
+                  </span>
+                  <Chevron className="size-4 shrink-0 text-icon" aria-hidden="true" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-3">
+                {tierTemplates.length === 0 ? (
+                  <p className="px-4 text-sm text-ink-2">
+                    None yet; the standard wording is used.{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-ink underline underline-offset-[3px] focus-visible:outline-2 focus-visible:outline-ring"
+                      onClick={() => startNew(tierKey as ReminderTemplate["tierType"])}
+                    >
+                      Add one
+                    </button>
+                  </p>
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  tierTemplates.map((template) => (
+                    <TemplateEditor
+                      key={template.id}
+                      template={template}
+                      onChange={(updates) => updateTemplate(template.id!, updates)}
+                      onSave={() => saveTemplate(template)}
+                      onDelete={() => deleteTemplate(template.id!)}
+                      isSaving={isSaving === template.id}
+                    />
+                  ))
                 )}
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-4">
-              {tierTemplates.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p className="text-sm">No templates for this tier yet.</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => {
-                      const defaultForTier = DEFAULT_TEMPLATES.find(
-                        (t) => t.tierType === tierKey
-                      );
-                      if (defaultForTier) {
-                        setNewTemplate(defaultForTier);
-                      }
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add {tierConfig.label} Template
-                  </Button>
-                </div>
-              ) : (
-                tierTemplates.map((template) => (
-                  <TemplateEditor
-                    key={template.id}
-                    template={template}
-                    onChange={(updates) => updateTemplate(template.id!, updates)}
-                    onSave={() => saveTemplate(template)}
-                    onDelete={() => deleteTemplate(template.id!)}
-                    isSaving={isSaving === template.id}
-                  />
-                ))
-              )}
-            </CollapsibleContent>
-          </Collapsible>
-        );
-      })}
-
-      {/* Empty State */}
-      {templates.length === 0 && !newTemplate && (
-        <Card className="card-elevated">
-          <CardContent className="p-12">
-            <div className="text-center space-y-4">
-              <div className="h-16 w-16 rounded-2xl bg-muted mx-auto flex items-center justify-center">
-                <Clock className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">No Tiered Templates</h3>
-                <p className="text-muted-foreground mt-1">
-                  Create templates to customize reminder messages based on timing.
-                </p>
-              </div>
-              <Button onClick={addDefaultTemplates}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Template
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })
       )}
     </div>
   );

@@ -1,55 +1,38 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { RequestsSuggestions } from "@/components/suggestions/requests-suggestions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
-  Upload,
-  Clock,
-  Calendar,
-  MoreHorizontal,
-  ChevronRight,
-  FileText,
   Search,
   MessageSquare,
-  AlertTriangle,
   Archive,
   ArchiveRestore,
   Trash2,
   Bell,
-  CheckCircle,
-  Filter,
+  Check,
   X,
   Save,
-  User,
   Loader2,
-  ArrowUpDown,
-  Layers,
   Copy,
   Flag,
   UserPlus,
-  ChevronDown,
-  ListChecks,
+  FileText,
+  MoreHorizontal,
   RefreshCw,
-  ClipboardCheck,
+  SlidersHorizontal,
+  LayoutGrid,
+  Rows3,
+  Filter,
+  Download,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -60,7 +43,6 @@ import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -70,31 +52,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, formatDistanceToNow, isPast, isWithinInterval, addDays, isToday, endOfWeek } from "date-fns";
+import { endOfDay, isToday, addDays } from "date-fns";
 import { toast } from "sonner";
-import {
-  DeadlineCountdown,
-  PriorityDot,
-} from "@/components/requests/priority-indicator";
-import {
-  type Priority,
-  sortByPriorityAndDeadline,
-  groupByPriority,
-  isDeadlineOverdue,
-  getPriorityConfig,
-} from "@/lib/deadline-utils";
+import { groupByPriority, getPriorityConfig, type Priority } from "@/lib/deadline-utils";
 import { BulkStatusDialog, type BulkActionType } from "./bulk-status-dialog";
-import { NoRequests } from "@/components/empty-states";
 import { CloneRequestDialog } from "./clone-request-dialog";
 import { SavedFilters } from "@/components/filters/saved-filters";
-import {
-  type FilterGroup,
-  REQUEST_FILTER_FIELDS,
-  createEmptyFilterGroup,
-} from "@/lib/filter-utils";
+import { type FilterGroup, REQUEST_FILTER_FIELDS, createEmptyFilterGroup } from "@/lib/filter-utils";
 import { BackToTop } from "@/components/ui/back-to-top";
 import { useUnreadComments } from "@/hooks/use-unread-comments";
+import {
+  Countdown,
+  FieldStrip,
+  StateLegend,
+  TitleCard,
+  fieldSummary,
+  type FieldSummary,
+} from "@/components/title-wall";
+import { isFinished } from "./title-wall-map";
+import { approveTarget, holdAction } from "./review-actions";
 
 interface Creator {
   id: string;
@@ -107,10 +83,10 @@ interface RequestTemplate {
   name: string;
 }
 
-interface RequestTag {
-  id: string;
-  name: string;
-  color: string;
+interface ReadyTarget {
+  fieldId: string | null;
+  submitted: boolean;
+  uploadIds: string[];
 }
 
 interface ContentRequest {
@@ -121,11 +97,16 @@ interface ContentRequest {
   urgency: string;
   dueDate: string | null;
   createdAt: string;
+  reviewedAt?: string | null;
+  updatedAt?: string;
   creator: Creator;
   template: RequestTemplate | null;
-  tags?: RequestTag[];
   /** Number of completed uploads awaiting a review decision (PENDING). */
   pendingReviewCount?: number;
+  /** The field strip, mapped on the server */
+  strip?: FieldSummary[];
+  /** What "Approve ready" acts on */
+  readyTargets?: ReadyTarget[];
   _count: {
     uploads: number;
     comments: number;
@@ -160,72 +141,66 @@ interface RequestsListProps {
   initialError?: boolean;
 }
 
-// Loading placeholder shown only while a fetch is in flight with no data to
-// display yet — never the "No requests yet" empty state during loading.
-function RequestsListSkeleton() {
-  return (
-    <Card className="card-elevated">
-      <CardHeader>
-        <Skeleton variant="title" className="w-40" />
-        <Skeleton variant="text" className="w-24 mt-2" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 p-3 rounded-lg border">
-            <Skeleton variant="circle" className="h-5 w-5" />
-            <div className="flex-1 space-y-2">
-              <Skeleton variant="text" className="w-1/3" />
-              <Skeleton variant="text" className="w-1/4" />
-            </div>
-            <Skeleton variant="badge" />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
+// ----------------------------------------------------------------- views
+
+type ViewId = "ready" | "overdue" | "week" | "waiting" | "finished" | "drafts" | "all";
+
+const ACTIVE = ["PENDING", "IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW", "NEEDS_REVISION"];
+
+function readyCount(r: ContentRequest) {
+  return (r.strip ?? []).filter((f) => f.state === "ready").length;
+}
+function isActive(r: ContentRequest) {
+  return ACTIVE.includes(r.status);
+}
+function isOverdue(r: ContentRequest, now: Date) {
+  return isActive(r) && !!r.dueDate && new Date(r.dueDate) < now;
+}
+function isReady(r: ContentRequest) {
+  return !isFinished(r.status) && r.status !== "DRAFT" && (readyCount(r) > 0 || (r.pendingReviewCount ?? 0) > 0);
 }
 
-// Shown when a load fails and there is no data to fall back on, instead of a
-// misleading empty state.
-function RequestsListError({ onRetry }: { onRetry: () => void }) {
-  return (
-    <Card className="card-elevated">
-      <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-        <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-          <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-foreground">Couldn&apos;t load requests</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Something went wrong while fetching your requests. Please try again.
-          </p>
-        </div>
-        <Button variant="outline" onClick={onRetry}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Retry
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
+const VIEWS: { id: ViewId; label: string; test: (r: ContentRequest, now: Date) => boolean }[] = [
+  { id: "ready", label: "Ready to review", test: (r) => isReady(r) },
+  { id: "overdue", label: "Overdue", test: (r, now) => isOverdue(r, now) },
+  {
+    id: "week",
+    label: "Due this week",
+    test: (r, now) => isActive(r) && !!r.dueDate && new Date(r.dueDate) >= now && new Date(r.dueDate) <= endOfDay(addDays(now, 7)),
+  },
+  { id: "waiting", label: "Waiting on creator", test: (r) => isActive(r) && !isReady(r) },
+  { id: "finished", label: "Finished", test: (r) => r.status === "APPROVED" || r.status === "CANCELLED" },
+  { id: "drafts", label: "Drafts", test: (r) => r.status === "DRAFT" },
+  { id: "all", label: "All", test: (r) => r.status !== "ARCHIVED" },
+];
 
-const QUICK_FILTERS = [
-  { id: "needs-review", label: "Needs Review", icon: ClipboardCheck },
-  { id: "my-requests", label: "My Requests", icon: User },
-  { id: "overdue", label: "Overdue", icon: AlertTriangle },
-  { id: "due-today", label: "Due Today", icon: Calendar },
-  { id: "due-this-week", label: "Due This Week", icon: Clock },
-] as const;
+const VIEW_EMPTY: Record<ViewId, string> = {
+  ready: "Nothing is waiting for review. Requests show here as soon as a creator uploads to a field.",
+  overdue: "Nothing is overdue. Requests move here the moment their due time passes without every field approved.",
+  week: "Nothing is due in the next 7 days.",
+  waiting: "No request is waiting on a creator. Everything sent has uploads to review or is finished.",
+  finished: "No finished requests yet. A request lands here once every field is approved.",
+  drafts: "No drafts. Requests saved without sending wait here.",
+  all: "No requests yet. Send a creator their first request and it shows here with its fields and time left.",
+};
+
+// URL ?filter= values from other screens (the overview links here)
+const URL_FILTER_TO_VIEW: Record<string, ViewId> = {
+  "needs-review": "ready",
+  overdue: "overdue",
+  "due-this-week": "week",
+};
 
 const STATUS_OPTIONS = [
-  { value: "all", label: "All Statuses" },
-  { value: "DRAFT", label: "Drafts" },
+  { value: "all", label: "Any status" },
+  { value: "DRAFT", label: "Draft" },
   { value: "PENDING", label: "Pending" },
-  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "IN_PROGRESS", label: "In progress" },
   { value: "SUBMITTED", label: "Submitted" },
-  { value: "UNDER_REVIEW", label: "Under Review" },
-  { value: "NEEDS_REVISION", label: "Needs Revision" },
+  { value: "UNDER_REVIEW", label: "Under review" },
+  { value: "NEEDS_REVISION", label: "Needs changes" },
   { value: "APPROVED", label: "Approved" },
+  { value: "CANCELLED", label: "Cancelled" },
   { value: "ARCHIVED", label: "Archived" },
 ];
 
@@ -236,1632 +211,1263 @@ const PRIORITY_OPTIONS = [
   { value: "URGENT", label: "Urgent" },
 ];
 
-function getStatusConfig(status: string) {
-  const configs: Record<string, { class: string; label: string; bgClass: string }> = {
-    DRAFT: {
-      class: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800",
-      bgClass: "bg-slate-500",
-      label: "Draft",
-    },
-    PENDING: {
-      class: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800",
-      bgClass: "bg-yellow-500",
-      label: "Pending",
-    },
-    IN_PROGRESS: {
-      class: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
-      bgClass: "bg-blue-500",
-      label: "In Progress",
-    },
-    SUBMITTED: {
-      class: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800",
-      bgClass: "bg-purple-500",
-      label: "Submitted",
-    },
-    UNDER_REVIEW: {
-      class: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800",
-      bgClass: "bg-orange-500",
-      label: "Under Review",
-    },
-    NEEDS_REVISION: {
-      class: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
-      bgClass: "bg-red-500",
-      label: "Needs Revision",
-    },
-    APPROVED: {
-      class: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
-      bgClass: "bg-green-500",
-      label: "Approved",
-    },
-    CANCELLED: {
-      class: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/30 dark:text-gray-400 dark:border-gray-800",
-      bgClass: "bg-gray-500",
-      label: "Cancelled",
-    },
-    ARCHIVED: {
-      class: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-900/30 dark:text-gray-500 dark:border-gray-800",
-      bgClass: "bg-gray-400",
-      label: "Archived",
-    },
-  };
-  return configs[status] || configs.PENDING;
-}
+const STATUS_LABEL: Record<string, string> = Object.fromEntries(
+  STATUS_OPTIONS.filter((o) => o.value !== "all").map((o) => [o.value, o.label])
+);
 
-function getUrgencyConfig(urgency: string) {
-  const configs: Record<string, { class: string; label: string; show: boolean }> = {
-    LOW: { class: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400", label: "Low", show: false },
-    NORMAL: { class: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400", label: "Normal", show: false },
-    HIGH: { class: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400", label: "High", show: true },
-    URGENT: { class: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400", label: "Urgent", show: true },
-  };
-  return configs[urgency] || configs.NORMAL;
-}
-
-// Shared by the "Overdue" quick filter and its badge count so they agree:
-// past due and not already finished or withdrawn.
-function isActiveOverdue(r: ContentRequest) {
-  return (
-    !!r.dueDate &&
-    isPast(new Date(r.dueDate)) &&
-    !["APPROVED", "CANCELLED", "ARCHIVED"].includes(r.status)
-  );
-}
-
-function getDueDateStatus(dueDate: string | null) {
-  if (!dueDate) return null;
-
-  const date = new Date(dueDate);
-  const now = new Date();
-  if (isPast(date)) {
-    return { status: "overdue", label: "Overdue", class: "text-red-600 dark:text-red-400" };
-  }
-  if (isWithinInterval(date, { start: now, end: addDays(now, 2) })) {
-    return { status: "soon", label: "Due soon", class: "text-amber-600 dark:text-amber-400" };
-  }
-  return { status: "normal", label: format(date, "MMM d"), class: "text-muted-foreground" };
-}
-
-// Prominent amber marker for requests with uploaded content awaiting a review
-// decision. Uses a semantic warning colour (not the brand accent) so it stands
-// out at a glance. Renders nothing when there is nothing to review.
-function NeedsReviewBadge({ count, className = "" }: { count?: number; className?: string }) {
-  if (!count || count <= 0) return null;
-  return (
-    <Badge
-      variant="outline"
-      className={`gap-1 border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300 ${className}`}
-    >
-      <ClipboardCheck className="h-3 w-3" />
-      Needs review
-      <span className="font-semibold">{count}</span>
-    </Badge>
-  );
-}
-
-type SortOption = "priority" | "deadline" | "created" | "title";
+type SortOption = "urgent" | "ready" | "priority" | "deadline" | "created" | "title";
 type GroupOption = "none" | "priority" | "status";
 
-export function RequestsList({ initialRequests, creators, currentUserId, teamMembers = [], initialError = false }: RequestsListProps) {
+const SORT_LABEL: Record<SortOption, string> = {
+  urgent: "Most urgent first",
+  ready: "Most ready first",
+  priority: "Priority, then due",
+  deadline: "Due soonest",
+  created: "Newest first",
+  title: "Title A to Z",
+};
+
+const PAGE = 50;
+const PRIORITY_RANK: Record<string, number> = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
+
+function dueTime(r: ContentRequest) {
+  return r.dueDate ? new Date(r.dueDate).getTime() : Number.POSITIVE_INFINITY;
+}
+
+function sortRequests(list: ContentRequest[], sortBy: SortOption): ContentRequest[] {
+  const out = [...list];
+  switch (sortBy) {
+    case "urgent":
+      // Active before finished; then the soonest due (the most late first)
+      return out.sort((a, b) => Number(isFinished(a.status)) - Number(isFinished(b.status)) || dueTime(a) - dueTime(b));
+    case "ready":
+      return out.sort((a, b) => readyCount(b) - readyCount(a) || dueTime(a) - dueTime(b));
+    case "priority":
+      return out.sort(
+        (a, b) => (PRIORITY_RANK[a.urgency] ?? 2) - (PRIORITY_RANK[b.urgency] ?? 2) || dueTime(a) - dueTime(b)
+      );
+    case "deadline":
+      return out.sort((a, b) => dueTime(a) - dueTime(b));
+    case "created":
+      return out.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    case "title":
+      return out.sort((a, b) => a.title.localeCompare(b.title));
+  }
+}
+
+function completedAtOf(r: ContentRequest) {
+  return r.status === "APPROVED" ? (r.reviewedAt ?? r.updatedAt ?? null) : null;
+}
+
+function plural(n: number, one: string, many = `${one}s`) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+// ----------------------------------------------------------------- component
+
+export function RequestsList({ initialRequests, creators, teamMembers = [], initialError = false }: RequestsListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isRefreshing, startRefresh] = useTransition();
   const [requests, setRequests] = useState<ContentRequest[]>(initialRequests);
-  // Tracks the freshness of `requests` so the UI can distinguish "loading" and
-  // "failed" from a genuine, completed empty result.
-  const [loadState, setLoadState] = useState<"success" | "loading" | "error">(
-    initialError ? "error" : "success"
-  );
+  const [loadError, setLoadError] = useState(initialError);
+  const [now] = useState(() => new Date());
+
+  // Server data is the source of truth: a refresh re-renders the page with
+  // fresh rows (including the field strips), which land here.
+  useEffect(() => {
+    setRequests(initialRequests);
+    setLoadError(initialError);
+  }, [initialRequests, initialError]);
+
+  const refresh = useCallback(() => startRefresh(() => router.refresh()), [router]);
+
+  const counts = useMemo(() => {
+    const c = {} as Record<ViewId, number>;
+    for (const v of VIEWS) c[v.id] = requests.filter((r) => v.test(r, now)).length;
+    return c;
+  }, [requests, now]);
+
+  const [view, setViewState] = useState<ViewId>(() => {
+    const v = searchParams.get("view");
+    if (v && VIEWS.some((x) => x.id === v)) return v as ViewId;
+    const f = searchParams.get("filter");
+    if (f && URL_FILTER_TO_VIEW[f]) return URL_FILTER_TO_VIEW[f];
+    return initialRequests.some(isReady) ? "ready" : "all";
+  });
+  // The view lives in the URL too, so a refresh after an action (or a reload,
+  // or a shared link) lands on the same view
+  const setView = useCallback((next: ViewId) => {
+    setViewState(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", next);
+    url.searchParams.delete("filter");
+    window.history.replaceState(null, "", url);
+  }, []);
+  const [layout, setLayout] = useState<"table" | "wall">("table");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [creatorFilter, setCreatorFilter] = useState("all");
+  const [templateFilter, setTemplateFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
-  const [quickFilter, setQuickFilter] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("all");
-  const [loading, setLoading] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>("priority");
+  const [dueToday, setDueToday] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("urgent");
   const [groupBy, setGroupBy] = useState<GroupOption>("none");
-  const [bulkActionDialog, setBulkActionDialog] = useState<{
-    open: boolean;
-    action: string | null;
-    title: string;
-    description: string;
-  }>({ open: false, action: null, title: "", description: "" });
-  const [bulkStatusDialog, setBulkStatusDialog] = useState<{
-    open: boolean;
-    actionType: BulkActionType;
-  }>({ open: false, actionType: "changeStatus" });
+  const [visible, setVisible] = useState(PAGE);
+  const [bulkStatusDialog, setBulkStatusDialog] = useState<{ open: boolean; actionType: BulkActionType }>({
+    open: false,
+    actionType: "changeStatus",
+  });
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [saveFilterDialog, setSaveFilterDialog] = useState(false);
   const [newFilterName, setNewFilterName] = useState("");
-  const [cloneDialog, setCloneDialog] = useState<{
-    open: boolean;
-    request: ContentRequest | null;
-  }>({ open: false, request: null });
-  const [deleteDialog, setDeleteDialog] = useState<{
-    open: boolean;
-    requestId: string | null;
-    requestTitle: string;
-  }>({ open: false, requestId: null, requestTitle: "" });
-
-  // Advanced filter state
+  const [cloneDialog, setCloneDialog] = useState<{ open: boolean; request: ContentRequest | null }>({
+    open: false,
+    request: null,
+  });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; ids: string[]; label: string }>({
+    open: false,
+    ids: [],
+    label: "",
+  });
   const [advancedFilter, setAdvancedFilter] = useState<FilterGroup>(createEmptyFilterGroup());
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
 
-  // Unread comment tracking
   const { getCountForRequest } = useUnreadComments();
 
-  // Relation options for filter builder (creators and templates)
-  const relationOptions = useMemo(() => ({
-    creator: creators.map(c => ({ value: c.id, label: c.name })),
-  }), [creators]);
+  const relationOptions = useMemo(() => ({ creator: creators.map((c) => ({ value: c.id, label: c.name })) }), [creators]);
+  const templates = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of requests) if (r.template) m.set(r.template.id, r.template.name);
+    return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [requests]);
 
-  // Load saved filters from localStorage
+  // Per-browser conveniences: saved filters and the table/wall choice
   useEffect(() => {
-    const saved = localStorage.getItem("savedRequestFilters");
-    if (saved) {
-      setSavedFilters(JSON.parse(saved));
+    try {
+      const saved = localStorage.getItem("savedRequestFilters");
+      if (saved) setSavedFilters(JSON.parse(saved));
+      if (localStorage.getItem("ccm-requests-layout") === "wall") setLayout("wall");
+    } catch {
+      // storage unavailable: defaults stand
     }
   }, []);
 
-  // Apply a quick filter passed in the URL (e.g. the dashboard "Needs Review"
-  // stat links to /dashboard/requests?filter=needs-review).
-  useEffect(() => {
-    const urlFilter = searchParams.get("filter");
-    if (urlFilter && QUICK_FILTERS.some((f) => f.id === urlFilter)) {
-      setQuickFilter(urlFilter);
+  const chooseLayout = (l: "table" | "wall") => {
+    setLayout(l);
+    try {
+      localStorage.setItem("ccm-requests-layout", l);
+    } catch {
+      // ignore
     }
+  };
+
+  // A ?filter= link from another screen picks its view
+  useEffect(() => {
+    const f = searchParams.get("filter");
+    if (f && URL_FILTER_TO_VIEW[f]) setView(URL_FILTER_TO_VIEW[f]);
+    if (f === "due-today") setDueToday(true);
   }, [searchParams]);
 
-  // Filter requests
+  // Reset paging and selection when the view or filters change
+  useEffect(() => {
+    setVisible(PAGE);
+  }, [view, search, statusFilter, creatorFilter, templateFilter, priorityFilter, dueToday, advancedFilter, sortBy]);
+
   const filteredRequests = useMemo(() => {
-    if (!requests || !Array.isArray(requests)) return [];
-    let filtered = [...requests];
-
-    // Tab filter
-    if (activeTab === "drafts") {
-      filtered = filtered.filter((r) => r.status === "DRAFT");
-    } else if (activeTab === "active") {
-      filtered = filtered.filter((r) =>
-        ["PENDING", "IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW", "NEEDS_REVISION"].includes(r.status)
-      );
-    } else if (activeTab === "completed") {
-      filtered = filtered.filter((r) => r.status === "APPROVED");
-    } else if (activeTab === "archived") {
-      filtered = filtered.filter((r) => r.status === "ARCHIVED");
-    }
-
-    // Status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((r) => r.status === statusFilter);
-    }
-
-    // Creator filter
-    if (creatorFilter !== "all") {
-      filtered = filtered.filter((r) => r.creator.id === creatorFilter);
-    }
-
-    // Quick filters
-    if (quickFilter === "needs-review") {
-      filtered = filtered.filter((r) => (r.pendingReviewCount ?? 0) > 0);
-    } else if (quickFilter === "overdue") {
-      filtered = filtered.filter(isActiveOverdue);
-    } else if (quickFilter === "due-today") {
-      filtered = filtered.filter((r) => r.dueDate && isToday(new Date(r.dueDate)));
-    } else if (quickFilter === "due-this-week") {
-      const weekEnd = endOfWeek(new Date());
-      filtered = filtered.filter(
-        (r) => r.dueDate && isWithinInterval(new Date(r.dueDate), { start: new Date(), end: weekEnd })
-      );
-    }
-
-    // Priority filter
-    if (priorityFilter !== "all") {
-      filtered = filtered.filter((r) => r.urgency === priorityFilter);
-    }
-
-    // Search
+    const viewTest = VIEWS.find((v) => v.id === view)!.test;
+    let filtered = requests.filter((r) =>
+      // An explicit status filter of Archived reaches archived rows from any view
+      statusFilter === "ARCHIVED" ? r.status === "ARCHIVED" : viewTest(r, now)
+    );
+    if (statusFilter !== "all" && statusFilter !== "ARCHIVED") filtered = filtered.filter((r) => r.status === statusFilter);
+    if (creatorFilter !== "all") filtered = filtered.filter((r) => r.creator.id === creatorFilter);
+    if (templateFilter !== "all") filtered = filtered.filter((r) => r.template?.id === templateFilter);
+    if (priorityFilter !== "all") filtered = filtered.filter((r) => r.urgency === priorityFilter);
+    if (dueToday) filtered = filtered.filter((r) => r.dueDate && isToday(new Date(r.dueDate)));
     if (search) {
-      const searchLower = search.toLowerCase();
+      const q = search.toLowerCase();
       filtered = filtered.filter(
         (r) =>
-          r.title.toLowerCase().includes(searchLower) ||
-          r.creator.name.toLowerCase().includes(searchLower) ||
-          r.creator.email.toLowerCase().includes(searchLower)
+          r.title.toLowerCase().includes(q) ||
+          r.creator.name.toLowerCase().includes(q) ||
+          r.creator.email.toLowerCase().includes(q)
       );
     }
 
-    // Apply advanced filter conditions (from filter builder)
-    const hasAdvancedConditions = advancedFilter.conditions.some(
-      (c) => c.field && c.value !== null
-    );
-    if (hasAdvancedConditions) {
+    const conditions = advancedFilter.conditions.filter((c) => c.field && c.value !== null);
+    if (conditions.length > 0) {
       filtered = filtered.filter((request) => {
-        const results = advancedFilter.conditions
-          .filter((c) => c.field && c.value !== null)
-          .map((condition) => {
-            const { field, operator, value } = condition;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let fieldValue: any = (request as any)[field];
-
-            // Handle nested fields (e.g., creator.id)
-            if (field === "creatorId") {
-              fieldValue = request.creator.id;
-            } else if (field === "templateId") {
-              fieldValue = request.template?.id || null;
+        const results = conditions.map((condition) => {
+          const { field, operator, value } = condition;
+          let fieldValue: unknown = (request as unknown as Record<string, unknown>)[field];
+          if (field === "creatorId") fieldValue = request.creator.id;
+          else if (field === "templateId") fieldValue = request.template?.id || null;
+          const s = String(fieldValue).toLowerCase();
+          const v = String(value).toLowerCase();
+          const isDate = field.includes("Date") || field.includes("At");
+          switch (operator) {
+            case "equals":
+              return fieldValue === value;
+            case "notEquals":
+              return fieldValue !== value;
+            case "contains":
+              return s.includes(v);
+            case "notContains":
+              return !s.includes(v);
+            case "startsWith":
+              return s.startsWith(v);
+            case "endsWith":
+              return s.endsWith(v);
+            case "in":
+              return Array.isArray(value) ? value.includes(fieldValue as string) : fieldValue === value;
+            case "notIn":
+              return Array.isArray(value) ? !value.includes(fieldValue as string) : fieldValue !== value;
+            case "isNull":
+              return fieldValue === null || fieldValue === undefined;
+            case "isNotNull":
+              return fieldValue !== null && fieldValue !== undefined;
+            case "greaterThan":
+              if (isDate && value) return new Date(fieldValue as string) > new Date(value as string);
+              return value !== null ? (fieldValue as number) > (value as number) : false;
+            case "lessThan":
+              if (isDate && value) return new Date(fieldValue as string) < new Date(value as string);
+              return value !== null ? (fieldValue as number) < (value as number) : false;
+            case "between": {
+              const second = condition.secondValue;
+              if (isDate && value && second) {
+                const d = new Date(fieldValue as string);
+                return d >= new Date(value as string) && d <= new Date(second as string);
+              }
+              return value !== null && second !== null && second !== undefined
+                ? (fieldValue as number) >= (value as number) && (fieldValue as number) <= (second as number)
+                : false;
             }
-
-            switch (operator) {
-              case "equals":
-                return fieldValue === value;
-              case "notEquals":
-                return fieldValue !== value;
-              case "contains":
-                return String(fieldValue).toLowerCase().includes(String(value).toLowerCase());
-              case "notContains":
-                return !String(fieldValue).toLowerCase().includes(String(value).toLowerCase());
-              case "startsWith":
-                return String(fieldValue).toLowerCase().startsWith(String(value).toLowerCase());
-              case "endsWith":
-                return String(fieldValue).toLowerCase().endsWith(String(value).toLowerCase());
-              case "in":
-                return Array.isArray(value) ? value.includes(fieldValue) : fieldValue === value;
-              case "notIn":
-                return Array.isArray(value) ? !value.includes(fieldValue) : fieldValue !== value;
-              case "isNull":
-                return fieldValue === null || fieldValue === undefined;
-              case "isNotNull":
-                return fieldValue !== null && fieldValue !== undefined;
-              case "greaterThan":
-                if ((field.includes("Date") || field.includes("At")) && value) {
-                  return new Date(fieldValue) > new Date(value as string);
-                }
-                return value !== null ? fieldValue > value : false;
-              case "lessThan":
-                if ((field.includes("Date") || field.includes("At")) && value) {
-                  return new Date(fieldValue) < new Date(value as string);
-                }
-                return value !== null ? fieldValue < value : false;
-              case "between":
-                const secondValue = condition.secondValue;
-                if ((field.includes("Date") || field.includes("At")) && value && secondValue) {
-                  const date = new Date(fieldValue);
-                  return date >= new Date(value as string) && date <= new Date(secondValue as string);
-                }
-                return value !== null && secondValue !== null && secondValue !== undefined
-                  ? fieldValue >= value && fieldValue <= secondValue
-                  : false;
-              default:
-                return true;
-            }
-          });
-
-        // Apply logic (AND/OR)
-        return advancedFilter.logic === "AND"
-          ? results.every(Boolean)
-          : results.some(Boolean);
+            default:
+              return true;
+          }
+        });
+        return advancedFilter.logic === "AND" ? results.every(Boolean) : results.some(Boolean);
       });
     }
 
-    // Apply sorting
-    if (sortBy === "priority") {
-      filtered = sortByPriorityAndDeadline(filtered);
-    } else if (sortBy === "deadline") {
-      filtered = [...filtered].sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      });
-    } else if (sortBy === "created") {
-      filtered = [...filtered].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-    } else if (sortBy === "title") {
-      filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
-    }
+    return sortRequests(filtered, sortBy);
+  }, [requests, view, now, statusFilter, creatorFilter, templateFilter, priorityFilter, dueToday, search, sortBy, advancedFilter]);
 
-    return filtered;
-  }, [requests, activeTab, statusFilter, creatorFilter, priorityFilter, quickFilter, search, sortBy, advancedFilter]);
+  const shown = useMemo(() => filteredRequests.slice(0, visible), [filteredRequests, visible]);
 
-  // Separate overdue requests for special display
-  const overdueRequests = useMemo(() => {
-    return filteredRequests.filter((r) => r.dueDate && isDeadlineOverdue(r.dueDate));
-  }, [filteredRequests]);
-
-  const nonOverdueRequests = useMemo(() => {
-    return filteredRequests.filter((r) => !r.dueDate || !isDeadlineOverdue(r.dueDate));
-  }, [filteredRequests]);
-
-  // Group requests by priority if grouping is enabled
   const groupedRequests = useMemo(() => {
     if (groupBy === "none") return null;
+    if (groupBy === "priority") return groupByPriority(shown) as Record<string, ContentRequest[]>;
+    const groups: Record<string, ContentRequest[]> = {};
+    for (const r of shown) (groups[r.status] ??= []).push(r);
+    return groups;
+  }, [shown, groupBy]);
 
-    if (groupBy === "priority") {
-      return groupByPriority(filteredRequests);
-    }
+  const moreFilterCount =
+    (statusFilter !== "all" ? 1 : 0) +
+    (priorityFilter !== "all" ? 1 : 0) +
+    (dueToday ? 1 : 0) +
+    (groupBy !== "none" ? 1 : 0) +
+    advancedFilter.conditions.filter((c) => c.field && c.value !== null).length;
+  const hasActiveFilters =
+    !!search || creatorFilter !== "all" || templateFilter !== "all" || moreFilterCount > 0;
 
-    if (groupBy === "status") {
-      const groups: Record<string, ContentRequest[]> = {};
-      filteredRequests.forEach((r) => {
-        if (!groups[r.status]) groups[r.status] = [];
-        groups[r.status].push(r);
-      });
-      return groups;
-    }
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setCreatorFilter("all");
+    setTemplateFilter("all");
+    setPriorityFilter("all");
+    setDueToday(false);
+    setAdvancedFilter(createEmptyFilterGroup());
+  };
 
-    return null;
-  }, [filteredRequests, groupBy]);
+  // ---------------------------------------------------------- selection
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   }, []);
 
-  const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === filteredRequests.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredRequests.map((r) => r.id)));
-    }
-  }, [filteredRequests, selectedIds.size]);
+  const allShownSelected = shown.length > 0 && shown.every((r) => selectedIds.has(r.id));
+  const toggleSelectAll = () => {
+    setSelectedIds(allShownSelected ? new Set() : new Set(shown.map((r) => r.id)));
+  };
 
-  const performBulkAction = async (
-    action: string,
-    additionalData?: Record<string, unknown>
-  ) => {
-    if (selectedIds.size === 0) {
-      toast.error("No requests selected");
-      return;
-    }
-    if (loading) return;
+  const selectedRequests = useMemo(() => requests.filter((r) => selectedIds.has(r.id)), [requests, selectedIds]);
+  const selectedReadyFields = selectedRequests.reduce((n, r) => n + (r.readyTargets?.length ?? 0), 0);
+  const selectedRemindable = selectedRequests.filter((r) => ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(r.status)).length;
 
-    setLoading(true);
+  // ---------------------------------------------------------- actions
+
+  const postBulk = async (action: string, requestIds: string[], extra?: Record<string, unknown>) => {
+    const response = await fetch("/api/requests/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, requestIds, ...extra }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "The change didn't go through. Try again.");
+    return data as { affected: number; errors?: string[] };
+  };
+
+  const restoreArchived = async (ids: string[]) => {
     try {
-      const response = await fetch("/api/requests/bulk", {
-        method: "POST",
+      const response = await fetch("/api/requests/archive", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          requestIds: Array.from(selectedIds),
-          ...additionalData,
-        }),
+        body: JSON.stringify({ requestIds: ids }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to perform action");
-      }
-
-      toast.success(`Successfully updated ${data.affected} request(s)`);
-
-      if (data.errors && data.errors.length > 0) {
-        data.errors.forEach((error: string) => toast.error(error));
-      }
-
-      // Refresh requests with fresh server data and sync the server component.
-      await loadRequests();
-      router.refresh();
-
-      setSelectedIds(new Set());
-      setBulkActionDialog({ open: false, action: null, title: "", description: "" });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to perform action");
-    } finally {
-      setLoading(false);
+      if (!response.ok) throw new Error();
+      toast.success(ids.length === 1 ? "Request restored" : `${ids.length} requests restored`);
+      refresh();
+    } catch {
+      toast.error("Couldn't restore. Open Archived requests to restore them there.");
     }
   };
 
-  const handleQuickAction = async (requestId: string, action: string, data?: Record<string, unknown>) => {
-    if (loading) return;
-    setLoading(true);
+  const archive = async (ids: string[]) => {
+    if (busy) return;
+    setBusy("archive");
     try {
-      const response = await fetch("/api/requests/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          requestIds: [requestId],
-          ...data,
-        }),
+      const data = await postBulk("archive", ids);
+      toast.success(data.affected === 1 ? "Request archived" : `${data.affected} requests archived`, {
+        action: { label: "Undo", onClick: () => void restoreArchived(ids) },
       });
+      setSelectedIds(new Set());
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't archive. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
 
-      const result = await response.json();
+  // Reminders are held for a few seconds behind Undo, like approvals, then sent.
+  const sendReminders = (ids: string[]) => {
+    if (busy || ids.length === 0) return;
+    setBusy("remind");
+    holdAction({
+      message: `Sending ${plural(ids.length, "reminder")}`,
+      onUndo: () => {
+        setBusy(null);
+        toast.message("Reminder undone. Nothing was sent.");
+      },
+      run: async () => {
+        try {
+          const data = await postBulk("sendReminders", ids);
+          if (data.affected > 0) toast.success(`Reminder sent for ${plural(data.affected, "request")}`);
+          const skipped = data.errors?.length ?? 0;
+          if (skipped > 0)
+            toast.message(`${plural(skipped, "request")} skipped`, {
+              description: "Reminders only go to requests that are pending, in progress or need changes.",
+            });
+          refresh();
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Couldn't send reminders. Try again.");
+        } finally {
+          setBusy(null);
+        }
+      },
+    });
+  };
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to perform action");
-      }
+  // Approving is held for a few seconds behind Undo, then sent.
+  const approveReady = (targets: ContentRequest[]) => {
+    if (busy) return;
+    const work = targets.flatMap((r) =>
+      (r.readyTargets ?? []).map((t) => ({ requestId: r.id, ...t }))
+    );
+    if (work.length === 0) return;
+    const touched = new Set(work.map((w) => w.requestId)).size;
+    const label = `Approving ${plural(work.length, "field")} in ${plural(touched, "request")}`;
+    setSelectedIds(new Set());
+    setBusy("approve");
+    holdAction({
+      message: label,
+      onUndo: () => {
+        setBusy(null);
+        toast.message("Approval undone. Nothing was sent.");
+      },
+      run: async (keepalive) => {
+        let failed = 0;
+        for (const w of work) {
+          const result = await approveTarget(w, keepalive);
+          if (!result.ok) failed++;
+        }
+        const okCount = work.length - failed;
+        if (okCount > 0) toast.success(`Approved ${plural(okCount, "field")}`);
+        if (failed > 0) toast.error(`${plural(failed, "field")} couldn't be approved. Open the request to review it there.`);
+        setBusy(null);
+        refresh();
+      },
+    });
+  };
 
+  const quickAction = async (requestId: string, action: string, data?: Record<string, unknown>) => {
+    if (busy) return;
+    setBusy("quick");
+    try {
+      await postBulk(action, [requestId], data);
       toast.success("Request updated");
-
-      // Refresh requests with fresh server data and sync the server component.
-      await loadRequests();
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to perform action");
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't update the request. Try again.");
     } finally {
-      setLoading(false);
+      setBusy(null);
     }
   };
 
-  // Delete a single request
-  const handleDeleteRequest = async (requestId: string) => {
-    if (loading) return;
-    setLoading(true);
+  const deleteRequests = async (ids: string[]) => {
+    if (busy) return;
+    setBusy("delete");
     try {
-      const response = await fetch(`/api/requests/${requestId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to delete request");
+      if (ids.length === 1) {
+        const response = await fetch(`/api/requests/${ids[0]}`, { method: "DELETE" });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || "Couldn't delete the request. Try again.");
+        }
+      } else {
+        await postBulk("delete", ids);
       }
-
-      toast.success("Request deleted permanently");
-      setDeleteDialog({ open: false, requestId: null, requestTitle: "" });
-
-      // Remove from local state and sync the server component.
-      setRequests((prev) => prev.filter((r) => r.id !== requestId));
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete request");
+      toast.success(ids.length === 1 ? "Request deleted" : `${ids.length} requests deleted`);
+      setDeleteDialog({ open: false, ids: [], label: "" });
+      setRequests((prev) => prev.filter((r) => !ids.includes(r.id)));
+      setSelectedIds(new Set());
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't delete. Try again.");
     } finally {
-      setLoading(false);
+      setBusy(null);
     }
   };
 
   const saveFilter = () => {
     if (!newFilterName.trim()) {
-      toast.error("Please enter a filter name");
+      toast.error("Name the filter to save it");
       return;
     }
-
     const newFilter: SavedFilter = {
       id: Date.now().toString(),
-      name: newFilterName,
+      name: newFilterName.trim(),
       filters: {
         status: statusFilter !== "all" ? statusFilter : undefined,
         creatorId: creatorFilter !== "all" ? creatorFilter : undefined,
-        quickFilter: quickFilter || undefined,
+        urgency: priorityFilter !== "all" ? priorityFilter : undefined,
+        quickFilter: dueToday ? "due-today" : view,
         search: search || undefined,
       },
     };
-
-    const updatedFilters = [...savedFilters, newFilter];
-    setSavedFilters(updatedFilters);
-    localStorage.setItem("savedRequestFilters", JSON.stringify(updatedFilters));
+    const updated = [...savedFilters, newFilter];
+    setSavedFilters(updated);
+    try {
+      localStorage.setItem("savedRequestFilters", JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
     setSaveFilterDialog(false);
     setNewFilterName("");
     toast.success("Filter saved");
   };
 
   const applySavedFilter = (filter: SavedFilter) => {
+    clearFilters();
     if (filter.filters.status) setStatusFilter(filter.filters.status);
     if (filter.filters.creatorId) setCreatorFilter(filter.filters.creatorId);
-    if (filter.filters.quickFilter) setQuickFilter(filter.filters.quickFilter);
+    if (filter.filters.urgency) setPriorityFilter(filter.filters.urgency);
     if (filter.filters.search) setSearch(filter.filters.search);
+    const q = filter.filters.quickFilter;
+    if (q === "due-today") setDueToday(true);
+    else if (q && VIEWS.some((v) => v.id === q)) setView(q as ViewId);
+    else if (q && URL_FILTER_TO_VIEW[q]) setView(URL_FILTER_TO_VIEW[q]);
   };
 
   const deleteSavedFilter = (filterId: string) => {
-    const updatedFilters = savedFilters.filter((f) => f.id !== filterId);
-    setSavedFilters(updatedFilters);
-    localStorage.setItem("savedRequestFilters", JSON.stringify(updatedFilters));
+    const updated = savedFilters.filter((f) => f.id !== filterId);
+    setSavedFilters(updated);
+    try {
+      localStorage.setItem("savedRequestFilters", JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
     toast.success("Filter deleted");
   };
 
-  const clearFilters = () => {
-    setSearch("");
-    setStatusFilter("all");
-    setCreatorFilter("all");
-    setPriorityFilter("all");
-    setQuickFilter(null);
+  // ---------------------------------------------------------- pieces
+
+  const total = requests.filter((r) => r.status !== "ARCHIVED").length;
+  const activeCount = requests.filter(isActive).length;
+  const readyFieldsTotal = requests.filter((r) => !isFinished(r.status)).reduce((n, r) => n + readyCount(r), 0);
+  const summary =
+    total === 0
+      ? "Nothing sent yet."
+      : `${plural(total, "request")}: ${activeCount} active, ${counts.finished} finished. ${
+          readyFieldsTotal === 0
+            ? "No fields are waiting for review."
+            : `${plural(readyFieldsTotal, "field")} ${readyFieldsTotal === 1 ? "is" : "are"} ready to review.`
+        }`;
+
+  const rowMenu = (request: ContentRequest) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label={`More actions for ${request.title}`}>
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem asChild>
+          <Link href={`/dashboard/requests/${request.id}`}>Open review</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/dashboard/requests/${request.id}/edit`}>Edit request</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setCloneDialog({ open: true, request })}>
+          <Copy className="mr-2 size-4" />
+          Clone request
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => sendReminders([request.id])}>
+          <Bell className="mr-2 size-4" />
+          Send reminder
+        </DropdownMenuItem>
+        {(request.readyTargets?.length ?? 0) > 0 && (
+          <DropdownMenuItem onClick={() => approveReady([request])}>
+            <Check className="mr-2 size-4" />
+            Approve {plural(request.readyTargets!.length, "ready field")}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Change status</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {STATUS_OPTIONS.filter((s) => s.value !== "all").map((status) => (
+              <DropdownMenuItem
+                key={status.value}
+                disabled={request.status === status.value}
+                onClick={() => void quickAction(request.id, "changeStatus", { status: status.value })}
+              >
+                {status.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Change priority</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {PRIORITY_OPTIONS.map((p) => (
+              <DropdownMenuItem
+                key={p.value}
+                disabled={request.urgency === p.value}
+                onClick={() => void quickAction(request.id, "changePriority", { priority: p.value })}
+              >
+                {p.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        {request.status === "SUBMITTED" && (
+          <DropdownMenuItem onClick={() => void quickAction(request.id, "changeStatus", { status: "APPROVED" })}>
+            Mark as complete
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        {request.status === "ARCHIVED" ? (
+          <DropdownMenuItem onClick={() => void restoreArchived([request.id])}>
+            <ArchiveRestore className="mr-2 size-4" />
+            Restore from archive
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem onClick={() => void archive([request.id])}>
+            <Archive className="mr-2 size-4" />
+            Archive
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem
+          className="text-late focus:text-late"
+          onClick={() => setDeleteDialog({ open: true, ids: [request.id], label: `"${request.title}"` })}
+        >
+          <Trash2 className="mr-2 size-4" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const priorityMark = (r: ContentRequest) =>
+    r.urgency === "URGENT" ? (
+      <Badge variant="destructive">Urgent</Badge>
+    ) : r.urgency === "HIGH" ? (
+      <Badge variant="outline">High</Badge>
+    ) : null;
+
+  const timeCell = (r: ContentRequest) =>
+    r.status === "DRAFT" ? (
+      <span className="text-ink-2">Not sent</span>
+    ) : r.status === "CANCELLED" ? (
+      <span className="text-ink-2">Cancelled</span>
+    ) : r.status === "ARCHIVED" ? (
+      <span className="text-ink-2">Archived</span>
+    ) : r.dueDate ? (
+      <Countdown due={r.dueDate} completedAt={completedAtOf(r)} />
+    ) : (
+      <span className="text-ink-2">{r.status === "APPROVED" ? "Finished" : "No due date"}</span>
+    );
+
+  const unreadMark = (r: ContentRequest) => {
+    const unread = getCountForRequest(r.id);
+    if (unread <= 0) return null;
+    return (
+      <span className="inline-flex items-center gap-1 text-[13px] text-ink" title={`${unread} unread comments`}>
+        <MessageSquare className="size-3.5 text-icon" aria-hidden="true" />
+        {unread} new
+      </span>
+    );
   };
 
-  const hasActiveFilters = !!(search || statusFilter !== "all" || creatorFilter !== "all" || priorityFilter !== "all" || quickFilter || advancedFilter.conditions.some(c => c.field && c.value !== null));
-
-  // Get selected requests for bulk operations
-  const selectedRequests = useMemo(() => {
-    return filteredRequests.filter((r) => selectedIds.has(r.id));
-  }, [filteredRequests, selectedIds]);
-
-  // Open bulk status dialog with specific action
-  const openBulkDialog = useCallback((actionType: BulkActionType) => {
-    setBulkStatusDialog({ open: true, actionType });
-  }, []);
-
-  // Unified fetch of the freshest requests list. Tracks load state so the UI
-  // can show a skeleton while loading and an error + retry on failure, and
-  // correctly unwraps the paginated `{ data, pagination }` API response.
-  // On failure the previous data is intentionally kept, so a failed refresh
-  // never blanks an already-populated list into the empty state.
-  const loadRequests = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      // The API caps pages at 100, so walk every page; the server page loads
-      // all requests and the tabs/filters/search here are client-side.
-      const all: ContentRequest[] = [];
-      let page = 1;
-      for (;;) {
-        const response = await fetch(`/api/requests?limit=100&page=${page}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to load requests (${response.status})`);
-        }
-        const payload = await response.json();
-        const data = Array.isArray(payload) ? payload : payload?.data;
-        if (!Array.isArray(data)) {
-          throw new Error("Unexpected requests response shape");
-        }
-        all.push(...data);
-        if (Array.isArray(payload) || !payload?.pagination?.hasNextPage) break;
-        page++;
-      }
-      setRequests(all);
-      setLoadState("success");
-      return true;
-    } catch (error) {
-      console.error("Failed to load requests:", error);
-      setLoadState("error");
-      return false;
-    }
-  }, []);
-
-  // Refresh requests after bulk action
-  const refreshRequests = useCallback(async () => {
-    await loadRequests();
-    setSelectedIds(new Set());
-  }, [loadRequests]);
-
-  // Select all visible requests
-  const selectAllVisible = useCallback(() => {
-    setSelectedIds(new Set(filteredRequests.map((r) => r.id)));
-  }, [filteredRequests]);
-
-  // Select all matching the filter (same behavior as selectAllVisible)
-  const selectAllMatching = useCallback(() => {
-    setSelectedIds(new Set(filteredRequests.map((r) => r.id)));
-  }, [filteredRequests]);
-
-  // Calculate counts for suggestions
-  const pendingCount = useMemo(() => {
-    if (!requests || !Array.isArray(requests)) return 0;
-    return requests.filter((r) => ["PENDING", "IN_PROGRESS"].includes(r.status)).length;
-  }, [requests]);
-  const overdueCount = useMemo(() => {
-    if (!requests || !Array.isArray(requests)) return 0;
-    return requests.filter(isActiveOverdue).length;
-  }, [requests]);
-
-  return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Content Requests</h1>
-          <p className="mt-1 text-sm md:text-base text-muted-foreground">
-            Track and manage content requests from your creators
-          </p>
-        </div>
-        <Button asChild className="w-full sm:w-auto min-h-[44px]">
-          <Link href="/dashboard/requests/new">
-            <Plus className="mr-2 h-4 w-4" />
-            New Request
-          </Link>
-        </Button>
-      </div>
-
-      {/* Smart Suggestions */}
-      <RequestsSuggestions
-        pendingRequests={pendingCount}
-        overdueRequests={overdueCount}
-      />
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="drafts">Drafts</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="archived">Archived</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* Advanced Saved Filters */}
-      <SavedFilters
-        entityType="requests"
-        fieldDefinitions={REQUEST_FILTER_FIELDS}
-        relationOptions={relationOptions}
-        currentFilter={advancedFilter}
-        onFilterChange={setAdvancedFilter}
-        onApplyFilter={() => {
-          // When advanced filter is applied, we can trigger a refresh or re-filter
-          // The actual filtering will be handled by the filteredRequests useMemo
-        }}
-      />
-
-      {/* Filters */}
-      <Card className="card-elevated">
-        <CardContent className="p-3 md:p-6">
-          <div className="space-y-4">
-            {/* Search and main filters */}
-            <div className="flex flex-col gap-3 md:flex-row md:gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search requests..."
-                  className="pl-10 h-11 md:h-10"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+  const renderTable = (rows: ContentRequest[], caption: string) => (
+    <>
+      {/* Desktop and tablet: a real table */}
+      <div className="hidden lg:block rounded-[10px] bg-tile">
+        <table className="w-full table-fixed border-collapse text-[14px]">
+          <caption className="sr-only">{caption}</caption>
+          <colgroup>
+            <col className="w-[52px]" />
+            <col />
+            <col className="w-[34%] lg:w-[30%]" />
+            <col className="w-[136px]" />
+            <col className="w-[132px]" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-line text-left text-[13px] text-ink-2">
+              <th scope="col" className="py-2.5 pl-4 font-medium">
+                <Checkbox
+                  checked={rows.length > 0 && rows.every((r) => selectedIds.has(r.id))}
+                  onCheckedChange={() => {
+                    const all = rows.every((r) => selectedIds.has(r.id));
+                    setSelectedIds((prev) => {
+                      const next = new Set(prev);
+                      rows.forEach((r) => (all ? next.delete(r.id) : next.add(r.id)));
+                      return next;
+                    });
+                  }}
+                  aria-label="Select every request in this list"
                 />
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="flex-1 md:w-[140px] h-11 md:h-10">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="flex-1 md:w-[130px] h-11 md:h-10">
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priorities</SelectItem>
-                    {PRIORITY_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center gap-2">
-                          <PriorityDot priority={option.value as Priority} size="sm" />
-                          {option.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-                  <SelectTrigger className="flex-1 md:w-[140px] h-11 md:h-10">
-                    <SelectValue placeholder="Creator" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Creators</SelectItem>
-                    {creators.map((creator) => (
-                      <SelectItem key={creator.id} value={creator.id}>
-                        {creator.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Sort and Group Options */}
-            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border">
-              <div className="flex items-center gap-2">
-                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Sort:</span>
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                  <SelectTrigger className="w-[140px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="priority">Priority & Deadline</SelectItem>
-                    <SelectItem value="deadline">Deadline</SelectItem>
-                    <SelectItem value="created">Created Date</SelectItem>
-                    <SelectItem value="title">Title</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Group:</span>
-                <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupOption)}>
-                  <SelectTrigger className="w-[120px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Grouping</SelectItem>
-                    <SelectItem value="priority">By Priority</SelectItem>
-                    <SelectItem value="status">By Status</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Quick filters */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-muted-foreground">Quick filters:</span>
-              {QUICK_FILTERS.map((filter) => {
-                const Icon = filter.icon;
-                const isActive = quickFilter === filter.id;
-                return (
-                  <Button
-                    key={filter.id}
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setQuickFilter(isActive ? null : filter.id)}
-                    className="h-8"
-                  >
-                    <Icon className="mr-1.5 h-3.5 w-3.5" />
-                    {filter.label}
-                  </Button>
-                );
-              })}
-
-              {/* Saved filters dropdown */}
-              {savedFilters.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8">
-                      <Filter className="mr-1.5 h-3.5 w-3.5" />
-                      Saved Filters
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    {savedFilters.map((filter) => (
-                      <DropdownMenuItem
-                        key={filter.id}
-                        className="flex items-center justify-between"
-                      >
-                        <span onClick={() => applySavedFilter(filter)}>{filter.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 ml-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteSavedFilter(filter.id);
-                          }}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-
-              {/* Save current filter */}
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setSaveFilterDialog(true)}
-                >
-                  <Save className="mr-1.5 h-3.5 w-3.5" />
-                  Save Filter
-                </Button>
-              )}
-
-              {/* Clear filters */}
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" className="h-8" onClick={clearFilters}>
-                  <X className="mr-1.5 h-3.5 w-3.5" />
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Bulk actions bar */}
-      {selectedIds.size > 0 && (
-        <Card className="card-elevated border-primary bg-primary/5">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <ListChecks className="h-5 w-5 text-primary" />
-                  <span className="text-sm font-medium">
-                    {selectedIds.size} request{selectedIds.size !== 1 ? "s" : ""} selected
-                  </span>
-                </div>
-                <div className="hidden sm:flex items-center gap-2 border-l pl-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={selectAllVisible}
-                  >
-                    Select all visible ({filteredRequests.length})
-                  </Button>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {/* Bulk Actions Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="default" size="sm" disabled={loading}>
-                      <ChevronDown className="mr-1.5 h-4 w-4" />
-                      Bulk Actions
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Update Selected</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => openBulkDialog("changeStatus")}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Change Status
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => openBulkDialog("changePriority")}>
-                      <Flag className="mr-2 h-4 w-4" />
-                      Change Priority
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => openBulkDialog("assignTeamMember")}>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Assign Team Member
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => openBulkDialog("sendReminder")}>
-                      <Bell className="mr-2 h-4 w-4" />
-                      Send Reminders
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => openBulkDialog("archive")}>
-                      <Archive className="mr-2 h-4 w-4" />
-                      Archive
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() =>
-                        setBulkActionDialog({
-                          open: true,
-                          action: "delete",
-                          title: "Delete Requests",
-                          description: `Are you sure you want to delete ${selectedIds.size} request(s)? This action cannot be undone.`,
-                        })
-                      }
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Quick Actions */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openBulkDialog("changeStatus")}
-                  disabled={loading}
-                  className="hidden sm:flex"
-                >
-                  <FileText className="mr-1.5 h-4 w-4" />
-                  Status
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openBulkDialog("changePriority")}
-                  disabled={loading}
-                  className="hidden md:flex"
-                >
-                  <Flag className="mr-1.5 h-4 w-4" />
-                  Priority
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openBulkDialog("sendReminder")}
-                  disabled={loading}
-                  className="hidden lg:flex"
-                >
-                  <Bell className="mr-1.5 h-4 w-4" />
-                  Remind
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedIds(new Set())}
-                >
-                  <X className="mr-1.5 h-4 w-4" />
-                  Clear
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* List states: loading skeleton, load error, empty, or the list itself.
-          The empty state renders only on a completed, successful, genuinely
-          empty fetch — never during loading and never on a failed load. */}
-      {loadState === "loading" && requests.length === 0 ? (
-        <RequestsListSkeleton />
-      ) : loadState === "error" && requests.length === 0 ? (
-        <RequestsListError onRetry={() => { void loadRequests(); }} />
-      ) : filteredRequests.length === 0 ? (
-        <NoRequests
-          isFiltered={hasActiveFilters}
-          onClearFilters={clearFilters}
-          tabContext={activeTab as "all" | "drafts" | "active" | "completed" | "archived"}
-        />
-      ) : (
-        <>
-
-          {/* Overdue Requests Section */}
-          {overdueRequests.length > 0 && groupBy === "none" && (
-            <Card className="card-elevated border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 animate-pulse" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg text-red-700 dark:text-red-400">
-                      Overdue Requests
-                    </CardTitle>
-                    <CardDescription className="text-red-600/70 dark:text-red-400/70">
-                      {overdueRequests.length} request{overdueRequests.length !== 1 ? "s" : ""} past deadline
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2">
-                  {overdueRequests.map((request) => (
-                    <Link
-                      key={request.id}
-                      href={`/dashboard/requests/${request.id}`}
-                      className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-gray-900 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <PriorityDot priority={request.urgency as Priority} animate />
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{request.title}</p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {request.creator.name}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <NeedsReviewBadge count={request.pendingReviewCount} />
-                        <DeadlineCountdown deadline={request.dueDate} priority={request.urgency as Priority} size="sm" />
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Grouped View */}
-          {groupBy !== "none" && groupedRequests && (
-            <div className="space-y-4">
-              {Object.entries(groupedRequests).map(([group, groupItems]) => {
-                if ((groupItems as ContentRequest[]).length === 0) return null;
-                const priorityConfig = groupBy === "priority" ? getPriorityConfig(group as Priority) : null;
-                const groupStatusConfig = groupBy === "status" ? getStatusConfig(group) : null;
-
-                return (
-                  <Card key={group} className="card-elevated">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-2">
-                        {priorityConfig && (
-                          <>
-                            <PriorityDot priority={group as Priority} size="md" />
-                            <CardTitle className="text-lg">{priorityConfig.label} Priority</CardTitle>
-                          </>
-                        )}
-                        {groupStatusConfig && (
-                          <>
-                            <div className={`h-2 w-2 rounded-full ${groupStatusConfig.bgClass}`} />
-                            <CardTitle className="text-lg">{groupStatusConfig.label}</CardTitle>
-                          </>
-                        )}
-                        <Badge variant="secondary" className="ml-2">
-                          {(groupItems as ContentRequest[]).length}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="space-y-2">
-                        {(groupItems as ContentRequest[]).map((request) => (
-                          <Link
-                            key={request.id}
-                            href={`/dashboard/requests/${request.id}`}
-                            className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <Checkbox
-                                checked={selectedIds.has(request.id)}
-                                onCheckedChange={() => toggleSelect(request.id)}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <div className="min-w-0">
-                                <p className="font-medium truncate">{request.title}</p>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <span>{request.creator.name}</span>
-                                  {request.dueDate && (
-                                    <>
-                                      <span>-</span>
-                                      <DeadlineCountdown deadline={request.dueDate} priority={request.urgency as Priority} size="sm" />
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <NeedsReviewBadge count={request.pendingReviewCount} />
-                              <Badge variant="outline" className={getStatusConfig(request.status).class}>
-                                {getStatusConfig(request.status).label}
-                              </Badge>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Standard List View (when not grouping) */}
-          {groupBy === "none" && (
-          <>
-          {/* Mobile Card View */}
-          <div className="block md:hidden space-y-3">
-            <p className="text-sm text-muted-foreground px-1">
-              {filteredRequests.length} request{filteredRequests.length !== 1 ? "s" : ""}
-            </p>
-            {filteredRequests.map((request) => {
-              const statusConfig = getStatusConfig(request.status);
-              const urgencyConfig = getUrgencyConfig(request.urgency);
-              const dueDateStatus = getDueDateStatus(request.dueDate);
-              const isSelected = selectedIds.has(request.id);
-
+              </th>
+              <th scope="col" className="py-2.5 pr-4 font-medium">Request</th>
+              <th scope="col" className="py-2.5 pr-4 font-medium">Fields</th>
+              <th scope="col" className="py-2.5 pr-4 font-medium">Time left</th>
+              <th scope="col" className="py-2.5 pr-4 font-medium"><span className="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const selected = selectedIds.has(r.id);
+              const ready = readyCount(r);
+              const strip = r.strip ?? [];
               return (
-                <div key={request.id} className="group relative">
-                  <Card
-                    className={`card-elevated overflow-hidden transition-all ${
-                      isSelected ? "ring-2 ring-primary" : ""
-                    }`}
-                  >
-                    {/* Status indicator bar */}
-                    <div className={`h-1 ${statusConfig.bgClass}`} />
-
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        {/* Checkbox */}
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleSelect(request.id)}
-                          className="mt-1"
-                        />
-
-                        {/* Creator Avatar */}
-                        <Avatar className="h-10 w-10 flex-shrink-0">
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white text-sm font-semibold">
-                            {request.creator.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-
-                        {/* Request Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <Link
-                              href={`/dashboard/requests/${request.id}`}
-                              className="min-w-0 flex-1"
-                            >
-                              <h3 className="font-semibold text-foreground truncate pr-2 hover:text-primary transition-colors">
-                                {request.title}
-                              </h3>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {request.creator.name}
-                              </p>
-                            </Link>
-
-                            {/* Quick actions menu */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/requests/${request.id}`}>
-                                    View Details
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/requests/${request.id}/edit`}>
-                                    Edit Request
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setCloneDialog({ open: true, request })}
-                                  className="text-indigo-600 dark:text-indigo-400"
-                                >
-                                  <Copy className="mr-2 h-4 w-4" />
-                                  Clone Request
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleQuickAction(request.id, "sendReminders")}
-                                >
-                                  <Bell className="mr-2 h-4 w-4" />
-                                  Send Reminder
-                                </DropdownMenuItem>
-                                <DropdownMenuSub>
-                                  <DropdownMenuSubTrigger>Change Status</DropdownMenuSubTrigger>
-                                  <DropdownMenuSubContent>
-                                    {STATUS_OPTIONS.filter((s) => s.value !== "all").map((status) => (
-                                      <DropdownMenuItem
-                                        key={status.value}
-                                        onClick={() =>
-                                          handleQuickAction(request.id, "changeStatus", {
-                                            status: status.value,
-                                          })
-                                        }
-                                      >
-                                        {status.label}
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuSub>
-                                <DropdownMenuSub>
-                                  <DropdownMenuSubTrigger>Change Priority</DropdownMenuSubTrigger>
-                                  <DropdownMenuSubContent>
-                                    {PRIORITY_OPTIONS.map((priority) => (
-                                      <DropdownMenuItem
-                                        key={priority.value}
-                                        onClick={() =>
-                                          handleQuickAction(request.id, "changePriority", {
-                                            priority: priority.value,
-                                          })
-                                        }
-                                      >
-                                        {priority.label}
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuSub>
-                                <DropdownMenuSeparator />
-                                {request.status === "SUBMITTED" && (
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      handleQuickAction(request.id, "changeStatus", {
-                                        status: "APPROVED",
-                                      })
-                                    }
-                                    className="text-green-600"
-                                  >
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Mark as Complete
-                                  </DropdownMenuItem>
-                                )}
-                                {request.status === "ARCHIVED" ? (
-                                  <DropdownMenuItem
-                                    onClick={() => handleQuickAction(request.id, "changeStatus", { status: "PENDING" })}
-                                    className="text-blue-600 dark:text-blue-400"
-                                  >
-                                    <ArchiveRestore className="mr-2 h-4 w-4" />
-                                    Restore from Archive
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem
-                                    onClick={() => handleQuickAction(request.id, "archive")}
-                                  >
-                                    <Archive className="mr-2 h-4 w-4" />
-                                    Archive
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => setDeleteDialog({ open: true, requestId: request.id, requestTitle: request.title })}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-
-                          {/* Tags row */}
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
-                            <NeedsReviewBadge
-                              count={request.pendingReviewCount}
-                              className="text-[10px]"
-                            />
-                            <Badge variant="outline" className={`${statusConfig.class} text-[10px]`}>
-                              {statusConfig.label}
-                            </Badge>
-                            {urgencyConfig.show && (
-                              <Badge variant="secondary" className={`${urgencyConfig.class} text-[10px]`}>
-                                {urgencyConfig.label}
-                              </Badge>
-                            )}
-                            {request.template && (
-                              <Badge variant="outline" className="text-[10px]">
-                                {request.template.name}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Meta row */}
-                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                            <div className="flex items-center gap-4">
-                              {request.dueDate && dueDateStatus && (
-                                <div className={`flex items-center gap-1 text-xs ${dueDateStatus.class}`}>
-                                  {dueDateStatus.status === "overdue" && (
-                                    <AlertTriangle className="h-3 w-3" />
-                                  )}
-                                  <Calendar className="h-3 w-3" />
-                                  <span>{dueDateStatus.label}</span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Upload className="h-3 w-3" />
-                                <span>{request._count.uploads}</span>
-                              </div>
-                              {request._count.comments > 0 && (
-                                <div className={`flex items-center gap-1 text-xs ${getCountForRequest(request.id) > 0 ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                                  <div className="relative">
-                                    <MessageSquare className="h-3 w-3" />
-                                    {getCountForRequest(request.id) > 0 && (
-                                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
-                                    )}
-                                  </div>
-                                  <span>{request._count.comments}</span>
-                                  {getCountForRequest(request.id) > 0 && (
-                                    <span className="text-[10px]">({getCountForRequest(request.id)} new)</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                            </span>
-                          </div>
-                        </div>
+                <tr
+                  key={r.id}
+                  data-selected={selected || undefined}
+                  className="group border-b border-line last:border-b-0 transition-colors duration-150 hover:bg-tile-hi data-[selected]:bg-tile-hi"
+                >
+                  <td className="py-3 pl-4 align-middle">
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={() => toggleSelect(r.id)}
+                      aria-label={`Select ${r.title}`}
+                    />
+                  </td>
+                  <td className="py-3 pr-4 align-middle">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Link
+                        href={`/dashboard/requests/${r.id}`}
+                        className="truncate text-[15px] font-semibold text-ink hover:underline focus-visible:underline"
+                      >
+                        {r.title}
+                      </Link>
+                      {priorityMark(r)}
+                    </div>
+                    <div className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-2">
+                      <Link href={`/dashboard/creators/${r.creator.id}`} className="inline-flex min-h-6 shrink-0 items-center text-ink hover:underline">
+                        {r.creator.name}
+                      </Link>
+                      {r.template && <span className="truncate">· {r.template.name}</span>}
+                      {r.status === "DRAFT" && <span className="shrink-0">· Draft</span>}
+                      {unreadMark(r) && <span className="ml-1.5 shrink-0">{unreadMark(r)}</span>}
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 align-middle">
+                    {strip.length > 0 && (
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <FieldStrip fields={strip} />
+                        <span className="truncate text-[13px] text-ink-2">{fieldSummary(strip)}</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                    )}
+                  </td>
+                  <td className="py-3 pr-4 align-middle text-[14px]">{timeCell(r)}</td>
+                  <td className="py-3 pr-3 align-middle">
+                    <div className="flex items-center justify-end gap-1">
+                      {ready > 0 && !isFinished(r.status) && (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/dashboard/requests/${r.id}`}>Review {ready}</Link>
+                        </Button>
+                      )}
+                      {rowMenu(r)}
+                    </div>
+                  </td>
+                </tr>
               );
             })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Phone: one row per request, same content stacked */}
+      <ul className="lg:hidden divide-y divide-line rounded-[10px] bg-tile" aria-label={caption}>
+        {rows.map((r) => {
+          const selected = selectedIds.has(r.id);
+          const strip = r.strip ?? [];
+          const ready = readyCount(r);
+          return (
+            <li key={r.id} data-selected={selected || undefined} className="flex gap-3 px-3 py-3 data-[selected]:bg-tile-hi">
+              <div className="pt-1">
+                <Checkbox checked={selected} onCheckedChange={() => toggleSelect(r.id)} aria-label={`Select ${r.title}`} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <Link href={`/dashboard/requests/${r.id}`} className="min-w-0 text-[16px] font-semibold leading-snug text-ink">
+                    {r.title}
+                  </Link>
+                  <div className="-mr-1 -mt-1 shrink-0">{rowMenu(r)}</div>
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[14px] text-ink-2">
+                  <span className="text-ink">{r.creator.name}</span>
+                  <span aria-hidden="true">·</span>
+                  {timeCell(r)}
+                  {priorityMark(r)}
+                </div>
+                {strip.length > 0 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <FieldStrip fields={strip} />
+                    <span className="truncate text-[13px] text-ink-2">{fieldSummary(strip)}</span>
+                  </div>
+                )}
+                {(ready > 0 || getCountForRequest(r.id) > 0) && (
+                  <div className="mt-2 flex items-center gap-3">
+                    {ready > 0 && !isFinished(r.status) && (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/dashboard/requests/${r.id}`}>Review {ready}</Link>
+                      </Button>
+                    )}
+                    {unreadMark(r)}
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+
+  const renderWall = (rows: ContentRequest[]) => (
+    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" aria-label="Requests as title cards">
+      {rows.map((r) => (
+        <li key={r.id} className="min-w-0">
+          <TitleCard
+            title={r.title}
+            creator={r.creator.name}
+            fields={r.strip ?? []}
+            due={r.status === "DRAFT" ? null : r.dueDate}
+            timeText={r.status === "DRAFT" ? "Not sent" : !r.dueDate ? "No due date" : undefined}
+            completedAt={completedAtOf(r)}
+            href={`/dashboard/requests/${r.id}`}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+
+  const renderRows = (rows: ContentRequest[], caption: string) =>
+    layout === "wall" ? renderWall(rows) : renderTable(rows, caption);
+
+  const viewLabel = VIEWS.find((v) => v.id === view)!.label;
+
+  // ---------------------------------------------------------- render
+
+  const primaryFilterCount = (creatorFilter !== "all" ? 1 : 0) + (templateFilter !== "all" ? 1 : 0);
+
+  /** Creator, template and sort: a row of selects, or labelled full-width rows on a phone. */
+  const primarySelects = (mode: "row" | "stack") => {
+    const trigger = mode === "row" ? undefined : "w-full";
+    const wrap = (label: string, id: string, el: React.ReactNode) =>
+      mode === "row" ? (
+        el
+      ) : (
+        <div className="grid gap-1.5">
+          <label htmlFor={id} className="text-[13px] font-medium text-ink-2">
+            {label}
+          </label>
+          {el}
+        </div>
+      );
+    return (
+      <>
+        {wrap(
+          "Creator",
+          `req-creator-${mode}`,
+          <Select value={creatorFilter} onValueChange={setCreatorFilter}>
+            <SelectTrigger id={`req-creator-${mode}`} className={trigger ?? "min-w-0 flex-1 sm:flex-none sm:w-[150px]"} aria-label="Creator">
+              <SelectValue placeholder="All creators" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All creators</SelectItem>
+              {creators.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {wrap(
+          "Template",
+          `req-template-${mode}`,
+          <Select value={templateFilter} onValueChange={setTemplateFilter}>
+            <SelectTrigger id={`req-template-${mode}`} className={trigger ?? "min-w-0 flex-1 sm:flex-none sm:w-[160px]"} aria-label="Template">
+              <SelectValue placeholder="All templates" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All templates</SelectItem>
+              {templates.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {wrap(
+          "Sort",
+          `req-sort-${mode}`,
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+            <SelectTrigger id={`req-sort-${mode}`} className={trigger ?? "min-w-0 flex-1 sm:flex-none sm:w-[176px]"} aria-label="Sort">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(SORT_LABEL) as SortOption[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {SORT_LABEL[k]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </>
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Title row: the page answers "what needs me" in one sentence */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">Requests</h1>
+          <p className="mt-1 text-[15px] text-ink-2">{summary}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/dashboard/exports">
+              <Download className="size-4" />
+              Export
+            </Link>
+          </Button>
+          <Button asChild variant="light">
+            <Link href="/dashboard/requests/new">
+              <Plus className="size-4" />
+              New request
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Saved views */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Tabs value={view} onValueChange={(v) => { setView(v as ViewId); setSelectedIds(new Set()); }}>
+          <TabsList aria-label="Request views">
+            {VIEWS.filter((v) => v.id !== "drafts" || counts.drafts > 0).map((v) => (
+              <TabsTrigger key={v.id} value={v.id}>
+                {v.label}
+                <span className="tabular-nums text-ink">{counts[v.id]}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <Link
+          href="/dashboard/requests/archived"
+          className="inline-flex items-center gap-1.5 text-[14px] text-ink-2 underline-offset-[3px] hover:text-ink hover:underline"
+        >
+          <Archive className="size-4" aria-hidden="true" />
+          Archived requests
+        </Link>
+      </div>
+
+      {/* Search, filters, sort, layout */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[220px] flex-1 basis-full sm:basis-auto md:max-w-[360px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-icon" aria-hidden="true" />
+            <Input
+              placeholder="Search title or creator"
+              aria-label="Search requests by title or creator"
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {/* From 640px the three main selects sit in this row; on a phone
+              they move into More filters, each on its own labelled row */}
+          <div className="hidden sm:contents">{primarySelects("row")}</div>
+          <Button
+            variant={showMoreFilters ? "secondary" : "outline"}
+            onClick={() => setShowMoreFilters((v) => !v)}
+            aria-expanded={showMoreFilters}
+            aria-controls="requests-more-filters"
+          >
+            <SlidersHorizontal className="size-4" />
+            More filters
+            {moreFilterCount > 0 && <span className="hidden tabular-nums text-ink sm:inline">{moreFilterCount}</span>}
+            {moreFilterCount + primaryFilterCount > 0 && (
+              <span className="tabular-nums text-ink sm:hidden">{moreFilterCount + primaryFilterCount}</span>
+            )}
+          </Button>
+          {hasActiveFilters && (
+            <Button variant="ghost" onClick={clearFilters}>
+              <X className="size-4" />
+              Clear
+            </Button>
+          )}
+          <div className="ml-auto flex rounded-[10px] bg-well p-[3px]" role="group" aria-label="Layout">
+            {(["table", "wall"] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                aria-pressed={layout === l}
+                onClick={() => chooseLayout(l)}
+                className="inline-flex h-[30px] items-center gap-1.5 rounded-[7px] px-3 text-[14px] font-medium text-ink-2 transition-colors duration-150 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring aria-pressed:bg-tile-hi aria-pressed:text-ink"
+              >
+                {l === "table" ? <Rows3 className="size-4" aria-hidden="true" /> : <LayoutGrid className="size-4" aria-hidden="true" />}
+                {l === "table" ? "List" : "Wall"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {showMoreFilters && (
+          <div id="requests-more-filters" className="flex flex-wrap items-center gap-2 rounded-[10px] bg-tile p-3">
+            <div className="grid basis-full gap-3 sm:hidden">{primarySelects("stack")}</div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]" aria-label="Status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-[140px]" aria-label="Priority">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any priority</SelectItem>
+                {PRIORITY_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupOption)}>
+              <SelectTrigger className="w-[160px]" aria-label="Group">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No grouping</SelectItem>
+                <SelectItem value="priority">Group by priority</SelectItem>
+                <SelectItem value="status">Group by status</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant={dueToday ? "secondary" : "outline"} aria-pressed={dueToday} onClick={() => setDueToday((v) => !v)}>
+              Due today
+            </Button>
+            {savedFilters.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Filter className="size-4" />
+                    My filters
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {savedFilters.map((filter) => (
+                    <div key={filter.id} className="flex items-center gap-1">
+                      <DropdownMenuItem className="flex-1" onClick={() => applySavedFilter(filter)}>
+                        {filter.name}
+                      </DropdownMenuItem>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Delete filter ${filter.name}`}
+                        onClick={() => deleteSavedFilter(filter.id)}
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {hasActiveFilters && (
+              <Button variant="ghost" onClick={() => setSaveFilterDialog(true)}>
+                <Save className="size-4" />
+                Save these filters
+              </Button>
+            )}
+            <div className="basis-full">
+              <SavedFilters
+                entityType="requests"
+                fieldDefinitions={REQUEST_FILTER_FIELDS}
+                relationOptions={relationOptions}
+                currentFilter={advancedFilter}
+                onFilterChange={setAdvancedFilter}
+                onApplyFilter={() => {
+                  // filtering is derived from advancedFilter in filteredRequests
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bulk actions for the selection */}
+      {selectedIds.size > 0 && (
+        <div
+          className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-[10px] bg-raised px-3 py-2 shadow-lg"
+          role="region"
+          aria-label="Selected requests"
+        >
+          <span className="mr-1 text-[14px] font-medium text-ink">{plural(selectedIds.size, "request")} selected</span>
+          <Button
+            size="sm"
+            onClick={() => approveReady(selectedRequests)}
+            disabled={!!busy || selectedReadyFields === 0}
+            title={selectedReadyFields === 0 ? "No ready fields in the selection" : undefined}
+          >
+            {busy === "approve" ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            Approve all ready{selectedReadyFields > 0 ? ` (${selectedReadyFields})` : ""}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => sendReminders(Array.from(selectedIds))}
+            disabled={!!busy || selectedRemindable === 0}
+            title={selectedRemindable === 0 ? "None of these are waiting on the creator" : undefined}
+          >
+            {busy === "remind" ? <Loader2 className="size-4 animate-spin" /> : <Bell className="size-4" />}
+            Send reminder
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => void archive(Array.from(selectedIds))} disabled={!!busy}>
+            <Archive className="size-4" />
+            Archive
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={!!busy}>
+                More
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52">
+              <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "changeStatus" })}>
+                <FileText className="mr-2 size-4" />
+                Change status
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "changePriority" })}>
+                <Flag className="mr-2 size-4" />
+                Change priority
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "assignTeamMember" })}>
+                <UserPlus className="mr-2 size-4" />
+                Assign team member
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-late focus:text-late"
+                onClick={() =>
+                  setDeleteDialog({ open: true, ids: Array.from(selectedIds), label: plural(selectedIds.size, "request") })
+                }
+              >
+                <Trash2 className="mr-2 size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelectedIds(new Set())}>
+            <X className="size-4" />
+            Clear selection
+          </Button>
+        </div>
+      )}
+
+      {/* The list */}
+      {loadError && requests.length === 0 ? (
+        <div className="flex flex-col items-start gap-3 rounded-[10px] bg-tile p-6">
+          <h2 className="text-[17px] font-semibold text-ink">Requests didn&apos;t load</h2>
+          <p className="text-[14px] text-ink-2">The server didn&apos;t answer. Your requests are safe; try loading them again.</p>
+          <Button variant="outline" onClick={refresh} disabled={isRefreshing}>
+            {isRefreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            Try again
+          </Button>
+        </div>
+      ) : isRefreshing && requests.length === 0 ? (
+        <div className="space-y-2 rounded-[10px] bg-tile p-4" aria-busy="true">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : filteredRequests.length === 0 ? (
+        <div className="flex flex-col items-start gap-3 rounded-[10px] bg-tile p-6">
+          <h2 className="text-[17px] font-semibold text-ink">
+            {hasActiveFilters ? `No requests in ${viewLabel} match these filters` : `${viewLabel}: nothing here`}
+          </h2>
+          <p className="max-w-[60ch] text-[14px] text-ink-2">
+            {hasActiveFilters ? "Clear the filters to see the whole view, or try another view above." : VIEW_EMPTY[view]}
+          </p>
+          {hasActiveFilters ? (
+            <Button variant="outline" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          ) : view === "all" || view === "drafts" ? (
+            <Button asChild>
+              <Link href="/dashboard/requests/new">
+                <Plus className="size-4" />
+                New request
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => setView("all")}>
+              Show all requests
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 text-[14px] text-ink-2">
+            <p aria-live="polite">
+              {filteredRequests.length > shown.length
+                ? `Showing ${shown.length} of ${plural(filteredRequests.length, "request")} in ${viewLabel}`
+                : `${plural(filteredRequests.length, "request")} in ${viewLabel}`}
+              {isRefreshing && <Loader2 className="ml-2 inline size-3.5 animate-spin" aria-label="Refreshing" />}
+            </p>
+            {layout === "table" && (
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="text-ink-2 underline-offset-[3px] hover:text-ink hover:underline lg:hidden"
+              >
+                {allShownSelected ? "Clear selection" : "Select all"}
+              </button>
+            )}
           </div>
 
-          {/* Desktop Table View */}
-          <Card className="card-elevated hidden md:block">
-            <CardHeader>
-              <CardTitle>All Requests</CardTitle>
-              <CardDescription>
-                {filteredRequests.length} request{filteredRequests.length !== 1 ? "s" : ""}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px]">
-                      <Checkbox
-                        checked={
-                          selectedIds.size === filteredRequests.length && filteredRequests.length > 0
-                        }
-                        onCheckedChange={toggleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Request</TableHead>
-                    <TableHead>Creator</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Uploads</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRequests.map((request) => {
-                    const statusConfig = getStatusConfig(request.status);
-                    const urgencyConfig = getUrgencyConfig(request.urgency);
-                    const isSelected = selectedIds.has(request.id);
-
-                    return (
-                      <TableRow
-                        key={request.id}
-                        className={`group ${isSelected ? "bg-muted/50" : ""}`}
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleSelect(request.id)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <Link
-                              href={`/dashboard/requests/${request.id}`}
-                              className="font-medium hover:text-primary transition-colors"
-                            >
-                              {request.title}
-                            </Link>
-                            <div className="flex flex-wrap gap-2">
-                              <NeedsReviewBadge
-                                count={request.pendingReviewCount}
-                                className="text-xs"
-                              />
-                              {request.template && (
-                                <Badge variant="outline" className="text-xs">
-                                  {request.template.name}
-                                </Badge>
-                              )}
-                              {urgencyConfig.show && (
-                                <Badge variant="secondary" className={urgencyConfig.class}>
-                                  {urgencyConfig.label}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            href={`/dashboard/creators/${request.creator.id}`}
-                            className="hover:text-primary transition-colors"
-                          >
-                            {request.creator.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-auto p-0">
-                                <Badge variant="outline" className={`${statusConfig.class} cursor-pointer`}>
-                                  {statusConfig.label}
-                                </Badge>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              {STATUS_OPTIONS.filter((s) => s.value !== "all").map((status) => (
-                                <DropdownMenuItem
-                                  key={status.value}
-                                  onClick={() =>
-                                    handleQuickAction(request.id, "changeStatus", {
-                                      status: status.value,
-                                    })
-                                  }
-                                >
-                                  {status.label}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                        <TableCell>
-                          {request.dueDate ? (
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                              {format(new Date(request.dueDate), "MMM d, yyyy")}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">No due date</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <Upload className="h-4 w-4 text-muted-foreground" />
-                            {request._count.uploads}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
-                            {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleQuickAction(request.id, "sendReminders")}
-                              title="Send Reminder"
-                            >
-                              <Bell className="h-4 w-4" />
-                            </Button>
-                            {request.status === "SUBMITTED" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-green-600"
-                                onClick={() =>
-                                  handleQuickAction(request.id, "changeStatus", {
-                                    status: "APPROVED",
-                                  })
-                                }
-                                title="Mark as Complete"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/requests/${request.id}`}>
-                                    View Details
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/requests/${request.id}/edit`}>
-                                    Edit Request
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setCloneDialog({ open: true, request })}
-                                  className="text-indigo-600 dark:text-indigo-400"
-                                >
-                                  <Copy className="mr-2 h-4 w-4" />
-                                  Clone Request
-                                </DropdownMenuItem>
-                                {request.status === "SUBMITTED" && (
-                                  <DropdownMenuItem asChild>
-                                    <Link href={`/dashboard/requests/${request.id}`}>
-                                      Review Uploads
-                                    </Link>
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuSub>
-                                  <DropdownMenuSubTrigger>Change Priority</DropdownMenuSubTrigger>
-                                  <DropdownMenuSubContent>
-                                    {PRIORITY_OPTIONS.map((priority) => (
-                                      <DropdownMenuItem
-                                        key={priority.value}
-                                        onClick={() =>
-                                          handleQuickAction(request.id, "changePriority", {
-                                            priority: priority.value,
-                                          })
-                                        }
-                                      >
-                                        {priority.label}
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuSub>
-                                <DropdownMenuSeparator />
-                                {request.status === "ARCHIVED" ? (
-                                  <DropdownMenuItem
-                                    onClick={() => handleQuickAction(request.id, "changeStatus", { status: "PENDING" })}
-                                    className="text-blue-600 dark:text-blue-400"
-                                  >
-                                    <ArchiveRestore className="mr-2 h-4 w-4" />
-                                    Restore from Archive
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem
-                                    onClick={() => handleQuickAction(request.id, "archive")}
-                                  >
-                                    <Archive className="mr-2 h-4 w-4" />
-                                    Archive
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => setDeleteDialog({ open: true, requestId: request.id, requestTitle: request.title })}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-          </>
+          {groupedRequests ? (
+            <div className="space-y-6">
+              {Object.entries(groupedRequests).map(([group, items]) => {
+                if (items.length === 0) return null;
+                const label =
+                  groupBy === "priority"
+                    ? `${getPriorityConfig(group as Priority).label} priority`
+                    : (STATUS_LABEL[group] ?? group);
+                return (
+                  <section key={group} aria-label={label} className="space-y-2">
+                    <h2 className="text-[17px] font-semibold text-ink">
+                      {label} <span className="font-normal text-ink-2">{items.length}</span>
+                    </h2>
+                    {renderRows(items, label)}
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            renderRows(shown, viewLabel)
           )}
-        </>
+
+          <StateLegend className="px-1 pt-1" />
+
+          {filteredRequests.length > shown.length && (
+            <div className="flex justify-center pt-1">
+              <Button variant="outline" onClick={() => setVisible((v) => v + PAGE)}>
+                Show {Math.min(PAGE, filteredRequests.length - shown.length)} more
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Floating Action Button for Mobile */}
-      {filteredRequests.length > 0 && (
-        <Link
-          href="/dashboard/requests/new"
-          className="fixed z-40 flex md:hidden items-center justify-center h-14 w-14 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 active:scale-95 transition-transform touch-manipulation"
-          style={{
-            bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
-            right: "16px",
-          }}
-        >
-          <Plus className="h-6 w-6" />
-        </Link>
-      )}
-
-      {/* Bulk Action Confirmation Dialog */}
-      <Dialog
-        open={bulkActionDialog.open}
-        onOpenChange={(open) =>
-          setBulkActionDialog({ ...bulkActionDialog, open })
-        }
-      >
+      {/* Delete confirmation */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog((d) => ({ ...d, open }))}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{bulkActionDialog.title}</DialogTitle>
-            <DialogDescription>{bulkActionDialog.description}</DialogDescription>
+            <DialogTitle>Delete {deleteDialog.ids.length === 1 ? "this request" : deleteDialog.label}?</DialogTitle>
+            <DialogDescription>
+              Deleting {deleteDialog.label} also deletes every upload and comment on {deleteDialog.ids.length === 1 ? "it" : "them"}. This can&apos;t be undone. Archive instead to keep them.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setBulkActionDialog({ open: false, action: null, title: "", description: "" })
-              }
-              disabled={loading}
-            >
-              Cancel
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, ids: [], label: "" })} disabled={!!busy}>
+              Keep
             </Button>
-            <Button
-              variant={bulkActionDialog.action === "delete" ? "destructive" : "default"}
-              onClick={() => bulkActionDialog.action && performBulkAction(bulkActionDialog.action)}
-              disabled={loading}
-            >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm
+            <Button variant="destructive" onClick={() => void deleteRequests(deleteDialog.ids)} disabled={!!busy}>
+              {busy === "delete" && <Loader2 className="size-4 animate-spin" />}
+              Delete permanently
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Save Filter Dialog */}
+      {/* Save filter */}
       <Dialog open={saveFilterDialog} onOpenChange={setSaveFilterDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Filter</DialogTitle>
-            <DialogDescription>
-              Save your current filter settings for quick access later.
-            </DialogDescription>
+            <DialogTitle>Save these filters</DialogTitle>
+            <DialogDescription>Saved filters live in this browser under My filters.</DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Input
-              placeholder="Filter name"
-              value={newFilterName}
-              onChange={(e) => setNewFilterName(e.target.value)}
-            />
-          </div>
+          <Input
+            placeholder="Filter name"
+            aria-label="Filter name"
+            value={newFilterName}
+            onChange={(e) => setNewFilterName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && saveFilter()}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveFilterDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={saveFilter}>Save Filter</Button>
+            <Button onClick={saveFilter}>Save filter</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Clone Request Dialog */}
       {cloneDialog.request && (
         <CloneRequestDialog
           request={{
@@ -1878,65 +1484,27 @@ export function RequestsList({ initialRequests, creators, currentUserId, teamMem
           }}
           creators={creators}
           open={cloneDialog.open}
-          onOpenChange={(open) => setCloneDialog({ ...cloneDialog, open })}
-          onCloneSuccess={(clonedRequestIds) => {
-            toast.success(`Successfully created ${clonedRequestIds.length} cloned request(s)`);
-            // Re-fetch fresh data so the new clone(s) appear, and refresh the
-            // server component so a later navigation isn't served stale/empty.
-            void loadRequests();
-            router.refresh();
+          onOpenChange={(open) => setCloneDialog((d) => ({ ...d, open }))}
+          onCloneSuccess={(ids) => {
+            toast.success(ids.length === 1 ? "Request cloned" : `${ids.length} requests cloned`);
+            refresh();
           }}
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialog.open}
-        onOpenChange={(open) =>
-          setDeleteDialog({ ...deleteDialog, open })
-        }
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Request</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to permanently delete &quot;{deleteDialog.requestTitle}&quot;? This action cannot be undone and will also delete all associated uploads and comments.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setDeleteDialog({ open: false, requestId: null, requestTitle: "" })
-              }
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteDialog.requestId && handleDeleteRequest(deleteDialog.requestId)}
-              disabled={loading}
-            >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete Permanently
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk Status Dialog */}
       <BulkStatusDialog
         open={bulkStatusDialog.open}
-        onOpenChange={(open) => setBulkStatusDialog({ ...bulkStatusDialog, open })}
+        onOpenChange={(open) => setBulkStatusDialog((d) => ({ ...d, open }))}
         actionType={bulkStatusDialog.actionType}
         selectedRequests={selectedRequests}
         teamMembers={teamMembers}
-        onSuccess={refreshRequests}
+        onSuccess={() => {
+          setSelectedIds(new Set());
+          refresh();
+        }}
       />
 
-      {/* Back to Top Button */}
-      <BackToTop threshold={400} variant="gradient" />
+      <BackToTop threshold={400} />
     </div>
   );
 }

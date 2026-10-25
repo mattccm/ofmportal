@@ -171,7 +171,7 @@ function DraggableWidget({
         {/* Widget Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
+            <Button aria-label={`Widget options for ${definition.title}`}
               variant="ghost"
               size="icon"
               className="h-7 w-7 bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-muted"
@@ -282,7 +282,7 @@ function AddWidgetDialog({
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm">{widget.title}</p>
                     {isActive && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted-foreground/20 text-muted-foreground">
+                      <span className="text-[12px] px-1.5 py-0.5 rounded bg-muted-foreground/20 text-muted-foreground">
                         Added
                       </span>
                     )}
@@ -486,7 +486,7 @@ export function WidgetGrid({
             size="sm"
             onClick={handleSaveLayout}
             disabled={isSaving}
-            className="gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+            className="gap-2 bg-primary hover:bg-primary/90 "
           >
             <Save className="h-4 w-4" />
             {isSaving ? "Saving..." : "Save Layout"}

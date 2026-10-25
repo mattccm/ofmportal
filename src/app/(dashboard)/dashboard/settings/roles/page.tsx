@@ -217,7 +217,7 @@ function RoleCard({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="px-2">
+              <Button aria-label={`More actions for ${role.name}`} variant="outline" size="sm" className="px-2">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -662,7 +662,7 @@ export default function RolesSettingsPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+              <div className="p-2 rounded-lg bg-tile-hi dark:bg-tile-hi text-foreground dark:text-foreground">
                 <Shield className="h-5 w-5" />
               </div>
               <div>
@@ -688,7 +688,7 @@ export default function RolesSettingsPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+              <div className="p-2 rounded-lg bg-success/10 text-success">
                 <Check className="h-5 w-5" />
               </div>
               <div>

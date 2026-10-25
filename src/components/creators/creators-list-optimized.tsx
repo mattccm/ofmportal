@@ -81,7 +81,7 @@ function getInviteStatusBadge(status: string, compact = false) {
       shortLabel: "Pending",
     },
     ACCEPTED: {
-      class: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
+      class: "bg-success/10 text-success border-success/30",
       label: "Active",
       shortLabel: "Active",
     },
@@ -240,7 +240,7 @@ export function CreatorsListOptimized({
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger aria-label="Filter by status" className="w-[150px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -251,7 +251,7 @@ export function CreatorsListOptimized({
               </SelectContent>
             </Select>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger aria-label="Sort by" className="w-[150px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -280,7 +280,7 @@ export function CreatorsListOptimized({
                 <div className="flex items-start gap-4">
                   <Link href={`/dashboard/creators/${creator.id}`}>
                     <Avatar className="h-12 w-12 flex-shrink-0">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white text-lg font-semibold">
+                      <AvatarFallback className=" bg-primary text-white text-lg font-semibold">
                         {creator.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -299,7 +299,7 @@ export function CreatorsListOptimized({
                           {creator.email}
                         </p>
                       </div>
-                      <Link href={`/dashboard/creators/${creator.id}`}>
+                      <Link aria-label={`Open ${creator.name}`} href={`/dashboard/creators/${creator.id}`}>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </Link>
                     </div>
@@ -389,7 +389,7 @@ export function CreatorsListOptimized({
                         <div className="flex-1 min-w-[200px] p-3">
                           <div className="flex items-center gap-3">
                             <Avatar>
-                              <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white">
+                              <AvatarFallback className=" bg-primary text-white">
                                 {creator.name.charAt(0).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
@@ -441,7 +441,7 @@ export function CreatorsListOptimized({
                         <div className="w-[50px] p-3">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-9 w-9">
+                              <Button aria-label={`More actions for ${creator.name}`} variant="ghost" size="icon" className="h-9 w-9">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>

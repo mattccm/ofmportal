@@ -59,7 +59,7 @@ export function BrandLogo({
           {BRAND.productName}
         </span>
         {tagline ? (
-          <span className={cn("truncate text-[11px] font-medium opacity-60", taglineClassName)}>
+          <span className={cn("truncate text-[12px] font-medium opacity-60", taglineClassName)}>
             {tagline}
           </span>
         ) : null}

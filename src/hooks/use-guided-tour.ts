@@ -431,7 +431,7 @@ export function useGuidedTour(config: TourConfig): UseGuidedTourReturn {
 
 // NOTE: Every step below targets a real element that is rendered on the
 // staff dashboard (see the matching data-tour attributes in
-// dashboard-client.tsx and layout/sidebar.tsx). Do not add a step here
+// components/overview/overview-wall.tsx and layout/sidebar.tsx). Do not add a step here
 // unless a node with the corresponding data-tour selector actually exists,
 // otherwise the spotlight falls back to a centered tooltip with no target.
 export const DASHBOARD_TOUR_STEPS: TourStep[] = [
@@ -439,15 +439,15 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
     id: "welcome",
     target: "[data-tour='dashboard-header']",
     title: `Welcome to ${BRAND.productName}!`,
-    content: "Let's take a quick tour of your dashboard to help you get started.",
+    content: "The Overview tells you what needs you today: what is ready to review and what is late. Here is a quick tour.",
     position: "bottom",
     spotlight: false,
   },
   {
     id: "widgets",
     target: "[data-tour='dashboard-widgets']",
-    title: "Your Dashboard Widgets",
-    content: "These widgets show your quick stats, pending requests, recent uploads, and upcoming deadlines. Use 'Customize' to reorder or toggle them.",
+    title: "Your requests, shelf by shelf",
+    content: "Each request sits on one shelf: ready to review, due this week, or waiting on its creator. Click a title (or press Space) to open it in place, click again or press Enter to go to it. Upload previews stay hidden until you press and hold one.",
     position: "top",
     spotlight: true,
   },

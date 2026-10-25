@@ -303,7 +303,7 @@ const STATUS_COLORS: Record<string, string> = {
   SUBMITTED: "#8b5cf6",
   UNDER_REVIEW: "#f97316",
   NEEDS_REVISION: "#ef4444",
-  APPROVED: "#10b981",
+  APPROVED: "#d3d7de",
   CANCELLED: "#6b7280",
 };
 

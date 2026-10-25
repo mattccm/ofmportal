@@ -112,7 +112,7 @@ export function SessionHistoryViewer({
   const getEventIcon = (type: SessionRecordingEvent["type"]) => {
     switch (type) {
       case "session_started":
-        return <Play className="h-4 w-4 text-green-500" />;
+        return <Play className="h-4 w-4 text-ink-2" />;
       case "session_ended":
         return <Flag className="h-4 w-4 text-red-500" />;
       case "participant_joined":
@@ -121,13 +121,13 @@ export function SessionHistoryViewer({
         return <UserMinus className="h-4 w-4 text-gray-500" />;
       case "vote_cast":
         const vote = (type as unknown as { data?: { vote?: string } })?.data?.vote;
-        if (vote === "APPROVE") return <ThumbsUp className="h-4 w-4 text-green-500" />;
+        if (vote === "APPROVE") return <ThumbsUp className="h-4 w-4 text-approved" />;
         if (vote === "REJECT") return <ThumbsDown className="h-4 w-4 text-red-500" />;
         return <MessageSquare className="h-4 w-4 text-amber-500" />;
       case "chat_message":
         return <MessageSquare className="h-4 w-4 text-blue-500" />;
       case "voice_note":
-        return <Mic className="h-4 w-4 text-purple-500" />;
+        return <Mic className="h-4 w-4 text-foreground" />;
       default:
         return <Clock className="h-4 w-4 text-gray-500" />;
     }
@@ -307,18 +307,18 @@ export function SessionHistoryViewer({
                             {Math.round(data.analytics.agreementRate)}%
                           </Badge>
                         </h4>
-                        <Progress value={data.analytics.agreementRate} className="h-2" />
+                        <Progress aria-label="Agreement rate" value={data.analytics.agreementRate} className="h-2" />
                       </div>
 
                       {/* Vote Distribution */}
                       <div className="space-y-2">
                         <h4 className="font-medium">Vote Distribution</h4>
                         <div className="grid grid-cols-4 gap-2">
-                          <div className="bg-green-100 rounded p-2 text-center">
-                            <div className="text-lg font-bold text-green-700">
+                          <div className="bg-approved/10 rounded p-2 text-center">
+                            <div className="text-lg font-bold text-approved">
                               {data.analytics.voteDistribution.approve}
                             </div>
-                            <div className="text-xs text-green-600">Approve</div>
+                            <div className="text-xs text-approved">Approve</div>
                           </div>
                           <div className="bg-red-100 rounded p-2 text-center">
                             <div className="text-lg font-bold text-red-700">
@@ -381,7 +381,7 @@ export function SessionHistoryViewer({
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="text-green-600">{p.votingPattern.approve}A</span>
+                                <span className="text-approved">{p.votingPattern.approve}A</span>
                                 <span className="text-red-600">{p.votingPattern.reject}R</span>
                                 <span className="text-amber-600">{p.votingPattern.discuss}D</span>
                               </div>

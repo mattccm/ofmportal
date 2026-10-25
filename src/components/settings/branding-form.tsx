@@ -14,8 +14,6 @@ import { BRAND } from "@/lib/brand";
 import { toast } from "sonner";
 import {
   DEFAULT_BRANDING,
-  isValidHexColor,
-  getContrastColor,
   type BrandingSettings,
 } from "@/lib/branding";
 import { useAutosave } from "@/hooks/use-autosave";
@@ -31,99 +29,8 @@ interface BrandingFormProps {
 
 const FORM_ID = "branding-settings-form";
 
-// Color Picker Component
-function ColorPicker({
-  label,
-  value,
-  onChange,
-  description,
-}: {
-  label: string;
-  value: string;
-  onChange: (color: string) => void;
-  description?: string;
-}) {
-  const [inputValue, setInputValue] = useState(value);
-  const [isValid, setIsValid] = useState(true);
-  const [prevValue, setPrevValue] = useState(value);
-
-  if (value !== prevValue) {
-    setPrevValue(value);
-    setInputValue(value);
-    setIsValid(true);
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let newValue = e.target.value;
-
-    // Add # if missing
-    if (newValue && !newValue.startsWith("#")) {
-      newValue = "#" + newValue;
-    }
-
-    setInputValue(newValue);
-
-    if (isValidHexColor(newValue)) {
-      setIsValid(true);
-      onChange(newValue);
-    } else {
-      setIsValid(newValue.length <= 1);
-    }
-  };
-
-  const handleColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    setIsValid(true);
-    onChange(newValue);
-  };
-
-  const contrastColor = getContrastColor(value);
-
-  return (
-    <div className="space-y-2">
-      <Label className="text-sm font-medium">{label}</Label>
-      <div className="flex items-center gap-3">
-        {/* Color preview & picker (label so a click anywhere opens the picker) */}
-        <div className="relative">
-          <label
-            className="relative block w-12 h-12 rounded-xl border-2 border-border shadow-sm cursor-pointer overflow-hidden transition-transform hover:scale-105"
-            style={{ backgroundColor: value }}
-          >
-            <input
-              type="color"
-              value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000"}
-              onChange={handleColorPickerChange}
-              aria-label={`${label} colour picker`}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-            <span className="absolute inset-0 flex items-center justify-center opacity-70 transition-opacity pointer-events-none">
-              <Palette className="h-4 w-4" style={{ color: contrastColor }} />
-            </span>
-          </label>
-        </div>
-
-        {/* Hex input */}
-        <div className="flex-1">
-          <Input
-            type="text"
-            value={inputValue}
-            onChange={handleInputChange}
-            placeholder={BRAND.primaryColor}
-            className={cn(
-              "font-mono uppercase",
-              !isValid && "border-destructive focus-visible:ring-destructive/20"
-            )}
-            maxLength={7}
-          />
-        </div>
-      </div>
-      {description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
-    </div>
-  );
-}
+/** Emails use dark ink for headers and buttons (see src/lib/email.ts) */
+const EMAIL_INK = "#0e0f12";
 
 // Logo Upload Component
 function LogoUpload({
@@ -249,7 +156,7 @@ function LogoUpload({
               >
                 Replace
               </Button>
-              <Button
+              <Button aria-label={`Remove ${label}`}
                 type="button"
                 variant="ghost"
                 size="sm"
@@ -298,9 +205,9 @@ function PortalPreview({
   agencyName?: string;
 }) {
   return (
-    <div className="relative rounded-xl border overflow-hidden bg-gradient-to-br from-slate-50 via-white to-primary/5 dark:from-slate-900 dark:via-slate-900 dark:to-primary/10">
+    <div className="relative overflow-hidden rounded-xl bg-ground">
       {/* Preview Header */}
-      <div className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm px-4 py-3">
+      <div className="border-b border-line bg-ground px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {branding.logoLight ? (
@@ -313,7 +220,7 @@ function PortalPreview({
               <div
                 className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-semibold text-sm"
                 style={{
-                  background: `linear-gradient(135deg, ${branding.primaryColor}, ${branding.secondaryColor})`,
+                  background: BRAND.secondaryColor,
                 }}
               >
                 {agencyName?.charAt(0) || "A"}
@@ -322,7 +229,7 @@ function PortalPreview({
             <div>
               <p
                 className="font-semibold text-sm"
-                style={{ color: branding.primaryColor }}
+                style={{ color: BRAND.inkColor }}
               >
                 {branding.portalTitle || BRAND.productName}
               </p>
@@ -341,9 +248,9 @@ function PortalPreview({
       <div className="p-4 space-y-4">
         {/* Welcome Banner */}
         <div
-          className="rounded-xl p-4 text-white"
+          className="rounded-xl p-4 text-ink"
           style={{
-            background: `linear-gradient(135deg, ${branding.primaryColor}, ${branding.secondaryColor}, ${branding.accentColor})`,
+            background: BRAND.secondaryColor,
           }}
         >
           <p className="text-xs opacity-80">Welcome back</p>
@@ -358,12 +265,12 @@ function PortalPreview({
           {[1, 2].map((i) => (
             <div
               key={i}
-              className="rounded-lg border bg-white dark:bg-slate-800 p-3"
+              className="rounded-lg bg-tile p-3"
             >
               <div className="flex items-center gap-2">
                 <div
                   className="w-8 h-8 rounded-lg opacity-20"
-                  style={{ backgroundColor: branding.primaryColor }}
+                  style={{ backgroundColor: BRAND.inkColor }}
                 />
                 <div>
                   <p className="text-xs text-muted-foreground">Stat {i}</p>
@@ -377,16 +284,16 @@ function PortalPreview({
         {/* Button Preview */}
         <div className="flex gap-2">
           <button
-            className="flex-1 px-3 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: branding.primaryColor }}
+            className="flex-1 px-3 py-2 rounded-lg text-sm font-medium"
+            style={{ backgroundColor: BRAND.primaryColor, color: BRAND.primaryInk }}
           >
             Primary Button
           </button>
           <button
             className="flex-1 px-3 py-2 rounded-lg text-sm font-medium border"
             style={{
-              borderColor: branding.primaryColor,
-              color: branding.primaryColor,
+              borderColor: "#3c4049",
+              color: BRAND.inkColor,
             }}
           >
             Secondary
@@ -395,7 +302,7 @@ function PortalPreview({
       </div>
 
       {/* Preview Label */}
-      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-white text-[10px] font-medium">
+      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-white text-[12px] font-medium">
         Preview
       </div>
     </div>
@@ -413,8 +320,7 @@ function EmailPreview({
   return (
     <div className="rounded-xl border overflow-hidden bg-white">
       {/* Brand accent bar */}
-      <div className="h-1" style={{ backgroundColor: branding.primaryColor }} />
-
+      
       {/* Email Header (light, logo or agency name) */}
       <div className="px-6 py-4 border-b border-slate-100">
         {branding.logoLight && branding.emailLogoEnabled ? (
@@ -426,7 +332,7 @@ function EmailPreview({
         ) : (
           <p
             className="text-lg font-bold"
-            style={{ color: branding.primaryColor }}
+            style={{ color: EMAIL_INK }}
           >
             {branding.emailFromName || agencyName || BRAND.name}
           </p>
@@ -447,8 +353,8 @@ function EmailPreview({
           <button
             className="px-6 py-2.5 rounded-lg text-sm font-semibold"
             style={{
-              backgroundColor: branding.primaryColor,
-              color: getContrastColor(branding.primaryColor),
+              backgroundColor: EMAIL_INK,
+              color: "#ffffff",
             }}
           >
             View request
@@ -464,7 +370,7 @@ function EmailPreview({
       </div>
 
       {/* Preview Label */}
-      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-white text-[10px] font-medium">
+      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-white text-[12px] font-medium">
         Preview
       </div>
     </div>
@@ -586,7 +492,7 @@ export function BrandingForm({
         <div>
           <h2 className="text-lg font-semibold">Customize Your Brand</h2>
           <p className="text-sm text-muted-foreground">
-            Make the portal your own with custom colors and logos
+            Your logos, portal text and email sender
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -603,7 +509,6 @@ export function BrandingForm({
             size="sm"
             onClick={handleSave}
             disabled={!hasChanges || isSaving}
-            className="btn-gradient"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -666,52 +571,20 @@ export function BrandingForm({
               </CardContent>
             </Card>
 
-            {/* Colors Section */}
+            {/* Colours are pinned: one dark theme */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Brand Colors</CardTitle>
+                <CardTitle className="text-base">Colours</CardTitle>
                 <CardDescription>
-                  Choose colors that match your brand identity
+                  The portal uses one dark theme for everyone, so there are no brand colours to pick.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <ColorPicker
-                  label="Primary Color"
-                  value={branding.primaryColor}
-                  onChange={(v) => updateField("primaryColor", v)}
-                  description="Main brand color for buttons and highlights"
-                />
-                <ColorPicker
-                  label="Secondary Color"
-                  value={branding.secondaryColor}
-                  onChange={(v) => updateField("secondaryColor", v)}
-                  description="Used for gradients and secondary elements"
-                />
-                <ColorPicker
-                  label="Accent Color"
-                  value={branding.accentColor}
-                  onChange={(v) => updateField("accentColor", v)}
-                  description="Used for special highlights and accents"
-                />
-
-                {/* Color Preview Swatches */}
-                <div className="pt-2">
-                  <Label className="text-sm font-medium mb-2 block">
-                    Color Preview
-                  </Label>
-                  <div className="flex gap-2">
-                    <div
-                      className="flex-1 h-12 rounded-lg"
-                      style={{
-                        background: `linear-gradient(135deg, ${branding.primaryColor}, ${branding.secondaryColor})`,
-                      }}
-                    />
-                    <div
-                      className="w-12 h-12 rounded-lg"
-                      style={{ backgroundColor: branding.accentColor }}
-                    />
-                  </div>
-                </div>
+              <CardContent className="space-y-3 text-sm text-ink-2">
+                <p>
+                  Staff and creator screens share the same dark ground, with yellow kept for the one main action and for keyboard
+                  focus. Emails use dark ink on white so they read well in every mail app.
+                </p>
+                <p>Your logos, portal title, welcome message and email sender still apply.</p>
               </CardContent>
             </Card>
           </div>
@@ -888,7 +761,7 @@ export function BrandingForm({
                 </div>
 
                 <div className="flex items-center gap-3 pt-2">
-                  <button
+                  <button aria-label="Show logo in email header"
                     type="button"
                     role="switch"
                     aria-checked={branding.emailLogoEnabled}
@@ -952,126 +825,12 @@ export function BrandingForm({
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Color System</CardTitle>
-                <CardDescription>
-                  Your brand colors applied across UI elements
-                </CardDescription>
+                <CardTitle className="text-base">Email preview</CardTitle>
+                <CardDescription>Emails use your logo and sender name with dark ink on white.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Buttons */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Buttons</Label>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-                      style={{ backgroundColor: branding.primaryColor }}
-                    >
-                      Primary
-                    </button>
-                    <button
-                      className="px-4 py-2 rounded-lg text-sm font-medium border"
-                      style={{
-                        borderColor: branding.primaryColor,
-                        color: branding.primaryColor,
-                      }}
-                    >
-                      Outline
-                    </button>
-                    <button
-                      className="px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{
-                        backgroundColor: `${branding.primaryColor}15`,
-                        color: branding.primaryColor,
-                      }}
-                    >
-                      Ghost
-                    </button>
-                  </div>
-                </div>
-
-                {/* Badges */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Badges</Label>
-                  <div className="flex gap-2">
-                    <span
-                      className="px-2 py-1 rounded-full text-xs font-medium text-white"
-                      style={{ backgroundColor: branding.primaryColor }}
-                    >
-                      Active
-                    </span>
-                    <span
-                      className="px-2 py-1 rounded-full text-xs font-medium"
-                      style={{
-                        backgroundColor: `${branding.secondaryColor}20`,
-                        color: branding.secondaryColor,
-                      }}
-                    >
-                      Pending
-                    </span>
-                    <span
-                      className="px-2 py-1 rounded-full text-xs font-medium"
-                      style={{
-                        backgroundColor: `${branding.accentColor}20`,
-                        color: branding.accentColor,
-                      }}
-                    >
-                      New
-                    </span>
-                  </div>
-                </div>
-
-                {/* Links */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Links</Label>
-                  <div className="flex gap-4">
-                    <span
-                      className="text-sm font-medium underline cursor-pointer"
-                      style={{ color: branding.primaryColor }}
-                    >
-                      Primary link
-                    </span>
-                    <span
-                      className="text-sm font-medium underline cursor-pointer"
-                      style={{ color: branding.accentColor }}
-                    >
-                      Accent link
-                    </span>
-                  </div>
-                </div>
-
-                {/* Progress */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Progress</Label>
-                  <div
-                    className="h-2 rounded-full overflow-hidden"
-                    style={{ backgroundColor: `${branding.primaryColor}20` }}
-                  >
-                    <div
-                      className="h-full w-2/3 rounded-full"
-                      style={{
-                        background: `linear-gradient(90deg, ${branding.primaryColor}, ${branding.secondaryColor})`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Cards */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    Highlight Card
-                  </Label>
-                  <div
-                    className="p-4 rounded-lg border-l-4"
-                    style={{
-                      borderLeftColor: branding.primaryColor,
-                      backgroundColor: `${branding.primaryColor}08`,
-                    }}
-                  >
-                    <p className="text-sm font-medium">Important Notice</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      This is how accent cards will appear with your brand colors.
-                    </p>
-                  </div>
+              <CardContent>
+                <div className="relative">
+                  <EmailPreview branding={branding} agencyName={agencyName} />
                 </div>
               </CardContent>
             </Card>

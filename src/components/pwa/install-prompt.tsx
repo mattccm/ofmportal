@@ -4,13 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { X, Download, Smartphone, Share, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { BRAND } from "@/lib/brand";
 
-// Fixed brand greens (not --primary, which lightens in dark mode) so the white
-// text on these panels keeps its contrast in both themes.
-const BRAND_GRADIENT = {
-  backgroundImage: `linear-gradient(135deg, ${BRAND.primaryColor}, ${BRAND.secondaryColor})`,
-};
+// The install panels sit on a raised tile (Title Wall), so their light text
+// keeps its contrast; the install action is the one yellow button.
+const PANEL_STYLE = { backgroundColor: "var(--tw-raised)" };
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -144,7 +141,7 @@ export function InstallPrompt() {
       {/* Main Install Prompt Banner */}
       <div
         className={cn(
-          "fixed bottom-20 left-4 right-4 z-50 md:hidden",
+          "fixed bottom-4 left-4 right-4 z-50 md:hidden",
           "animate-slide-up",
           showIOSInstructions && "hidden"
         )}
@@ -154,10 +151,10 @@ export function InstallPrompt() {
       >
         <div
           className={cn(
-            "relative overflow-hidden rounded-2xl",
-            "p-4 shadow-xl shadow-primary/25"
+            "relative overflow-hidden rounded-lg",
+            "p-4 shadow-xl"
           )}
-          style={BRAND_GRADIENT}
+          style={PANEL_STYLE}
         >
           {/* Close button */}
           <button
@@ -180,7 +177,7 @@ export function InstallPrompt() {
             <div
               className={cn(
                 "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl",
-                "bg-white/20 backdrop-blur-sm"
+                "bg-tile-hi"
               )}
             >
               <Smartphone className="h-7 w-7 text-white" />
@@ -202,12 +199,9 @@ export function InstallPrompt() {
             <Button
               onClick={handleInstall}
               className={cn(
-                "flex-1 h-12 rounded-xl",
-                "bg-white font-semibold",
-                "hover:bg-white/90 active:scale-[0.98]",
-                "touch-manipulation transition-all"
+                "flex-1 h-12",
+                "touch-manipulation"
               )}
-              style={{ color: BRAND.primaryColor }}
             >
               <Download className="h-5 w-5 mr-2" />
               Install App
@@ -223,16 +217,13 @@ export function InstallPrompt() {
             </button>
           </div>
 
-          {/* Decorative elements */}
-          <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-white/10 blur-xl" />
         </div>
       </div>
 
       {/* iOS Installation Instructions Modal */}
       {showIOSInstructions && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[rgb(8_9_11/0.74)] md:hidden"
           onClick={handleDismiss}
         >
           <div
@@ -246,7 +237,7 @@ export function InstallPrompt() {
             }}
           >
             {/* Header */}
-            <div className="relative p-6 text-center" style={BRAND_GRADIENT}>
+            <div className="relative p-6 text-center" style={PANEL_STYLE}>
               <button
                 onClick={handleDismiss}
                 className={cn(
@@ -263,7 +254,7 @@ export function InstallPrompt() {
               <div
                 className={cn(
                   "mx-auto flex h-16 w-16 items-center justify-center rounded-2xl",
-                  "bg-white/20 backdrop-blur-sm mb-4"
+                  "bg-tile-hi mb-4"
                 )}
               >
                 <Smartphone className="h-8 w-8 text-white" />
@@ -319,7 +310,7 @@ export function InstallPrompt() {
                 <div
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                    "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                    "bg-success/10 text-success"
                   )}
                 >
                   <span className="font-bold">3</span>

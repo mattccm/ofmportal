@@ -1,575 +1,360 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useBranding } from "@/components/providers/branding-provider";
+import { ChevronRight, Upload, Send, PenLine, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Shelf, TitleCard, formatDay, timeLeft } from "@/components/title-wall";
+import { RequestCover } from "@/components/portal/request-cover";
+import { RequestRow } from "@/components/portal/request-row";
+import type { CreatorFieldStateRow } from "@/lib/creator-field-states";
 import {
-  Loader2,
-  FileText,
-  Upload,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  TrendingUp,
-  ArrowRight,
-  Sparkles,
-  Calendar,
-  Bell,
-  MessageCircle,
-} from "lucide-react";
-import { format, isPast, differenceInDays } from "date-fns";
-import { cn } from "@/lib/utils";
-import { stripHtml } from "@/components/ui/html-content";
-import { RequestProgress } from "@/components/portal/request-progress";
+  ACTIONABLE,
+  IN_REVIEW,
+  creatorSummary,
+  nextStep,
+  sentLine,
+  toStrip,
+} from "@/components/portal/creator-words";
 
-type RequestStatus =
-  | "PENDING"
-  | "IN_PROGRESS"
-  | "SUBMITTED"
-  | "UNDER_REVIEW"
-  | "NEEDS_REVISION"
-  | "APPROVED";
+// Approved, cancelled and archived requests never reach the creator
+type RequestStatus = "PENDING" | "IN_PROGRESS" | "SUBMITTED" | "UNDER_REVIEW" | "NEEDS_REVISION";
 
-interface Request {
+interface CreatorRequest {
   id: string;
   title: string;
-  description: string | null;
   dueDate: string | null;
   status: RequestStatus;
-  urgency: string;
   createdAt: string;
-  _count: {
-    uploads: number;
-    comments: number;
-  };
-  completion?: {
-    totalSlots: number;
-    uploadedSlots: number;
-    approvedSlots: number;
-  };
+  submittedAt?: string | null;
+  updatedAt?: string;
+  fieldStates?: CreatorFieldStateRow[];
+  fieldSubmissions?: Record<string, { status: string; feedback?: string }> | null;
   unreadFeedbackCount?: number;
-  estimatedMinutes?: number | null;
 }
 
-interface Stats {
-  pendingRequests: number;
-  uploadsThisMonth: number;
-  approvalRate: number;
-  totalRequests: number;
+interface InboxPeek {
+  last: { content: string; createdAt: string; fromCreator: boolean; sender?: string } | null;
+  unread: number;
+}
+
+/** Most urgent first: overdue (most late first), then the nearest due, then undated */
+function byUrgency(a: CreatorRequest, b: CreatorRequest) {
+  const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+  const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+  if (da !== db) return da - db;
+  // same due (or both undated): a requested new take comes first
+  return Number(b.status === "NEEDS_REVISION") - Number(a.status === "NEEDS_REVISION");
+}
+
+function plural(n: number, one: string, many = `${one}s`) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+function formatMoment(iso: string) {
+  const d = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${formatDay(d)}, ${hh}:${mm}`;
 }
 
 export default function CreatorDashboardPage() {
   const router = useRouter();
-  const { branding } = useBranding();
   const [loading, setLoading] = useState(true);
-  const [requests, setRequests] = useState<Request[]>([]);
-  const [creator, setCreator] = useState<{
-    id: string;
-    name: string;
-    email: string;
-    image?: string;
-  } | null>(null);
-  const [stats, setStats] = useState<Stats>({
-    pendingRequests: 0,
-    uploadsThisMonth: 0,
-    approvalRate: 0,
-    totalRequests: 0,
-  });
+  const [failed, setFailed] = useState(false);
+  const [requests, setRequests] = useState<CreatorRequest[]>([]);
+  const [inbox, setInbox] = useState<InboxPeek | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     const token = localStorage.getItem("creatorToken");
-    const creatorId = localStorage.getItem("creatorId");
-    const name = localStorage.getItem("creatorName");
-    const email = localStorage.getItem("creatorEmail");
-
-    if (!token || !creatorId) {
+    if (!token || !localStorage.getItem("creatorId")) {
       router.push("/login");
       return;
     }
-
-    setCreator({
-      id: creatorId,
-      name: name || "Creator",
-      email: email || "",
-    });
-
-    fetchRequests();
-  }, [router]);
-
-  const fetchRequests = async () => {
+    setFailed(false);
     try {
-      const token = localStorage.getItem("creatorToken");
-      const response = await fetch(`/api/portal/requests`, {
-        headers: {
-          "x-creator-token": token || "",
-        },
-      });
+      const [reqRes, inboxRes] = await Promise.all([
+        fetch("/api/portal/requests", { headers: { "x-creator-token": token } }),
+        // peek=1 reads the conversation without marking anything read
+        fetch("/api/portal/inbox?peek=1", { headers: { "x-creator-token": token } }).catch(() => null),
+      ]);
+      if (!reqRes.ok) throw new Error("requests");
+      setRequests(await reqRes.json());
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch requests");
+      if (inboxRes?.ok) {
+        const data = await inboxRes.json();
+        const msgs: Array<{ content: string; createdAt: string; isFromCreator: boolean; sender?: { name?: string } | null }> =
+          data.messages || [];
+        const m = msgs[msgs.length - 1];
+        setInbox({
+          last: m
+            ? { content: m.content, createdAt: m.createdAt, fromCreator: m.isFromCreator, sender: m.sender?.name }
+            : null,
+          unread: data.unreadCount ?? 0,
+        });
+      } else {
+        setInbox({ last: null, unread: 0 });
       }
-
-      const data = await response.json();
-      setRequests(data);
-
-      // Calculate stats
-      const pending = data.filter(
-        (r: Request) =>
-          r.status === "PENDING" ||
-          r.status === "IN_PROGRESS" ||
-          r.status === "NEEDS_REVISION"
-      ).length;
-      const approved = data.filter((r: Request) => r.status === "APPROVED").length;
-      const total = data.length;
-      const uploads = data.reduce(
-        (acc: number, r: Request) => acc + (r._count?.uploads || 0),
-        0
-      );
-
-      setStats({
-        pendingRequests: pending,
-        uploadsThisMonth: uploads,
-        approvalRate: total > 0 ? Math.round((approved / total) * 100) : 0,
-        totalRequests: total,
-      });
-    } catch (error) {
-      console.error("Error fetching requests:", error);
+    } catch {
+      setFailed(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  const brandGradientStyle = {
-    background: `linear-gradient(135deg, ${branding.primaryColor}, ${branding.secondaryColor}, ${branding.accentColor})`,
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  if (loading) {
+  if (loading) return <HomeSkeleton />;
+
+  if (failed) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2
-            className="h-10 w-10 animate-spin mx-auto"
-            style={{ color: branding.primaryColor }}
-          />
-          <p className="text-muted-foreground">Loading your dashboard...</p>
+      <div className="px-4 pt-6 lg:px-6 lg:pt-10">
+        <h1 className="text-[22px] font-semibold leading-tight lg:text-[26px]">Your requests</h1>
+        <div className="mt-4 max-w-[560px] rounded-[10px] bg-tile p-4">
+          <p className="text-[15px]">Your requests didn&apos;t load. Check your connection, then try again.</p>
+          <Button variant="outline" className="mt-3 h-11 md:h-9" onClick={() => { setLoading(true); load(); }}>
+            <RefreshCw aria-hidden="true" />
+            Try again
+          </Button>
         </div>
       </div>
     );
   }
 
-  const activeRequests = requests.filter(
-    (r) =>
-      r.status === "PENDING" ||
-      r.status === "IN_PROGRESS" ||
-      r.status === "NEEDS_REVISION"
-  );
+  const toDo = requests.filter((r) => ACTIONABLE.has(r.status)).sort(byUrgency);
+  const inReview = requests.filter((r) => IN_REVIEW.has(r.status)).sort(byUrgency);
+  const featured = toDo[0];
+  const others = toDo.slice(1);
 
-  const dueSoonRequests = activeRequests
-    .filter((r) => {
-      if (!r.dueDate) return false;
-      const daysUntil = differenceInDays(new Date(r.dueDate), new Date());
-      return daysUntil <= 3 && !isPast(new Date(r.dueDate));
-    })
-    .slice(0, 3);
+  const fieldsLeft = (r: CreatorRequest) =>
+    (r.fieldStates || []).filter((f) => f.state === "waiting" || f.state === "overdue" || f.state === "changes").length;
 
-  const overdueRequests = activeRequests.filter(
-    (r) => r.dueDate && isPast(new Date(r.dueDate))
-  );
-
-  const recentActivity = requests
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-    .slice(0, 5);
-
-  const getStatusColor = (status: RequestStatus) => {
-    switch (status) {
-      case "PENDING":
-        return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-      case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "SUBMITTED":
-        return "bg-primary/10 text-primary";
-      case "UNDER_REVIEW":
-        return "bg-muted text-foreground";
-      case "NEEDS_REVISION":
-        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      case "APPROVED":
-        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-      default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400";
-    }
-  };
+  let lede: string;
+  if (featured) {
+    const due = featured.dueDate ? timeLeft(featured.dueDate) : null;
+    const left = fieldsLeft(featured);
+    const first = toDo.length === 1 ? "1 open request" : `${toDo.length} open requests`;
+    const dueText = due ? (due.late ? `, ${due.text}` : `, due ${formatDay(featured.dueDate!)}`) : "";
+    lede = `${first}${dueText}. ${left === 0 ? "Everything is uploaded." : `${plural(left, "field")} still to do.`}`;
+  } else if (inReview.length > 0) {
+    lede = `Nothing to upload. ${plural(inReview.length, "request is", "requests are")} in review.`;
+  } else {
+    lede = "Nothing to upload right now. New requests appear here.";
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Welcome Banner */}
-      <section
-        className="relative overflow-hidden rounded-2xl p-6 sm:p-8 text-white"
-        style={brandGradientStyle}
-      >
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+    <div className="px-4 pt-5 lg:px-6 lg:pt-10">
+      <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] lg:text-[26px]">Your requests</h1>
+      <p className="mt-1 text-[15px] leading-normal text-ink-2">{lede}</p>
 
-        <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          <Avatar
-            size="2xl"
-            user={{
-              name: creator?.name,
-              email: creator?.email,
-              image: creator?.image,
-            }}
-            ring="white"
-            className="shadow-xl hidden sm:flex"
-          />
-
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="h-5 w-5 text-white/70" />
-              <span className="text-sm font-medium text-white/70">
-                {branding.welcomeMessage || "Welcome back"}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-              {creator?.name}
-            </h1>
-            <p className="text-white/80 max-w-md">
-              {activeRequests.length > 0
-                ? `You have ${activeRequests.length} active request${activeRequests.length !== 1 ? "s" : ""} waiting for your content.`
-                : "All caught up! No pending requests at the moment."}
+      {/* From 1024px: the featured request and its next action on the left; messages and the rest on the right */}
+      <div className="lg:mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:items-start lg:gap-10">
+        {featured ? (
+          <FeaturedRequest request={featured} />
+        ) : (
+          <div className="mt-5 rounded-[10px] bg-tile p-4 lg:mt-0 lg:p-6">
+            <p className="text-[15px] font-semibold">You&apos;re all caught up</p>
+            <p className="mt-1 text-[14px] leading-normal text-ink-2">
+              When your team sends you a request, it shows up here with what to upload and when it&apos;s due.
+              You&apos;ll also get a notification. Once a request is approved, it leaves your list.
             </p>
-          </div>
-
-          <div className="flex gap-3 w-full sm:w-auto">
-            {activeRequests.length > 0 && (
-              <Button
-                asChild
-                className="bg-white hover:bg-white/90 shadow-lg flex-1 sm:flex-none"
-                style={{ color: branding.primaryColor }}
-              >
-                <Link href="/creator/requests">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Start Uploading
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Overdue Warning */}
-      {overdueRequests.length > 0 && (
-        <section className="p-4 rounded-xl bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-red-800 dark:text-red-200">
-                {overdueRequests.length} Overdue Request
-                {overdueRequests.length !== 1 ? "s" : ""}
-              </h3>
-              <p className="text-sm text-red-600 dark:text-red-300 mt-0.5">
-                Please upload your content as soon as possible to avoid delays.
-              </p>
-            </div>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-300 shrink-0"
-            >
-              <Link href="/creator/requests?filter=overdue">View All</Link>
+            <Button asChild variant="outline" className="mt-3 h-11 md:h-9">
+              <Link href="/creator/messages">Message your team</Link>
             </Button>
           </div>
-        </section>
-      )}
+        )}
 
-      {/* Stats Grid */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card>
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                  Pending
-                </p>
-                <p className="text-2xl sm:text-3xl font-bold mt-1">
-                  {stats.pendingRequests}
-                </p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
-                <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                  Uploads
-                </p>
-                <p className="text-2xl sm:text-3xl font-bold mt-1">
-                  {stats.uploadsThisMonth}
-                </p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                  Approval
-                </p>
-                <p className="text-2xl sm:text-3xl font-bold mt-1">
-                  {stats.approvalRate}%
-                </p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                  Total
-                </p>
-                <p className="text-2xl sm:text-3xl font-bold mt-1">
-                  {stats.totalRequests}
-                </p>
-              </div>
-              <div
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${branding.primaryColor}15` }}
-              >
-                <TrendingUp
-                  className="h-5 w-5 sm:h-6 sm:w-6"
-                  style={{ color: branding.primaryColor }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Due Soon Alerts */}
-      {dueSoonRequests.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Bell className="h-5 w-5 text-amber-500" />
-            <h2 className="text-lg font-semibold">Due Soon</h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {dueSoonRequests.map((request) => (
-              <Link key={request.id} href={`/creator/requests/${request.id}`}>
-                <Card className="group hover:shadow-md transition-all hover:-translate-y-0.5 cursor-pointer border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/10">
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                        <Calendar className="h-5 w-5 text-amber-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                          {request.title}
-                        </h3>
-                        <p className="text-xs text-amber-600 font-medium mt-0.5">
-                          Due {format(new Date(request.dueDate!), "MMM d, yyyy")}
-                        </p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Active Requests */}
-        <section className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Active Requests</h2>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/creator/requests">
-                View All
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-
-          {activeRequests.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="font-semibold text-lg mb-1">All caught up!</h3>
-                <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                  You don&apos;t have any pending requests. Check back later for
-                  new content requests.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {activeRequests.slice(0, 4).map((request) => (
-                <Link key={request.id} href={`/creator/requests/${request.id}`}>
-                  <Card className="group hover:shadow-md transition-all cursor-pointer">
-                    <CardContent className="py-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-medium truncate group-hover:text-primary transition-colors">
-                              {request.title}
-                            </h3>
-                            <Badge
-                              variant="secondary"
-                              className={cn("shrink-0", getStatusColor(request.status))}
-                            >
-                              {request.status.replace("_", " ")}
-                            </Badge>
-                            {request.unreadFeedbackCount ? (
-                              <Badge
-                                className="shrink-0 gap-1 border-0 text-white"
-                                style={{ backgroundColor: branding.primaryColor }}
-                              >
-                                <MessageCircle className="h-3 w-3" />
-                                {request.unreadFeedbackCount} new
-                              </Badge>
-                            ) : null}
-                          </div>
-                          {request.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                              {stripHtml(request.description)}
-                            </p>
-                          )}
-                          <div className="mt-3 space-y-2">
-                            {request.dueDate && (
-                              <span className={cn(
-                                "inline-flex items-center gap-1 text-xs text-muted-foreground",
-                                isPast(new Date(request.dueDate)) && "text-red-500 font-medium"
-                              )}>
-                                <Calendar className="h-3 w-3" />
-                                Due {format(new Date(request.dueDate), "MMM d")}
-                              </span>
-                            )}
-                            <RequestProgress
-                              completion={request.completion}
-                              estimatedMinutes={request.estimatedMinutes}
-                            />
-                          </div>
-                        </div>
-                        <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-
-              {activeRequests.length > 4 && (
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/creator/requests">
-                    View {activeRequests.length - 4} More Requests
-                  </Link>
-                </Button>
-              )}
-            </div>
+        <div className="lg:space-y-9">
+          {inbox && <MessagesPeek inbox={inbox} />}
+          {others.length > 0 && (
+            <SideList id="also-side" title="Also to do" sub={plural(others.length, "request")} requests={others} />
           )}
-        </section>
+          {inReview.length > 0 && (
+            <SideList id="review-side" title="In review" sub="Submitted, waiting for review" requests={inReview} />
+          )}
+        </div>
+      </div>
 
-        {/* Recent Activity Sidebar */}
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Recent Activity</h2>
+      {/* Phone and tablet: the rest as shelves of title cards */}
+      {others.length > 0 && (
+        <Shelf
+          title="Also to do"
+          sub={plural(others.length, "request")}
+          className="mt-9 sm:[&_.tw-shelf-item]:[--per:1.6] lg:hidden"
+        >
+          {others.map((r) => (
+            <TitleCard
+              audience="creator"
+              key={r.id}
+              title={r.title}
+              creator={`Sent ${formatDay(r.createdAt)}`}
+              due={r.dueDate}
+              fields={toStrip(r.fieldStates)}
+              meta={creatorSummary(r.fieldStates)}
+              href={`/creator/requests/${r.id}`}
+            />
+          ))}
+        </Shelf>
+      )}
 
-          <Card>
-            <CardContent className="p-0">
-              {recentActivity.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground text-sm">
-                  No recent activity
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {recentActivity.map((request) => (
-                    <Link
-                      key={request.id}
-                      href={`/creator/requests/${request.id}`}
-                      className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
-                    >
-                      <div
-                        className={cn(
-                          "w-2 h-2 rounded-full shrink-0",
-                          request.status === "APPROVED"
-                            ? "bg-emerald-500"
-                            : request.status === "NEEDS_REVISION"
-                            ? "bg-red-500"
-                            : "bg-amber-500"
-                        )}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {request.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {request._count?.uploads || 0} uploads
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      {inReview.length > 0 && (
+        <Shelf
+          title="In review"
+          sub="Submitted, waiting for review"
+          className="mt-9 sm:[&_.tw-shelf-item]:[--per:1.6] lg:hidden"
+        >
+          {inReview.map((r) => (
+            <TitleCard
+              audience="creator"
+              key={r.id}
+              title={r.title}
+              creator={`Sent ${formatDay(r.createdAt)}`}
+              timeText={r.submittedAt ? `Submitted ${formatDay(r.submittedAt)}` : "Submitted"}
+              fields={toStrip(r.fieldStates)}
+              meta={creatorSummary(r.fieldStates)}
+              href={`/creator/requests/${r.id}`}
+            />
+          ))}
+        </Shelf>
+      )}
+    </div>
+  );
+}
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="/creator/requests">
-                  <FileText className="mr-2 h-4 w-4" />
-                  View All Requests
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="/creator/calendar">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  View Calendar
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="/creator/settings">
-                  <Bell className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </section>
+/** Desktop side column: the other requests as compact rows */
+function SideList({ id, title, sub, requests }: { id: string; title: string; sub: string; requests: CreatorRequest[] }) {
+  return (
+    <section aria-labelledby={id} className="hidden lg:block">
+      <div className="mb-2 flex min-h-8 items-baseline gap-3">
+        <h2 id={id} className="text-[17px] font-semibold leading-snug">
+          {title}
+        </h2>
+        <span className="truncate text-[14px] text-ink-2">{sub}</span>
+      </div>
+      <ul className="space-y-2">
+        {requests.map((r) => (
+          <li key={r.id}>
+            <RequestRow request={r} compact />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The most urgent request, featured: its title as the cover, time left, the field strip and the next action */
+function FeaturedRequest({ request: r }: { request: CreatorRequest }) {
+  const rows = r.fieldStates || [];
+  const strip = toStrip(rows);
+  const step = nextStep(rows, r.fieldSubmissions);
+  const href = `/creator/requests/${r.id}${step.fieldId ? `#field-${step.fieldId}` : ""}`;
+  const Icon = step.cta === "Submit" ? Send : step.cta.startsWith("Write") ? PenLine : Upload;
+
+  return (
+    <RequestCover
+      className="mt-5 lg:mt-0"
+      size="lg"
+      headingId="featured-title"
+      title={r.title}
+      href={`/creator/requests/${r.id}`}
+      sentText={sentLine(r.createdAt)}
+      due={r.dueDate}
+      fields={strip}
+      summary={creatorSummary(rows)}
+    >
+      <p className="mt-4 text-[15px] leading-normal">{step.sentence}</p>
+      {step.note && (
+        <blockquote className="mt-2 max-w-[60ch] rounded-lg bg-well px-3 py-2.5 text-[15px] leading-normal">
+          <span className="sr-only">Your team said: </span>
+          &ldquo;{step.note}&rdquo;
+        </blockquote>
+      )}
+
+      <div className="mt-4 lg:flex lg:items-center lg:gap-4">
+        <Button asChild className="h-12 w-full text-[15px] lg:h-11 lg:w-auto lg:px-6">
+          <Link href={href}>
+            <Icon aria-hidden="true" />
+            {step.cta}
+          </Link>
+        </Button>
+        {rows.length > 1 && (
+          <Link
+            href={`/creator/requests/${r.id}`}
+            className="mt-2 inline-flex min-h-11 items-center text-[14px] font-medium text-ink-2 underline underline-offset-[3px] hover:text-ink lg:mt-0"
+          >
+            See all {rows.length} fields
+          </Link>
+        )}
+      </div>
+    </RequestCover>
+  );
+}
+
+function MessagesPeek({ inbox }: { inbox: InboxPeek }) {
+  const { last, unread } = inbox;
+  return (
+    <section aria-labelledby="peek-h" className="mt-9 lg:mt-0">
+      <div className="mb-2 flex min-h-8 items-baseline gap-3">
+        <h2 id="peek-h" className="text-[17px] font-semibold leading-snug">
+          Messages
+        </h2>
+        {unread > 0 && <span className="text-[14px] text-ink-2">{unread} unread</span>}
+      </div>
+      <Link
+        href="/creator/messages"
+        className="group block rounded-[10px] bg-tile p-4 transition-colors hover:bg-tile-hi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        {last ? (
+          <>
+            <p className="flex items-baseline justify-between gap-3 text-[14px]">
+              <span className="truncate font-semibold">{last.fromCreator ? "You" : last.sender || "Your team"}</span>
+              <span className="shrink-0 text-ink-2">{formatMoment(last.createdAt)}</span>
+            </p>
+            <p className="mt-1 line-clamp-2 text-[15px] leading-normal">&ldquo;{last.content}&rdquo;</p>
+            <p className="mt-2 flex items-center gap-1 text-[14px] text-ink-2 group-hover:text-ink">
+              {unread > 0
+                ? `${plural(unread, "new message")}. Open the conversation`
+                : last.fromCreator
+                  ? "You replied last. Open the conversation"
+                  : "Open the conversation"}
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-[15px] leading-normal">No messages yet. Ask your team anything about a request, any time.</p>
+            <p className="mt-2 flex items-center gap-1 text-[14px] text-ink-2 group-hover:text-ink">
+              Write to your team
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </p>
+          </>
+        )}
+      </Link>
+    </section>
+  );
+}
+
+function HomeSkeleton() {
+  return (
+    <div className="px-4 pt-5 lg:px-6 lg:pt-10" role="status" aria-label="Loading your requests">
+      <Skeleton className="h-7 w-44" />
+      <Skeleton className="mt-2 h-5 w-72 max-w-full" />
+      <div className="lg:mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:gap-10">
+        <div className="mt-5 rounded-[10px] bg-tile p-4 lg:mt-0">
+          <Skeleton className="h-9 w-3/4" />
+          <Skeleton className="mt-2 h-4 w-1/2" />
+          <Skeleton className="mt-5 h-10 w-40" />
+          <Skeleton className="mt-5 h-3 w-full" />
+          <Skeleton className="mt-6 h-12 w-full" />
+        </div>
+        <div>
+          <Skeleton className="mt-9 h-5 w-40 lg:mt-0" />
+          <Skeleton className="mt-3 h-24 w-full" />
+        </div>
       </div>
     </div>
   );

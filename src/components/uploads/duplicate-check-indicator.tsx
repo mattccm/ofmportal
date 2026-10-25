@@ -132,7 +132,7 @@ export function DuplicateCheckIndicator({
       return (
         <div
           className={cn(
-            "flex items-center gap-2 text-sm text-emerald-600",
+            "flex items-center gap-2 text-sm text-success",
             className
           )}
         >
@@ -143,10 +143,10 @@ export function DuplicateCheckIndicator({
     }
 
     return (
-      <Alert className={cn("border-emerald-200 bg-emerald-50", className)}>
-        <ShieldCheck className="h-4 w-4 text-emerald-600" />
-        <AlertTitle className="text-emerald-800">No Duplicates Found</AlertTitle>
-        <AlertDescription className="text-emerald-700">
+      <Alert className={cn("border-success/30 bg-success/10", className)}>
+        <ShieldCheck className="h-4 w-4 text-success" />
+        <AlertTitle className="text-success">No Duplicates Found</AlertTitle>
+        <AlertDescription className="text-success">
           This file appears to be unique. Ready to upload.
         </AlertDescription>
       </Alert>
@@ -167,7 +167,7 @@ export function DuplicateCheckIndicator({
         <ShieldAlert className="h-4 w-4" />
         <AlertTitle className="flex items-center gap-2">
           Duplicate Blocked
-          <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-red-200 text-red-800">
+          <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-late/10 text-late">
             {topMatch.confidence}% match
           </span>
         </AlertTitle>
@@ -183,7 +183,7 @@ export function DuplicateCheckIndicator({
                 variant="outline"
                 size="sm"
                 onClick={() => onViewOriginal(topMatch.originalUploadId)}
-                className="text-red-700 border-red-300 hover:bg-red-100"
+                className="text-late border-late/30 hover:bg-late/10"
               >
                 <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                 View Original
@@ -194,7 +194,7 @@ export function DuplicateCheckIndicator({
                 variant="ghost"
                 size="sm"
                 onClick={onCancel}
-                className="text-red-700 hover:text-red-800"
+                className="text-late hover:text-late"
               >
                 Cancel Upload
               </Button>
@@ -210,7 +210,7 @@ export function DuplicateCheckIndicator({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full mt-2 text-red-600 hover:text-red-700"
+                  className="w-full mt-2 text-late hover:text-late"
                 >
                   {showOverrideForm ? (
                     <>
@@ -230,14 +230,14 @@ export function DuplicateCheckIndicator({
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
                   placeholder="Please explain why this is not a duplicate..."
-                  className="w-full p-2 text-sm rounded-md border border-red-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full p-2 text-sm rounded-md border border-ctl bg-well focus:outline-none focus:ring-2 focus:ring-late/40"
                   rows={2}
                 />
                 <Button
                   size="sm"
                   onClick={() => onOverride?.(overrideReason)}
                   disabled={!overrideReason.trim()}
-                  className="bg-red-600 hover:bg-red-700"
+                  className="bg-late hover:bg-late"
                 >
                   <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
                   Override and Upload
@@ -255,8 +255,8 @@ export function DuplicateCheckIndicator({
     <Alert
       variant="warning"
       className={cn(
-        severity === "medium" && "border-amber-200 bg-amber-50",
-        severity === "low" && "border-yellow-200 bg-yellow-50",
+        severity === "medium" && "border-changes/30 bg-changes/10",
+        severity === "low" && "border-changes/30 bg-changes/10",
         compact && "py-2",
         className
       )}
@@ -264,13 +264,13 @@ export function DuplicateCheckIndicator({
       <AlertTriangle
         className={cn(
           "h-4 w-4",
-          severity === "medium" ? "text-amber-600" : "text-yellow-600"
+          severity === "medium" ? "text-changes" : "text-changes"
         )}
       />
       <AlertTitle
         className={cn(
           "flex items-center gap-2",
-          severity === "medium" ? "text-amber-800" : "text-yellow-800"
+          severity === "medium" ? "text-changes" : "text-changes"
         )}
       >
         Possible Duplicate
@@ -278,8 +278,8 @@ export function DuplicateCheckIndicator({
           className={cn(
             "text-xs font-normal px-2 py-0.5 rounded-full",
             severity === "medium"
-              ? "bg-amber-200 text-amber-800"
-              : "bg-yellow-200 text-yellow-800"
+              ? "bg-changes/20 text-changes"
+              : "bg-changes/20 text-changes"
           )}
         >
           {topMatch.confidence}% match
@@ -288,7 +288,7 @@ export function DuplicateCheckIndicator({
       <AlertDescription
         className={cn(
           "space-y-3",
-          severity === "medium" ? "text-amber-700" : "text-yellow-700"
+          severity === "medium" ? "text-changes" : "text-changes"
         )}
       >
         <p>
@@ -305,8 +305,8 @@ export function DuplicateCheckIndicator({
                 className={cn(
                   "p-0 h-auto font-normal",
                   severity === "medium"
-                    ? "text-amber-600 hover:text-amber-700"
-                    : "text-yellow-600 hover:text-yellow-700"
+                    ? "text-changes hover:text-changes"
+                    : "text-changes hover:text-changes"
                 )}
               >
                 {isExpanded ? (
@@ -344,8 +344,8 @@ export function DuplicateCheckIndicator({
               onClick={() => onViewOriginal(topMatch.originalUploadId)}
               className={cn(
                 severity === "medium"
-                  ? "text-amber-700 border-amber-300 hover:bg-amber-100"
-                  : "text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+                  ? "text-changes border-changes/30 hover:bg-changes/10"
+                  : "text-changes border-changes/30 hover:bg-changes/10"
               )}
             >
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
@@ -359,8 +359,8 @@ export function DuplicateCheckIndicator({
               onClick={() => onOverride("User confirmed different content")}
               className={cn(
                 severity === "medium"
-                  ? "text-amber-700 border-amber-300 hover:bg-amber-100"
-                  : "text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+                  ? "text-changes border-changes/30 hover:bg-changes/10"
+                  : "text-changes border-changes/30 hover:bg-changes/10"
               )}
             >
               <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
@@ -374,8 +374,8 @@ export function DuplicateCheckIndicator({
               onClick={onCancel}
               className={cn(
                 severity === "medium"
-                  ? "text-amber-700 hover:text-amber-800"
-                  : "text-yellow-700 hover:text-yellow-800"
+                  ? "text-changes hover:text-changes"
+                  : "text-changes hover:text-changes"
               )}
             >
               Cancel
@@ -408,7 +408,7 @@ export function InlineDuplicateIndicator({
 
   if (!result.isDuplicate) {
     return (
-      <div className={cn("flex items-center gap-1 text-xs text-emerald-600", className)}>
+      <div className={cn("flex items-center gap-1 text-xs text-success", className)}>
         <Shield className="h-3 w-3" />
         <span>Unique</span>
       </div>
@@ -419,7 +419,7 @@ export function InlineDuplicateIndicator({
 
   if (result.recommendation === "block") {
     return (
-      <div className={cn("flex items-center gap-1 text-xs text-red-600", className)}>
+      <div className={cn("flex items-center gap-1 text-xs text-late", className)}>
         <ShieldAlert className="h-3 w-3" />
         <span>Exact duplicate ({topMatch.confidence}%)</span>
       </div>
@@ -427,7 +427,7 @@ export function InlineDuplicateIndicator({
   }
 
   return (
-    <div className={cn("flex items-center gap-1 text-xs text-amber-600", className)}>
+    <div className={cn("flex items-center gap-1 text-xs text-changes", className)}>
       <AlertTriangle className="h-3 w-3" />
       <span>
         {formatMatchType(topMatch.matchType)} ({topMatch.confidence}%)
@@ -454,9 +454,9 @@ function MatchSummary({
     <div
       className={cn(
         "flex items-center justify-between p-2 rounded-md",
-        severity === "high" && "bg-red-100/50",
-        severity === "medium" && "bg-amber-100/50",
-        severity === "low" && "bg-yellow-100/50"
+        severity === "high" && "bg-late/10",
+        severity === "medium" && "bg-changes/10",
+        severity === "low" && "bg-changes/10"
       )}
     >
       <div className="flex items-center gap-2 min-w-0">
@@ -472,17 +472,17 @@ function MatchSummary({
             <span>-</span>
             <span>{match.confidence}% confidence</span>
             {match.hashMatch && (
-              <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+              <span className="px-1.5 py-0.5 rounded bg-late/10 text-late">
                 Hash
               </span>
             )}
             {match.perceptualMatch && (
-              <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+              <span className="px-1.5 py-0.5 rounded bg-tile-hi text-foreground">
                 Visual
               </span>
             )}
             {match.metadataMatch && (
-              <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+              <span className="px-1.5 py-0.5 rounded bg-tile-hi text-ink">
                 Metadata
               </span>
             )}
@@ -490,7 +490,7 @@ function MatchSummary({
         </div>
       </div>
       {onView && (
-        <Button
+        <Button aria-label="View original upload"
           variant="ghost"
           size="sm"
           onClick={() => onView(match.originalUploadId)}

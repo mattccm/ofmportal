@@ -255,7 +255,7 @@ export function MediaPreviewModal({
               muted={isMuted}
             />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/70 rounded-full px-4 py-2">
-              <Button
+              <Button aria-label={isPlaying ? "Pause" : "Play"}
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-white hover:text-white hover:bg-white/20"
@@ -267,7 +267,7 @@ export function MediaPreviewModal({
                   <Play className="h-4 w-4" />
                 )}
               </Button>
-              <Button
+              <Button aria-label={isMuted ? "Unmute" : "Mute"}
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-white hover:text-white hover:bg-white/20"
@@ -284,8 +284,8 @@ export function MediaPreviewModal({
         );
       case "audio":
         return (
-          <div className="flex flex-col items-center justify-center h-full gap-6 bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/20 dark:to-purple-900/20 rounded-lg p-8">
-            <div className="h-32 w-32 rounded-full bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shadow-xl">
+          <div className="flex flex-col items-center justify-center h-full gap-6 bg-tile-hi dark:bg-tile-hi rounded-lg p-8">
+            <div className="h-32 w-32 rounded-full bg-raised-hi flex items-center justify-center shadow-xl">
               <Music className="h-16 w-16 text-white" />
             </div>
             <audio
@@ -352,7 +352,7 @@ export function MediaPreviewModal({
           <div className="flex items-center gap-1">
             {media.mediaType === "image" && (
               <>
-                <Button
+                <Button aria-label="Zoom out"
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
@@ -361,7 +361,7 @@ export function MediaPreviewModal({
                   <ZoomOut className="h-4 w-4" />
                 </Button>
                 <span className="text-xs w-12 text-center">{Math.round(zoom * 100)}%</span>
-                <Button
+                <Button aria-label="Zoom in"
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
@@ -369,7 +369,7 @@ export function MediaPreviewModal({
                 >
                   <ZoomIn className="h-4 w-4" />
                 </Button>
-                <Button
+                <Button aria-label="Rotate"
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
@@ -381,7 +381,7 @@ export function MediaPreviewModal({
               </>
             )}
 
-            <Button
+            <Button aria-label={showInfo ? "Hide details" : "Show details"}
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -389,7 +389,7 @@ export function MediaPreviewModal({
             >
               <Info className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label="Copy link"
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -397,7 +397,7 @@ export function MediaPreviewModal({
             >
               <Copy className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label="Share"
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -405,7 +405,7 @@ export function MediaPreviewModal({
             >
               <Share2 className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label="Download"
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -422,7 +422,7 @@ export function MediaPreviewModal({
           <div className="flex-1 relative p-4">
             {/* Navigation arrows */}
             {hasPrevious && (
-              <Button
+              <Button aria-label="Previous"
                 variant="ghost"
                 size="icon"
                 className="absolute left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/80 shadow-lg"
@@ -432,7 +432,7 @@ export function MediaPreviewModal({
               </Button>
             )}
             {hasNext && (
-              <Button
+              <Button aria-label="Next"
                 variant="ghost"
                 size="icon"
                 className="absolute right-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/80 shadow-lg"

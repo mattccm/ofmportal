@@ -132,8 +132,8 @@ const REPORT_TYPES = [
     label: "Creator Performance Report",
     description: "Metrics per creator including uploads, approval rates, response times",
     icon: Users,
-    color: "text-violet-500",
-    bgColor: "bg-violet-500/10",
+    color: "text-foreground",
+    bgColor: "bg-tile-hi",
   },
   {
     value: "content_delivery" as ReportType,
@@ -148,8 +148,8 @@ const REPORT_TYPES = [
     label: "Request Summary Report",
     description: "Requests by status, type, and time period",
     icon: FileBarChart,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
+    color: "text-success",
+    bgColor: "bg-success/10",
   },
   {
     value: "team_activity" as ReportType,
@@ -486,7 +486,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                     value={dateRange}
                     onValueChange={(v) => setDateRange(v as DateRangePreset)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Time Period">
                       <SelectValue placeholder="Select period" />
                     </SelectTrigger>
                     <SelectContent>
@@ -526,7 +526,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                     value={groupBy}
                     onValueChange={(v) => setGroupBy(v as GroupBy)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Group By">
                       <SelectValue placeholder="Select grouping" />
                     </SelectTrigger>
                     <SelectContent>
@@ -549,7 +549,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                     <Filter className="h-5 w-5 text-primary" />
                     Filters
                   </CardTitle>
-                  <Button
+                  <Button aria-label={showFilters ? "Hide filters" : "Show filters"} aria-expanded={showFilters}
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowFilters(!showFilters)}
@@ -579,7 +579,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                               key={creator.id}
                               className="flex items-center gap-2 cursor-pointer"
                             >
-                              <Checkbox
+                              <Checkbox aria-label={creator.name}
                                 checked={selectedCreators.includes(creator.id)}
                                 onCheckedChange={(checked) => {
                                   if (checked) {
@@ -630,7 +630,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                               key={member.id}
                               className="flex items-center gap-2 cursor-pointer"
                             >
-                              <Checkbox
+                              <Checkbox aria-label={member.name}
                                 checked={selectedTeamMembers.includes(member.id)}
                                 onCheckedChange={(checked) => {
                                   if (checked) {
@@ -780,7 +780,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                           setScheduleFrequency(v as "daily" | "weekly" | "monthly")
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="Frequency">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -880,14 +880,14 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                               {report.schedule.frequency}
                             </Badge>
                           )}
-                          <Button
+                          <Button aria-label={`Load ${report.name}`}
                             variant="ghost"
                             size="sm"
                             onClick={() => loadSavedReport(report)}
                           >
                             <RefreshCw className="h-4 w-4" />
                           </Button>
-                          <Button
+                          <Button aria-label={`Delete ${report.name}`}
                             variant="ghost"
                             size="sm"
                             onClick={() => deleteSavedReport(report.id)}
@@ -940,8 +940,8 @@ function ReportPreview({
               icon={Users}
               label="Total Creators"
               value={summary.totalCreators?.toString() || "0"}
-              color="text-violet-500"
-              bgColor="bg-violet-500/10"
+              color="text-foreground"
+              bgColor="bg-tile-hi"
             />
             <SummaryCard
               icon={FileText}
@@ -954,8 +954,8 @@ function ReportPreview({
               icon={TrendingUp}
               label="Avg Approval Rate"
               value={`${summary.avgApprovalRate || 0}%`}
-              color="text-emerald-500"
-              bgColor="bg-emerald-500/10"
+              color="text-success"
+              bgColor="bg-success/10"
             />
             <SummaryCard
               icon={Clock}
@@ -973,15 +973,15 @@ function ReportPreview({
               icon={FileText}
               label="Total Requests"
               value={summary.totalRequests?.toString() || "0"}
-              color="text-violet-500"
-              bgColor="bg-violet-500/10"
+              color="text-foreground"
+              bgColor="bg-tile-hi"
             />
             <SummaryCard
               icon={TrendingUp}
               label="Completion Rate"
               value={`${summary.completionRate || 0}%`}
-              color="text-emerald-500"
-              bgColor="bg-emerald-500/10"
+              color="text-success"
+              bgColor="bg-success/10"
             />
             <SummaryCard
               icon={Clock}
@@ -1006,8 +1006,8 @@ function ReportPreview({
               icon={FileText}
               label="Total Requests"
               value={summary.totalRequests?.toString() || "0"}
-              color="text-violet-500"
-              bgColor="bg-violet-500/10"
+              color="text-foreground"
+              bgColor="bg-tile-hi"
             />
             <SummaryCard
               icon={BarChart3}
@@ -1020,8 +1020,8 @@ function ReportPreview({
               icon={Activity}
               label="Periods Covered"
               value={(summary.byPeriod?.length || 0).toString()}
-              color="text-emerald-500"
-              bgColor="bg-emerald-500/10"
+              color="text-success"
+              bgColor="bg-success/10"
             />
             <SummaryCard
               icon={TrendingUp}
@@ -1039,8 +1039,8 @@ function ReportPreview({
               icon={Users}
               label="Team Members"
               value={summary.totalTeamMembers?.toString() || "0"}
-              color="text-violet-500"
-              bgColor="bg-violet-500/10"
+              color="text-foreground"
+              bgColor="bg-tile-hi"
             />
             <SummaryCard
               icon={Activity}
@@ -1053,8 +1053,8 @@ function ReportPreview({
               icon={TrendingUp}
               label="Avg Actions/Member"
               value={summary.avgActionsPerMember?.toString() || "0"}
-              color="text-emerald-500"
-              bgColor="bg-emerald-500/10"
+              color="text-success"
+              bgColor="bg-success/10"
             />
             <SummaryCard
               icon={BarChart3}
@@ -1122,7 +1122,7 @@ function ReportPreview({
                           style={{ height: `${height}%`, minHeight: item.count > 0 ? "4px" : "0" }}
                           title={`${item.period}: ${item.count}`}
                         />
-                        <span className="text-[10px] text-muted-foreground rotate-[-45deg] whitespace-nowrap">
+                        <span className="text-[12px] text-muted-foreground rotate-[-45deg] whitespace-nowrap">
                           {item.period}
                         </span>
                       </div>

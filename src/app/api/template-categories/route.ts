@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Error fetching template categories:", error);
     return NextResponse.json(
-      { error: "Failed to fetch template categories" },
+      { error: "Couldn't load the template groups" },
       { status: 500 }
     );
   }
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     // Only owners/admins can create categories
     if (!["OWNER", "ADMIN"].includes(session.user.role)) {
       return NextResponse.json(
-        { error: "Only administrators can create template categories" },
+        { error: "Only owners and admins can make template groups" },
         { status: 403 }
       );
     }
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       return NextResponse.json(
-        { error: "A category with this name already exists" },
+        { error: "A group with this name already exists" },
         { status: 409 }
       );
     }
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
 
     console.error("Error creating template category:", error);
     return NextResponse.json(
-      { error: "Failed to create template category" },
+      { error: "Couldn't make the group" },
       { status: 500 }
     );
   }

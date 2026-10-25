@@ -19,7 +19,7 @@ const avatarSizeVariants = cva(
   {
     variants: {
       size: {
-        xs: "size-6 text-[10px]",
+        xs: "size-6 text-[12px]",
         sm: "size-8 text-xs",
         md: "size-10 text-sm",
         lg: "size-12 text-base",
@@ -66,7 +66,7 @@ const statusIndicatorVariants = cva(
         "3xl": "size-5 right-1.5 bottom-1.5",
       },
       status: {
-        online: "bg-emerald-500",
+        online: "bg-success",
         offline: "bg-gray-400",
         busy: "bg-red-500",
         away: "bg-amber-500",
@@ -164,6 +164,7 @@ function Avatar({
         <span
           data-slot="avatar-status"
           className={cn(statusIndicatorVariants({ size, status }))}
+          role="img"
           aria-label={`Status: ${status}`}
         />
       )}

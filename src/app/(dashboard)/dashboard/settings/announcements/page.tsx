@@ -12,13 +12,13 @@ export default function AnnouncementsSettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/settings" aria-label="Back to settings">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-            <Megaphone className="h-6 w-6 text-violet-500" />
+          <div className="h-12 w-12 rounded-xl bg-tile-hi flex items-center justify-center">
+            <Megaphone className="h-6 w-6 text-foreground" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Announcements</h1>

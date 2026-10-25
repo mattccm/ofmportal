@@ -100,8 +100,8 @@ export function QuickRequestDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10">
-              <FileText className="h-5 w-5 text-violet-600" />
+            <div className="p-2 rounded-xl bg-tile-hi ">
+              <FileText className="h-5 w-5 text-foreground" />
             </div>
             <DialogTitle>Quick Request</DialogTitle>
           </div>
@@ -121,7 +121,7 @@ export function QuickRequestDialog({
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               autoFocus
-              className="focus-visible:ring-violet-500/50"
+              className="focus-visible:ring-ctl"
             />
           </div>
 
@@ -135,7 +135,7 @@ export function QuickRequestDialog({
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               rows={3}
-              className="resize-none focus-visible:ring-violet-500/50"
+              className="resize-none focus-visible:ring-ctl"
             />
           </div>
 
@@ -170,7 +170,7 @@ export function QuickRequestDialog({
                   setFormData((prev) => ({ ...prev, dueDate: e.target.value }))
                 }
                 min={new Date().toISOString().split("T")[0]}
-                className="focus-visible:ring-violet-500/50"
+                className="focus-visible:ring-ctl"
               />
             </div>
           </div>
@@ -186,7 +186,7 @@ export function QuickRequestDialog({
             <Button
               type="submit"
               disabled={!formData.title.trim() || isSubmitting}
-              className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white"
+              className=" bg-raised-hi hover:bg-raised-hi text-white"
             >
               {isSubmitting ? (
                 <>
@@ -266,8 +266,8 @@ export function QuickInviteDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10">
-              <UserPlus className="h-5 w-5 text-violet-600" />
+            <div className="p-2 rounded-xl bg-tile-hi ">
+              <UserPlus className="h-5 w-5 text-foreground" />
             </div>
             <DialogTitle>Invite Creator</DialogTitle>
           </div>
@@ -290,7 +290,7 @@ export function QuickInviteDialog({
               }}
               autoFocus
               className={cn(
-                "focus-visible:ring-violet-500/50",
+                "focus-visible:ring-ctl",
                 error && "border-destructive focus-visible:ring-destructive/50"
               )}
             />
@@ -310,7 +310,7 @@ export function QuickInviteDialog({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
-              className="resize-none focus-visible:ring-violet-500/50"
+              className="resize-none focus-visible:ring-ctl"
             />
           </div>
 
@@ -325,7 +325,7 @@ export function QuickInviteDialog({
             <Button
               type="submit"
               disabled={!email.trim() || isSubmitting}
-              className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white"
+              className=" bg-raised-hi hover:bg-raised-hi text-white"
             >
               {isSubmitting ? (
                 <>
@@ -490,8 +490,8 @@ export function QuickUploadDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10">
-              <Upload className="h-5 w-5 text-violet-600" />
+            <div className="p-2 rounded-xl bg-tile-hi ">
+              <Upload className="h-5 w-5 text-foreground" />
             </div>
             <DialogTitle>Quick Upload</DialogTitle>
           </div>
@@ -513,8 +513,8 @@ export function QuickUploadDialog({
               "cursor-pointer transition-all duration-200",
               "min-h-[180px]",
               isDragging
-                ? "border-violet-500 bg-violet-50 dark:bg-violet-950/20 scale-[1.02]"
-                : "border-border hover:border-violet-400 hover:bg-muted/50"
+                ? "border-ctl bg-tile-hi dark:bg-tile-hi scale-[1.02]"
+                : "border-border hover:border-ctl hover:bg-muted/50"
             )}
           >
             <input
@@ -529,8 +529,8 @@ export function QuickUploadDialog({
               className={cn(
                 "p-4 rounded-2xl transition-all duration-200",
                 isDragging
-                  ? "bg-violet-500 text-white scale-110"
-                  : "bg-violet-100 text-violet-600 dark:bg-violet-900/30"
+                  ? "bg-raised-hi text-white scale-110"
+                  : "bg-tile-hi text-foreground dark:bg-tile-hi"
               )}
             >
               <Upload className="h-8 w-8" />
@@ -555,7 +555,7 @@ export function QuickUploadDialog({
                     "flex items-center gap-3 p-3 rounded-xl border",
                     "transition-all duration-200",
                     uploadedFile.status === "success" &&
-                      "bg-emerald-50/50 border-emerald-200 dark:bg-emerald-950/20",
+                      "bg-success/50 border-success/30",
                     uploadedFile.status === "error" &&
                       "bg-red-50/50 border-red-200 dark:bg-red-950/20",
                     uploadedFile.status === "uploading" &&
@@ -566,7 +566,7 @@ export function QuickUploadDialog({
                     className={cn(
                       "p-2 rounded-lg",
                       uploadedFile.status === "success"
-                        ? "bg-emerald-100 text-emerald-600"
+                        ? "bg-success/10 text-success"
                         : uploadedFile.status === "error"
                         ? "bg-red-100 text-red-600"
                         : "bg-muted text-muted-foreground"
@@ -599,7 +599,7 @@ export function QuickUploadDialog({
                     </div>
                   </div>
                   {uploadedFile.status !== "uploading" && (
-                    <Button
+                    <Button aria-label={`Remove ${uploadedFile.file.name}`}
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
@@ -628,7 +628,7 @@ export function QuickUploadDialog({
           <Button
             onClick={handleUpload}
             disabled={files.length === 0 || isUploading}
-            className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white"
+            className=" bg-raised-hi hover:bg-raised-hi text-white"
           >
             {isUploading ? (
               <>
@@ -720,8 +720,8 @@ export function QuickReminderDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10">
-              <Bell className="h-5 w-5 text-violet-600" />
+            <div className="p-2 rounded-xl bg-tile-hi ">
+              <Bell className="h-5 w-5 text-foreground" />
             </div>
             <DialogTitle>Send Reminder</DialogTitle>
           </div>
@@ -742,7 +742,7 @@ export function QuickReminderDialog({
                 setFormData((prev) => ({ ...prev, recipient: e.target.value }))
               }
               autoFocus={!preselectedRecipient}
-              className="focus-visible:ring-violet-500/50"
+              className="focus-visible:ring-ctl"
             />
           </div>
 
@@ -755,7 +755,7 @@ export function QuickReminderDialog({
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, subject: e.target.value }))
               }
-              className="focus-visible:ring-violet-500/50"
+              className="focus-visible:ring-ctl"
             />
           </div>
 
@@ -769,7 +769,7 @@ export function QuickReminderDialog({
                 setFormData((prev) => ({ ...prev, message: e.target.value }))
               }
               rows={4}
-              className="resize-none focus-visible:ring-violet-500/50"
+              className="resize-none focus-visible:ring-ctl"
             />
           </div>
 
@@ -782,7 +782,7 @@ export function QuickReminderDialog({
                 className={cn(
                   "flex-1",
                   formData.sendAt === "now" &&
-                    "bg-gradient-to-r from-indigo-500 to-violet-500 text-white"
+                    " bg-raised-hi text-white"
                 )}
                 onClick={() =>
                   setFormData((prev) => ({ ...prev, sendAt: "now" }))
@@ -797,7 +797,7 @@ export function QuickReminderDialog({
                 className={cn(
                   "flex-1",
                   formData.sendAt === "later" &&
-                    "bg-gradient-to-r from-indigo-500 to-violet-500 text-white"
+                    " bg-raised-hi text-white"
                 )}
                 onClick={() =>
                   setFormData((prev) => ({ ...prev, sendAt: "later" }))
@@ -823,7 +823,7 @@ export function QuickReminderDialog({
                   }))
                 }
                 min={new Date().toISOString().slice(0, 16)}
-                className="focus-visible:ring-violet-500/50"
+                className="focus-visible:ring-ctl"
               />
             </div>
           )}
@@ -844,7 +844,7 @@ export function QuickReminderDialog({
                 isSubmitting ||
                 (formData.sendAt === "later" && !formData.scheduledTime)
               }
-              className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white"
+              className=" bg-raised-hi hover:bg-raised-hi text-white"
             >
               {isSubmitting ? (
                 <>

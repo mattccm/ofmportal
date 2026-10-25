@@ -78,10 +78,10 @@ const defaultIcons: Record<string, React.ReactNode> = {
 
 // Default colors
 const defaultColors: Record<string, string> = {
-  videos: "bg-violet-500",
+  videos: "bg-raised-hi",
   images: "bg-blue-500",
   documents: "bg-amber-500",
-  attachments: "bg-emerald-500",
+  attachments: "bg-success",
   other: "bg-gray-500",
 };
 
@@ -127,7 +127,7 @@ export function StorageUsage({ stats, isLoading, onCleanupClick }: StorageUsageP
             ? "bg-red-500"
             : isNearLimit
               ? "bg-amber-500"
-              : "bg-gradient-to-r from-primary via-violet-500 to-purple-500"
+              : " bg-primary "
         }`} />
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -161,7 +161,7 @@ export function StorageUsage({ stats, isLoading, onCleanupClick }: StorageUsageP
                   className={
                     stats.trend.direction === "up"
                       ? "text-amber-500 border-amber-500/30"
-                      : "text-emerald-500 border-emerald-500/30"
+                      : "text-success border-success/30"
                   }
                 >
                   {stats.trend.direction === "up" ? (
@@ -203,7 +203,7 @@ export function StorageUsage({ stats, isLoading, onCleanupClick }: StorageUsageP
                     ? "bg-red-500"
                     : isNearLimit
                       ? "bg-amber-500"
-                      : "bg-gradient-to-r from-primary to-violet-500"
+                      : " bg-primary "
                 }`}
                 style={{ width: `${Math.min(usagePercentage, 100)}%` }}
               />
@@ -295,8 +295,8 @@ export function StorageUsage({ stats, isLoading, onCleanupClick }: StorageUsageP
         <Card className="card-elevated">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-violet-500" />
+              <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <CardTitle>Cleanup Recommendations</CardTitle>
@@ -315,7 +315,7 @@ export function StorageUsage({ stats, isLoading, onCleanupClick }: StorageUsageP
                     ? "border-amber-500/20 bg-amber-500/5"
                     : rec.type === "info"
                     ? "border-blue-500/20 bg-blue-500/5"
-                    : "border-violet-500/20 bg-violet-500/5"
+                    : "border-ctl bg-tile-hi"
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -325,7 +325,7 @@ export function StorageUsage({ stats, isLoading, onCleanupClick }: StorageUsageP
                     ) : rec.type === "info" ? (
                       <HardDrive className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
                     ) : (
-                      <Sparkles className="h-5 w-5 text-violet-500 shrink-0 mt-0.5" />
+                      <Sparkles className="h-5 w-5 text-foreground shrink-0 mt-0.5" />
                     )}
                     <p className="text-sm">{rec.message}</p>
                   </div>

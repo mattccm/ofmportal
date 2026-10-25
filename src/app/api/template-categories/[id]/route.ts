@@ -52,7 +52,7 @@ export async function GET(
 
     if (!category) {
       return NextResponse.json(
-        { error: "Category not found" },
+        { error: "Group not found" },
         { status: 404 }
       );
     }
@@ -92,7 +92,7 @@ export async function GET(
   } catch (error) {
     console.error("Error fetching template category:", error);
     return NextResponse.json(
-      { error: "Failed to fetch template category" },
+      { error: "Couldn't load the group" },
       { status: 500 }
     );
   }
@@ -114,7 +114,7 @@ export async function PATCH(
     // Only owners/admins can update categories
     if (!["OWNER", "ADMIN"].includes(session.user.role)) {
       return NextResponse.json(
-        { error: "Only administrators can update template categories" },
+        { error: "Only owners and admins can change template groups" },
         { status: 403 }
       );
     }
@@ -133,7 +133,7 @@ export async function PATCH(
 
     if (!existing) {
       return NextResponse.json(
-        { error: "Category not found" },
+        { error: "Group not found" },
         { status: 404 }
       );
     }
@@ -151,7 +151,7 @@ export async function PATCH(
 
       if (duplicate) {
         return NextResponse.json(
-          { error: "A category with this name already exists" },
+          { error: "A group with this name already exists" },
           { status: 409 }
         );
       }
@@ -195,7 +195,7 @@ export async function PATCH(
 
     console.error("Error updating template category:", error);
     return NextResponse.json(
-      { error: "Failed to update template category" },
+      { error: "Couldn't save the group" },
       { status: 500 }
     );
   }
@@ -217,7 +217,7 @@ export async function DELETE(
     // Only owners/admins can delete categories
     if (!["OWNER", "ADMIN"].includes(session.user.role)) {
       return NextResponse.json(
-        { error: "Only administrators can delete template categories" },
+        { error: "Only owners and admins can delete template groups" },
         { status: 403 }
       );
     }
@@ -239,7 +239,7 @@ export async function DELETE(
 
     if (!category) {
       return NextResponse.json(
-        { error: "Category not found" },
+        { error: "Group not found" },
         { status: 404 }
       );
     }
@@ -262,13 +262,13 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: "Category deleted successfully",
+      message: "Group deleted",
       templatesUpdated: category._count.templates,
     });
   } catch (error) {
     console.error("Error deleting template category:", error);
     return NextResponse.json(
-      { error: "Failed to delete template category" },
+      { error: "Couldn't delete the group" },
       { status: 500 }
     );
   }

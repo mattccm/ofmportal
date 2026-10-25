@@ -11,13 +11,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  FIELD_STATE_ICON,
+  FIELD_STATE_SHORT,
+  FIELD_STATE_TEXT,
+  StateLegend,
+  requestStatusState,
+  type FieldState,
+} from "@/components/title-wall";
+import {
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIcon,
   Clock,
   Bell,
   FileText,
-  AlertCircle,
+  Flag,
   Eye,
   CalendarDays,
   MoreHorizontal,
@@ -62,6 +70,8 @@ export interface CalendarEvent {
   creatorId?: string;
   creatorName?: string;
   requestId?: string;
+  /** The request's state, when the event shows one (see /api/calendar/events) */
+  state?: FieldState | null;
   color: string;
   metadata?: Record<string, unknown>;
 }
@@ -77,13 +87,40 @@ interface CalendarViewProps {
   initialView?: ViewMode;
 }
 
-// EVENT TYPE ICONS
+// HOW AN EVENT LOOKS
+// Requests carry their state as the shared vocabulary's icon in its colour
+// (plus the word for screen readers and in the detail panel). Due dates and
+// reminders are not states: neutral ink with their own icon, and a due date
+// turns red only when it is overdue. No coloured edges or tints.
 
-const eventTypeIcons: Record<CalendarEventType, typeof FileText> = {
-  request: FileText,
-  deadline: AlertCircle,
-  reminder: Bell,
-};
+export interface EventLook {
+  Icon: typeof FileText;
+  /** Icon colour utility (the only colour an event carries) */
+  iconClass: string;
+  /** What the colour and icon mean, for the accessible name and the detail panel */
+  word: string;
+  state: FieldState | null;
+}
+
+export function eventLook(event: CalendarEvent): EventLook {
+  const overdue = Boolean(event.metadata?.isOverdue);
+  if (event.type === "reminder") {
+    return { Icon: Bell, iconClass: "text-ink-2", word: "Reminder", state: null };
+  }
+  if (event.type === "deadline") {
+    return overdue
+      ? { Icon: FIELD_STATE_ICON.overdue, iconClass: FIELD_STATE_TEXT.overdue, word: "Overdue", state: "overdue" }
+      : { Icon: Flag, iconClass: "text-ink-2", word: "Due date", state: null };
+  }
+  const state = event.state !== undefined ? event.state : requestStatusState(event.status ?? "", overdue);
+  if (!state) return { Icon: FileText, iconClass: "text-ink-2", word: "Request", state: null };
+  return {
+    Icon: FIELD_STATE_ICON[state],
+    iconClass: FIELD_STATE_TEXT[state],
+    word: FIELD_STATE_SHORT[state],
+    state,
+  };
+}
 
 // CALENDAR VIEW COMPONENT
 
@@ -250,7 +287,8 @@ export function CalendarView({
   // RENDER HELPERS
 
   const renderEventCard = (event: CalendarEvent, compact = false) => {
-    const Icon = eventTypeIcons[event.type];
+    const look = eventLook(event);
+    const Icon = look.Icon;
     const isDragging = draggedEvent?.id === event.id;
 
     return (
@@ -266,26 +304,22 @@ export function CalendarView({
           onEventClick?.(event);
         }}
         className={cn(
-          "group relative rounded-lg border bg-card p-2 cursor-pointer transition-all duration-200",
-          "hover:shadow-md hover:scale-[1.02] hover:z-10",
-          "active:scale-[0.98]",
-          isDragging && "opacity-50 scale-95",
+          "group relative cursor-pointer rounded-lg border bg-card p-2 transition-colors duration-200",
+          "hover:bg-tile-hi",
+          isDragging && "opacity-50",
           compact && "p-1.5"
         )}
-        style={{ borderLeftColor: event.color, borderLeftWidth: "3px" }}
       >
         <div className="flex items-start gap-2">
-          <div
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
-            style={{ backgroundColor: `${event.color}20` }}
-          >
-            <Icon className="h-3.5 w-3.5" style={{ color: event.color }} />
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-tile-hi">
+            <Icon aria-hidden="true" className={cn("h-3.5 w-3.5", look.iconClass)} />
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn(
               "font-medium text-foreground truncate",
               compact ? "text-xs" : "text-sm"
             )}>
+              <span className="sr-only">{look.word}: </span>
               {event.title}
             </p>
             {!compact && event.creatorName && (
@@ -306,7 +340,7 @@ export function CalendarView({
           <div className="opacity-0 group-hover:opacity-100 transition-opacity">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
+                <Button aria-label={`More actions for ${event.title}`}
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0"
@@ -429,28 +463,30 @@ export function CalendarView({
                       )}
                     </div>
                     <div className="space-y-1 overflow-hidden">
-                      {dayEvents.slice(0, 2).map((event) => (
-                        <div
-                          key={event.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, event)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEventClick?.(event);
-                          }}
-                          className={cn(
-                            "rounded px-1.5 py-0.5 text-xs font-medium truncate cursor-pointer transition-all",
-                            "hover:scale-[1.02] active:scale-[0.98]",
-                            draggedEvent?.id === event.id && "opacity-50"
-                          )}
-                          style={{
-                            backgroundColor: `${event.color}20`,
-                            color: event.color,
-                          }}
-                        >
-                          {event.title}
-                        </div>
-                      ))}
+                      {dayEvents.slice(0, 2).map((event) => {
+                        const look = eventLook(event);
+                        const Icon = look.Icon;
+                        return (
+                          <div
+                            key={event.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, event)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEventClick?.(event);
+                            }}
+                            className={cn(
+                              "flex min-w-0 cursor-pointer items-center gap-1 rounded bg-tile-hi px-1.5 py-0.5 text-xs font-medium text-foreground transition-colors",
+                              "hover:bg-raised",
+                              draggedEvent?.id === event.id && "opacity-50"
+                            )}
+                          >
+                            <Icon aria-hidden="true" className={cn("size-3 shrink-0", look.iconClass)} />
+                            <span className="sr-only">{look.word}: </span>
+                            <span className="truncate">{event.title}</span>
+                          </div>
+                        );
+                      })}
                       {dayEvents.length > 2 && (
                         <div className="text-xs text-muted-foreground pl-1">
                           +{dayEvents.length - 2} more
@@ -632,7 +668,7 @@ export function CalendarView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-border bg-card">
         <div className="flex items-center gap-3">
-          <Button
+          <Button aria-label="Previous"
             variant="outline"
             size="sm"
             onClick={navigatePrevious}
@@ -640,7 +676,7 @@ export function CalendarView({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button
+          <Button aria-label="Next"
             variant="outline"
             size="sm"
             onClick={navigateNext}
@@ -700,21 +736,19 @@ export function CalendarView({
         )}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 p-3 border-t border-border bg-muted/30 text-sm">
-        <span className="text-muted-foreground font-medium">Legend:</span>
-        <div className="flex items-center gap-1.5">
-          <FileText className="h-4 w-4 text-blue-500" />
-          <span className="text-muted-foreground">Request</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <AlertCircle className="h-4 w-4 text-orange-500" />
-          <span className="text-muted-foreground">Deadline</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Bell className="h-4 w-4 text-violet-500" />
-          <span className="text-muted-foreground">Reminder</span>
-        </div>
+      {/* Key: requests in the state vocabulary, then the neutral event types */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border p-3">
+        <StateLegend kind="icons" />
+        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] leading-normal text-ink-2" aria-label="Other events">
+          <li className="inline-flex items-center gap-1.5">
+            <Flag aria-hidden="true" className="size-3.5 text-ink-2" />
+            Due date
+          </li>
+          <li className="inline-flex items-center gap-1.5">
+            <Bell aria-hidden="true" className="size-3.5 text-ink-2" />
+            Reminder
+          </li>
+        </ul>
       </div>
     </div>
   );

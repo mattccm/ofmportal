@@ -332,7 +332,7 @@ export function VoiceNoteRecorder({
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button
+        <Button aria-label="Record voice note"
           variant="ghost"
           size="icon"
           disabled={disabled}
@@ -372,7 +372,7 @@ export function VoiceNoteRecorder({
                 <span className="text-muted-foreground">
                   {formatTime(duration)} / {formatTime(maxDuration)}
                 </span>
-                <Progress
+                <Progress aria-label="Recording length"
                   value={(duration / maxDuration) * 100}
                   className="w-20 h-2"
                 />
@@ -384,7 +384,7 @@ export function VoiceNoteRecorder({
           {recordedUrl && !isRecording && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                <Button
+                <Button aria-label={isPlaying ? "Pause playback" : "Play recording"}
                   variant="ghost"
                   size="icon"
                   onClick={playRecording}
@@ -431,7 +431,7 @@ export function VoiceNoteRecorder({
 
             {isRecording && (
               <div className="flex items-center gap-2 w-full">
-                <Button
+                <Button aria-label={isPaused ? "Resume recording" : "Pause recording"}
                   variant="outline"
                   size="icon"
                   onClick={pauseRecording}
@@ -455,7 +455,7 @@ export function VoiceNoteRecorder({
 
             {recordedUrl && !isRecording && (
               <div className="flex items-center gap-2 w-full">
-                <Button
+                <Button aria-label="Discard recording"
                   variant="outline"
                   size="icon"
                   onClick={discardRecording}

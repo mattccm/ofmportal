@@ -212,15 +212,15 @@ export function ShareDialog({
         {/* Generated Link Display */}
         {shareUrl && (
           <div className="space-y-4">
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="p-4 bg-success/10 border border-success/30 rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-green-800">
+                <span className="text-sm font-medium text-success">
                   Share link created
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-green-700 hover:text-green-800"
+                  className="text-success hover:text-success"
                   onClick={() => setShowQR(!showQR)}
                 >
                   <QrCode className="h-4 w-4 mr-1" />
@@ -233,14 +233,14 @@ export function ShareDialog({
                   readOnly
                   className="bg-white text-sm font-mono"
                 />
-                <Button
+                <Button aria-label={copied ? "Link copied" : "Copy link"}
                   variant="outline"
                   size="icon"
                   onClick={handleCopyLink}
                   className="shrink-0"
                 >
                   {copied ? (
-                    <Check className="h-4 w-4 text-green-600" />
+                    <Check className="h-4 w-4 text-success" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
@@ -251,7 +251,7 @@ export function ShareDialog({
                   asChild
                   className="shrink-0"
                 >
-                  <a href={shareUrl} target="_blank" rel="noopener noreferrer">
+                  <a aria-label="Open share link in new tab" href={shareUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 </Button>
@@ -292,7 +292,7 @@ export function ShareDialog({
                 value={permission}
                 onValueChange={(value) => setPermission(value as SharePermission)}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Permission level">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -324,7 +324,7 @@ export function ShareDialog({
                 Link expiration
               </Label>
               <Select value={expiration} onValueChange={setExpiration}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Link expiration">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -347,7 +347,7 @@ export function ShareDialog({
                   <Lock className="h-4 w-4 text-muted-foreground" />
                   Password protection
                 </Label>
-                <Switch
+                <Switch aria-label="Password protection"
                   id="enable-password"
                   checked={enablePassword}
                   onCheckedChange={setEnablePassword}
@@ -508,7 +508,7 @@ function ExistingLinkItem({ link, onDeactivate }: ExistingLinkItemProps) {
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <Button
+        <Button aria-label={copied ? "Link copied" : "Copy link"}
           variant="ghost"
           size="icon"
           className="h-7 w-7"
@@ -516,12 +516,12 @@ function ExistingLinkItem({ link, onDeactivate }: ExistingLinkItemProps) {
           disabled={!!isExpired}
         >
           {copied ? (
-            <Check className="h-3.5 w-3.5 text-green-600" />
+            <Check className="h-3.5 w-3.5 text-success" />
           ) : (
             <Copy className="h-3.5 w-3.5" />
           )}
         </Button>
-        <Button
+        <Button aria-label="Deactivate link"
           variant="ghost"
           size="icon"
           className="h-7 w-7 text-red-500 hover:text-red-600"
@@ -552,7 +552,7 @@ export function ShareButton({
 
   return (
     <>
-      <Button variant={variant} size={size} onClick={() => setOpen(true)}>
+      <Button aria-label="Share" variant={variant} size={size} onClick={() => setOpen(true)}>
         {size === "icon" || size === "icon-sm" ? (
           <Link2 className="h-4 w-4" />
         ) : (

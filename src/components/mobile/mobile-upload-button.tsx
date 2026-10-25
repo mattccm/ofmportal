@@ -244,7 +244,7 @@ export function MobileUploadButton({
             "fixed z-40",
             "flex items-center justify-center",
             "h-14 w-14 rounded-2xl",
-            "bg-gradient-to-br from-primary to-violet-600 text-white",
+            " bg-primary text-white",
             "shadow-lg shadow-primary/30",
             "active:scale-95 transition-all duration-150",
             "touch-manipulation",
@@ -296,7 +296,7 @@ export function MobileUploadButton({
                 onClick={handleCameraCapture}
                 className={cn(
                   "flex items-center gap-4 w-full p-4 rounded-2xl",
-                  "bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
+                  " bg-blue-50 dark:bg-blue-900/20 ",
                   "border border-blue-200 dark:border-blue-800",
                   "active:scale-[0.98] transition-transform",
                   "touch-manipulation"
@@ -323,8 +323,8 @@ export function MobileUploadButton({
                 onClick={handleGalleryPick}
                 className={cn(
                   "flex items-center gap-4 w-full p-4 rounded-2xl",
-                  "bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20",
-                  "border border-violet-200 dark:border-violet-800",
+                  " bg-tile-hi dark:bg-tile-hi ",
+                  "border border-line dark:border-line",
                   "active:scale-[0.98] transition-transform",
                   "touch-manipulation"
                 )}
@@ -332,7 +332,7 @@ export function MobileUploadButton({
                 <div
                   className={cn(
                     "flex h-14 w-14 items-center justify-center rounded-xl",
-                    "bg-violet-500 text-white"
+                    "bg-raised-hi text-white"
                   )}
                 >
                   <Image className="h-7 w-7" />
@@ -413,7 +413,7 @@ export function MobileUploadButton({
                     uploadFile.status === "uploading" &&
                       "bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800",
                     uploadFile.status === "completed" &&
-                      "bg-emerald-50/50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800",
+                      "bg-success/50 border-success/30 dark:bg-success/10",
                     uploadFile.status === "error" &&
                       "bg-red-50/50 border-red-200 dark:bg-red-900/10 dark:border-red-800",
                     uploadFile.status === "pending" && "bg-card border-border"
@@ -495,7 +495,7 @@ export function MobileUploadButton({
                       <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
                     )}
                     {uploadFile.status === "completed" && (
-                      <CheckCircle className="h-5 w-5 text-emerald-500" />
+                      <CheckCircle className="h-5 w-5 text-success" />
                     )}
                     {uploadFile.status === "error" && (
                       <AlertCircle className="h-5 w-5 text-red-500" />
@@ -536,8 +536,8 @@ export function MobileUploadButton({
                 onClick={startUpload}
                 className={cn(
                   "w-full h-14 rounded-2xl text-lg font-semibold",
-                  "bg-gradient-to-r from-primary to-violet-600",
-                  "hover:from-primary/90 hover:to-violet-600/90",
+                  " bg-primary ",
+                  "hover:bg-primary/90 ",
                   "active:scale-[0.98] transition-all touch-manipulation"
                 )}
               >
@@ -560,7 +560,7 @@ export function MobileUploadButton({
                 onClick={closeOverlay}
                 className={cn(
                   "w-full h-14 rounded-2xl text-lg font-semibold",
-                  "bg-emerald-500 hover:bg-emerald-600",
+                  "bg-success hover:bg-success/85",
                   "active:scale-[0.98] transition-all touch-manipulation"
                 )}
               >

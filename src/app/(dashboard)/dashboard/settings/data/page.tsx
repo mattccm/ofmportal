@@ -359,12 +359,12 @@ export default function DataManagementPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/settings" aria-label="Back to settings">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-rose-500/20 to-orange-500/20 flex items-center justify-center">
+          <div className="h-12 w-12 rounded-xl bg-rose-500/20 flex items-center justify-center">
             <Database className="h-6 w-6 text-rose-500" />
           </div>
           <div>
@@ -378,12 +378,12 @@ export default function DataManagementPage() {
 
       {/* Quick Stats */}
       <Card className="card-elevated overflow-hidden">
-        <div className="h-2 bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500" />
+        <div className="h-2 bg-rose-500 " />
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <HardDrive className="h-6 w-6 text-violet-500" />
+              <div className="h-12 w-12 rounded-xl bg-tile-hi flex items-center justify-center">
+                <HardDrive className="h-6 w-6 text-foreground" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Storage Used</p>
@@ -408,8 +408,8 @@ export default function DataManagementPage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <History className="h-6 w-6 text-emerald-500" />
+              <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <History className="h-6 w-6 text-success" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Last Cleanup</p>
@@ -517,7 +517,7 @@ export default function DataManagementPage() {
                             variant="outline"
                             className={
                               job.status === "completed"
-                                ? "text-emerald-500 border-emerald-500/30"
+                                ? "text-success border-success/30"
                                 : job.status === "failed"
                                 ? "text-red-500 border-red-500/30"
                                 : job.status === "running"
@@ -604,8 +604,8 @@ export default function DataManagementPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                    <FileDown className="h-5 w-5 text-emerald-500" />
+                  <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center">
+                    <FileDown className="h-5 w-5 text-success" />
                   </div>
                   <div>
                     <CardTitle>Data Export</CardTitle>
@@ -643,7 +643,7 @@ export default function DataManagementPage() {
                             variant="outline"
                             className={
                               job.status === "completed"
-                                ? "text-emerald-500 border-emerald-500/30"
+                                ? "text-success border-success/30"
                                 : job.status === "failed"
                                 ? "text-red-500 border-red-500/30"
                                 : job.status === "processing"
@@ -672,7 +672,7 @@ export default function DataManagementPage() {
                               size="sm"
                               asChild
                             >
-                              <a href={job.downloadUrl} download>
+                              <a aria-label="Download export" href={job.downloadUrl} download>
                                 <Download className="h-4 w-4" />
                               </a>
                             </Button>
@@ -695,7 +695,7 @@ export default function DataManagementPage() {
           </Card>
 
           {/* Export Info */}
-          <Card className="card-elevated border-blue-500/20 bg-gradient-to-r from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20 dark:border-blue-800/30">
+          <Card className="card-elevated border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800/30">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
                 <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">

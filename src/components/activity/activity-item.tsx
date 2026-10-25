@@ -108,8 +108,8 @@ const activityConfig: Record<ActivityType, ActivityConfig> = {
   },
   upload_approved: {
     icon: FileCheck,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+    color: "text-approved",
+    bgColor: "bg-approved/10",
   },
   upload_rejected: {
     icon: FileX,
@@ -126,8 +126,8 @@ const activityConfig: Record<ActivityType, ActivityConfig> = {
   // Request activities
   request_created: {
     icon: FileCheck,
-    color: "text-violet-600",
-    bgColor: "bg-violet-100 dark:bg-violet-900/30",
+    color: "text-foreground",
+    bgColor: "bg-tile-hi dark:bg-tile-hi",
   },
   request_sent: {
     icon: Send,
@@ -136,8 +136,8 @@ const activityConfig: Record<ActivityType, ActivityConfig> = {
   },
   request_completed: {
     icon: CheckCircle2,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+    color: "text-approved",
+    bgColor: "bg-approved/10",
   },
   request_expired: {
     icon: AlertCircle,
@@ -160,20 +160,20 @@ const activityConfig: Record<ActivityType, ActivityConfig> = {
   // Message activities
   message_new: {
     icon: MessageCircle,
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-100 dark:bg-indigo-900/30",
+    color: "text-foreground",
+    bgColor: "bg-tile-hi dark:bg-tile-hi",
   },
   message_reply: {
     icon: MessageCircle,
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-100 dark:bg-indigo-900/30",
+    color: "text-foreground",
+    bgColor: "bg-tile-hi dark:bg-tile-hi",
   },
 
   // Team activities
   team_member_added: {
     icon: UserPlus,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+    color: "text-success",
+    bgColor: "bg-success/10",
   },
   team_member_removed: {
     icon: UserMinus,
@@ -182,8 +182,8 @@ const activityConfig: Record<ActivityType, ActivityConfig> = {
   },
   team_member_role_changed: {
     icon: Users,
-    color: "text-violet-600",
-    bgColor: "bg-violet-100 dark:bg-violet-900/30",
+    color: "text-foreground",
+    bgColor: "bg-tile-hi dark:bg-tile-hi",
   },
 
   // File activities
@@ -207,8 +207,8 @@ const activityConfig: Record<ActivityType, ActivityConfig> = {
   // Bulk activities
   bulk_action: {
     icon: RefreshCw,
-    color: "text-violet-600",
-    bgColor: "bg-violet-100 dark:bg-violet-900/30",
+    color: "text-foreground",
+    bgColor: "bg-tile-hi dark:bg-tile-hi",
   },
 };
 
@@ -361,17 +361,17 @@ export const ActivityItem = forwardRef<HTMLDivElement, ActivityItemProps>(
           {!compact && activity.metadata && (
             <div className="flex flex-wrap gap-1 mt-1">
               {activity.metadata.requestTitle && (
-                <Badge variant="outline" className="text-[10px] h-5">
+                <Badge variant="outline" className="text-[12px] h-5">
                   {activity.metadata.requestTitle}
                 </Badge>
               )}
               {activity.metadata.creatorName && (
-                <Badge variant="secondary" className="text-[10px] h-5">
+                <Badge variant="secondary" className="text-[12px] h-5">
                   {activity.metadata.creatorName}
                 </Badge>
               )}
               {activity.metadata.count && activity.metadata.count > 1 && (
-                <Badge variant="secondary" className="text-[10px] h-5">
+                <Badge variant="secondary" className="text-[12px] h-5">
                   +{activity.metadata.count - 1} more
                 </Badge>
               )}
@@ -384,7 +384,7 @@ export const ActivityItem = forwardRef<HTMLDivElement, ActivityItemProps>(
           <span
             className={cn(
               "text-muted-foreground whitespace-nowrap",
-              compact ? "text-[10px]" : "text-xs"
+              compact ? "text-[12px]" : "text-xs"
             )}
             title={formatFullDate(activity.timestamp)}
           >
@@ -395,7 +395,7 @@ export const ActivityItem = forwardRef<HTMLDivElement, ActivityItemProps>(
           {config.badgeVariant && (
             <Badge
               variant={config.badgeVariant}
-              className={cn("text-[10px] h-4", compact && "hidden")}
+              className={cn("text-[12px] h-5", compact && "hidden")}
             >
               {activity.type.split("_").pop()}
             </Badge>

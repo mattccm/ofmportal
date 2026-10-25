@@ -38,6 +38,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DueDateField } from "@/components/requests/deadline-picker";
+import { cn } from "@/lib/utils";
 import { BatchCreatorSelector, type Creator } from "@/components/requests/batch-creator-selector";
 import { BatchPreview, type BatchRequestItem } from "@/components/requests/batch-preview";
 import { addDays, format } from "date-fns";
@@ -51,10 +53,10 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { id: 1, title: "Select Creators", description: "Choose who to send requests to", icon: Users },
-  { id: 2, title: "Choose Template", description: "Select a request template", icon: FileText },
-  { id: 3, title: "Configure", description: "Set defaults for all requests", icon: Settings },
-  { id: 4, title: "Preview", description: "Review and customize", icon: Eye },
+  { id: 1, title: "Creators", description: "Choose who to send requests to", icon: Users },
+  { id: 2, title: "Template", description: "Select a request template", icon: FileText },
+  { id: 3, title: "Defaults", description: "Set defaults for all requests", icon: Settings },
+  { id: 4, title: "Check each one", description: "Review and customize", icon: Eye },
   { id: 5, title: "Send", description: "Create and send requests", icon: Send },
 ];
 
@@ -297,7 +299,7 @@ export default function BatchRequestPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto" />
+          <Loader2 className="h-8 w-8 animate-spin text-foreground mx-auto" />
           <p className="mt-2 text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -311,7 +313,7 @@ export default function BatchRequestPage() {
         return (
           <Card className="border-0 shadow-none">
             <CardHeader className="px-0">
-              <CardTitle>Select Creators</CardTitle>
+              <CardTitle>Who gets one</CardTitle>
               <CardDescription>
                 Choose the creators who will receive content requests. You can filter and search to find specific creators.
               </CardDescription>
@@ -330,7 +332,7 @@ export default function BatchRequestPage() {
         return (
           <Card className="border-0 shadow-none">
             <CardHeader className="px-0">
-              <CardTitle>Choose Template (Optional)</CardTitle>
+              <CardTitle>Template (optional)</CardTitle>
               <CardDescription>
                 Select a request template to use as a starting point, or skip to create requests without a template.
               </CardDescription>
@@ -343,19 +345,19 @@ export default function BatchRequestPage() {
                   className={`
                     relative p-4 rounded-lg border-2 cursor-pointer transition-all
                     ${!selectedTemplate
-                      ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20"
-                      : "border-border hover:border-indigo-300 dark:hover:border-indigo-700"
+                      ? "border-ctl bg-tile-hi dark:bg-tile-hi"
+                      : "border-border hover:border-ctl dark:hover:border-ctl"
                     }
                   `}
                 >
                   {!selectedTemplate && (
                     <div className="absolute top-2 right-2">
-                      <CheckCircle className="h-5 w-5 text-indigo-600" />
+                      <CheckCircle className="h-5 w-5 text-foreground" />
                     </div>
                   )}
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-gray-500" />
+                    <div className="h-10 w-10 rounded-lg bg-tile-hi flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-ink-2" />
                     </div>
                     <div>
                       <h3 className="font-medium text-foreground">No Template</h3>
@@ -372,18 +374,18 @@ export default function BatchRequestPage() {
                     className={`
                       relative p-4 rounded-lg border-2 cursor-pointer transition-all
                       ${selectedTemplate === template.id
-                        ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20"
-                        : "border-border hover:border-indigo-300 dark:hover:border-indigo-700"
+                        ? "border-ctl bg-tile-hi dark:bg-tile-hi"
+                        : "border-border hover:border-ctl dark:hover:border-ctl"
                       }
                     `}
                   >
                     {selectedTemplate === template.id && (
                       <div className="absolute top-2 right-2">
-                        <CheckCircle className="h-5 w-5 text-indigo-600" />
+                        <CheckCircle className="h-5 w-5 text-foreground" />
                       </div>
                     )}
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-lg bg-raised-hi flex items-center justify-center">
                         <FileText className="h-5 w-5 text-white" />
                       </div>
                       <div>
@@ -415,7 +417,7 @@ export default function BatchRequestPage() {
                     <FileText className="h-10 w-10 text-muted-foreground/50 mx-auto" />
                     <p className="mt-2 text-muted-foreground">
                       No templates available.{" "}
-                      <Link href="/dashboard/templates/new" className="text-indigo-600 hover:underline">
+                      <Link href="/dashboard/templates/new" className="text-foreground hover:underline">
                         Create one
                       </Link>
                     </p>
@@ -430,7 +432,7 @@ export default function BatchRequestPage() {
         return (
           <Card className="border-0 shadow-none">
             <CardHeader className="px-0">
-              <CardTitle>Configure Defaults</CardTitle>
+              <CardTitle>Defaults for every request</CardTitle>
               <CardDescription>
                 Set default values that will apply to all {selectedCreators.length} requests.
                 You can customize individual requests in the next step.
@@ -439,7 +441,7 @@ export default function BatchRequestPage() {
             <CardContent className="px-0">
               <div className="space-y-6 max-w-xl">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Request Title *</Label>
+                  <Label htmlFor="title">Title</Label>
                   <Input
                     id="title"
                     value={config.title}
@@ -462,14 +464,13 @@ export default function BatchRequestPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dueDate">Due Date</Label>
-                    <Input
+                    <p id="dueDate-l" className="text-sm font-medium">Due</p>
+                    <DueDateField
                       id="dueDate"
-                      type="date"
                       value={config.dueDate}
-                      onChange={(e) => setConfig({ ...config, dueDate: e.target.value })}
+                      onChange={(v) => setConfig({ ...config, dueDate: v })}
                     />
                   </div>
                   <div className="space-y-2">
@@ -492,7 +493,7 @@ export default function BatchRequestPage() {
                 </div>
 
                 <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
-                  <Checkbox
+                  <Checkbox aria-label="Send notifications"
                     id="sendNotifications"
                     checked={config.sendNotifications}
                     onCheckedChange={(checked) =>
@@ -517,7 +518,7 @@ export default function BatchRequestPage() {
         return (
           <Card className="border-0 shadow-none">
             <CardHeader className="px-0">
-              <CardTitle>Review & Customize</CardTitle>
+              <CardTitle>Check each one</CardTitle>
               <CardDescription>
                 Review the requests that will be created. Click on any row to customize individual requests.
               </CardDescription>
@@ -540,7 +541,7 @@ export default function BatchRequestPage() {
             <CardContent className="px-0 py-12">
               {isCreating ? (
                 <div className="text-center max-w-md mx-auto">
-                  <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mx-auto" />
+                  <Loader2 className="h-12 w-12 animate-spin text-foreground mx-auto" />
                   <h3 className="mt-4 text-lg font-semibold text-foreground">
                     Creating Requests...
                   </h3>
@@ -558,8 +559,8 @@ export default function BatchRequestPage() {
                 <div className="text-center max-w-md mx-auto">
                   {creationResults.success > 0 && creationResults.failed === 0 ? (
                     <>
-                      <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
-                        <CheckCircle className="h-8 w-8 text-green-600" />
+                      <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center mx-auto">
+                        <CheckCircle className="h-8 w-8 text-success" />
                       </div>
                       <h3 className="mt-4 text-lg font-semibold text-foreground">
                         All Requests Created!
@@ -572,8 +573,8 @@ export default function BatchRequestPage() {
                     </>
                   ) : creationResults.failed > 0 && creationResults.success === 0 ? (
                     <>
-                      <div className="h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto">
-                        <X className="h-8 w-8 text-red-600" />
+                      <div className="h-16 w-16 rounded-full bg-late/10 flex items-center justify-center mx-auto">
+                        <X className="h-8 w-8 text-late" />
                       </div>
                       <h3 className="mt-4 text-lg font-semibold text-foreground">
                         Failed to Create Requests
@@ -584,8 +585,8 @@ export default function BatchRequestPage() {
                     </>
                   ) : (
                     <>
-                      <div className="h-16 w-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
-                        <AlertTriangle className="h-8 w-8 text-amber-600" />
+                      <div className="h-16 w-16 rounded-full bg-tile-hi flex items-center justify-center mx-auto">
+                        <AlertTriangle className="h-8 w-8 text-ink-2" />
                       </div>
                       <h3 className="mt-4 text-lg font-semibold text-foreground">
                         Partially Completed
@@ -598,9 +599,9 @@ export default function BatchRequestPage() {
                   )}
 
                   {creationResults.errors.length > 0 && (
-                    <div className="mt-4 p-4 bg-red-50 dark:bg-red-950/20 rounded-lg text-left">
-                      <h4 className="text-sm font-medium text-red-800 dark:text-red-300">Errors:</h4>
-                      <ul className="mt-2 text-sm text-red-600 dark:text-red-400 space-y-1">
+                    <div className="mt-4 p-4 bg-late/10 rounded-lg text-left">
+                      <h4 className="text-sm font-medium text-late">Errors:</h4>
+                      <ul className="mt-2 text-sm text-late space-y-1">
                         {creationResults.errors.map((error, i) => (
                           <li key={i}>{error}</li>
                         ))}
@@ -614,7 +615,7 @@ export default function BatchRequestPage() {
                         View All Requests
                       </Link>
                     </Button>
-                    <Button asChild className="bg-indigo-600 hover:bg-indigo-700">
+                    <Button asChild className="bg-raised-hi text-ink hover:bg-raised-hi">
                       <Link href="/dashboard/requests/batch">
                         <Sparkles className="mr-2 h-4 w-4" />
                         Create More
@@ -624,8 +625,8 @@ export default function BatchRequestPage() {
                 </div>
               ) : (
                 <div className="text-center max-w-md mx-auto">
-                  <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mx-auto">
-                    <Send className="h-8 w-8 text-indigo-600" />
+                  <div className="h-16 w-16 rounded-full bg-tile-hi dark:bg-tile-hi flex items-center justify-center mx-auto">
+                    <Send className="h-8 w-8 text-foreground" />
                   </div>
                   <h3 className="mt-4 text-lg font-semibold text-foreground">
                     Ready to Create Requests
@@ -637,7 +638,7 @@ export default function BatchRequestPage() {
                   </p>
                   <Button
                     onClick={createBatchRequests}
-                    className="mt-6 bg-indigo-600 hover:bg-indigo-700"
+                    className="mt-6 bg-raised-hi text-ink hover:bg-raised-hi"
                     size="lg"
                   >
                     <Send className="mr-2 h-4 w-4" />
@@ -656,80 +657,40 @@ export default function BatchRequestPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/requests">
-            <ArrowLeft className="h-5 w-5" />
+      <header className="min-w-0">
+        <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] sm:text-[26px]">Batch requests</h1>
+        <p className="mt-1 max-w-[70ch] text-[15px]">
+          One template to many creators, each with their own title, note and due date.{" "}
+          <Link href="/dashboard/requests/new" className="text-ink-2 underline">
+            Same request for everyone? Use New request.
           </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            Batch Request Creation
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Create multiple content requests at once
-          </p>
-        </div>
-      </div>
+        </p>
+      </header>
 
-      {/* Progress Steps */}
-      <Card className="border-indigo-100 dark:border-indigo-900/50">
-        <CardContent className="p-4 md:p-6">
-          <div className="flex items-center justify-between">
-            {STEPS.map((step, index) => {
-              const Icon = step.icon;
-              const isActive = step.id === currentStep;
-              const isCompleted = step.id < currentStep;
-              const isLast = index === STEPS.length - 1;
-
-              return (
-                <div key={step.id} className="flex items-center flex-1 last:flex-initial">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`
-                        flex items-center justify-center h-10 w-10 rounded-full transition-all
-                        ${isActive
-                          ? "bg-indigo-600 text-white ring-4 ring-indigo-100 dark:ring-indigo-900/50"
-                          : isCompleted
-                          ? "bg-indigo-600 text-white"
-                          : "bg-muted text-muted-foreground"
-                        }
-                      `}
-                    >
-                      {isCompleted ? (
-                        <CheckCircle className="h-5 w-5" />
-                      ) : (
-                        <Icon className="h-5 w-5" />
-                      )}
-                    </div>
-                    <div className="mt-2 text-center hidden sm:block">
-                      <p
-                        className={`text-sm font-medium ${
-                          isActive ? "text-indigo-600" : isCompleted ? "text-foreground" : "text-muted-foreground"
-                        }`}
-                      >
-                        {step.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground hidden lg:block">
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                  {!isLast && (
-                    <div
-                      className={`
-                        flex-1 h-0.5 mx-2 md:mx-4 transition-colors
-                        ${isCompleted ? "bg-indigo-600" : "bg-muted"}
-                      `}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      <ol aria-label="Steps" className="flex list-none gap-1 overflow-x-auto rounded-[var(--tw-r-ctl)] bg-well p-1 [scrollbar-width:none]">
+        {STEPS.map((step) => {
+          const isActive = step.id === currentStep;
+          const isCompleted = step.id < currentStep;
+          return (
+            <li
+              key={step.id}
+              aria-current={isActive ? "step" : undefined}
+              className={cn(
+                "flex min-w-0 flex-1 shrink-0 items-center gap-2 rounded-[6px] px-3 py-2 text-sm",
+                isActive ? "bg-tile-hi font-semibold text-ink" : isCompleted ? "text-ink" : "text-ink-2"
+              )}
+            >
+              {isCompleted ? (
+                <CheckCircle className="size-4 shrink-0 text-success" aria-hidden="true" />
+              ) : (
+                <span className="tabular-nums" aria-hidden="true">{step.id}</span>
+              )}
+              <span className="whitespace-nowrap">{step.title}</span>
+              {isCompleted && <span className="sr-only">(done)</span>}
+            </li>
+          );
+        })}
+      </ol>
 
       {/* Step Content */}
       <Card>
@@ -759,7 +720,7 @@ export default function BatchRequestPage() {
             <Button
               onClick={currentStep === 4 ? createBatchRequests : goToNextStep}
               disabled={!canProceed() || isCreating}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-raised-hi text-ink hover:bg-raised-hi"
             >
               {isCreating ? (
                 <>

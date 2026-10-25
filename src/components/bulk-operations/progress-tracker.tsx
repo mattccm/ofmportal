@@ -99,7 +99,7 @@ export function ProgressTracker({
       case "in_progress":
         return <Loader2 className="h-5 w-5 animate-spin text-blue-500" />;
       case "completed":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-success" />;
       case "failed":
         return <XCircle className="h-5 w-5 text-red-500" />;
       case "partially_completed":
@@ -135,7 +135,7 @@ export function ProgressTracker({
       case "in_progress":
         return "bg-blue-500";
       case "completed":
-        return "bg-green-500";
+        return "bg-success";
       case "failed":
         return "bg-red-500";
       case "partially_completed":
@@ -167,7 +167,7 @@ export function ProgressTracker({
               {getStatusLabel()}
             </Badge>
             {onDismiss && (
-              <Button
+              <Button aria-label="Dismiss"
                 variant="ghost"
                 size="icon-sm"
                 onClick={onDismiss}
@@ -202,7 +202,7 @@ export function ProgressTracker({
         {(successCount > 0 || failedCount > 0) && (
           <div className="flex items-center gap-4 text-sm mb-2">
             {successCount > 0 && (
-              <span className="flex items-center gap-1 text-green-600">
+              <span className="flex items-center gap-1 text-success">
                 <CheckCircle className="h-4 w-4" />
                 {successCount} succeeded
               </span>

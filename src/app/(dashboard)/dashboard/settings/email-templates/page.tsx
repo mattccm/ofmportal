@@ -60,15 +60,15 @@ const TEMPLATE_CATEGORIES = [
   {
     name: "Content Requests",
     icon: Send,
-    iconBg: "bg-violet-500/10",
-    iconColor: "text-violet-500",
+    iconBg: "bg-tile-hi",
+    iconColor: "text-foreground",
     types: ["REQUEST_SENT", "UPLOAD_RECEIVED"] as EmailTemplateType[],
   },
   {
     name: "Review Status",
     icon: ThumbsUp,
-    iconBg: "bg-emerald-500/10",
-    iconColor: "text-emerald-500",
+    iconBg: "bg-success/10",
+    iconColor: "text-success",
     types: ["REQUEST_APPROVED", "REQUEST_REJECTED", "REVISION_REQUESTED"] as EmailTemplateType[],
   },
   {
@@ -232,7 +232,7 @@ export default function EmailTemplatesPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/settings" aria-label="Back to settings">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -254,19 +254,19 @@ export default function EmailTemplatesPage() {
       </div>
 
       {/* Pro Tip */}
-      <Card className="card-elevated border-violet-200/50 bg-gradient-to-r from-violet-50/50 to-purple-50/50 dark:from-violet-950/20 dark:to-purple-950/20 dark:border-violet-800/30">
+      <Card className="card-elevated border-line bg-tile-hi dark:bg-tile-hi dark:border-line">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
-              <Sparkles className="h-5 w-5 text-violet-500" />
+            <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center shrink-0">
+              <Sparkles className="h-5 w-5 text-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-violet-700 dark:text-violet-400">
+              <h3 className="font-semibold text-foreground dark:text-foreground">
                 Personalize Your Communications
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
                 Use variables like{" "}
-                <code className="px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-400 font-mono text-xs">
+                <code className="px-1.5 py-0.5 rounded bg-tile-hi dark:bg-tile-hi text-foreground dark:text-foreground font-mono text-xs">
                   {"{{creator.name}}"}
                 </code>{" "}
                 to personalize your emails. All changes are saved per-template
@@ -341,7 +341,7 @@ export default function EmailTemplatesPage() {
                           {template.isCustom ? (
                             <Badge
                               variant="secondary"
-                              className="shrink-0 text-[10px] px-1.5"
+                              className="shrink-0 text-[12px] px-1.5"
                             >
                               Custom
                             </Badge>

@@ -91,7 +91,7 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
 
   return (
     <>
-      <Card className="group card-elevated hover:border-indigo-200 dark:hover:border-indigo-800 transition-all duration-200">
+      <Card className="group card-elevated hover:border-line dark:hover:border-line transition-all duration-200">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3 min-w-0">
@@ -116,7 +116,7 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
+                <Button aria-label={`More actions for ${group.name}`}
                   variant="ghost"
                   size="icon-sm"
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -153,7 +153,7 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
           <div className="flex items-center gap-2">
             <Badge
               variant="outline"
-              className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800"
+              className="bg-tile-hi text-foreground border-line dark:bg-tile-hi dark:text-foreground dark:border-line"
             >
               <Users className="mr-1.5 h-3.5 w-3.5" />
               {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
@@ -199,7 +199,7 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
             <Button
               variant="default"
               size="sm"
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+              className="flex-1 bg-raised-hi text-ink hover:bg-raised-hi"
               asChild
             >
               <Link href={`/dashboard/requests/new?groupId=${group.id}`}>

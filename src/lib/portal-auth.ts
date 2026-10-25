@@ -20,10 +20,31 @@ export function createCreatorSessionToken(): { token: string; expiresAt: Date } 
 }
 
 /**
- * Request statuses a creator must never see or act on.
- * Drafts are staff-only until sent; cancelled/archived requests are closed.
+ * Request statuses that are finished from the creator's side: nothing more to
+ * do, so the portal stops showing them (a direct link shows a "finished" page).
  */
-export const CREATOR_HIDDEN_STATUSES: RequestStatus[] = ["DRAFT", "CANCELLED", "ARCHIVED"];
+export const CREATOR_FINISHED_STATUSES: RequestStatus[] = ["APPROVED", "CANCELLED", "ARCHIVED"];
+
+/**
+ * Request statuses a creator must never see or act on.
+ * Drafts are staff-only until sent; approved, cancelled and archived requests
+ * are finished and drop out of the creator portal.
+ */
+export const CREATOR_HIDDEN_STATUSES: RequestStatus[] = ["DRAFT", ...CREATOR_FINISHED_STATUSES];
+
+/**
+ * How a staff member is named to a creator: their first name only ("Sam").
+ * Never the full name or email.
+ */
+export function staffFirstName(name: string | null | undefined): string {
+  const first = (name ?? "").trim().split(/\s+/)[0];
+  return first || "Your team";
+}
+
+/** Creator comments are stored through hidden `.internal` pseudo-users */
+export function isCreatorPseudoEmail(email: string | null | undefined): boolean {
+  return !!email && email.endsWith(".internal");
+}
 
 export interface AuthenticatedCreator {
   id: string;

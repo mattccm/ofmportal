@@ -120,9 +120,9 @@ export const COMMON_TIMEZONES: string[] = [
  */
 export const TIMEZONE_REGIONS: Record<TimezoneRegion, { label: string; color: string }> = {
   Americas: { label: "Americas", color: "bg-blue-500" },
-  Europe: { label: "Europe", color: "bg-emerald-500" },
+  Europe: { label: "Europe", color: "bg-success" },
   Asia: { label: "Asia", color: "bg-amber-500" },
-  Pacific: { label: "Pacific", color: "bg-violet-500" },
+  Pacific: { label: "Pacific", color: "bg-raised-hi" },
   Africa: { label: "Africa", color: "bg-orange-500" },
   Atlantic: { label: "Atlantic", color: "bg-cyan-500" },
   Indian: { label: "Indian", color: "bg-pink-500" },

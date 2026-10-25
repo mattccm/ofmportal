@@ -96,7 +96,7 @@ export function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpModalProps)
                 </p>
               </div>
             </div>
-            <button
+            <button aria-label="Close"
               onClick={onClose}
               className="rounded-lg p-2 hover:bg-muted transition-colors"
             >

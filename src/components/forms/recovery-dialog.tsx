@@ -119,8 +119,8 @@ export function RecoveryDialog<T extends Record<string, unknown>>({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <div className="h-10 w-10 rounded-full bg-raised-hi flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-acc" />
             </div>
             <div>
               <DialogTitle>Unsaved Changes Found</DialogTitle>
@@ -181,7 +181,7 @@ export function RecoveryDialog<T extends Record<string, unknown>>({
           )}
 
           {/* Warning about discarding */}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 text-sm">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-well text-ink-2 text-sm">
             <FileText className="h-4 w-4 mt-0.5 shrink-0" />
             <p>
               If you choose to discard, the saved changes will be permanently
@@ -201,7 +201,7 @@ export function RecoveryDialog<T extends Record<string, unknown>>({
           </Button>
           <Button
             onClick={handleRestore}
-            className="gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+            className="gap-2 bg-primary hover:bg-primary/90 "
           >
             <RotateCcw className="h-4 w-4" />
             Restore
@@ -253,19 +253,19 @@ export function InlineRecoveryBanner({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20",
+        "flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-[var(--tw-r-tile)] bg-tile",
         className
       )}
     >
       <div className="flex items-center gap-3 flex-1">
-        <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
-          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+        <div className="h-10 w-10 rounded-full bg-tile-hi flex items-center justify-center shrink-0">
+          <AlertTriangle className="h-5 w-5 text-acc" />
         </div>
         <div>
-          <p className="font-medium text-amber-800 dark:text-amber-200">
+          <p className="font-medium text-ink">
             Unsaved changes found
           </p>
-          <p className="text-sm text-amber-600 dark:text-amber-400">
+          <p className="text-sm text-ink-2">
             Saved {savedTimeText}
           </p>
         </div>
@@ -275,14 +275,14 @@ export function InlineRecoveryBanner({
           variant="outline"
           size="sm"
           onClick={onDiscard}
-          className="flex-1 sm:flex-initial border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/30"
+          className="flex-1 sm:flex-initial"
         >
           Discard
         </Button>
         <Button
           size="sm"
           onClick={onRestore}
-          className="flex-1 sm:flex-initial bg-amber-600 hover:bg-amber-700 text-white"
+          className="flex-1 sm:flex-initial"
         >
           Restore
         </Button>

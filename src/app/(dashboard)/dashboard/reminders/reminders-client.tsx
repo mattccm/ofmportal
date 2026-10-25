@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState, useMemo } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -133,7 +135,7 @@ export function RemindersClient({
   initialTemplates,
   initialReminders,
   creators,
-  agencySettings,
+  agencySettings: _agencySettings,
 }: RemindersClientProps) {
   const [templates, setTemplates] = useState<ReminderTemplate[]>(initialTemplates);
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
@@ -148,19 +150,6 @@ export function RemindersClient({
   // Dialog states
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ReminderTemplate | null>(null);
-
-  // Settings state
-  const [settings, setSettings] = useState<{
-    defaultTemplateId: string | null;
-    quietHoursStart: string;
-    quietHoursEnd: string;
-    timezone: string;
-  }>({
-    defaultTemplateId: (agencySettings.defaultReminderTemplateId as string) || null,
-    quietHoursStart: (agencySettings.quietHoursStart as string) || "22:00",
-    quietHoursEnd: (agencySettings.quietHoursEnd as string) || "08:00",
-    timezone: (agencySettings.timezone as string) || "America/New_York",
-  });
 
   // Filter reminders
   const filteredReminders = useMemo(() => {
@@ -325,7 +314,7 @@ export function RemindersClient({
         </TabsTrigger>
         <TabsTrigger value="active" className="flex items-center gap-2">
           <Clock className="h-4 w-4" />
-          Active Reminders
+          Active reminders
           {pendingReminders.length > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5">
               {pendingReminders.length}
@@ -346,7 +335,7 @@ export function RemindersClient({
       <TabsContent value="templates" className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Reminder Templates</h2>
+            <h2 className="text-lg font-semibold">Reminder templates</h2>
             <p className="text-sm text-muted-foreground">
               Create reusable reminder configurations with custom schedules and messages
             </p>
@@ -354,7 +343,7 @@ export function RemindersClient({
           <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
             <DialogTrigger asChild>
               <Button
-                className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+                className=" bg-primary hover:bg-primary/90 "
                 onClick={() => setEditingTemplate(null)}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -414,7 +403,7 @@ export function RemindersClient({
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button aria-label={`More actions for ${template.name}`} variant="ghost" size="icon" className="h-8 w-8">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -443,7 +432,7 @@ export function RemindersClient({
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          className="text-red-600"
+                          className="text-late"
                           onClick={() => handleDeleteTemplate(template.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
@@ -470,7 +459,7 @@ export function RemindersClient({
                   {template.escalateDaysOverdue && (
                     <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1.5">Escalation</p>
-                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-200 bg-amber-50">
+                      <Badge variant="outline" className="text-xs text-late border-late/30 bg-late/10">
                         <AlertTriangle className="h-3 w-3 mr-1" />
                         Every {template.escalateDaysOverdue}d overdue
                       </Badge>
@@ -519,7 +508,7 @@ export function RemindersClient({
               </div>
               <div className="flex gap-2">
                 <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger aria-label="Filter by creator" className="w-[180px]">
                     <SelectValue placeholder="All Creators" />
                   </SelectTrigger>
                   <SelectContent>
@@ -531,7 +520,7 @@ export function RemindersClient({
                     ))}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="icon" onClick={refreshReminders} disabled={isLoading}>
+                <Button aria-label="Refresh reminders" variant="outline" size="icon" onClick={refreshReminders} disabled={isLoading}>
                   <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 </Button>
               </div>
@@ -585,7 +574,7 @@ export function RemindersClient({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
-                      <Checkbox
+                      <Checkbox aria-label="Select all reminders"
                         checked={pendingReminders.every((r) => selectedReminders.has(r.id))}
                         onCheckedChange={(checked) => {
                           if (checked) {
@@ -608,7 +597,7 @@ export function RemindersClient({
                   {pendingReminders.map((reminder) => (
                     <TableRow key={reminder.id}>
                       <TableCell>
-                        <Checkbox
+                        <Checkbox aria-label={`Select reminder for ${reminder.request.title}`}
                           checked={selectedReminders.has(reminder.id)}
                           onCheckedChange={(checked) => {
                             const newSelected = new Set(selectedReminders);
@@ -644,7 +633,7 @@ export function RemindersClient({
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button aria-label={`More actions for reminder on ${reminder.request.title}`} variant="ghost" size="icon" className="h-8 w-8">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -655,7 +644,7 @@ export function RemindersClient({
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="text-red-600"
+                              className="text-late"
                               onClick={() => {
                                 setSelectedReminders(new Set([reminder.id]));
                                 handleBulkAction("cancel");
@@ -693,7 +682,7 @@ export function RemindersClient({
               </div>
               <div className="flex gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[150px]">
+                  <SelectTrigger aria-label="Filter by status" className="w-[150px]">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
                   <SelectContent>
@@ -703,7 +692,7 @@ export function RemindersClient({
                   </SelectContent>
                 </Select>
                 <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger aria-label="Filter by creator" className="w-[180px]">
                     <SelectValue placeholder="All Creators" />
                   </SelectTrigger>
                   <SelectContent>
@@ -751,7 +740,7 @@ export function RemindersClient({
                     <TableRow key={reminder.id}>
                       <TableCell>
                         {reminder.status === "SENT" ? (
-                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                          <Badge className="bg-success/10 text-success border-success/30">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Sent
                           </Badge>
@@ -788,7 +777,7 @@ export function RemindersClient({
                       </TableCell>
                       <TableCell>
                         {reminder.error && (
-                          <span className="text-xs text-red-600">{reminder.error}</span>
+                          <span className="text-xs text-late">{reminder.error}</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -800,119 +789,18 @@ export function RemindersClient({
         </Card>
       </TabsContent>
 
-      {/* Settings Tab */}
+      {/* Settings Tab: the real controls live in Reminder rules */}
       <TabsContent value="settings" className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Global Reminder Settings</CardTitle>
-            <CardDescription>
-              Configure default reminder behavior and quiet hours
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Default Template */}
-            <div className="space-y-2">
-              <Label>Default Reminder Template</Label>
-              <Select
-                value={settings.defaultTemplateId || "none"}
-                onValueChange={(value) =>
-                  setSettings({ ...settings, defaultTemplateId: value === "none" ? null : value })
-                }
-              >
-                <SelectTrigger className="w-full max-w-md">
-                  <SelectValue placeholder="Select a default template" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No default template</SelectItem>
-                  {templates
-                    .filter((t) => t.isActive)
-                    .map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                This template will be used for new content requests unless overridden
-              </p>
-            </div>
-
-            {/* Quiet Hours */}
-            <div className="space-y-4">
-              <div>
-                <Label>Quiet Hours</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Reminders will not be sent during these hours
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Start</Label>
-                  <Input
-                    type="time"
-                    value={settings.quietHoursStart}
-                    onChange={(e) =>
-                      setSettings({ ...settings, quietHoursStart: e.target.value })
-                    }
-                    className="w-32"
-                  />
-                </div>
-                <span className="text-muted-foreground mt-6">to</span>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">End</Label>
-                  <Input
-                    type="time"
-                    value={settings.quietHoursEnd}
-                    onChange={(e) =>
-                      setSettings({ ...settings, quietHoursEnd: e.target.value })
-                    }
-                    className="w-32"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Timezone */}
-            <div className="space-y-2">
-              <Label>Timezone</Label>
-              <Select
-                value={settings.timezone}
-                onValueChange={(value) => setSettings({ ...settings, timezone: value })}
-              >
-                <SelectTrigger className="w-full max-w-md">
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                  <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                  <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                  <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                  <SelectItem value="America/Phoenix">Arizona (no DST)</SelectItem>
-                  <SelectItem value="America/Anchorage">Alaska Time</SelectItem>
-                  <SelectItem value="Pacific/Honolulu">Hawaii Time</SelectItem>
-                  <SelectItem value="UTC">UTC</SelectItem>
-                  <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
-                  <SelectItem value="Europe/Paris">Paris (CET/CEST)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Reminder schedules and quiet hours will be based on this timezone
-              </p>
-            </div>
-
-            {/* Save Button */}
-            <div className="pt-4">
-              <Button
-                onClick={async () => {
-                  toast.info("Settings saved (note: backend persistence not yet implemented)");
-                }}
-              >
-                Save Settings
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="max-w-[640px] rounded-[10px] bg-tile p-5">
+          <h2 className="text-[17px] font-semibold text-ink">Schedules and quiet hours</h2>
+          <p className="mt-1 text-sm text-ink-2">
+            When reminders go out, which channel they use and each creator&apos;s quiet hours are set in Reminder rules,
+            with a preview of the reminder as it lands on the creator&apos;s lock screen.
+          </p>
+          <Button asChild variant="outline" className="mt-4">
+            <Link href="/dashboard/settings/reminder-rules">Open reminder rules</Link>
+          </Button>
+        </div>
       </TabsContent>
     </Tabs>
   );
@@ -934,7 +822,7 @@ function TemplateDialog({ template, onClose, onSave }: TemplateDialogProps) {
     escalateDaysOverdue: template?.escalateDaysOverdue || null,
     sendEmail: template?.sendEmail ?? true,
     sendSms: template?.sendSms ?? false,
-    emailSubject: template?.emailSubject || 'Reminder: "{{requestTitle}}" is {{urgencyText}}',
+    emailSubject: template?.emailSubject || "Reminder: content {{urgencyText}}",
     emailBody:
       template?.emailBody ||
       `Hi {{creatorName}},
@@ -948,7 +836,7 @@ Please upload your content here: {{portalLink}}
 Thank you!`,
     smsBody:
       template?.smsBody ||
-      'Hi {{creatorName}}! Your content for "{{requestTitle}}" is {{urgencyText}}. Upload: {{portalLink}}',
+      "Hi {{creatorName}}, you have content {{urgencyText}}. View it here: {{portalLink}}",
     isActive: template?.isActive ?? true,
   });
 
@@ -1065,7 +953,7 @@ Thank you!`,
           <Label>Notification Channels</Label>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Checkbox
+              <Checkbox aria-label="Email"
                 id="sendEmail"
                 checked={formData.sendEmail}
                 onCheckedChange={(checked) =>
@@ -1078,7 +966,7 @@ Thank you!`,
               </Label>
             </div>
             <div className="flex items-center gap-2">
-              <Checkbox
+              <Checkbox aria-label="SMS"
                 id="sendSms"
                 checked={formData.sendSms}
                 onCheckedChange={(checked) =>
@@ -1143,7 +1031,7 @@ Thank you!`,
         )}
 
         {/* Template Variables */}
-        <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20">
+        <div className="p-4 rounded-lg bg-well">
           <h4 className="font-medium text-sm mb-2">Available Variables</h4>
           <div className="grid grid-cols-2 gap-2 text-xs">
             {TEMPLATE_VARIABLES.map(({ variable, description }) => (
@@ -1159,7 +1047,7 @@ Thank you!`,
 
         {/* Active Status */}
         <div className="flex items-center gap-2">
-          <Checkbox
+          <Checkbox aria-label="Template is active"
             id="isActive"
             checked={formData.isActive}
             onCheckedChange={(checked) => setFormData({ ...formData, isActive: Boolean(checked) })}

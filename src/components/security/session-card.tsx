@@ -66,9 +66,9 @@ function getDeviceColor(device: string) {
     case "mobile":
       return "text-blue-500 bg-blue-500/10";
     case "tablet":
-      return "text-purple-500 bg-purple-500/10";
+      return "text-foreground bg-tile-hi";
     default:
-      return "text-violet-500 bg-violet-500/10";
+      return "text-foreground bg-tile-hi";
   }
 }
 
@@ -152,7 +152,7 @@ export function SessionCard({ session, onRevoke, isRevoking }: SessionCardProps)
                   {session.current && (
                     <Badge
                       variant="default"
-                      className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 shrink-0"
+                      className="bg-success/10 text-success border-success/30 shrink-0"
                     >
                       <ShieldCheck className="h-3 w-3 mr-1" />
                       Current Session
@@ -186,7 +186,7 @@ export function SessionCard({ session, onRevoke, isRevoking }: SessionCardProps)
 
             {/* Revoke Button */}
             {!session.current && (
-              <Button
+              <Button aria-label={`Revoke session: ${session.browser}`}
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowRevokeDialog(true)}

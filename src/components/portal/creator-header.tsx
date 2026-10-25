@@ -138,7 +138,7 @@ export function CreatorHeader({
                 <Bell className="h-5 w-5" />
                 {notificationCount > 0 && (
                   <span
-                    className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-medium text-white"
+                    className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full text-[12px] font-medium text-primary-foreground"
                     style={{ backgroundColor: branding.primaryColor }}
                   >
                     {notificationCount > 9 ? "9+" : notificationCount}

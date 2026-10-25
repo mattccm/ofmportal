@@ -110,7 +110,7 @@ interface FormattingToolbarProps {
 function FormattingToolbar({ onFormat, onMentionClick }: FormattingToolbarProps) {
   return (
     <div className="flex items-center gap-1 p-1 border-b bg-muted/50">
-      <Button
+      <Button aria-label="Bold"
         type="button"
         variant="ghost"
         size="sm"
@@ -120,7 +120,7 @@ function FormattingToolbar({ onFormat, onMentionClick }: FormattingToolbarProps)
       >
         <Bold className="h-4 w-4" />
       </Button>
-      <Button
+      <Button aria-label="Italic"
         type="button"
         variant="ghost"
         size="sm"
@@ -130,7 +130,7 @@ function FormattingToolbar({ onFormat, onMentionClick }: FormattingToolbarProps)
       >
         <Italic className="h-4 w-4" />
       </Button>
-      <Button
+      <Button aria-label="Bullet list"
         type="button"
         variant="ghost"
         size="sm"
@@ -140,7 +140,7 @@ function FormattingToolbar({ onFormat, onMentionClick }: FormattingToolbarProps)
       >
         <List className="h-4 w-4" />
       </Button>
-      <Button
+      <Button aria-label="Code"
         type="button"
         variant="ghost"
         size="sm"
@@ -151,7 +151,7 @@ function FormattingToolbar({ onFormat, onMentionClick }: FormattingToolbarProps)
         <Code className="h-4 w-4" />
       </Button>
       <div className="w-px h-4 bg-border mx-1" />
-      <Button
+      <Button aria-label="Mention someone"
         type="button"
         variant="ghost"
         size="sm"
@@ -487,7 +487,7 @@ export function CommentEditor({
                 <span className="text-xs text-muted-foreground">
                   ({formatFileSize(file.size)})
                 </span>
-                <button
+                <button aria-label={`Remove ${file.name}`}
                   type="button"
                   onClick={() => removeAttachment(index)}
                   className="text-muted-foreground hover:text-foreground"
@@ -526,7 +526,7 @@ export function CommentEditor({
           {/* Internal Toggle */}
           {showInternalToggle && (
             <div className="flex items-center gap-2">
-              <Checkbox
+              <Checkbox aria-label="Internal only"
                 id="internal-comment"
                 checked={isInternal}
                 onCheckedChange={(checked) => setIsInternal(!!checked)}
@@ -573,8 +573,8 @@ export function CommentEditor({
 
       {/* Keyboard shortcut hint */}
       <div className="px-3 py-1 text-xs text-muted-foreground bg-muted/30 border-t">
-        Press <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Cmd</kbd>+
-        <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> to send
+        Press <kbd className="px-1 py-0.5 bg-muted rounded text-[12px]">Cmd</kbd>+
+        <kbd className="px-1 py-0.5 bg-muted rounded text-[12px]">Enter</kbd> to send
       </div>
     </div>
   );

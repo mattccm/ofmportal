@@ -101,7 +101,7 @@ export function EndOfListIndicator({
       )}
     >
       {showIcon && (
-        <CheckCircle className="h-5 w-5 text-emerald-500/70" />
+        <CheckCircle className="h-5 w-5 text-success/70" />
       )}
       <span className="text-sm">{text}</span>
     </div>

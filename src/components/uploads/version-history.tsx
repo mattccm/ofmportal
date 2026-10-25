@@ -233,9 +233,9 @@ export function VersionHistory({
 
   if (isLoading) {
     return (
-      <Card className={cn("border-indigo-200/50 dark:border-indigo-800/30", className)}>
+      <Card className={cn("border-line dark:border-line", className)}>
         <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+          <Loader2 className="h-6 w-6 animate-spin text-foreground" />
           <span className="ml-2 text-muted-foreground">Loading version history...</span>
         </CardContent>
       </Card>
@@ -244,9 +244,9 @@ export function VersionHistory({
 
   if (error) {
     return (
-      <Card className={cn("border-red-200/50 dark:border-red-800/30", className)}>
+      <Card className={cn("border-late/30 dark:border-late/30", className)}>
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <AlertTriangle className="h-8 w-8 text-red-500 mb-2" />
+          <AlertTriangle className="h-8 w-8 text-late mb-2" />
           <p className="text-muted-foreground">{error}</p>
           <Button
             variant="outline"
@@ -263,16 +263,16 @@ export function VersionHistory({
 
   if (versions.length === 0) {
     return (
-      <Card className={cn("border-indigo-200/50 dark:border-indigo-800/30", className)}>
+      <Card className={cn("border-line dark:border-line", className)}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <History className="h-4 w-4 text-indigo-500" />
+            <History className="h-4 w-4 text-foreground" />
             Version History
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-          <div className="rounded-full bg-indigo-50 dark:bg-indigo-950/30 p-3 mb-3">
-            <Upload className="h-6 w-6 text-indigo-500" />
+          <div className="rounded-full bg-tile-hi p-3 mb-3">
+            <Upload className="h-6 w-6 text-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">
             No previous versions available
@@ -287,11 +287,11 @@ export function VersionHistory({
 
   return (
     <>
-      <Card className={cn("border-indigo-200/50 dark:border-indigo-800/30", className)}>
+      <Card className={cn("border-line dark:border-line", className)}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
-              <History className="h-4 w-4 text-indigo-500" />
+              <History className="h-4 w-4 text-foreground" />
               Version History
               <Badge variant="secondary" className="ml-1 text-xs">
                 {versions.length} {versions.length === 1 ? "version" : "versions"}
@@ -301,7 +301,7 @@ export function VersionHistory({
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:text-indigo-400 dark:border-indigo-800 dark:hover:bg-indigo-950/30"
+                className="gap-1.5 text-foreground border-line hover:bg-tile-hi dark:hover:bg-tile-hi"
                 onClick={() => {
                   const sortedVersions = [...versions].sort(
                     (a, b) => b.versionNumber - a.versionNumber
@@ -323,7 +323,7 @@ export function VersionHistory({
           {/* Timeline */}
           <div className="relative">
             {/* Timeline line */}
-            <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-indigo-300 via-violet-300 to-purple-300 dark:from-indigo-700 dark:via-violet-700 dark:to-purple-700" />
+            <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-raised-hi " />
 
             {versions.map((version, index) => (
               <div
@@ -338,9 +338,9 @@ export function VersionHistory({
                   className={cn(
                     "absolute left-[7px] top-2 h-4 w-4 rounded-full border-2 bg-background transition-all duration-200",
                     version.isCurrent
-                      ? "border-indigo-500 ring-4 ring-indigo-100 dark:ring-indigo-950"
+                      ? "border-ctl ring-4 ring-line dark:ring-line"
                       : version.status === "RESTORED"
-                      ? "border-violet-500"
+                      ? "border-ctl"
                       : "border-muted-foreground/30"
                   )}
                 />
@@ -350,7 +350,7 @@ export function VersionHistory({
                   className={cn(
                     "group rounded-lg border bg-card transition-all duration-200 hover:shadow-sm",
                     version.isCurrent
-                      ? "border-indigo-200 bg-indigo-50/30 dark:border-indigo-800/50 dark:bg-indigo-950/20"
+                      ? "border-line bg-tile-hi dark:border-line dark:bg-tile-hi"
                       : "border-border/50 hover:border-border"
                   )}
                 >
@@ -365,7 +365,7 @@ export function VersionHistory({
                         className={cn(
                           "flex items-center justify-center w-8 h-8 rounded-lg shrink-0",
                           version.isCurrent
-                            ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400"
+                            ? "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground"
                             : "bg-muted text-muted-foreground"
                         )}
                       >
@@ -377,14 +377,14 @@ export function VersionHistory({
                             Version {version.versionNumber}
                           </span>
                           {version.isCurrent && (
-                            <Badge className="bg-indigo-500 hover:bg-indigo-600 text-[10px] px-1.5 py-0">
+                            <Badge className="bg-raised-hi hover:bg-raised-hi text-[12px] px-1.5 py-0">
                               Current
                             </Badge>
                           )}
                           {version.status === "RESTORED" && (
                             <Badge
                               variant="outline"
-                              className="border-violet-300 text-violet-600 dark:border-violet-700 dark:text-violet-400 text-[10px] px-1.5 py-0"
+                              className="border-ctl text-foreground dark:border-ctl text-[12px] px-1.5 py-0"
                             >
                               Restored
                             </Badge>
@@ -450,17 +450,17 @@ export function VersionHistory({
                             <p className="text-muted-foreground mb-1">Metadata</p>
                             <div className="flex flex-wrap gap-2">
                               {version.metadata.width && version.metadata.height && (
-                                <Badge variant="outline" className="text-[10px]">
+                                <Badge variant="outline" className="text-[12px]">
                                   {version.metadata.width}x{version.metadata.height}
                                 </Badge>
                               )}
                               {version.metadata.duration && (
-                                <Badge variant="outline" className="text-[10px]">
+                                <Badge variant="outline" className="text-[12px]">
                                   {Math.floor(version.metadata.duration / 60)}:
                                   {String(Math.floor(version.metadata.duration % 60)).padStart(2, "0")}
                                 </Badge>
                               )}
-                              <Badge variant="outline" className="text-[10px]">
+                              <Badge variant="outline" className="text-[12px]">
                                 {version.fileType}
                               </Badge>
                             </div>
@@ -486,7 +486,7 @@ export function VersionHistory({
                             <MessageSquare className="h-3 w-3" />
                             Comments
                             {versionComments[version.id]?.length > 0 && (
-                              <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+                              <Badge variant="secondary" className="ml-1 text-[12px] px-1 py-0">
                                 {versionComments[version.id].length}
                               </Badge>
                             )}
@@ -526,8 +526,8 @@ export function VersionHistory({
                             <Button
                               size="sm"
                               disabled={!newComment.trim() || isSubmittingComment}
-                              onClick={() => handleAddComment(version.id)}
-                              className="shrink-0 bg-indigo-600 hover:bg-indigo-700"
+                              onClick={() => handleAddComment(version.id)} aria-label="Post comment"
+                              className="shrink-0 bg-raised-hi text-ink hover:bg-raised-hi"
                             >
                               {isSubmittingComment ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -558,7 +558,7 @@ export function VersionHistory({
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="gap-1.5 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:text-indigo-400 dark:border-indigo-800"
+                                className="gap-1.5 text-xs text-foreground border-line hover:bg-tile-hi dark:border-line"
                                 onClick={() => openCompareDialog(version)}
                               >
                                 <GitCompare className="h-3 w-3" />
@@ -567,7 +567,7 @@ export function VersionHistory({
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="gap-1.5 text-xs text-violet-600 border-violet-200 hover:bg-violet-50 dark:text-violet-400 dark:border-violet-800"
+                                className="gap-1.5 text-xs text-foreground border-line hover:bg-tile-hi dark:border-line"
                                 onClick={() => {
                                   setSelectedRestoreVersion(version);
                                   setRestoreDialogOpen(true);
@@ -594,7 +594,7 @@ export function VersionHistory({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-violet-500" />
+              <RotateCcw className="h-5 w-5 text-foreground" />
               Restore Previous Version
             </DialogTitle>
             <DialogDescription>
@@ -606,7 +606,7 @@ export function VersionHistory({
           {selectedRestoreVersion && (
             <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-tile-hi dark:bg-tile-hi">
                   {getFileIcon(selectedRestoreVersion.fileType)}
                 </div>
                 <div>
@@ -633,7 +633,7 @@ export function VersionHistory({
             <Button
               onClick={handleRestoreVersion}
               disabled={isRestoring}
-              className="bg-violet-600 hover:bg-violet-700 gap-1.5"
+              className="bg-raised-hi text-ink hover:bg-raised-hi gap-1.5"
             >
               {isRestoring ? (
                 <>
@@ -656,7 +656,7 @@ export function VersionHistory({
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <GitCompare className="h-5 w-5 text-indigo-500" />
+              <GitCompare className="h-5 w-5 text-foreground" />
               Compare Versions
             </DialogTitle>
             <DialogDescription>

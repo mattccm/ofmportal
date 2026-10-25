@@ -525,7 +525,7 @@ function FilterMenuItem({
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
+          <Button aria-label={`More actions for ${filter.name}`}
             variant="ghost"
             size="icon"
             className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"

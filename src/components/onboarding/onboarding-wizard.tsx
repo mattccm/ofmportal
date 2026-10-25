@@ -105,7 +105,7 @@ export function OnboardingWizard({
               <span>Step {currentStep + 1} of {steps.length}</span>
               <span>{Math.round(progress)}% complete</span>
             </div>
-            <Progress value={progress} className="h-2" />
+            <Progress aria-label="Setup progress" value={progress} className="h-2" />
           </div>
         )}
 
@@ -117,10 +117,10 @@ export function OnboardingWizard({
               className={cn(
                 "h-2 w-2 rounded-full transition-all duration-300",
                 index < currentStep
-                  ? "bg-primary"
+                  ? "bg-ink-2"
                   : index === currentStep
-                  ? "bg-primary w-6"
-                  : "bg-muted"
+                  ? "bg-ink w-6"
+                  : "bg-ctl"
               )}
             />
           ))}
@@ -132,7 +132,7 @@ export function OnboardingWizard({
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-2">
             {currentStepData.icon && (
-              <span className="text-primary">{currentStepData.icon}</span>
+              <span className="text-icon" aria-hidden="true">{currentStepData.icon}</span>
             )}
             <h3 className="text-xl font-semibold">{currentStepData.title}</h3>
           </div>

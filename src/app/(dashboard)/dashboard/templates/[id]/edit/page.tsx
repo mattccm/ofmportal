@@ -60,7 +60,7 @@ export default async function EditTemplatePage({
         <Button variant="ghost" size="sm" asChild>
           <Link href="/dashboard/templates">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Templates
+            Templates
           </Link>
         </Button>
       </div>

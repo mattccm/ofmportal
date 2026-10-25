@@ -386,7 +386,7 @@ export function KeywordAlerts() {
                   setNewPriority(v as "low" | "medium" | "high")
                 }
               >
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger aria-label="Priority" className="w-[130px]">
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -421,7 +421,7 @@ export function KeywordAlerts() {
                           {kw.priority}
                         </Badge>
                       </div>
-                      <Button
+                      <Button aria-label={`Remove keyword ${kw.keyword}`}
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => removeDraftKeyword(index)}

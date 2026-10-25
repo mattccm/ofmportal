@@ -164,7 +164,7 @@ export function SmartSuggestions({
               <span>{title}</span>
             </div>
             {collapsible && (
-              <Button
+              <Button aria-label={isCollapsed ? "Expand suggestions" : "Collapse suggestions"} aria-expanded={!isCollapsed}
                 variant="ghost"
                 size="sm"
                 onClick={toggleCollapse}
@@ -201,7 +201,7 @@ export function SmartSuggestions({
       {title && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-raised-hi flex items-center justify-center">
               <Lightbulb className="h-4 w-4 text-white" />
             </div>
             <div>
@@ -322,7 +322,7 @@ export function ServerSuggestions({
     <div className={cn("space-y-3", className)}>
       {title && (
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-lg bg-raised-hi flex items-center justify-center">
             <Lightbulb className="h-4 w-4 text-white" />
           </div>
           <div>

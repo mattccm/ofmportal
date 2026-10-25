@@ -80,13 +80,13 @@ export default function NotificationSettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/settings" aria-label="Back to settings">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center">
-            <Bell className="h-6 w-6 text-indigo-500" />
+          <div className="h-12 w-12 rounded-xl bg-tile-hi flex items-center justify-center">
+            <Bell className="h-6 w-6 text-foreground" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">

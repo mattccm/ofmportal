@@ -121,20 +121,18 @@ export function NoteCard({
         className={cn(
           "group relative p-4 rounded-lg border transition-all duration-200",
           // Sticky note styling
-          "bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200/50",
-          "dark:from-amber-950/30 dark:to-yellow-950/30 dark:border-amber-800/30",
-          "hover:shadow-md hover:scale-[1.01]",
+          "bg-tile-hi border-transparent hover:border-ctl",
           // Pinned state
-          note.isPinned && "ring-2 ring-amber-400 dark:ring-amber-600",
+          note.isPinned && "border-ctl-hi",
           // Internal note indicator
-          note.isInternal && "border-l-4 border-l-violet-500"
+          note.isInternal && "bg-tile-hi"
         )}
       >
         {/* Pin indicator */}
         {note.isPinned && (
           <div className="absolute -top-2 -right-2 z-10">
-            <div className="h-6 w-6 rounded-full bg-amber-400 dark:bg-amber-600 flex items-center justify-center shadow-sm">
-              <Pin className="h-3 w-3 text-white" />
+            <div className="h-6 w-6 rounded-full bg-raised flex items-center justify-center shadow-sm">
+              <Pin className="h-3 w-3 text-ink" />
             </div>
           </div>
         )}
@@ -159,7 +157,7 @@ export function NoteCard({
             {note.isInternal && (
               <Badge
                 variant="outline"
-                className="h-5 text-xs bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800"
+                className="h-5 text-xs bg-tile-hi text-foreground border-line dark:border-line"
               >
                 <Lock className="h-3 w-3 mr-1" />
                 Internal
@@ -167,7 +165,7 @@ export function NoteCard({
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
+                <Button aria-label="Note actions"
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-foreground"
@@ -202,7 +200,7 @@ export function NoteCard({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setDeleteDialogOpen(true)}
-                      className="text-red-600 focus:text-red-600"
+                      className="text-late focus:text-late"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
@@ -222,7 +220,6 @@ export function NoteCard({
               onChange={(e) => setEditContent(e.target.value)}
               placeholder="Write your note..."
               rows={4}
-              className="bg-white/50 dark:bg-black/20 border-amber-300 dark:border-amber-700 focus:border-amber-400"
               autoFocus
             />
             <div className="flex items-center justify-end gap-2">
@@ -252,12 +249,12 @@ export function NoteCard({
 
         {/* Hashtags */}
         {note.hashtags.length > 0 && !isEditing && (
-          <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t border-amber-200/50 dark:border-amber-800/30">
+          <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t border-line">
             {note.hashtags.map((tag) => (
               <Badge
                 key={tag}
                 variant="secondary"
-                className="h-5 text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50"
+                className="h-5 text-xs bg-tile-hi text-foreground cursor-pointer hover:bg-tile-hi dark:hover:bg-tile-hi"
               >
                 #{tag}
               </Badge>
@@ -267,7 +264,7 @@ export function NoteCard({
 
         {/* Entity link (optional) */}
         {showEntityLink && (
-          <div className="mt-3 pt-3 border-t border-amber-200/50 dark:border-amber-800/30">
+          <div className="mt-3 pt-3 border-t border-line">
             <span className="text-xs text-muted-foreground">
               On {note.entityType}: {note.entityId}
             </span>
@@ -319,14 +316,12 @@ export function CompactNoteCard({ note, onClick }: CompactNoteCardProps) {
       onClick={onClick}
       className={cn(
         "w-full text-left p-3 rounded-lg border transition-all duration-200",
-        "bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200/50",
-        "dark:from-amber-950/30 dark:to-yellow-950/30 dark:border-amber-800/30",
-        "hover:shadow-sm hover:scale-[1.01]",
-        note.isPinned && "ring-1 ring-amber-400 dark:ring-amber-600"
+        "bg-tile-hi border-transparent hover:border-ctl",
+        note.isPinned && "border-ctl-hi"
       )}
     >
       <div className="flex items-center gap-2 mb-1">
-        {note.isPinned && <Pin className="h-3 w-3 text-amber-500" />}
+        {note.isPinned && <Pin className="h-3 w-3 text-icon" />}
         <span className="text-xs font-medium text-foreground truncate">
           {note.authorName}
         </span>

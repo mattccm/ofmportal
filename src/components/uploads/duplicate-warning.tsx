@@ -73,17 +73,17 @@ function getFileIcon(mimeType: string, className?: string) {
 function getMatchTypeIcon(type: DuplicateMatchType) {
   switch (type) {
     case "exact_hash":
-      return <Copy className="h-4 w-4 text-red-500" />;
+      return <Copy className="h-4 w-4 text-late" />;
     case "similar_filename":
-      return <FileX2 className="h-4 w-4 text-amber-500" />;
+      return <FileX2 className="h-4 w-4 text-changes" />;
     case "same_size":
-      return <RefreshCw className="h-4 w-4 text-amber-500" />;
+      return <RefreshCw className="h-4 w-4 text-changes" />;
     case "creator_timeframe":
-      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+      return <AlertTriangle className="h-4 w-4 text-changes" />;
     case "possible_version":
-      return <RefreshCw className="h-4 w-4 text-blue-500" />;
+      return <RefreshCw className="h-4 w-4 text-ink" />;
     default:
-      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+      return <AlertTriangle className="h-4 w-4 text-changes" />;
   }
 }
 
@@ -102,9 +102,9 @@ function getMatchSeverity(type: DuplicateMatchType): "high" | "medium" | "low" {
 
 // Get confidence badge color
 function getConfidenceBadgeColor(confidence: number): string {
-  if (confidence >= 0.9) return "bg-red-100 text-red-700 border-red-200";
-  if (confidence >= 0.7) return "bg-amber-100 text-amber-700 border-amber-200";
-  return "bg-yellow-100 text-yellow-700 border-yellow-200";
+  if (confidence >= 0.9) return "bg-late/10 text-late border-late/30";
+  if (confidence >= 0.7) return "bg-changes/10 text-changes border-changes/30";
+  return "bg-changes/10 text-changes border-changes/30";
 }
 
 /**
@@ -136,7 +136,7 @@ export function DuplicateAlert({
       <AlertTitle className="flex items-center gap-2">
         Potential Duplicate Detected
         {isHighConfidence && (
-          <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">
+          <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-changes/20 text-changes">
             {Math.round(topMatch.confidence * 100)}% match
           </span>
         )}
@@ -152,7 +152,7 @@ export function DuplicateAlert({
               variant="outline"
               size="sm"
               onClick={() => onViewDuplicate(topMatch.existingUploadId)}
-              className="text-amber-700 border-amber-300 hover:bg-amber-100"
+              className="text-changes border-changes/30 hover:bg-changes/10"
             >
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
               View Existing
@@ -163,7 +163,7 @@ export function DuplicateAlert({
               variant="ghost"
               size="sm"
               onClick={onDismiss}
-              className="text-amber-700 hover:text-amber-800"
+              className="text-changes hover:text-changes"
             >
               Dismiss
             </Button>
@@ -190,9 +190,9 @@ function MatchItem({
     <div
       className={cn(
         "flex items-start gap-3 p-3 rounded-lg border transition-colors",
-        severity === "high" && "bg-red-50/50 border-red-200",
-        severity === "medium" && "bg-amber-50/50 border-amber-200",
-        severity === "low" && "bg-yellow-50/50 border-yellow-200"
+        severity === "high" && "bg-late/10 border-late/30",
+        severity === "medium" && "bg-changes/10 border-changes/30",
+        severity === "low" && "bg-changes/10 border-changes/30"
       )}
     >
       <div className="shrink-0 mt-0.5">
@@ -224,7 +224,7 @@ function MatchItem({
         </p>
       </div>
       {onView && (
-        <Button
+        <Button aria-label="View existing upload"
           variant="ghost"
           size="sm"
           onClick={() => onView(match.existingUploadId)}
@@ -282,7 +282,7 @@ export function DuplicateWarningDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-amber-700">
+          <DialogTitle className="flex items-center gap-2 text-changes">
             <AlertTriangle className="h-5 w-5" />
             Duplicate Content Detected
           </DialogTitle>
@@ -328,11 +328,11 @@ export function DuplicateWarningDialog({
             className={cn(
               "p-3 rounded-lg border",
               recommendedAction === "replace" &&
-                "bg-blue-50 border-blue-200 text-blue-900",
+                "bg-tile-hi border-line text-ink",
               recommendedAction === "keep_both" &&
-                "bg-emerald-50 border-emerald-200 text-emerald-900",
+                "bg-success/10 border-success/30 text-success",
               recommendedAction === "review" &&
-                "bg-amber-50 border-amber-200 text-amber-900"
+                "bg-changes/10 border-changes/30 text-changes"
             )}
           >
             <p className="text-sm">
@@ -366,7 +366,7 @@ export function DuplicateWarningDialog({
             className={cn(
               "w-full sm:w-auto",
               recommendedAction === "keep_both" &&
-                "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                "border-success text-success hover:bg-success/10"
             )}
           >
             {isProcessing && selectedAction === "keep_both" ? (
@@ -379,12 +379,7 @@ export function DuplicateWarningDialog({
           <Button
             onClick={handleReplace}
             disabled={isProcessing}
-            className={cn(
-              "w-full sm:w-auto",
-              recommendedAction === "replace"
-                ? "bg-blue-600 hover:bg-blue-700"
-                : ""
-            )}
+            className="w-full sm:w-auto"
           >
             {isProcessing && selectedAction === "replace" ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -416,7 +411,7 @@ export function CompactDuplicateWarning({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-700 text-xs",
+        "flex items-center gap-2 px-2 py-1 rounded bg-changes/10 border border-changes/30 text-changes text-xs",
         className
       )}
     >

@@ -57,7 +57,7 @@ export const DashboardLayoutClient = memo(function DashboardLayoutClient({
                         </WidgetErrorBoundary>
                         {/* Offline / sync status indicator (renders only when offline or with pending changes) */}
                         <WidgetErrorBoundary>
-                          <div className="fixed bottom-20 left-4 z-40 md:bottom-4">
+                          <div className="fixed bottom-4 left-4 z-40">
                             <OfflineIndicator variant="compact" />
                           </div>
                         </WidgetErrorBoundary>

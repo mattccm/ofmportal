@@ -78,7 +78,7 @@ export function formatNoteContent(content: string): string {
   // Format hashtags - wrap in span with special styling
   formatted = formatted.replace(
     /#(\w+)/g,
-    '<span class="hashtag text-violet-600 dark:text-violet-400 font-medium bg-violet-100 dark:bg-violet-900/30 px-1 rounded">#$1</span>'
+    '<span class="hashtag text-foreground dark:text-foreground font-medium bg-tile-hi dark:bg-tile-hi px-1 rounded">#$1</span>'
   );
 
   // Format bold text (**text**)

@@ -2,15 +2,11 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Upload,
-  CloudUpload,
   Image as ImageIcon,
   Video,
   Music,
-  File as FileIcon,
-  Sparkles,
   AlertCircle,
   Clipboard,
   MapPinOff,
@@ -42,6 +38,25 @@ export interface FileDropzoneProps {
   maxFileSize?: number;
   /** Whether to show the max file size limit in UI (defaults to true) */
   showMaxFileSize?: boolean;
+  /**
+   * "zone" (default) is the drop area; "button" is a single 44px upload
+   * button that still accepts dropped files (a field card on a phone).
+   */
+  variant?: "zone" | "button";
+  /** The button's words in the "button" variant ("Add photos", "Upload a new take") */
+  buttonLabel?: string;
+  /** "primary" makes the button the region's one yellow action */
+  buttonTone?: "primary" | "outline";
+  /** Hide the location note (when the page states it once) */
+  hideLocationNote?: boolean;
+  /**
+   * "button" variant: a larger element (the field card) that accepts dropped
+   * files instead of the button alone. It gets data-dragging="true" while
+   * files are over it, for its own highlight.
+   */
+  dropTargetRef?: React.RefObject<HTMLElement | null>;
+  /** Shown beside the button on a mouse device, e.g. "or drop photos on this field" */
+  dropHint?: string;
 }
 
 interface DragPreviewInfo {
@@ -49,35 +64,6 @@ interface DragPreviewInfo {
   validCount: number;
   invalidTypes: string[];
   totalSize: number;
-}
-
-function getFileTypeInfo(mimeType: string): { icon: React.ReactNode; label: string; color: string } {
-  if (mimeType.startsWith("image/")) {
-    return {
-      icon: <ImageIcon className="h-4 w-4" />,
-      label: "Image",
-      color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30",
-    };
-  }
-  if (mimeType.startsWith("video/")) {
-    return {
-      icon: <Video className="h-4 w-4" />,
-      label: "Video",
-      color: "text-blue-500 bg-blue-50 dark:bg-blue-900/30",
-    };
-  }
-  if (mimeType.startsWith("audio/")) {
-    return {
-      icon: <Music className="h-4 w-4" />,
-      label: "Audio",
-      color: "text-primary bg-primary/10 dark:bg-primary/15",
-    };
-  }
-  return {
-    icon: <FileIcon className="h-4 w-4" />,
-    label: "File",
-    color: "text-gray-500 bg-gray-50 dark:bg-gray-900/30",
-  };
 }
 
 export function FileDropzone({
@@ -90,6 +76,12 @@ export function FileDropzone({
   acceptedTypes = ALLOWED_TYPES,
   maxFileSize = MAX_FILE_SIZE,
   showMaxFileSize = true,
+  variant = "zone",
+  buttonLabel,
+  buttonTone = "outline",
+  hideLocationNote = false,
+  dropTargetRef,
+  dropHint,
 }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isFullPageDragging, setIsFullPageDragging] = useState(false);
@@ -244,8 +236,11 @@ export function FileDropzone({
     };
   }, [fullPageDrop, disabled, onFilesSelected, analyzeDataTransfer, maxFileSize]);
 
-  // Clipboard paste handler
+  // Clipboard paste handler. A page of per-field upload buttons has one per
+  // field, so the "button" variant never listens: a pasted image would
+  // otherwise upload into every field at once.
   useEffect(() => {
+    if (variant === "button") return;
     const handlePaste = (e: ClipboardEvent) => {
       if (disabled) return;
 
@@ -270,7 +265,65 @@ export function FileDropzone({
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [disabled, onFilesSelected, maxFileSize, isFileTypeAccepted]);
+  }, [disabled, onFilesSelected, maxFileSize, isFileTypeAccepted, variant]);
+
+  // A larger drop target (the field card) given by the parent. Native
+  // listeners, so a drop is handled once here and never again by React.
+  const dropLatest = useRef({ onFilesSelected, isFileTypeAccepted, maxFileSize, analyzeDataTransfer });
+  useEffect(() => {
+    dropLatest.current = { onFilesSelected, isFileTypeAccepted, maxFileSize, analyzeDataTransfer };
+  });
+  useEffect(() => {
+    const el = dropTargetRef?.current;
+    if (!el || disabled || variant !== "button") return;
+    let depth = 0;
+    const hasFiles = (e: DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files");
+    const reset = () => {
+      depth = 0;
+      delete el.dataset.dragging;
+      setIsDragging(false);
+      setDragPreview(null);
+    };
+    const onEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth++;
+      el.dataset.dragging = "true";
+      setIsDragging(true);
+      if (e.dataTransfer) setDragPreview(dropLatest.current.analyzeDataTransfer(e.dataTransfer));
+    };
+    const onOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    };
+    const onLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) reset();
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      reset();
+      const files = e.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+      const { isFileTypeAccepted: accepts, maxFileSize: max, onFilesSelected: select } = dropLatest.current;
+      const valid = Array.from(files).filter((file) => accepts(file.type, file.name) && file.size <= max);
+      if (valid.length > 0) select(valid);
+    };
+    el.addEventListener("dragenter", onEnter);
+    el.addEventListener("dragover", onOver);
+    el.addEventListener("dragleave", onLeave);
+    el.addEventListener("drop", onDrop);
+    return () => {
+      el.removeEventListener("dragenter", onEnter);
+      el.removeEventListener("dragover", onOver);
+      el.removeEventListener("dragleave", onLeave);
+      el.removeEventListener("drop", onDrop);
+      delete el.dataset.dragging;
+    };
+  }, [dropTargetRef, disabled, variant]);
 
   // Local dropzone drag handlers
   const handleDragEnter = useCallback(
@@ -377,98 +430,108 @@ export function FileDropzone({
     }
   }, [onFilesSelected, maxFileSize, isFileTypeAccepted]);
 
-  // Render full-page overlay
+  const typeWords = getFileTypeDescription();
+  const typeWordsCap = typeWords.charAt(0).toUpperCase() + typeWords.slice(1);
+  const sizeWords = showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : "";
+  const dragOn = isDragging || dropTargetHighlight;
+
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      multiple
+      accept={buildAcceptAttribute(acceptedTypes)}
+      onChange={handleFileSelect}
+      className="hidden"
+      disabled={disabled}
+      tabIndex={-1}
+    />
+  );
+
+  const location = locationNote && !hideLocationNote && (
+    <p className="mt-2 flex items-start gap-1.5 text-[13px] text-ink-2">
+      <MapPinOff className="mt-0.5 size-3.5 shrink-0 text-icon" aria-hidden="true" />
+      <span>{locationNote}</span>
+    </p>
+  );
+
+  // Full-page overlay while files are dragged over the window
   const renderFullPageOverlay = () => {
     if (!fullPageDrop || !isFullPageDragging) return null;
 
     return (
-      <div
-        className={cn(
-          "fixed inset-0 z-50 flex items-center justify-center",
-          "bg-background/80 backdrop-blur-sm",
-          "animate-in fade-in duration-200"
-        )}
-      >
+      <div className="fixed inset-0 z-50 grid place-items-center bg-[rgb(8_9_11/0.86)] px-4" role="presentation">
         <div
           className={cn(
-            "max-w-lg w-full mx-4 p-8 rounded-2xl",
-            "bg-card border-2 border-dashed",
-            "shadow-2xl shadow-primary/10",
-            dropTargetHighlight ? "border-primary bg-primary/5" : "border-border",
-            "transition-all duration-200"
+            "w-full max-w-md rounded-[var(--tw-r-tile)] bg-tile-hi p-8 text-center outline-2 outline-dashed",
+            dropTargetHighlight ? "outline-acc" : "outline-ctl-hi"
           )}
         >
-          <div className="text-center space-y-4">
-            {/* Icon */}
-            <div
-              className={cn(
-                "mx-auto w-20 h-20 rounded-2xl flex items-center justify-center",
-                "bg-primary text-white",
-                "shadow-lg shadow-primary/30",
-                "animate-bounce"
-              )}
-            >
-              <Sparkles className="h-10 w-10" />
-            </div>
-
-            {/* Title */}
-            <h2 className="text-2xl font-bold">Drop files to upload</h2>
-
-            {/* Preview info */}
-            {dragPreview && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-center gap-2">
-                  <Badge variant="outline" className="text-sm px-3 py-1">
-                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    {dragPreview.validCount} of {dragPreview.fileCount} files valid
-                  </Badge>
-                  {dragPreview.totalSize > 0 && (
-                    <Badge variant="outline" className="text-sm px-3 py-1">
-                      {formatFileSize(dragPreview.totalSize)}
-                    </Badge>
-                  )}
-                </div>
-
-                {dragPreview.invalidTypes.length > 0 && (
-                  <div className="flex items-center justify-center gap-2 text-sm text-destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <span>
-                      Unsupported: {dragPreview.invalidTypes.join(", ")}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Accepted types */}
-            <div className="flex items-center justify-center gap-4 pt-2">
-              {showImages && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                    <ImageIcon className="h-4 w-4 text-emerald-500" />
-                  </div>
-                </div>
-              )}
-              {showVideos && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                    <Video className="h-4 w-4 text-blue-500" />
-                  </div>
-                </div>
-              )}
-              {showAudio && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/15 flex items-center justify-center">
-                    <Music className="h-4 w-4 text-primary" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <Upload className="mx-auto size-8 text-ink" aria-hidden="true" />
+          <h2 className="mt-3 text-xl font-bold text-ink">Drop to upload</h2>
+          {dragPreview && (
+            <p className="mt-2 text-sm text-ink-2 tabular-nums">
+              {dragPreview.validCount} of {dragPreview.fileCount} files can upload
+              {dragPreview.totalSize > 0 && ` · ${formatFileSize(dragPreview.totalSize)}`}
+            </p>
+          )}
+          {dragPreview && dragPreview.invalidTypes.length > 0 && (
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-late">
+              <AlertCircle className="size-4" aria-hidden="true" />
+              Not accepted here: {dragPreview.invalidTypes.join(", ")}
+            </p>
+          )}
         </div>
       </div>
     );
   };
+
+  const dropHandlers = {
+    onDragEnter: handleDragEnter,
+    onDragLeave: handleDragLeave,
+    onDragOver: handleDragOver,
+    onDrop: handleDrop,
+  };
+
+  // A single upload button for a field card. Files can still be dropped on it.
+  if (variant === "button") {
+    return (
+      <>
+        {renderFullPageOverlay()}
+        <div
+          className={cn(
+            "rounded-[var(--tw-r-ctl)] transition-colors duration-200",
+            // with a parent drop target, the parent shows the highlight
+            dragOn && !dropTargetRef && "bg-tile-hi outline-2 outline-dashed outline-offset-2 outline-acc",
+            className
+          )}
+          {...(dropTargetRef ? {} : dropHandlers)}
+        >
+          {fileInput}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Button
+              type="button"
+              variant={buttonTone === "primary" ? "default" : "outline"}
+              className="h-11 w-full gap-2 px-4 text-[15px] sm:w-auto"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+            >
+              <Upload className="size-4" aria-hidden="true" />
+              {dragOn ? "Drop to upload" : buttonLabel || "Upload files"}
+            </Button>
+            {dropHint && (
+              <span className="hidden text-[14px] text-ink-2 md:pointer-fine:inline" aria-hidden="true">
+                {dragOn && dragPreview
+                  ? `${dragPreview.validCount} of ${dragPreview.fileCount} can upload here`
+                  : dropHint}
+              </span>
+            )}
+          </div>
+          {location}
+        </div>
+      </>
+    );
+  }
 
   if (compact) {
     return (
@@ -476,81 +539,47 @@ export function FileDropzone({
         {renderFullPageOverlay()}
         <div
           className={cn(
-            "relative rounded-xl border-2 border-dashed transition-all duration-300",
-            isDragging || dropTargetHighlight
-              ? "border-primary bg-primary/5 scale-[1.02]"
-              : "border-border/60 hover:border-primary/50 hover:bg-accent/30",
-            disabled && "opacity-50 pointer-events-none",
+            "rounded-[var(--tw-r-ctl)] bg-well p-3 outline-1 outline-dashed outline-ctl transition-colors duration-200",
+            dragOn && "bg-tile-hi outline-2 outline-acc",
+            disabled && "pointer-events-none opacity-60",
             className
           )}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
+          {...dropHandlers}
         >
-          <div className="p-4 flex items-center gap-4">
-            <div
-              className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                isDragging
-                  ? "bg-primary text-white"
-                  : "bg-primary/10 text-primary dark:bg-primary/15"
-              )}
-            >
-              {isDragging ? (
-                <Sparkles className="h-6 w-6 animate-pulse" />
-              ) : (
-                <CloudUpload className="h-6 w-6" />
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">
-                {isDragging ? "Drop files here" : "Drag files or click to upload"}
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-ink">{dragOn ? "Drop to upload" : "Add more files"}</p>
+              <p className="truncate text-[13px] text-ink-2">
+                {typeWordsCap}
+                {sizeWords}
               </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {getFileTypeDescription().charAt(0).toUpperCase() + getFileTypeDescription().slice(1)}{showMaxFileSize && maxFileSize < MAX_FILE_SIZE && ` up to ${formatFileSize(maxFileSize)}`}
-              </p>
-              {locationNote && (
-                <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
-                  <MapPinOff className="h-3 w-3 mt-0.5 shrink-0" />
-                  <span>{locationNote}</span>
-                </p>
-              )}
             </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={buildAcceptAttribute(acceptedTypes)}
-              onChange={handleFileSelect}
-              className="hidden"
-              disabled={disabled}
-            />
-
-            <div className="flex items-center gap-2 shrink-0">
-              {showPasteButton && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handlePasteFromClipboard}
-                  disabled={disabled}
-                  title="Paste from clipboard"
-                >
-                  <Clipboard className="h-4 w-4" />
-                </Button>
-              )}
+            {fileInput}
+            {showPasteButton && (
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-11 md:size-9"
+                onClick={handlePasteFromClipboard}
                 disabled={disabled}
+                aria-label="Paste from clipboard"
+                title="Paste from clipboard"
               >
-                Browse
+                <Clipboard className="size-4" />
               </Button>
-            </div>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 md:h-9"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+            >
+              Choose files
+            </Button>
           </div>
+          {location}
         </div>
       </>
     );
@@ -561,137 +590,72 @@ export function FileDropzone({
       {renderFullPageOverlay()}
       <div
         className={cn(
-          "relative rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden cursor-pointer",
-          isDragging || dropTargetHighlight
-            ? "border-primary bg-primary/5 scale-[1.01]"
-            : "border-border/60 hover:border-primary/50 hover:bg-accent/30",
-          disabled && "opacity-50 pointer-events-none",
+          "relative cursor-pointer rounded-[var(--tw-r-tile)] bg-well px-5 py-8 text-center outline-1 outline-dashed outline-ctl transition-colors duration-200 sm:py-10",
+          dragOn ? "bg-tile-hi outline-2 outline-acc" : "hover:outline-ctl-hi",
+          disabled && "pointer-events-none opacity-60",
           className
         )}
         onClick={() => !disabled && fileInputRef.current?.click()}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
+        {...dropHandlers}
       >
-        {/* Animated background for drag state */}
-        <div
-          className={cn(
-            "absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 opacity-0 transition-opacity duration-300",
-            (isDragging || dropTargetHighlight) && "opacity-100"
-          )}
-        />
-
-        <div className="relative p-8 sm:p-12 text-center">
-          {/* Icon */}
-          <div
-            className={cn(
-              "mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300",
-              isDragging
-                ? "bg-primary text-white scale-110 shadow-lg shadow-primary/30"
-                : "bg-primary/10 text-primary dark:bg-primary/15"
-            )}
-          >
-            {isDragging ? (
-              <Sparkles className="h-8 w-8 animate-pulse" />
-            ) : (
-              <CloudUpload className="h-8 w-8" />
-            )}
-          </div>
-
-          {/* Text */}
-          <div className="space-y-2 mb-6">
-            <h3 className="text-lg font-semibold">
-              {isDragging ? "Drop files here" : "Upload your content"}
-            </h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              {isDragging && dragPreview ? (
-                <>
-                  {dragPreview.validCount} of {dragPreview.fileCount} files ready
-                  {dragPreview.invalidTypes.length > 0 && (
-                    <span className="text-destructive">
-                      {" "}(unsupported: {dragPreview.invalidTypes.join(", ")})
-                    </span>
-                  )}
-                </>
-              ) : fullPageDrop ? (
-                `Drag files anywhere on the page or click to browse. We support ${getFileTypeDescription()}${showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
-              ) : (
-                `Drag and drop your files here or click to browse. We support ${getFileTypeDescription()}${showMaxFileSize && maxFileSize < MAX_FILE_SIZE ? ` up to ${formatFileSize(maxFileSize)} each` : ""}.`
+        <h3 className="text-[17px] font-semibold text-ink">{dragOn ? "Drop to upload" : "Upload your files"}</h3>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-ink-2">
+          {dragOn && dragPreview ? (
+            <>
+              {dragPreview.validCount} of {dragPreview.fileCount} files can upload
+              {dragPreview.invalidTypes.length > 0 && (
+                <span className="text-late"> (not accepted: {dragPreview.invalidTypes.join(", ")})</span>
               )}
-            </p>
-          </div>
+            </>
+          ) : (
+            `${fullPageDrop ? "Drop files anywhere on the page" : "Drop files here"}, or choose them from your device. ${typeWordsCap}${sizeWords}.`
+          )}
+        </p>
 
-          {/* File types */}
-          <div className="flex items-center justify-center gap-6 mb-6">
-            {showImages && (
-              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                  <ImageIcon className="h-5 w-5 text-emerald-500" />
-                </div>
-                <span className="text-xs font-medium">Images</span>
-              </div>
-            )}
-            {showVideos && (
-              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                  <Video className="h-5 w-5 text-blue-500" />
-                </div>
-                <span className="text-xs font-medium">Videos</span>
-              </div>
-            )}
-            {showAudio && (
-              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center">
-                  <Music className="h-5 w-5 text-primary" />
-                </div>
-                <span className="text-xs font-medium">Audio</span>
-              </div>
-            )}
-          </div>
+        <div className="mt-4 flex items-center justify-center gap-3" aria-hidden="true">
+          {showImages && <ImageIcon className="size-5 text-icon" />}
+          {showVideos && <Video className="size-5 text-icon" />}
+          {showAudio && <Music className="size-5 text-icon" />}
+        </div>
 
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept={buildAcceptAttribute(acceptedTypes)}
-            onChange={handleFileSelect}
-            className="hidden"
+        {fileInput}
+
+        <div className="mt-5 flex items-center justify-center gap-2">
+          <Button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
             disabled={disabled}
-          />
-
-          {/* Button */}
-          <div className="flex items-center justify-center gap-3">
+            className="h-11 px-6"
+          >
+            <Upload className="size-4" aria-hidden="true" />
+            Choose files
+          </Button>
+          {showPasteButton && (
             <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-11"
               onClick={(e) => {
                 e.stopPropagation();
-                fileInputRef.current?.click();
+                handlePasteFromClipboard();
               }}
               disabled={disabled}
-              className="btn-gradient px-8"
+              aria-label="Paste from clipboard"
+              title="Paste from clipboard"
             >
-              <Upload className="mr-2 h-4 w-4" />
-              Select Files
+              <Clipboard className="size-4" />
             </Button>
-          </div>
-
-          {/* Max size note - only show if there's a specific limit and showMaxFileSize is true */}
-          {((showMaxFileSize && maxFileSize < MAX_FILE_SIZE) || fullPageDrop) && (
-            <p className="text-xs text-muted-foreground mt-4">
-              {showMaxFileSize && maxFileSize < MAX_FILE_SIZE && `Maximum file size: ${formatFileSize(maxFileSize)}`}
-              {showMaxFileSize && maxFileSize < MAX_FILE_SIZE && fullPageDrop && " • "}
-              {fullPageDrop && "Drop anywhere on the page"}
-            </p>
-          )}
-
-          {locationNote && (
-            <p className="text-xs text-muted-foreground mt-4 flex items-start justify-center gap-1.5 max-w-sm mx-auto">
-              <MapPinOff className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              <span>{locationNote}</span>
-            </p>
           )}
         </div>
+
+        {showMaxFileSize && maxFileSize < MAX_FILE_SIZE && (
+          <p className="mt-4 text-[13px] text-ink-2">Largest file: {formatFileSize(maxFileSize)}</p>
+        )}
+        {location && <div className="mx-auto max-w-sm text-left">{location}</div>}
       </div>
     </>
   );

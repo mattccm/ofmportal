@@ -147,7 +147,7 @@ function ReminderDaysInput({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" className="text-muted-foreground">
+              <button aria-label="About reminder days" type="button" className="text-muted-foreground">
                 <Info className="h-4 w-4" />
               </button>
             </TooltipTrigger>
@@ -347,12 +347,12 @@ export function CreatorReminderSettings({
           <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
             localSettings.disableReminders
               ? "bg-red-100 dark:bg-red-900/30"
-              : "bg-emerald-100 dark:bg-emerald-900/30"
+              : "bg-success/10"
           }`}>
             {localSettings.disableReminders ? (
               <BellOff className="h-5 w-5 text-red-600 dark:text-red-400" />
             ) : (
-              <Bell className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <Bell className="h-5 w-5 text-success" />
             )}
           </div>
           <div>
@@ -366,7 +366,7 @@ export function CreatorReminderSettings({
             </p>
           </div>
         </div>
-        <Switch
+        <Switch aria-label="Automatic reminders"
           checked={!localSettings.disableReminders}
           onCheckedChange={(checked) =>
             updateSettings({ disableReminders: !checked })
@@ -384,7 +384,7 @@ export function CreatorReminderSettings({
                 Override agency default rules for this creator
               </p>
             </div>
-            <Switch
+            <Switch aria-label="Use Custom Settings"
               checked={localSettings.useCustomSettings}
               onCheckedChange={(checked) =>
                 updateSettings({ useCustomSettings: checked })
@@ -438,7 +438,7 @@ export function CreatorReminderSettings({
                       })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Overdue Reminder Frequency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -475,7 +475,7 @@ export function CreatorReminderSettings({
                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
                     SMS Escalation
                   </Label>
-                  <Switch
+                  <Switch aria-label="SMS Escalation"
                     checked={localSettings.escalateToSms}
                     onCheckedChange={(checked) =>
                       updateSettings({

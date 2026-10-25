@@ -294,7 +294,7 @@ function TourTooltip({
       ref={tooltipRef}
       className={cn(
         "fixed z-[9999] w-[360px] max-w-[calc(100vw-20px)]",
-        "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900",
+        " bg-slate-900 ",
         "border border-white/10 rounded-2xl shadow-2xl",
         "animate-in fade-in-0 zoom-in-95 duration-300",
         className
@@ -328,7 +328,7 @@ function TourTooltip({
       {/* Content */}
       <div className="px-5 pb-4">
         <div className="flex items-start gap-3 mb-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-primary/30">
+          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/30">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -344,7 +344,7 @@ function TourTooltip({
 
       {/* Progress bar */}
       <div className="px-5 pb-3">
-        <Progress
+        <Progress aria-label="Tour progress"
           value={((stepIndex + 1) / totalSteps) * 100}
           className="h-1 bg-white/10"
         />
@@ -390,7 +390,7 @@ function TourTooltip({
                     onNext();
                   }
                 }}
-                className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 text-white shadow-lg"
+                className=" bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
               >
                 {step.action.label}
                 {!isLastStep && <ChevronRight className="h-4 w-4 ml-1" />}
@@ -399,7 +399,7 @@ function TourTooltip({
               <Button
                 size="sm"
                 onClick={isLastStep ? onComplete : onNext}
-                className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 text-white shadow-lg"
+                className=" bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
               >
                 {isLastStep ? (
                   <>

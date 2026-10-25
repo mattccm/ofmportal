@@ -99,7 +99,7 @@ function TrendIndicator({ value, suffix = "%", inverse = false }: TrendIndicator
     <span
       className={cn(
         "inline-flex items-center gap-1 text-xs font-medium",
-        isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+        isPositive ? "text-success" : "text-red-600 dark:text-red-400"
       )}
     >
       {value > 0 ? (
@@ -161,7 +161,7 @@ export function StatCard({
       )}
     >
       {/* Gradient accent line */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-violet-500 to-purple-500 opacity-80" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-primary opacity-80" />
 
       <CardContent className="pt-5 pb-4">
         <div className="flex items-start justify-between gap-4">
@@ -237,7 +237,7 @@ export function StatCard({
       <div
         className={cn(
           "absolute inset-0 opacity-0 transition-opacity duration-300 pointer-events-none",
-          "bg-gradient-to-br from-primary/5 via-transparent to-violet-500/5",
+          " bg-primary/5 ",
           href && "group-hover:opacity-100"
         )}
       />
@@ -258,7 +258,7 @@ interface StatCardSkeletonProps {
 export function StatCardSkeleton({ className }: StatCardSkeletonProps) {
   return (
     <Card className={cn("card-elevated relative overflow-hidden", className)}>
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-muted via-muted to-muted animate-shimmer" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-muted animate-shimmer" />
       <CardContent className="pt-5 pb-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">

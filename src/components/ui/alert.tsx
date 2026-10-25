@@ -5,19 +5,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
-  "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
+  "relative w-full rounded-lg border border-line p-4 text-sm [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
+        default: "bg-tile text-foreground border-transparent",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+          "border-late/35 bg-late/10 text-foreground [&>svg]:text-late",
         warning:
-          "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-900/20 dark:text-amber-200 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400",
+          "border-acc/35 bg-acc/10 text-foreground [&>svg]:text-acc",
         success:
-          "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-900/20 dark:text-emerald-200 [&>svg]:text-emerald-600 dark:[&>svg]:text-emerald-400",
+          "border-success/30 bg-success/10 text-foreground [&>svg]:text-success",
         info:
-          "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-500/30 dark:bg-blue-900/20 dark:text-blue-200 [&>svg]:text-blue-600 dark:[&>svg]:text-blue-400",
+          "border-ready/30 bg-ready/10 text-foreground [&>svg]:text-ready",
       },
     },
     defaultVariants: {

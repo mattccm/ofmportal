@@ -25,6 +25,13 @@ async function getRequest(requestId: string, agencyId: string) {
           },
         },
       },
+      // Sent reminders feed the page's History (read only)
+      reminders: {
+        where: { sentAt: { not: null }, isTestReminder: false },
+        select: { id: true, type: true, channel: true, sentAt: true },
+        orderBy: { sentAt: "desc" },
+        take: 20,
+      },
       watchers: {
         include: {
           user: {

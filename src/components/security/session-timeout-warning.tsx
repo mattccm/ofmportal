@@ -312,7 +312,7 @@ export function SessionTimeoutWarning({
 
           {/* Progress Bar */}
           <div className="space-y-2">
-            <Progress
+            <Progress aria-label="Time remaining before session expires"
               value={progressPercentage}
               className="h-2"
             />

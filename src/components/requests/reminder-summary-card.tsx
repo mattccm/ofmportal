@@ -79,13 +79,13 @@ interface ReminderSummaryCardProps {
 function getStatusColor(status: ReminderItem["status"]) {
   switch (status) {
     case "PENDING":
-      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+      return "bg-tile-hi text-ink-2";
     case "SENT":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+      return "bg-success/10 text-success";
     case "FAILED":
-      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+      return "bg-late/15 text-late";
     default:
-      return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+      return "bg-tile-hi text-ink-2";
   }
 }
 
@@ -223,9 +223,9 @@ export function ReminderSummaryCard({ requestId, className }: ReminderSummaryCar
   // Error state
   if (error) {
     return (
-      <Card className={cn("card-elevated border-red-200 dark:border-red-800", className)}>
+      <Card className={cn("card-elevated border-late/30 dark:border-late/30", className)}>
         <CardContent className="p-6">
-          <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+          <div className="flex items-center gap-3 text-late dark:text-late">
             <AlertCircle className="h-5 w-5" />
             <span className="text-sm">{error}</span>
             <Button variant="ghost" size="sm" onClick={fetchData}>
@@ -251,8 +251,8 @@ export function ReminderSummaryCard({ requestId, className }: ReminderSummaryCar
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <div className="h-10 w-10 rounded-lg bg-tile-hi flex items-center justify-center">
+              <Bell className="h-5 w-5 text-icon" />
             </div>
             <div>
               <CardTitle className="text-base">Reminders</CardTitle>
@@ -268,7 +268,7 @@ export function ReminderSummaryCard({ requestId, className }: ReminderSummaryCar
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
+                    <Button aria-label="Cancel pending reminders"
                       variant="ghost"
                       size="icon"
                       onClick={handleCancel}
@@ -285,7 +285,7 @@ export function ReminderSummaryCard({ requestId, className }: ReminderSummaryCar
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
+                  <Button aria-label={hasReminders ? "Reschedule reminders" : "Schedule reminders"}
                     variant="ghost"
                     size="icon"
                     onClick={handleReschedule}
@@ -337,18 +337,18 @@ export function ReminderSummaryCard({ requestId, className }: ReminderSummaryCar
                       className={cn(
                         "h-7 w-7 rounded-full flex items-center justify-center",
                         reminder.status === "SENT"
-                          ? "bg-emerald-100 dark:bg-emerald-900/30"
+                          ? "bg-success/10"
                           : reminder.status === "FAILED"
-                          ? "bg-red-100 dark:bg-red-900/30"
-                          : "bg-blue-100 dark:bg-blue-900/30"
+                          ? "bg-late/15"
+                          : "bg-tile-hi"
                       )}
                     >
                       {reminder.status === "SENT" ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <Check className="h-3.5 w-3.5 text-success" />
                       ) : reminder.status === "FAILED" ? (
-                        <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                        <X className="h-3.5 w-3.5 text-late" />
                       ) : (
-                        <TypeIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        <TypeIcon className="h-3.5 w-3.5 text-icon" />
                       )}
                     </div>
                     <div>
@@ -370,7 +370,7 @@ export function ReminderSummaryCard({ requestId, className }: ReminderSummaryCar
                       {reminder.channel}
                     </Badge>
                     {reminder.isEscalation && (
-                      <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-xs">
+                      <Badge className="bg-tile-hi text-foreground dark:bg-tile-hi text-xs">
                         <Zap className="h-3 w-3 mr-1" />
                         Escalation
                       </Badge>
@@ -413,19 +413,19 @@ export function ReminderSummaryCard({ requestId, className }: ReminderSummaryCar
         {hasReminders && (
           <div className="grid grid-cols-3 gap-2 pt-2 border-t">
             <div className="text-center">
-              <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+              <p className="text-lg font-semibold text-ink">
                 {summary.pending}
               </p>
               <p className="text-xs text-muted-foreground">Pending</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
+              <p className="text-lg font-semibold text-success">
                 {summary.sent}
               </p>
               <p className="text-xs text-muted-foreground">Sent</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-semibold text-red-600 dark:text-red-400">
+              <p className="text-lg font-semibold text-late dark:text-late">
                 {summary.failed}
               </p>
               <p className="text-xs text-muted-foreground">Failed</p>

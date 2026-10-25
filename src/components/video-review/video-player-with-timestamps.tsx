@@ -512,7 +512,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
 
       {/* Center Play Button (when paused) */}
       {!state.isPlaying && (
-        <button
+        <button aria-label="Play video"
           className="absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity"
           onClick={togglePlayPause}
         >
@@ -590,7 +590,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
+                <Button aria-label={state.isPlaying ? "Pause" : "Play"}
                   variant="ghost"
                   size="icon-sm"
                   className="text-white hover:bg-white/20"
@@ -611,7 +611,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
             {/* Skip buttons */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
+                <Button aria-label="Rewind 5 seconds"
                   variant="ghost"
                   size="icon-sm"
                   className="text-white hover:bg-white/20"
@@ -625,7 +625,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
+                <Button aria-label="Forward 5 seconds"
                   variant="ghost"
                   size="icon-sm"
                   className="text-white hover:bg-white/20"
@@ -643,7 +643,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
                 <div className="w-px h-6 bg-white/30 mx-1" />
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
+                    <Button aria-label="Previous timestamp"
                       variant="ghost"
                       size="icon-sm"
                       className="text-white hover:bg-white/20"
@@ -657,7 +657,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
+                    <Button aria-label="Next timestamp"
                       variant="ghost"
                       size="icon-sm"
                       className="text-white hover:bg-white/20"
@@ -675,7 +675,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
             <div className="flex items-center gap-1 group/volume">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
+                  <Button aria-label={state.isMuted || state.volume === 0 ? "Unmute" : "Mute"}
                     variant="ghost"
                     size="icon-sm"
                     className="text-white hover:bg-white/20"
@@ -692,7 +692,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
               </Tooltip>
 
               <div className="w-0 overflow-hidden transition-all group-hover/volume:w-20">
-                <Slider
+                <Slider aria-label="Volume"
                   value={[state.isMuted ? 0 : state.volume]}
                   max={1}
                   step={0.1}
@@ -762,7 +762,7 @@ export const VideoPlayerWithTimestamps = forwardRef<
             {/* Fullscreen */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
+                <Button aria-label={state.isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                   variant="ghost"
                   size="icon-sm"
                   className="text-white hover:bg-white/20"

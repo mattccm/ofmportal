@@ -550,7 +550,7 @@ export function BulkRequestCreator({
           { id: "preview", label: "Preview & Send", icon: Send },
         ].map((step, index, arr) => (
           <div key={step.id} className="flex items-center">
-            <button
+            <button aria-label={step.label}
               onClick={() => goToStep(step.id as Step)}
               disabled={step.id === "preview" && !canProceed}
               className={cn(
@@ -645,7 +645,7 @@ export function BulkRequestCreator({
                           : "hover:bg-muted"
                       )}
                     >
-                      <Checkbox checked={isSelected} />
+                      <Checkbox aria-label={`Select ${creator.name}`} checked={isSelected} />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{creator.name}</p>
                         <p className="text-sm text-muted-foreground truncate">
@@ -807,7 +807,7 @@ export function BulkRequestCreator({
               <Label className="text-sm font-medium">Advanced Options</Label>
 
               <div className="flex items-center gap-3">
-                <Checkbox
+                <Checkbox aria-label="Send notifications"
                   id="sendNotifications"
                   checked={sendNotifications}
                   onCheckedChange={(checked) => setSendNotifications(checked === true)}
@@ -823,7 +823,7 @@ export function BulkRequestCreator({
               </div>
 
               <div className="flex items-center gap-3">
-                <Checkbox
+                <Checkbox aria-label="Personalize with tokens"
                   id="useTokens"
                   checked={useTokens}
                   onCheckedChange={(checked) => setUseTokens(checked === true)}
@@ -839,7 +839,7 @@ export function BulkRequestCreator({
               </div>
 
               <div className="flex items-start gap-3">
-                <Checkbox
+                <Checkbox aria-label="Stagger due dates"
                   id="staggerDates"
                   checked={staggerDates}
                   onCheckedChange={(checked) => setStaggerDates(checked === true)}
@@ -951,7 +951,7 @@ export function BulkRequestCreator({
                         <p className="font-medium">{creator.name}</p>
                         <p className="text-sm text-muted-foreground">{creator.email}</p>
                       </div>
-                      <Button
+                      <Button aria-label={`Remove ${creator.name}`}
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => toggleCreator(creator.id)}

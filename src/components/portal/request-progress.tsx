@@ -1,7 +1,6 @@
 "use client";
 
 import { Clock, CheckCircle2 } from "lucide-react";
-import { useBranding } from "@/components/providers/branding-provider";
 import { cn } from "@/lib/utils";
 
 export interface RequestCompletion {
@@ -32,7 +31,6 @@ export function RequestProgress({
   estimatedMinutes?: number | null;
   className?: string;
 }) {
-  const { branding } = useBranding();
 
   const uploaded = Math.max(completion?.uploadedSlots ?? 0, 0);
   const approved = Math.max(completion?.approvedSlots ?? 0, 0);
@@ -61,7 +59,7 @@ export function RequestProgress({
             </span>
           )}
           {allApproved ? (
-            <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 font-medium text-approved">
               <CheckCircle2 className="h-3 w-3" />
               Done
             </span>
@@ -71,7 +69,7 @@ export function RequestProgress({
         </div>
       </div>
       <div
-        className="h-1.5 w-full rounded-full bg-muted overflow-hidden flex"
+        className="flex h-1.5 w-full overflow-hidden rounded-full bg-ctl"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={total}
@@ -79,16 +77,12 @@ export function RequestProgress({
         aria-label="Upload progress"
       >
         <div
-          className="h-full transition-all"
-          style={{ width: `${approvedPct}%`, backgroundColor: branding.primaryColor }}
+          className="h-full bg-approved"
+          style={{ width: `${approvedPct}%` }}
         />
         <div
-          className="h-full transition-all"
-          style={{
-            width: `${Math.max(uploadedPct - approvedPct, 0)}%`,
-            backgroundColor: branding.primaryColor,
-            opacity: 0.4,
-          }}
+          className="h-full bg-ready"
+          style={{ width: `${Math.max(uploadedPct - approvedPct, 0)}%` }}
         />
       </div>
     </div>

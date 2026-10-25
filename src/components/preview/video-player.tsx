@@ -347,7 +347,7 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
 
       {/* Big play button overlay */}
       {!isPlaying && (
-        <button
+        <button aria-label="Play video"
           className="absolute inset-0 flex items-center justify-center bg-black/30"
           onClick={togglePlay}
         >
@@ -386,7 +386,7 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
 
         {/* Control buttons */}
         <div className="flex items-center gap-2">
-          <Button
+          <Button aria-label={isPlaying ? "Pause" : "Play"}
             variant="ghost"
             size="icon-sm"
             className="text-white hover:bg-white/20"
@@ -399,7 +399,7 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
             )}
           </Button>
 
-          <Button
+          <Button aria-label="Back 10 seconds"
             variant="ghost"
             size="icon-sm"
             className="text-white hover:bg-white/20"
@@ -409,7 +409,7 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
             <SkipBack className="h-4 w-4" />
           </Button>
 
-          <Button
+          <Button aria-label="Forward 10 seconds"
             variant="ghost"
             size="icon-sm"
             className="text-white hover:bg-white/20"
@@ -421,7 +421,7 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
 
           {/* Volume */}
           <div className="flex items-center gap-1 group/volume">
-            <Button
+            <Button aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
               variant="ghost"
               size="icon-sm"
               className="text-white hover:bg-white/20"
@@ -436,6 +436,7 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
             </Button>
             <input
               type="range"
+              aria-label="Volume"
               min="0"
               max="1"
               step="0.1"
@@ -488,7 +489,7 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
 
           {/* Picture-in-Picture */}
           {isPiPSupported && (
-            <Button
+            <Button aria-label="Picture-in-picture"
               variant="ghost"
               size="icon-sm"
               className="text-white hover:bg-white/20"
@@ -500,7 +501,7 @@ export function VideoPlayer({ src, className, poster, onLoad }: VideoPlayerProps
           )}
 
           {/* Fullscreen */}
-          <Button
+          <Button aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
             variant="ghost"
             size="icon-sm"
             className="text-white hover:bg-white/20"

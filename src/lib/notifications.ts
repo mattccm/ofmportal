@@ -364,14 +364,14 @@ export function getNotificationIcon(type: NotificationType): string {
 export function getNotificationColor(type: NotificationType): string {
   const colors: Record<NotificationType, string> = {
     [NotificationType.UPLOAD_SUBMITTED]: "text-blue-500",
-    [NotificationType.UPLOAD_APPROVED]: "text-emerald-500",
+    [NotificationType.UPLOAD_APPROVED]: "text-approved",
     [NotificationType.UPLOAD_REJECTED]: "text-red-500",
-    [NotificationType.REQUEST_CREATED]: "text-violet-500",
+    [NotificationType.REQUEST_CREATED]: "text-foreground",
     [NotificationType.REQUEST_DUE_SOON]: "text-amber-500",
     [NotificationType.REQUEST_STATUS_CHANGED]: "text-cyan-500",
     [NotificationType.COMMENT_ADDED]: "text-blue-500",
-    [NotificationType.MENTION]: "text-violet-500",
-    [NotificationType.MESSAGE_RECEIVED]: "text-indigo-500",
+    [NotificationType.MENTION]: "text-foreground",
+    [NotificationType.MESSAGE_RECEIVED]: "text-foreground",
     [NotificationType.WATCHER_ADDED]: "text-sky-500",
     [NotificationType.SYSTEM]: "text-gray-500",
   };
@@ -385,32 +385,32 @@ export function getNotificationColor(type: NotificationType): string {
 export function getNotificationGradient(type: NotificationType): string {
   const gradients: Record<NotificationType, string> = {
     [NotificationType.UPLOAD_SUBMITTED]:
-      "bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30",
+      " bg-blue-50 dark:bg-blue-900/30 ",
     [NotificationType.UPLOAD_APPROVED]:
-      "bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30",
+      " bg-approved/10 dark:bg-approved/30 ",
     [NotificationType.UPLOAD_REJECTED]:
-      "bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30",
+      " bg-red-50 dark:bg-red-900/30 ",
     [NotificationType.REQUEST_CREATED]:
-      "bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/30 dark:to-violet-800/30",
+      " bg-tile-hi dark:bg-tile-hi ",
     [NotificationType.REQUEST_DUE_SOON]:
-      "bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30",
+      " bg-amber-50 dark:bg-amber-900/30 ",
     [NotificationType.REQUEST_STATUS_CHANGED]:
-      "bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/30 dark:to-cyan-800/30",
+      " bg-cyan-50 dark:bg-cyan-900/30 ",
     [NotificationType.COMMENT_ADDED]:
-      "bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30",
+      " bg-blue-50 dark:bg-blue-900/30 ",
     [NotificationType.MENTION]:
-      "bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/30 dark:to-violet-800/30",
+      " bg-tile-hi dark:bg-tile-hi ",
     [NotificationType.MESSAGE_RECEIVED]:
-      "bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30",
+      " bg-tile-hi dark:bg-tile-hi ",
     [NotificationType.WATCHER_ADDED]:
-      "bg-gradient-to-br from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-800/30",
+      " bg-sky-50 dark:bg-sky-900/30 ",
     [NotificationType.SYSTEM]:
-      "bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-800/30",
+      " bg-gray-50 dark:bg-gray-900/30 ",
   };
 
   return (
     gradients[type] ||
-    "bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-800/30"
+    " bg-gray-50 dark:bg-gray-900/30 "
   );
 }
 

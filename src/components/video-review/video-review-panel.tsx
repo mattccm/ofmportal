@@ -326,7 +326,7 @@ export function VideoReviewPanel({
                 {stats.resolved > 0 && (
                   <Badge
                     variant="outline"
-                    className="gap-1 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    className="gap-1 bg-success/10 text-success"
                   >
                     <Check className="h-3 w-3" />
                     {stats.resolved} resolved
@@ -370,7 +370,7 @@ export function VideoReviewPanel({
               </Button>
             )}
 
-            <Button
+            <Button aria-label="Close video review"
               variant="ghost"
               size="icon-sm"
               onClick={() => onOpenChange(false)}
@@ -451,7 +451,7 @@ export function VideoReviewPanel({
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Keyboard Shortcuts</h3>
-                <Button
+                <Button aria-label="Close keyboard shortcuts"
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setShowShortcuts(false)}

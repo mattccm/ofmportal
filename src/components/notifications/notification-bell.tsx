@@ -245,8 +245,8 @@ export function NotificationBell({ className }: NotificationBellProps) {
                 "absolute -top-0.5 -right-0.5",
                 "min-w-[18px] h-[18px] px-1",
                 "flex items-center justify-center",
-                "text-[10px] font-semibold text-white",
-                "bg-gradient-to-r from-primary to-violet-500",
+                "text-[12px] font-semibold text-white",
+                " bg-primary ",
                 "rounded-full shadow-sm",
                 "animate-in zoom-in-50 duration-200"
               )}
@@ -261,7 +261,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
               className={cn(
                 "absolute -top-0.5 -right-0.5",
                 "w-[18px] h-[18px]",
-                "bg-gradient-to-r from-primary to-violet-500",
+                " bg-primary ",
                 "rounded-full",
                 "animate-ping opacity-75"
               )}

@@ -191,7 +191,7 @@ export function FeedbackWidget() {
         onClick={handleOpen}
         className={cn(
           "fixed bottom-6 right-6 z-50 shadow-lg",
-          "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700",
+          " bg-raised-hi hover:bg-raised-hi ",
           "text-white rounded-full px-4 py-2 h-auto",
           "transition-all duration-300 ease-in-out",
           "hover:shadow-xl hover:scale-105",
@@ -210,7 +210,7 @@ export function FeedbackWidget() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-xl">
-                  <MessageSquarePlus className="h-6 w-6 text-violet-500" />
+                  <MessageSquarePlus className="h-6 w-6 text-foreground" />
                   Send Feedback
                 </DialogTitle>
                 <DialogDescription>
@@ -269,7 +269,7 @@ export function FeedbackWidget() {
                         onClick={() => setRating(star)}
                         onMouseEnter={() => setHoveredRating(star)}
                         onMouseLeave={() => setHoveredRating(0)}
-                        className="p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-violet-500 rounded"
+                        className="p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ctl rounded"
                         aria-label={`Rate ${star} stars`}
                       >
                         <Star
@@ -379,7 +379,7 @@ export function FeedbackWidget() {
                 <Button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !message.trim() || rating === 0}
-                  className="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                  className="flex-1 bg-raised-hi text-ink hover:bg-raised-hi"
                 >
                   {isSubmitting ? (
                     <>
@@ -399,7 +399,7 @@ export function FeedbackWidget() {
 
           {step === "success" && (
             <div className="py-8 text-center space-y-4">
-              <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-success flex items-center justify-center">
                 <CheckCircle2 className="h-10 w-10 text-white" />
               </div>
               <div className="space-y-2">
@@ -410,7 +410,7 @@ export function FeedbackWidget() {
               </div>
               <Button
                 onClick={handleClose}
-                className="mt-4 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                className="mt-4 bg-raised-hi text-ink hover:bg-raised-hi"
               >
                 Close
               </Button>

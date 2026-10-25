@@ -13,6 +13,10 @@ import {
   FileText,
   Repeat,
   AlertCircle,
+  ArrowUp,
+  ArrowDown,
+  Plus,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -80,20 +84,22 @@ interface RecurringRequestModalProps {
   templates: Template[];
   creators: Creator[];
   creatorGroups: CreatorGroup[];
-  editingRequest?: RecurringRequest | null;
+  editingRequest?: (RecurringRequest & { templateIds?: string[] }) | null;
   onSaved: (request: RecurringRequest) => void;
 }
+
+const DEFAULT_TITLE = "{template} · {month}";
 
 type Step = "schedule" | "target" | "template" | "settings" | "review";
 
 // STEP CONFIG
 
 const STEPS: { id: Step; label: string; description: string }[] = [
-  { id: "schedule", label: "Schedule", description: "Set frequency and timing" },
-  { id: "target", label: "Creators", description: "Select target creators" },
-  { id: "template", label: "Template", description: "Choose request template" },
-  { id: "settings", label: "Settings", description: "Configure request details" },
-  { id: "review", label: "Review", description: "Review and confirm" },
+  { id: "schedule", label: "Schedule", description: "How often it runs and when it starts" },
+  { id: "target", label: "Creators", description: "Who gets the requests" },
+  { id: "template", label: "Templates", description: "What each run sends. Every template becomes its own request for each creator." },
+  { id: "settings", label: "Details", description: "Name, titles and due dates" },
+  { id: "review", label: "Check", description: "Check it over, then save" },
 ];
 
 // MAIN COMPONENT
@@ -128,11 +134,11 @@ export function RecurringRequestModal({
   const [selectedGroupIds, setSelectedGroupIds] = React.useState<string[]>([]);
   const [creatorSearch, setCreatorSearch] = React.useState("");
 
-  // Template
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState("");
+  // Templates, in the order they are sent
+  const [selectedTemplateIds, setSelectedTemplateIds] = React.useState<string[]>([]);
 
   // Request settings
-  const [titleTemplate, setTitleTemplate] = React.useState("{month} Content Request");
+  const [titleTemplate, setTitleTemplate] = React.useState(DEFAULT_TITLE);
   const [requestDescription, setRequestDescription] = React.useState("");
   const [dueInDays, setDueInDays] = React.useState(7);
   const [urgency, setUrgency] = React.useState<"LOW" | "NORMAL" | "HIGH" | "URGENT">("NORMAL");
@@ -156,7 +162,11 @@ export function RecurringRequestModal({
         setSelectionMode(
           (editingRequest.creatorGroupIds || []).length > 0 ? "group" : "individual"
         );
-        setSelectedTemplateId(editingRequest.templateId);
+        setSelectedTemplateIds(
+          editingRequest.templateIds && editingRequest.templateIds.length > 0
+            ? editingRequest.templateIds
+            : [editingRequest.templateId]
+        );
         const settings = editingRequest.requestSettings;
         setTitleTemplate(settings.titleTemplate);
         setRequestDescription(settings.description || "");
@@ -178,8 +188,8 @@ export function RecurringRequestModal({
         setSelectedCreatorIds([]);
         setSelectedGroupIds([]);
         setSelectionMode("individual");
-        setSelectedTemplateId("");
-        setTitleTemplate("{month} Content Request");
+        setSelectedTemplateIds([]);
+        setTitleTemplate(DEFAULT_TITLE);
         setRequestDescription("");
         setDueInDays(7);
         setUrgency("NORMAL");
@@ -200,8 +210,25 @@ export function RecurringRequestModal({
     );
   }, [creators, creatorSearch]);
 
-  // Selected template
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  // Selected templates, in order; the rest can be added
+  const selectedTemplates = selectedTemplateIds
+    .map((id) => templates.find((t) => t.id === id))
+    .filter((t): t is Template => !!t);
+  const availableTemplates = templates.filter((t) => !selectedTemplateIds.includes(t.id));
+
+  const addTemplate = (id: string) =>
+    setSelectedTemplateIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  const removeTemplate = (id: string) =>
+    setSelectedTemplateIds((prev) => prev.filter((t) => t !== id));
+  const moveTemplate = (id: string, by: -1 | 1) =>
+    setSelectedTemplateIds((prev) => {
+      const i = prev.indexOf(id);
+      const j = i + by;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
 
   // Calculate upcoming dates preview
   const upcomingDates = React.useMemo(() => {
@@ -239,7 +266,7 @@ export function RecurringRequestModal({
       case "target":
         return totalCreatorCount > 0;
       case "template":
-        return !!selectedTemplateId;
+        return selectedTemplates.length > 0;
       case "settings":
         return !!name && !!titleTemplate && dueInDays > 0;
       case "review":
@@ -296,7 +323,8 @@ export function RecurringRequestModal({
       const payload = {
         name,
         description: description || undefined,
-        templateId: selectedTemplateId,
+        templateId: selectedTemplates[0]?.id,
+        templateIds: selectedTemplates.map((t) => t.id),
         creatorIds: selectionMode === "individual" ? selectedCreatorIds : [],
         creatorGroupIds: selectionMode === "group" ? selectedGroupIds : [],
         frequency,
@@ -349,8 +377,8 @@ export function RecurringRequestModal({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Repeat className="h-5 w-5 text-primary" />
-            {editingRequest ? "Edit Recurring Request" : "Create Recurring Request"}
+            <Repeat className="h-5 w-5 text-ink" />
+            {editingRequest ? "Edit schedule" : "New schedule"}
           </DialogTitle>
           <DialogDescription>
             {STEPS.find((s) => s.id === step)?.description}
@@ -361,15 +389,15 @@ export function RecurringRequestModal({
         <div className="flex items-center justify-between mb-6">
           {STEPS.map((s, i) => (
             <React.Fragment key={s.id}>
-              <button
+              <button aria-label={`Step ${i + 1}: ${s.label}${i < currentStepIndex ? " (done)" : ""}`} aria-current={i === currentStepIndex ? "step" : undefined}
                 onClick={() => i < currentStepIndex && setStep(s.id)}
                 disabled={i > currentStepIndex}
                 className={cn(
                   "flex items-center justify-center h-8 w-8 rounded-full text-sm font-medium transition-colors",
                   i <= currentStepIndex
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground",
-                  i < currentStepIndex && "cursor-pointer hover:bg-primary/90"
+                    ? "bg-ink text-ground"
+                    : "border border-ctl text-ink-2",
+                  i < currentStepIndex && "cursor-pointer hover:bg-white"
                 )}
               >
                 {i < currentStepIndex ? <Check className="h-4 w-4" /> : i + 1}
@@ -378,7 +406,7 @@ export function RecurringRequestModal({
                 <div
                   className={cn(
                     "flex-1 h-0.5 mx-2",
-                    i < currentStepIndex ? "bg-primary" : "bg-muted"
+                    i < currentStepIndex ? "bg-ink" : "bg-ctl"
                   )}
                 />
               )}
@@ -387,7 +415,7 @@ export function RecurringRequestModal({
         </div>
 
         {/* Step Content */}
-        <div className="space-y-6 min-h-[350px]">
+        <div className="min-h-[350px] min-w-0 space-y-6">
           {/* Step 1: Schedule */}
           {step === "schedule" && (
             <div className="space-y-6">
@@ -398,7 +426,7 @@ export function RecurringRequestModal({
                     value={frequency}
                     onValueChange={(v) => setFrequency(v as RecurrenceFrequency)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Frequency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -418,12 +446,12 @@ export function RecurringRequestModal({
 
                 {(frequency === "WEEKLY" || frequency === "BIWEEKLY") && (
                   <div className="space-y-2">
-                    <Label>Day of Week</Label>
+                    <Label>Day of the week</Label>
                     <Select
                       value={String(dayOfWeek)}
                       onValueChange={(v) => setDayOfWeek(parseInt(v))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Day of the week">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -439,12 +467,12 @@ export function RecurringRequestModal({
 
                 {(frequency === "MONTHLY" || frequency === "QUARTERLY") && (
                   <div className="space-y-2">
-                    <Label>Day of Month</Label>
+                    <Label>Day of the month</Label>
                     <Select
                       value={String(dayOfMonth)}
                       onValueChange={(v) => setDayOfMonth(parseInt(v))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Day of the month">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -461,7 +489,7 @@ export function RecurringRequestModal({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Start Date</Label>
+                  <Label>Starts</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -486,8 +514,9 @@ export function RecurringRequestModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Time of Day</Label>
+                  <Label htmlFor="rr-time">Time of day</Label>
                   <Input
+                    id="rr-time"
                     type="time"
                     value={timeOfDay}
                     onChange={(e) => setTimeOfDay(e.target.value)}
@@ -497,7 +526,7 @@ export function RecurringRequestModal({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>End Date (Optional)</Label>
+                  <Label>Ends (optional)</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -522,11 +551,12 @@ export function RecurringRequestModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Max Occurrences (Optional)</Label>
+                  <Label htmlFor="rr-max">Stop after this many runs (optional)</Label>
                   <Input
+                    id="rr-max"
                     type="number"
                     min={1}
-                    placeholder="Unlimited"
+                    placeholder="Never stops"
                     value={maxOccurrences || ""}
                     onChange={(e) =>
                       setMaxOccurrences(e.target.value ? parseInt(e.target.value) : undefined)
@@ -540,17 +570,17 @@ export function RecurringRequestModal({
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Repeat className="h-4 w-4" />
-                    Upcoming Runs
+                    Next runs
                   </Label>
                   <div className="bg-muted/50 rounded-lg p-3 space-y-2">
                     {upcomingDates.map((date, i) => (
                       <div key={i} className="flex items-center gap-2 text-sm">
-                        <div className="h-2 w-2 rounded-full bg-primary" />
+                        <div className="h-2 w-2 rounded-full bg-ink-2" aria-hidden="true" />
                         <span>{format(date, "EEEE, MMMM d, yyyy 'at' h:mm a")}</span>
                       </div>
                     ))}
                     {!endDate && !maxOccurrences && (
-                      <p className="text-xs text-muted-foreground italic">
+                      <p className="text-xs text-muted-foreground">
                         And continues {FREQUENCY_LABELS[frequency].toLowerCase()}...
                       </p>
                     )}
@@ -571,7 +601,7 @@ export function RecurringRequestModal({
                   onClick={() => setSelectionMode("individual")}
                 >
                   <User className="mr-2 h-4 w-4" />
-                  Individual Creators
+                  Creators
                 </Button>
                 <Button
                   type="button"
@@ -581,14 +611,14 @@ export function RecurringRequestModal({
                   disabled={creatorGroups.length === 0}
                 >
                   <Users className="mr-2 h-4 w-4" />
-                  Creator Groups
+                  Creator groups
                 </Button>
               </div>
 
               {selectionMode === "individual" ? (
                 <>
                   <div className="flex items-center justify-between">
-                    <Label>Select Creators</Label>
+                    <Label>Pick creators</Label>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -596,7 +626,7 @@ export function RecurringRequestModal({
                         size="sm"
                         onClick={() => setSelectedCreatorIds(creators.map((c) => c.id))}
                       >
-                        Select All
+                        Pick all
                       </Button>
                       <Button
                         type="button"
@@ -609,14 +639,14 @@ export function RecurringRequestModal({
                     </div>
                   </div>
                   <Input
-                    placeholder="Search creators..."
+                    placeholder="Find a creator" aria-label="Find a creator"
                     value={creatorSearch}
                     onChange={(e) => setCreatorSearch(e.target.value)}
                   />
                   <div className="border rounded-lg max-h-64 overflow-y-auto">
                     {filteredCreators.length === 0 ? (
                       <div className="p-4 text-center text-muted-foreground">
-                        No creators found
+                        No creator matches
                       </div>
                     ) : (
                       filteredCreators.map((creator) => (
@@ -624,15 +654,15 @@ export function RecurringRequestModal({
                           key={creator.id}
                           className={cn(
                             "flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 border-b last:border-b-0",
-                            selectedCreatorIds.includes(creator.id) && "bg-primary/5"
+                            selectedCreatorIds.includes(creator.id) && "bg-tile-hi"
                           )}
                         >
-                          <Checkbox
+                          <Checkbox aria-label={`Select ${creator.name}`}
                             checked={selectedCreatorIds.includes(creator.id)}
                             onCheckedChange={() => toggleCreator(creator.id)}
                           />
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-4 w-4 text-primary" />
+                          <div className="h-8 w-8 rounded-full bg-tile-hi flex items-center justify-center">
+                            <User className="h-4 w-4 text-ink" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">{creator.name}</p>
@@ -651,11 +681,11 @@ export function RecurringRequestModal({
                 </>
               ) : (
                 <>
-                  <Label>Select Creator Groups</Label>
+                  <Label>Pick creator groups</Label>
                   <div className="border rounded-lg max-h-64 overflow-y-auto">
                     {creatorGroups.length === 0 ? (
                       <div className="p-4 text-center text-muted-foreground">
-                        No groups available
+                        No creator groups yet
                       </div>
                     ) : (
                       creatorGroups.map((group) => (
@@ -663,15 +693,15 @@ export function RecurringRequestModal({
                           key={group.id}
                           className={cn(
                             "flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 border-b last:border-b-0",
-                            selectedGroupIds.includes(group.id) && "bg-primary/5"
+                            selectedGroupIds.includes(group.id) && "bg-tile-hi"
                           )}
                         >
-                          <Checkbox
+                          <Checkbox aria-label={`Select ${group.name}`}
                             checked={selectedGroupIds.includes(group.id)}
                             onCheckedChange={() => toggleGroup(group.id)}
                           />
-                          <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center">
-                            <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                          <div className="h-8 w-8 rounded-full bg-tile-hi dark:bg-tile-hi flex items-center justify-center">
+                            <Users className="h-4 w-4 text-foreground dark:text-foreground" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">{group.name}</p>
@@ -695,53 +725,105 @@ export function RecurringRequestModal({
             </div>
           )}
 
-          {/* Step 3: Template Selection */}
+          {/* Step 3: Templates, an ordered list */}
           {step === "template" && (
-            <div className="space-y-4">
-              <Label>Select Request Template</Label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {templates.map((template) => (
-                  <button
-                    key={template.id}
-                    onClick={() => setSelectedTemplateId(template.id)}
-                    className={cn(
-                      "flex items-start gap-3 p-4 rounded-lg border text-left transition-all",
-                      selectedTemplateId === template.id
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                        : "border-border hover:border-primary/50"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                        selectedTemplateId === template.id
-                          ? "bg-primary text-white"
-                          : "bg-muted"
-                      )}
-                    >
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{template.name}</p>
-                      {template.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {template.description}
-                        </p>
-                      )}
-                    </div>
-                    {selectedTemplateId === template.id && (
-                      <Check className="h-5 w-5 text-primary shrink-0" />
-                    )}
-                  </button>
-                ))}
-              </div>
-              {templates.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No templates available</p>
-                  <p className="text-sm">Create a template first to use recurring requests</p>
-                </div>
-              )}
+            <div className="space-y-6">
+              <section aria-labelledby="rr-sent">
+                <h3 id="rr-sent" className="text-[15px] font-semibold">
+                  Sent each run
+                  <span className="ml-2 text-sm font-normal text-ink-2">
+                    {selectedTemplates.length === 0
+                      ? "Nothing yet"
+                      : `${selectedTemplates.length} ${selectedTemplates.length === 1 ? "template" : "templates"}, ${
+                          selectedTemplates.length * Math.max(totalCreatorCount, 1)
+                        } ${selectedTemplates.length * Math.max(totalCreatorCount, 1) === 1 ? "request" : "requests"} a run`}
+                  </span>
+                </h3>
+                {selectedTemplates.length === 0 ? (
+                  <p className="mt-2 rounded-[var(--tw-r-ctl)] bg-well px-4 py-3 text-sm text-ink-2">
+                    Add one or more templates below, such as a content set and a story set on the same day.
+                  </p>
+                ) : (
+                  <ol className="mt-2 space-y-1.5">
+                    {selectedTemplates.map((template, i) => (
+                      <li
+                        key={template.id}
+                        className="flex items-center gap-2 rounded-[var(--tw-r-ctl)] bg-raised py-1.5 pl-4 pr-1.5"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{template.name}</span>
+                          {i === 0 && selectedTemplates.length > 1 && (
+                            <span className="block text-xs text-ink-2">Sent first</span>
+                          )}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Move ${template.name} up`}
+                          disabled={i === 0}
+                          onClick={() => moveTemplate(template.id, -1)}
+                        >
+                          <ArrowUp className="size-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Move ${template.name} down`}
+                          disabled={i === selectedTemplates.length - 1}
+                          onClick={() => moveTemplate(template.id, 1)}
+                        >
+                          <ArrowDown className="size-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove ${template.name}`}
+                          onClick={() => removeTemplate(template.id)}
+                        >
+                          <X className="size-4" aria-hidden="true" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+
+              <section aria-labelledby="rr-add">
+                <h3 id="rr-add" className="text-[15px] font-semibold">Add a template</h3>
+                {templates.length === 0 ? (
+                  <p className="mt-2 text-sm text-ink-2">
+                    No templates are switched on. Build one under Templates first.
+                  </p>
+                ) : availableTemplates.length === 0 ? (
+                  <p className="mt-2 text-sm text-ink-2">Every template is already in this schedule.</p>
+                ) : (
+                  <ul className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                    {availableTemplates.map((template) => (
+                      <li key={template.id} className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => addTemplate(template.id)}
+                          aria-label={`Add ${template.name}`}
+                          className="flex w-full items-center gap-3 rounded-[var(--tw-r-ctl)] border border-ctl px-3 py-2.5 text-left transition-colors duration-150 hover:border-ctl-hi hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acc"
+                        >
+                          <Plus className="size-4 shrink-0 text-icon" aria-hidden="true" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">{template.name}</span>
+                            {template.description && (
+                              <span className="block truncate text-xs text-ink-2">
+                                {template.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
             </div>
           )}
 
@@ -749,11 +831,12 @@ export function RecurringRequestModal({
           {step === "settings" && (
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label>Recurring Request Name *</Label>
+                <Label htmlFor="rr-name">Schedule name *</Label>
                 <Input
+                  id="rr-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Weekly Content Requests"
+                  placeholder="Monthly content and stories"
                 />
               </div>
 
@@ -762,37 +845,41 @@ export function RecurringRequestModal({
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Optional notes about this recurring request..."
+                  placeholder="Notes for the team (optional)"
                   rows={2}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Request Title Template *</Label>
+                <Label htmlFor="rr-title">Request titles *</Label>
                 <Input
+                  id="rr-title"
                   value={titleTemplate}
                   onChange={(e) => setTitleTemplate(e.target.value)}
-                  placeholder="{month} Content Request"
+                  placeholder={DEFAULT_TITLE}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Available variables: {"{date}"}, {"{week}"}, {"{month}"}, {"{year}"}, {"{creator_name}"}
+                  Fills in {"{template}"}, {"{date}"}, {"{week}"}, {"{month}"}, {"{year}"} and {"{creator_name}"}.
+                  {selectedTemplates.length > 1 && !titleTemplate.includes("{template}") &&
+                    " With several templates and no {template}, each title ends with its template's name."}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label>Request Description</Label>
+                <Label>Request description</Label>
                 <Textarea
                   value={requestDescription}
                   onChange={(e) => setRequestDescription(e.target.value)}
-                  placeholder="Description for each created request..."
+                  placeholder="Shown on each request. Leave empty to use each template's own."
                   rows={2}
                 />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Due In (Days)</Label>
+                  <Label htmlFor="rr-due">Due after (days)</Label>
                   <Input
+                    id="rr-due"
                     type="number"
                     min={1}
                     value={dueInDays}
@@ -805,7 +892,7 @@ export function RecurringRequestModal({
                     value={urgency}
                     onValueChange={(v) => setUrgency(v as typeof urgency)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Urgency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -820,12 +907,12 @@ export function RecurringRequestModal({
 
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
-                  <Label>Auto-send notifications</Label>
+                  <Label>Tell creators</Label>
                   <p className="text-sm text-muted-foreground">
-                    Automatically notify creators when requests are created
+                    Each creator gets one email (and text, if they chose texts) per run, however many templates it sends
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="Tell creators"
                   checked={autoSendNotification}
                   onCheckedChange={setAutoSendNotification}
                 />
@@ -838,13 +925,13 @@ export function RecurringRequestModal({
             <div className="space-y-6">
               <div className="bg-muted/50 rounded-lg p-4 space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Repeat className="h-6 w-6 text-primary" />
+                  <div className="h-12 w-12 rounded-lg bg-tile-hi flex items-center justify-center shrink-0">
+                    <Repeat className="h-6 w-6 text-ink" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">{name || "Untitled"}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {FREQUENCY_LABELS[frequency]} recurring request
+                      {FREQUENCY_LABELS[frequency]} schedule
                     </p>
                   </div>
                 </div>
@@ -923,23 +1010,29 @@ export function RecurringRequestModal({
                 </div>
               </div>
 
-              {selectedTemplate && (
+              {selectedTemplates.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Template</p>
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    <span className="font-medium">{selectedTemplate.name}</span>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedTemplates.length === 1 ? "Template" : "Templates, in order"}
+                  </p>
+                  <ol className="space-y-1">
+                    {selectedTemplates.map((t) => (
+                      <li key={t.id} className="flex items-center gap-2 text-sm">
+                        <FileText className="size-4 text-icon" aria-hidden="true" />
+                        <span className="font-medium">{t.name}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               )}
 
               <div className="grid gap-4 md:grid-cols-3 pt-2 border-t">
                 <div>
-                  <p className="text-sm text-muted-foreground">Title Template</p>
+                  <p className="text-sm text-muted-foreground">Request titles</p>
                   <p className="font-medium text-sm">{titleTemplate}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Due In</p>
+                  <p className="text-sm text-muted-foreground">Due in</p>
                   <p className="font-medium">{dueInDays} days</p>
                 </div>
                 <div>
@@ -948,14 +1041,14 @@ export function RecurringRequestModal({
                 </div>
               </div>
 
-              {totalCreatorCount > 10 && (
-                <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-800 dark:text-amber-200">
+              {totalCreatorCount * Math.max(selectedTemplates.length, 1) > 10 && (
+                <div className="flex items-start gap-3 p-3 bg-tile-hi rounded-lg text-ink-2">
                   <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
                   <div className="text-sm">
-                    <p className="font-medium">Large Creator Base</p>
+                    <p className="font-medium">That&apos;s a lot of requests</p>
                     <p>
-                      This will create {totalCreatorCount} requests each time it runs.
-                      Make sure this is intentional.
+                      Each run sends {totalCreatorCount * Math.max(selectedTemplates.length, 1)} requests
+                      ({selectedTemplates.length} {selectedTemplates.length === 1 ? "template" : "templates"} for {totalCreatorCount} creators).
                     </p>
                   </div>
                 </div>
@@ -991,12 +1084,12 @@ export function RecurringRequestModal({
               {isSubmitting ? (
                 <>
                   <Clock className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
+                  Saving
                 </>
               ) : (
                 <>
                   <Check className="h-4 w-4 mr-2" />
-                  {editingRequest ? "Update Recurring Request" : "Create Recurring Request"}
+                  {editingRequest ? "Save schedule" : "Save schedule"}
                 </>
               )}
             </Button>

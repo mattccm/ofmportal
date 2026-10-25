@@ -48,28 +48,28 @@ const STATUS_CONFIG: Record<
   saving: {
     icon: Loader2,
     text: "Saving...",
-    className: "text-blue-600 dark:text-blue-400",
+    className: "text-ink-2",
     animate: true,
   },
   saved: {
     icon: CheckCircle,
     text: "All changes saved",
-    className: "text-emerald-600 dark:text-emerald-400",
+    className: "text-ink-2",
   },
   error: {
     icon: AlertCircle,
     text: "Failed to save",
-    className: "text-red-600 dark:text-red-400",
+    className: "text-late",
   },
   offline: {
     icon: CloudOff,
     text: "Offline - saved locally",
-    className: "text-amber-600 dark:text-amber-400",
+    className: "text-ink",
   },
   conflict: {
     icon: AlertTriangle,
     text: "Unsaved changes found",
-    className: "text-amber-600 dark:text-amber-400",
+    className: "text-ink",
   },
 };
 
@@ -156,11 +156,11 @@ export function AutosaveStatusBadge({
 
   const bgClasses = {
     idle: "bg-muted/50",
-    saving: "bg-blue-50 dark:bg-blue-950/50",
-    saved: "bg-emerald-50 dark:bg-emerald-950/50",
-    error: "bg-red-50 dark:bg-red-950/50",
-    offline: "bg-amber-50 dark:bg-amber-950/50",
-    conflict: "bg-amber-50 dark:bg-amber-950/50",
+    saving: "bg-tile-hi",
+    saved: "bg-success/10",
+    error: "bg-late/10",
+    offline: "bg-tile-hi",
+    conflict: "bg-tile-hi",
   };
 
   const displayText = React.useMemo(() => {
@@ -264,7 +264,7 @@ export function FloatingAutosaveIndicator({
         className
       )}
     >
-      <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-4 py-2.5">
+      <div className="bg-raised rounded-lg shadow-lg px-4 py-2.5">
         <AutosaveIndicator status={status} lastSavedText={lastSavedText} />
       </div>
     </div>
@@ -313,7 +313,7 @@ export function SaveStatusBar({
   return (
     <div
       className={cn(
-        "flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm border rounded-xl shadow-lg",
+        "flex items-center justify-between p-4 bg-raised rounded-[var(--tw-r-tile)] shadow-lg",
         className
       )}
     >

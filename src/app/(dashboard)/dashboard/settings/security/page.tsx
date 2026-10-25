@@ -114,7 +114,7 @@ function calculatePasswordStrength(password: string): {
   if (score <= 2) return { score, label: "Weak", color: "bg-red-500" };
   if (score <= 4) return { score, label: "Fair", color: "bg-yellow-500" };
   if (score <= 5) return { score, label: "Good", color: "bg-blue-500" };
-  return { score, label: "Strong", color: "bg-green-500" };
+  return { score, label: "Strong", color: "bg-success" };
 }
 
 export default function SecuritySettingsPage() {
@@ -487,13 +487,13 @@ export default function SecuritySettingsPage() {
         {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard/settings/profile">
+          <Link href="/dashboard/settings/profile" aria-label="Back to profile">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 flex items-center justify-center">
-            <Shield className="h-6 w-6 text-emerald-500" />
+          <div className="h-12 w-12 rounded-xl bg-success/20 flex items-center justify-center">
+            <Shield className="h-6 w-6 text-success" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Security Settings</h1>
@@ -506,15 +506,15 @@ export default function SecuritySettingsPage() {
 
       {/* Security Overview */}
       <Card className="card-elevated overflow-hidden">
-        <div className="h-2 bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-500" />
+        <div className="h-2 bg-success " />
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex items-center gap-4">
               <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${
-                twoFactorEnabled ? "bg-emerald-500/10" : "bg-amber-500/10"
+                twoFactorEnabled ? "bg-success/10" : "bg-amber-500/10"
               }`}>
                 {twoFactorEnabled ? (
-                  <ShieldCheck className="h-6 w-6 text-emerald-500" />
+                  <ShieldCheck className="h-6 w-6 text-success" />
                 ) : (
                   <ShieldAlert className="h-6 w-6 text-amber-500" />
                 )}
@@ -540,8 +540,8 @@ export default function SecuritySettingsPage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <Monitor className="h-6 w-6 text-violet-500" />
+              <div className="h-12 w-12 rounded-xl bg-tile-hi flex items-center justify-center">
+                <Monitor className="h-6 w-6 text-foreground" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Session Length</p>
@@ -585,10 +585,10 @@ export default function SecuritySettingsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                    twoFactorEnabled ? "bg-emerald-500/10" : "bg-muted"
+                    twoFactorEnabled ? "bg-success/10" : "bg-muted"
                   }`}>
                     <Smartphone className={`h-5 w-5 ${
-                      twoFactorEnabled ? "text-emerald-500" : "text-muted-foreground"
+                      twoFactorEnabled ? "text-success" : "text-muted-foreground"
                     }`} />
                   </div>
                   <div>
@@ -705,8 +705,8 @@ export default function SecuritySettingsPage() {
           <Card className="card-elevated">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                  <Monitor className="h-5 w-5 text-violet-500" />
+                <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+                  <Monitor className="h-5 w-5 text-foreground" />
                 </div>
                 <div>
                   <CardTitle>Sessions</CardTitle>
@@ -788,7 +788,7 @@ export default function SecuritySettingsPage() {
                         </TableCell>
                         <TableCell>
                           {log.success ? (
-                            <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
+                            <Badge variant="outline" className="text-success border-success/30">
                               <CheckCircle2 className="h-3 w-3 mr-1" />
                               Success
                             </Badge>
@@ -814,8 +814,8 @@ export default function SecuritySettingsPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                    <KeyRound className="h-5 w-5 text-purple-500" />
+                  <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+                    <KeyRound className="h-5 w-5 text-foreground" />
                   </div>
                   <div>
                     <CardTitle>API Keys</CardTitle>
@@ -868,7 +868,7 @@ export default function SecuritySettingsPage() {
                           {key.lastUsedAt ? formatDate(key.lastUsedAt) : "Never"}
                         </TableCell>
                         <TableCell>
-                          <Button
+                          <Button aria-label={`Revoke API key ${key.name}`}
                             variant="ghost"
                             size="sm"
                             onClick={() => openRevokeApiKeyDialog(key)}
@@ -1063,6 +1063,7 @@ export default function SecuritySettingsPage() {
                   className="pr-10"
                 />
                 <Button
+                  aria-label={showPasswords.current ? "Hide password" : "Show password"}
                   type="button"
                   variant="ghost"
                   size="icon"
@@ -1095,6 +1096,7 @@ export default function SecuritySettingsPage() {
                   className="pr-10"
                 />
                 <Button
+                  aria-label={showPasswords.new ? "Hide password" : "Show password"}
                   type="button"
                   variant="ghost"
                   size="icon"
@@ -1130,7 +1132,7 @@ export default function SecuritySettingsPage() {
                     passwordStrength.label === "Weak" ? "text-red-500" :
                     passwordStrength.label === "Fair" ? "text-yellow-500" :
                     passwordStrength.label === "Good" ? "text-blue-500" :
-                    "text-green-500"
+                    "text-success"
                   }`}>
                     Password strength: {passwordStrength.label}
                   </p>
@@ -1153,6 +1155,7 @@ export default function SecuritySettingsPage() {
                   className="pr-10"
                 />
                 <Button
+                  aria-label={showPasswords.confirm ? "Hide password" : "Show password"}
                   type="button"
                   variant="ghost"
                   size="icon"
@@ -1352,7 +1355,7 @@ export default function SecuritySettingsPage() {
                   setNewApiKeyForm((prev) => ({ ...prev, expiresIn: value }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="api-key-expires">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1395,7 +1398,7 @@ export default function SecuritySettingsPage() {
       <Dialog open={showNewApiKeyDialog} onOpenChange={setShowNewApiKeyDialog}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-500">
+            <DialogTitle className="flex items-center gap-2 text-success">
               <CheckCircle2 className="h-5 w-5" />
               API Key Created
             </DialogTitle>

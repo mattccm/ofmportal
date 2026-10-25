@@ -91,7 +91,7 @@ function TimezonePreview({ timezone, use24HourFormat, dateFormat }: TimezonePrev
   }, [timezone, use24HourFormat, dateFormat]);
 
   return (
-    <div className="rounded-xl border bg-gradient-to-br from-primary/5 to-violet-500/5 p-4 space-y-3">
+    <div className="rounded-xl border bg-primary/5 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
@@ -184,7 +184,7 @@ function BusinessHoursEditor({
             value={value.start}
             onValueChange={(start) => onChange({ ...value, start })}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Start Time">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -202,7 +202,7 @@ function BusinessHoursEditor({
             value={value.end}
             onValueChange={(end) => onChange({ ...value, end })}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="End Time">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -320,8 +320,8 @@ export function TimezoneSettings({
           {/* Auto-detect Option */}
           <div className="flex items-center justify-between rounded-xl border p-4">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                <MapPin className="h-4 w-4 text-violet-500" />
+              <div className="h-8 w-8 rounded-lg bg-tile-hi flex items-center justify-center">
+                <MapPin className="h-4 w-4 text-foreground" />
               </div>
               <div>
                 <p className="font-medium">Auto-detect timezone</p>
@@ -331,7 +331,7 @@ export function TimezoneSettings({
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Checkbox
+              <Checkbox aria-label="Auto-detect timezone"
                 id="autoDetect"
                 checked={localPreferences.autoDetect}
                 onCheckedChange={(checked) => {
@@ -360,8 +360,8 @@ export function TimezoneSettings({
       <Card className="card-elevated">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-violet-500" />
+            <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-foreground" />
             </div>
             <div>
               <CardTitle>Date & Time Format</CardTitle>
@@ -381,7 +381,7 @@ export function TimezoneSettings({
                 setLocalPreferences((prev) => ({ ...prev, dateFormat: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Date Format">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -412,7 +412,7 @@ export function TimezoneSettings({
                 </p>
               </div>
             </div>
-            <Checkbox
+            <Checkbox aria-label="24-hour format"
               id="use24Hour"
               checked={localPreferences.use24HourFormat}
               onCheckedChange={(checked) =>
@@ -427,8 +427,8 @@ export function TimezoneSettings({
           {/* Show Timezone Abbreviation */}
           <div className="flex items-center justify-between rounded-xl border p-4">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <Globe className="h-4 w-4 text-emerald-500" />
+              <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
+                <Globe className="h-4 w-4 text-success" />
               </div>
               <div>
                 <p className="font-medium">Show timezone abbreviation</p>
@@ -437,7 +437,7 @@ export function TimezoneSettings({
                 </p>
               </div>
             </div>
-            <Checkbox
+            <Checkbox aria-label="Show timezone abbreviation"
               id="showTzAbbr"
               checked={localPreferences.showTimezoneAbbreviation}
               onCheckedChange={(checked) =>
@@ -465,7 +465,7 @@ export function TimezoneSettings({
                   {isBusinessHours ? (
                     <Badge
                       variant="outline"
-                      className="text-emerald-600 border-emerald-600/30"
+                      className="text-success border-success/30"
                     >
                       <Sun className="h-3 w-3 mr-1" />
                       Open

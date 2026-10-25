@@ -88,7 +88,6 @@
   /* Animations and decorative elements */
   .animate-shimmer,
   .animate-pulse,
-  .animate-bounce,
   .animate-spin,
   .animate-ping,
   .animate-fade-in,
@@ -358,11 +357,10 @@
 
   /* Status badges with colors preserved */
   .badge-success,
-  [class*="bg-emerald"],
-  [class*="bg-green"] {
-    background-color: #d1fae5 !important;
-    border-color: #10b981 !important;
-    color: #065f46 !important;
+  [class*="bg-approved"] {
+    background-color: #eceef2 !important;
+    border-color: #565b66 !important;
+    color: #1b1d22 !important;
   }
 
   .badge-warning,
@@ -593,7 +591,7 @@
   /* Invoice / Receipt */
   .printable-invoice {
     padding: 24pt !important;
-    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans), Arial, sans-serif;
   }
 
   .printable-invoice .invoice-header {

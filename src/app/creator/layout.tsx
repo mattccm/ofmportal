@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { BrandingProvider, useBranding } from "@/components/providers/branding-provider";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { BrandLogo } from "@/components/brand/brand-logo";
+import { BRAND } from "@/lib/brand";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +22,6 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  ChevronDown,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCreatorSession, clearCreatorSession, hasCreatorSessionIndicator, setSignedOutFlag, hasSignedOutFlag, storeCreatorSession } from "@/lib/remember-token";
@@ -36,7 +34,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/creator/dashboard", label: "Dashboard", icon: <Home className="h-5 w-5" /> },
+  { href: "/creator/dashboard", label: "Home", icon: <Home className="h-5 w-5" /> },
   { href: "/creator/requests", label: "Requests", icon: <FileText className="h-5 w-5" /> },
   { href: "/creator/calendar", label: "Calendar", icon: <Calendar className="h-5 w-5" /> },
   { href: "/creator/messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" /> },
@@ -90,44 +88,10 @@ function isStandaloneMode(): boolean {
   return false;
 }
 
-/**
- * Get or create a unique device ID for tracking
- */
-function getDeviceId(): string {
-  if (typeof localStorage === "undefined") return "server";
-  let deviceId = localStorage.getItem("debug-device-id");
-  if (!deviceId) {
-    deviceId = "device-" + Math.random().toString(36).substring(2, 10);
-    localStorage.setItem("debug-device-id", deviceId);
-  }
-  return deviceId;
-}
-
-/**
- * Send diagnostic log to server
- */
-async function sendDebugLog(event: string, data: Record<string, unknown>) {
-  try {
-    await fetch("/api/debug/session-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        deviceId: getDeviceId(),
-        event,
-        data,
-      }),
-    });
-  } catch (e) {
-    // Silently fail - don't break the app for debug logging
-    console.error("[DebugLog] Failed to send:", e);
-  }
-}
-
 function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { branding, agencyName } = useBranding();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const sessionCheckInProgress = useRef(false);
   const [creator, setCreator] = useState<{
     id: string;
@@ -158,34 +122,8 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
     sessionCheckInProgress.current = true;
 
     try {
-      const allKeys = Object.keys(localStorage);
-      const diagnosticData = {
-        source,
-        localStorageKeys: allKeys,
-        creatorToken: localStorage.getItem("creatorToken") ? "EXISTS (" + localStorage.getItem("creatorToken")?.substring(0, 20) + "...)" : "NULL",
-        creatorId: localStorage.getItem("creatorId"),
-        creatorName: localStorage.getItem("creatorName"),
-        creatorEmail: localStorage.getItem("creatorEmail"),
-        themePreference: localStorage.getItem("theme-preference"),
-        signedOutFlag: hasSignedOutFlag(),
-      };
-
       const hasIndicator = hasCreatorSessionIndicator();
-      const hasLocalToken = !!localStorage.getItem("creatorToken");
-      const hasCookieToken = !!getCookie("creatorToken");
       const isPWA = isStandaloneMode();
-
-      // Send diagnostic log to server
-      const fullDiagnostics = {
-        ...diagnosticData,
-        hasIndicatorCookie: hasIndicator,
-        hasLocalStorageToken: hasLocalToken,
-        hasCookieToken: hasCookieToken,
-        isPWA: isPWA,
-        url: typeof window !== "undefined" ? window.location.href : "unknown",
-        timestamp: new Date().toISOString(),
-      };
-      sendDebugLog(source, fullDiagnostics);
 
       // Try localStorage first
       let token = localStorage.getItem("creatorToken");
@@ -216,15 +154,6 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
         try {
           const storedSession = await getCreatorSession();
 
-          // Send IndexedDB result to server
-          sendDebugLog("indexeddb-check", {
-            source,
-            found: !!storedSession,
-            email: storedSession?.email || null,
-            creatorId: storedSession?.creatorId || null,
-            storedAt: storedSession?.storedAt || null,
-          });
-
           if (storedSession) {
             token = storedSession.token;
             creatorId = storedSession.creatorId;
@@ -254,17 +183,13 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
               email: creatorEmail,
               avatar: creatorAvatar || undefined,
             });
-
-            sendDebugLog("session-restored", { source, email: creatorEmail, creatorId });
           }
         } catch (error) {
           console.error("[CreatorLayout] IndexedDB error:", error);
-          sendDebugLog("indexeddb-error", { source, error: String(error) });
         }
       }
 
       if (!token || !creatorId) {
-        sendDebugLog("no-session", { source, redirectingToLogin: true });
         return null;
       }
 
@@ -439,175 +364,204 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
-  // Generate CSS variables for branding colors
-  const brandingStyle = {
-    "--brand-primary": branding.primaryColor,
-    "--brand-secondary": branding.secondaryColor,
-    "--brand-accent": branding.accentColor,
-  } as React.CSSProperties;
-
-  const gradientStyle = {
-    background: `linear-gradient(135deg, ${branding.primaryColor}, ${branding.secondaryColor})`,
-  };
-
   if (!creator) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      <div className="flex min-h-screen items-center justify-center bg-background" role="status">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink-2 border-t-transparent motion-reduce:animate-none" />
+        <span className="sr-only">Loading your portal</span>
       </div>
     );
   }
 
-  return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 safe-area-top"
-      style={brandingStyle}
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const initials =
+    creator.name
+      .replace(/\./g, "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("") || "?";
+
+  const logo =
+    branding.logoDark && branding.logoDark !== BRAND.logoPath ? (
+      // eslint-disable-next-line @next/next/no-img-element -- agency's own dark-surface logo from settings
+      <img src={branding.logoDark} alt="" className="h-8 w-8 object-contain" />
+    ) : (
+      <BrandLogo size={30} priority imageClassName="invert" />
+    );
+
+  const avatar = creator.avatar ? (
+    <Avatar size="sm" user={{ name: creator.name, email: creator.email, image: creator.avatar }} />
+  ) : (
+    <span
+      className="grid size-8 shrink-0 place-items-center rounded-full bg-raised-hi text-xs font-semibold text-foreground"
+      aria-hidden="true"
     >
-      {/* Background decorations */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-3xl opacity-20"
-          style={{ backgroundColor: branding.primaryColor }}
-        />
-        <div
-          className="absolute top-1/2 -left-40 w-96 h-96 rounded-full blur-3xl opacity-15"
-          style={{ backgroundColor: branding.secondaryColor }}
-        />
-      </div>
+      {initials}
+    </span>
+  );
 
-      {/* Header - Hidden on mobile since bottom nav provides navigation */}
-      <header className="hidden md:block sticky top-0 z-50 glass border-b border-border/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-4">
-              <Link href="/creator/dashboard" className="flex items-center gap-2 group">
-                {branding.logoLight ? (
-                  <img
-                    src={branding.logoLight}
-                    alt={agencyName || "Logo"}
-                    className="h-8 w-auto max-w-[120px] object-contain"
-                  />
-                ) : (
-                  <div
-                    className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md"
-                    style={gradientStyle}
-                  >
-                    <Sparkles className="h-5 w-5 text-white" />
-                  </div>
-                )}
-                <span className="text-lg font-semibold">
-                  {branding.portalTitle || "Creator Portal"}
-                </span>
-              </Link>
-            </div>
+  const accountMenu = (side: "bar" | "rail") => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        {side === "bar" ? (
+          <button
+            type="button"
+            aria-label={`Account: ${creator.name}`}
+            className="grid size-11 shrink-0 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            {avatar}
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-label={`Account: ${creator.name}`}
+            className="flex h-12 w-full items-center gap-3 rounded-md px-2 text-left transition-colors hover:bg-tile focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            {avatar}
+            <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{creator.name}</span>
+          </button>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={side === "bar" ? "end" : "start"} side={side === "bar" ? "bottom" : "top"} className="w-60">
+        <DropdownMenuLabel className="font-normal">
+          <p className="font-semibold">{creator.name}</p>
+          <p className="truncate text-[13px] text-ink-2">{creator.email}</p>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/creator/settings" className="cursor-pointer">
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-late focus:text-late">
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
-            {/* Desktop Navigation */}
-            <nav className="flex items-center gap-1">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    )}
-                  >
-                    {item.icon}
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
+  const allItems = [...navItems, { href: "/creator/settings", label: "Settings", icon: <Settings className="h-5 w-5" /> }];
 
-            {/* Right side */}
-            <div className="flex items-center gap-2">
-              <ThemeToggle variant="icon" size="sm" className="h-9 w-9" />
-
-              {/* User Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2 px-2 h-10">
-                    <Avatar
-                      size="sm"
-                      user={{
-                        name: creator.name,
-                        email: creator.email,
-                        image: creator.avatar,
-                      }}
-                    />
-                    <span className="text-sm font-medium">
-                      {creator.name}
-                    </span>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    <p className="font-medium">{creator.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{creator.email}</p>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/creator/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/40">
-        <div className="flex items-center justify-around h-16 safe-area-x">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+  return (
+    <div className="min-h-screen bg-background safe-area-top">
+      {/* Desktop (1024px and up): a labelled side rail with every destination */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-line bg-ground px-3 pb-4 pt-5 lg:flex">
+        <Link
+          href="/creator/dashboard"
+          aria-label={`${agencyName || "CCM"}, Home`}
+          className="mb-6 ml-1 grid size-11 place-items-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {logo}
+        </Link>
+        <nav aria-label="Main" className="flex flex-col gap-0.5">
+          {allItems.map((item) => {
+            const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  "relative flex h-10 items-center gap-3 rounded-md px-3 text-[14px] font-medium transition-colors",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  "[&_svg]:size-[18px] [&_svg]:stroke-[1.5]",
+                  active
+                    ? "bg-tile text-foreground before:absolute before:inset-y-2 before:-left-3 before:w-0.5 before:rounded-full before:bg-ink [&_svg]:stroke-2"
+                    : "text-ink-2 hover:bg-tile hover:text-foreground [&_svg]:text-icon"
                 )}
               >
                 {item.icon}
-                <span className="text-[10px] font-medium">{item.label}</span>
+                {item.label}
               </Link>
             );
           })}
+        </nav>
+        <div className="mt-auto">{accountMenu("rail")}</div>
+      </aside>
+
+      {/* Phone and tablet top bar: the mark, the destinations from 640px, the creator's initials */}
+      <header className="sticky top-0 z-40 bg-ground lg:hidden">
+        <div className="mx-auto flex h-14 w-full max-w-[560px] items-center gap-2 px-4 md:max-w-[720px]">
           <Link
-            href="/creator/settings"
-            className={cn(
-              "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors",
-              pathname === "/creator/settings" ? "text-primary" : "text-muted-foreground"
-            )}
+            href="/creator/dashboard"
+            aria-label={`${agencyName || "CCM"}, Home`}
+            className="grid size-11 shrink-0 place-items-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <Settings className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Settings</span>
+            {logo}
           </Link>
+          <span className="flex-1" />
+
+          <nav aria-label="Main" className="hidden items-center gap-0.5 sm:flex">
+            {navItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-9 items-center rounded-md px-2.5 text-sm font-medium transition-colors",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                    active ? "bg-tile text-foreground" : "text-ink-2 hover:bg-tile hover:text-foreground"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {accountMenu("bar")}
         </div>
-        {/* Safe area spacer for home indicator */}
-        <div className="safe-area-bottom bg-background/80 backdrop-blur-xl" />
+      </header>
+
+      {/* Phone tab bar: every destination one thumb away */}
+      <nav
+        aria-label="Main"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-tile sm:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        <div className="mx-auto flex h-16 max-w-[560px] safe-area-x">
+          {allItems.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors",
+                  "touch-manipulation active:scale-[0.97] motion-reduce:active:scale-100",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring",
+                  active ? "text-foreground" : "text-ink-2"
+                )}
+              >
+                <span className={cn("[&_svg]:stroke-[1.5]", active && "[&_svg]:stroke-2")}>{item.icon}</span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
-      {/* Main content with bottom padding for mobile nav + safe area */}
-      <main className="relative z-10 pb-mobile-nav md:pb-0">
-        {children}
-      </main>
+      {/*
+        The content column: at most 560px on a phone (104px under it so the tab
+        bar never covers content), 720px on a tablet, and from 1024px a wide
+        area beside the rail that each page lays out in columns.
+      */}
+      <div className="lg:pl-60">
+        <main
+          id="main"
+          className="relative mx-auto w-full max-w-[560px] pb-[calc(104px+env(safe-area-inset-bottom,0px))] sm:pb-16 md:max-w-[720px] lg:max-w-[1200px] lg:px-4 lg:pb-12"
+        >
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

@@ -109,8 +109,8 @@ const StatusIndicator: React.FC<{ status: ScheduledTaskStatus }> = ({ status }) 
     },
     completed: {
       icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-      color: "text-green-600 dark:text-green-400",
-      bgColor: "bg-green-100 dark:bg-green-900/30",
+      color: "text-success",
+      bgColor: "bg-success/10",
     },
     failed: {
       icon: <XCircle className="h-3.5 w-3.5" />,
@@ -192,7 +192,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
       case "archive_request":
         return "bg-gray-500";
       case "create_bundle":
-        return "bg-purple-500";
+        return "bg-raised-hi";
       default:
         return "bg-gray-400";
     }
@@ -279,7 +279,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                               task.type === "create_request" && "text-blue-500",
                               task.type === "send_reminder" && "text-amber-500",
                               task.type === "archive_request" && "text-gray-500",
-                              task.type === "create_bundle" && "text-purple-500"
+                              task.type === "create_bundle" && "text-foreground"
                             )}
                           />
                           <span className="font-medium text-sm truncate">
@@ -308,7 +308,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button aria-label={`More actions for ${task.name}`} variant="ghost" size="icon" className="h-8 w-8">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -338,7 +338,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                     {/* Results preview for completed tasks */}
                     {task.status === "completed" && task.results && (
                       <div className="mt-2 pt-2 border-t">
-                        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                        <div className="flex items-center gap-2 text-xs text-success">
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           <span>
                             {task.results.createdRequestIds?.length
@@ -494,8 +494,8 @@ export function CreatorScheduledTasks({
             </p>
             <p className="text-xs text-muted-foreground">Pending</p>
           </div>
-          <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+          <div className="text-center p-3 rounded-lg bg-success/10">
+            <p className="text-2xl font-bold text-success">
               {stats.completed}
             </p>
             <p className="text-xs text-muted-foreground">Completed</p>

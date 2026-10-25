@@ -60,7 +60,7 @@ function ViewReceiptItem({
           />
           <span className="text-xs truncate max-w-[120px]">{view.userName}</span>
         </div>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[12px] text-muted-foreground">
           {formatDistanceToNow(new Date(view.viewedAt), { addSuffix: true })}
         </span>
       </div>
@@ -84,7 +84,7 @@ function ViewReceiptItem({
 
       <div className="flex items-center gap-2">
         {showDuration && view.duration && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+          <Badge variant="outline" className="text-[12px] px-1.5 py-0">
             <Clock className="h-2.5 w-2.5 mr-1" />
             {formatViewDuration(view.duration)}
           </Badge>
@@ -185,12 +185,12 @@ export function WhoViewedPanel({
         <div className="flex items-center gap-2">
           <Eye className="h-4 w-4 text-muted-foreground" />
           <span className="font-medium text-sm">{title}</span>
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+          <Badge variant="secondary" className="text-[12px] px-1.5 py-0">
             {stats.uniqueViewers}
           </Badge>
         </div>
         {onClose && (
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+          <Button aria-label="Close" variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
             <X className="h-3.5 w-3.5" />
           </Button>
         )}
@@ -479,7 +479,7 @@ export function ViewHistoryTimeline({
                   {showDevice && <DeviceIcon className="h-3 w-3" />}
                   <span>{format(new Date(view.viewedAt), "h:mm a")}</span>
                   {view.duration && (
-                    <span className="text-[10px]">
+                    <span className="text-[12px]">
                       ({formatViewDuration(view.duration)})
                     </span>
                   )}

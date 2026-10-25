@@ -122,7 +122,7 @@ function getStatusColor(status: PendingUpload['status']): string {
     case 'failed':
       return 'bg-red-500/10 text-red-500 border-red-500/20';
     case 'completed':
-      return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      return 'bg-success/10 text-success border-success/20';
     default:
       return 'bg-muted text-muted-foreground';
   }
@@ -216,7 +216,7 @@ export function PendingSyncPanel({
           </div>
         )}
         <div className="flex flex-col items-center justify-center py-12 px-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 mb-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success mb-4">
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <p className="font-medium text-foreground">All synced!</p>
@@ -427,7 +427,7 @@ function PendingUploadItem({ upload, onDelete }: PendingUploadItemProps) {
       {/* Actions */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button aria-label={`More actions for ${upload.fileName}`} variant="ghost" size="icon" className="h-8 w-8">
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -481,7 +481,7 @@ function DraftItem({ draft, onDelete }: DraftItemProps) {
       {/* Actions */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button aria-label={`More actions for ${draft.type} draft`} variant="ghost" size="icon" className="h-8 w-8">
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>

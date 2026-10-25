@@ -98,10 +98,10 @@ const variantConfig: Record<
   },
   success: {
     icon: CheckCircle,
-    iconClassName: "text-emerald-500",
-    headerClassName: "text-emerald-500",
-    bgClassName: "bg-emerald-500/10",
-    borderClassName: "border-emerald-500/20",
+    iconClassName: "text-success",
+    headerClassName: "text-success",
+    bgClassName: "bg-success/10",
+    borderClassName: "border-success/20",
   },
 };
 
@@ -214,8 +214,10 @@ export function AlertDialogEnhanced({
               checked={confirmed}
               onCheckedChange={(checked) => setConfirmed(checked === true)}
               className="mt-0.5"
+              aria-labelledby="confirmation-checkbox-label"
             />
             <Label
+              id="confirmation-checkbox-label"
               htmlFor="confirmation-checkbox"
               className="text-sm text-muted-foreground cursor-pointer leading-relaxed"
             >

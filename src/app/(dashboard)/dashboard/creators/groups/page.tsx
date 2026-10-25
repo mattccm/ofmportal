@@ -81,7 +81,7 @@ export default function CreatorGroupsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard/creators">
+            <Link href="/dashboard/creators" aria-label="Back to creators">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -96,7 +96,7 @@ export default function CreatorGroupsPage() {
         </div>
         <Button
           onClick={handleCreateNew}
-          className="w-full sm:w-auto min-h-[44px] bg-indigo-600 hover:bg-indigo-700"
+          className="w-full sm:w-auto min-h-[44px] bg-raised-hi text-ink hover:bg-raised-hi"
         >
           <Plus className="mr-2 h-4 w-4" />
           Create Group
@@ -108,8 +108,8 @@ export default function CreatorGroupsPage() {
         <Card className="card-elevated">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                <FolderOpen className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              <div className="h-10 w-10 rounded-lg bg-tile-hi dark:bg-tile-hi flex items-center justify-center">
+                <FolderOpen className="h-5 w-5 text-foreground dark:text-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{groups.length}</p>
@@ -121,8 +121,8 @@ export default function CreatorGroupsPage() {
         <Card className="card-elevated">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center">
-                <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              <div className="h-10 w-10 rounded-lg bg-tile-hi dark:bg-tile-hi flex items-center justify-center">
+                <Users className="h-5 w-5 text-foreground dark:text-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalMembers}</p>
@@ -156,8 +156,8 @@ export default function CreatorGroupsPage() {
         <Card className="card-elevated">
           <CardContent className="py-12">
             <div className="text-center">
-              <div className="mx-auto h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 dark:from-indigo-900/50 dark:to-violet-900/50 flex items-center justify-center mb-4">
-                <Users className="h-7 w-7 md:h-8 md:w-8 text-indigo-600 dark:text-indigo-400" />
+              <div className="mx-auto h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-tile-hi dark:bg-tile-hi flex items-center justify-center mb-4">
+                <Users className="h-7 w-7 md:h-8 md:w-8 text-foreground dark:text-foreground" />
               </div>
               <h3 className="text-base md:text-lg font-semibold text-foreground">
                 No groups yet
@@ -168,7 +168,7 @@ export default function CreatorGroupsPage() {
               </p>
               <Button
                 onClick={handleCreateNew}
-                className="mt-6 min-h-[44px] bg-indigo-600 hover:bg-indigo-700"
+                className="mt-6 min-h-[44px] bg-raised-hi text-ink hover:bg-raised-hi"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Create Your First Group

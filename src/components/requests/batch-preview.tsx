@@ -63,10 +63,10 @@ interface BatchPreviewProps {
 }
 
 const URGENCY_OPTIONS = [
-  { value: "LOW", label: "Low", class: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400" },
-  { value: "NORMAL", label: "Normal", class: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
-  { value: "HIGH", label: "High", class: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" },
-  { value: "URGENT", label: "Urgent", class: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" },
+  { value: "LOW", label: "Low", class: "bg-tile-hi text-ink-2  " },
+  { value: "NORMAL", label: "Normal", class: "bg-tile-hi text-ink-2  " },
+  { value: "HIGH", label: "High", class: "bg-tile-hi text-ink-2  " },
+  { value: "URGENT", label: "Urgent", class: "bg-late/10 text-late " },
 ] as const;
 
 const SortHeader = ({
@@ -227,10 +227,10 @@ export function BatchPreview({
   return (
     <div className="space-y-4">
       {/* Summary Header */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+      <div className="flex items-center justify-between p-4 bg-tile-hi rounded-lg border border-line dark:border-line">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+            <span className="text-2xl font-bold text-foreground dark:text-foreground">
               {validationSummary.total}
             </span>
             <span className="text-sm text-muted-foreground">
@@ -249,19 +249,19 @@ export function BatchPreview({
           )}
           <div className="flex items-center gap-3">
             {validationSummary.validCount > 0 && (
-              <div className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+              <div className="flex items-center gap-1 text-sm text-success">
                 <CheckCircle className="h-4 w-4" />
                 <span>{validationSummary.validCount} valid</span>
               </div>
             )}
             {validationSummary.invalidCount > 0 && (
-              <div className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+              <div className="flex items-center gap-1 text-sm text-late">
                 <XCircle className="h-4 w-4" />
                 <span>{validationSummary.invalidCount} invalid</span>
               </div>
             )}
             {validationSummary.customizedCount > 0 && (
-              <div className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
+              <div className="flex items-center gap-1 text-sm text-ink-2">
                 <Edit2 className="h-4 w-4" />
                 <span>{validationSummary.customizedCount} customized</span>
               </div>
@@ -272,13 +272,13 @@ export function BatchPreview({
 
       {/* Validation Warnings */}
       {validationSummary.invalidCount > 0 && (
-        <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900/50">
-          <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 p-4 bg-late/10 rounded-lg border border-late/30">
+          <AlertTriangle className="h-5 w-5 text-late flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-medium text-red-800 dark:text-red-300">
+            <h4 className="font-medium text-late">
               {validationSummary.invalidCount} request{validationSummary.invalidCount !== 1 ? "s have" : " has"} validation errors
             </h4>
-            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+            <p className="text-sm text-late mt-1">
               Please fix the errors before proceeding. Click the edit button on each row to customize the request.
             </p>
           </div>
@@ -333,8 +333,8 @@ export function BatchPreview({
                   <TableRow
                     key={item.id}
                     className={`
-                      ${!item.valid ? "bg-red-50/50 dark:bg-red-950/10" : ""}
-                      ${item.customized ? "bg-amber-50/30 dark:bg-amber-950/10" : ""}
+                      ${!item.valid ? "bg-late/10" : ""}
+                      ${item.customized ? "bg-tile-hi" : ""}
                     `}
                   >
                     <TableCell className="font-medium text-muted-foreground">
@@ -343,7 +343,7 @@ export function BatchPreview({
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-xs font-semibold">
+                          <AvatarFallback gradient={false} className="bg-raised text-ink text-xs font-semibold">
                             {item.creator.name.charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
@@ -382,7 +382,7 @@ export function BatchPreview({
                         value={item.urgency}
                         onValueChange={(v) => handleUrgencyChange(item.id, v as "LOW" | "NORMAL" | "HIGH" | "URGENT")}
                       >
-                        <SelectTrigger className="w-[110px] h-8">
+                        <SelectTrigger aria-label={`Urgency for ${item.title}`} className="w-[110px] h-8">
                           <SelectValue>
                             <Badge variant="secondary" className={`${urgencyConfig.class} text-xs`}>
                               {urgencyConfig.label}
@@ -403,7 +403,7 @@ export function BatchPreview({
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {item.valid ? (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                          <Badge variant="secondary" className="bg-success/10 text-success">
                             <CheckCircle className="mr-1 h-3 w-3" />
                             Valid
                           </Badge>
@@ -414,14 +414,14 @@ export function BatchPreview({
                             onClick={() => toggleRowExpansion(item.id)}
                             className="h-auto p-1"
                           >
-                            <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                            <Badge variant="secondary" className="bg-late/10 text-late">
                               <AlertCircle className="mr-1 h-3 w-3" />
                               {item.validationErrors.length} error{item.validationErrors.length !== 1 ? "s" : ""}
                             </Badge>
                           </Button>
                         )}
                         {item.customized && (
-                          <Badge variant="outline" className="text-amber-600 border-amber-300">
+                          <Badge variant="outline" className="text-ink-2 border-line">
                             Customized
                           </Badge>
                         )}
@@ -429,7 +429,7 @@ export function BatchPreview({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button
+                        <Button aria-label={`Edit request for ${item.creator.name}`}
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-foreground"
@@ -437,10 +437,10 @@ export function BatchPreview({
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button
+                        <Button aria-label={`Remove request for ${item.creator.name}`}
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                          className="h-8 w-8 text-muted-foreground hover:text-late"
                           onClick={() => onItemRemove(item.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -450,11 +450,11 @@ export function BatchPreview({
                   </TableRow>
                   {/* Expanded validation errors row */}
                   {isExpanded && !item.valid && (
-                    <TableRow key={`${item.id}-errors`} className="bg-red-50/30 dark:bg-red-950/5">
+                    <TableRow key={`${item.id}-errors`} className="bg-late/10">
                       <TableCell colSpan={7} className="py-2">
                         <div className="pl-10 flex flex-col gap-1">
                           {item.validationErrors.map((error, i) => (
-                            <div key={i} className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                            <div key={i} className="flex items-center gap-2 text-sm text-late">
                               <XCircle className="h-3.5 w-3.5" />
                               {error}
                             </div>
@@ -551,7 +551,7 @@ export function BatchPreview({
             <Button variant="outline" onClick={() => setEditDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={saveEdit} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button onClick={saveEdit} className="bg-raised-hi text-ink hover:bg-raised-hi">
               Save Changes
             </Button>
           </DialogFooter>

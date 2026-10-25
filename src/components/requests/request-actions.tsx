@@ -279,7 +279,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             ) : (
               <ArchiveRestore className="mr-2 h-4 w-4" />
             )}
-            Restore from Archive
+            Restore from archive
           </Button>
         )}
 
@@ -290,7 +290,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             disabled={loading}
           >
             <Send className="mr-2 h-4 w-4" />
-            Publish Request
+            Publish request
           </Button>
         )}
 
@@ -302,7 +302,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             disabled={loading}
           >
             <Bell className="mr-2 h-4 w-4" />
-            Send Reminder
+            Send reminder
           </Button>
         )}
 
@@ -317,7 +317,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             ) : (
               <Download className="mr-2 h-4 w-4" />
             )}
-            Download All
+            Download all
           </Button>
         )}
 
@@ -325,16 +325,16 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
           <Button
             onClick={() => setConfirmDialog({ open: true, action: "approve" })}
             disabled={loading}
-            className="bg-green-600 hover:bg-green-700"
+            variant="outline"
           >
             <CheckCircle className="mr-2 h-4 w-4" />
-            Approve All
+            Approve request
           </Button>
         )}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon">
+            <Button aria-label="More request actions" variant="outline" size="icon">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -342,17 +342,17 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             <DropdownMenuItem asChild>
               <Link href={`/dashboard/requests/${request.id}/edit`}>
                 <Edit className="mr-2 h-4 w-4" />
-                Edit Request
+                Edit request
               </Link>
             </DropdownMenuItem>
 
             {!hideCloneButton && (
               <DropdownMenuItem
                 onClick={onCloneClick}
-                className="text-indigo-600 dark:text-indigo-400"
+                className="text-foreground dark:text-foreground"
               >
                 <Copy className="mr-2 h-4 w-4" />
-                Clone Request
+                Clone request
               </DropdownMenuItem>
             )}
 
@@ -361,7 +361,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                 onClick={() => setConfirmDialog({ open: true, action: "submit" })}
               >
                 <Send className="mr-2 h-4 w-4" />
-                Mark as Submitted
+                Mark as submitted
               </DropdownMenuItem>
             )}
 
@@ -371,7 +371,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <FileEdit className="mr-2 h-4 w-4" />
-                Change Status
+                Change status
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 {STATUS_OPTIONS.map((status) => (
@@ -405,7 +405,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <Bell className="mr-2 h-4 w-4" />
-                Change Priority
+                Change priority
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 {PRIORITY_OPTIONS.map((priority) => (
@@ -426,38 +426,37 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             {isArchived ? (
               <DropdownMenuItem
                 onClick={() => handleQuickAction("changeStatus", { status: "PENDING" })}
-                className="text-blue-600 dark:text-blue-400"
               >
                 <ArchiveRestore className="mr-2 h-4 w-4" />
-                Restore from Archive
+                Restore from archive
               </DropdownMenuItem>
             ) : canArchive ? (
               <DropdownMenuItem
                 onClick={() => setConfirmDialog({ open: true, action: "archive" })}
               >
                 <Archive className="mr-2 h-4 w-4" />
-                Archive Request
+                Archive request
               </DropdownMenuItem>
             ) : null}
 
             {canCancel && (
               <DropdownMenuItem
-                className="text-red-600"
+                className="text-late focus:text-late"
                 onClick={() => setConfirmDialog({ open: true, action: "cancel" })}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Cancel Request
+                Cancel request
               </DropdownMenuItem>
             )}
 
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
-              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              className="text-late focus:text-late"
               onClick={() => setConfirmDialog({ open: true, action: "delete" })}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete Permanently
+              Delete permanently
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -470,22 +469,22 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
         title={
           confirmDialog.action === "changeStatus"
             ? confirmDialog.status === "ARCHIVED"
-              ? "Archive Request"
-              : "Cancel Request"
+              ? "Archive request"
+              : "Cancel request"
             : confirmDialog.action === "submit"
-            ? "Mark as Submitted"
+            ? "Mark as submitted"
             : confirmDialog.action === "approve"
-              ? "Approve All Uploads"
+              ? "Approve the whole request"
               : confirmDialog.action === "cancel"
-                ? "Cancel Request"
+                ? "Cancel request"
                 : confirmDialog.action === "archive"
-                  ? "Archive Request"
+                  ? "Archive request"
                   : confirmDialog.action === "publish"
-                    ? "Publish Request"
+                    ? "Publish request"
                     : confirmDialog.action === "sendReminder"
-                      ? "Send Reminder"
+                      ? "Send reminder"
                       : confirmDialog.action === "delete"
-                        ? "Delete Request Permanently"
+                        ? "Delete this request permanently"
                         : ""
         }
         description={

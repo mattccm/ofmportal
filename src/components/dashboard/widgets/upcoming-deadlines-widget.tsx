@@ -70,10 +70,10 @@ function getUrgencyConfig(dueDate: Date) {
     };
   }
   return {
-    bg: "bg-emerald-50 dark:bg-emerald-900/20",
-    border: "border-emerald-200 dark:border-emerald-800",
-    text: "text-emerald-700 dark:text-emerald-400",
-    dot: "bg-emerald-500",
+    bg: "bg-success/10",
+    border: "border-success/30",
+    text: "text-success",
+    dot: "bg-success",
     label: `${daysUntilDue} days left`,
     urgency: "low",
   };
@@ -120,8 +120,8 @@ export function UpcomingDeadlinesWidget({ config, size }: WidgetProps) {
     >
       {deadlines.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full py-6 text-center">
-          <div className="h-12 w-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-3">
-            <CheckCircle className="h-6 w-6 text-emerald-600" />
+          <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center mb-3">
+            <CheckCircle className="h-6 w-6 text-success" />
           </div>
           <p className="text-sm font-medium text-foreground">No upcoming deadlines</p>
           <p className="text-xs text-muted-foreground mt-1">All on track!</p>
@@ -173,7 +173,7 @@ export function UpcomingDeadlinesWidget({ config, size }: WidgetProps) {
                       "border"
                     )}
                   >
-                    <span className={cn("text-[10px] font-medium uppercase", urgencyConfig.text)}>
+                    <span className={cn("text-[12px] font-medium uppercase", urgencyConfig.text)}>
                       {format(date, "MMM")}
                     </span>
                     <span className={cn("text-sm font-bold -mt-0.5", urgencyConfig.text)}>

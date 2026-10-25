@@ -20,13 +20,6 @@ interface ResponsiveLayoutProps {
   fullWidth?: boolean;
 }
 
-// Memoized gradient accent line
-const GradientAccent = React.memo(function GradientAccent({ height = "h-1" }: { height?: string }) {
-  return (
-    <div className={`${height} bg-gradient-to-r from-primary via-primary/80 to-primary/60`} />
-  );
-});
-
 // Memoized content wrapper for desktop/tablet
 const ContentWrapper = React.memo(function ContentWrapper({
   children,
@@ -40,7 +33,7 @@ const ContentWrapper = React.memo(function ContentWrapper({
   padding: string;
 }) {
   return (
-    <div className={cn(padding, !fullWidth && "max-w-[1600px]")}>
+    <div className={cn(padding, !fullWidth && "max-w-[1680px]", className)}>
       {children}
     </div>
   );
@@ -58,6 +51,7 @@ function ResponsiveLayoutComponent({
 }: ResponsiveLayoutProps) {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+  const [menuOpen, setMenuOpen] = React.useState(false);
 
   // The media-query hooks report `false` until the client has mounted, so the
   // breakpoint isn't known on the first paint. Gate committing to a branch on a
@@ -80,7 +74,6 @@ function ResponsiveLayoutComponent({
         className={cn(
           "min-h-screen bg-background",
           "flex flex-col",
-          // PWA standalone mode styling
           "standalone:pb-safe-area-inset-bottom"
         )}
       >
@@ -91,6 +84,8 @@ function ResponsiveLayoutComponent({
             showBackButton={showBackButton}
             backHref={backHref}
             rightContent={headerRightContent}
+            onOpenMenu={() => setMenuOpen(true)}
+            menuOpen={menuOpen}
           />
         )}
 
@@ -98,16 +93,10 @@ function ResponsiveLayoutComponent({
         <main
           className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden",
-            "pb-[env(safe-area-inset-bottom,80px)]", // Dynamic safe area with fallback
             className
           )}
-          style={{ paddingBottom: 'max(80px, env(safe-area-inset-bottom, 80px))' }}
+          style={{ paddingBottom: "max(32px, env(safe-area-inset-bottom, 32px))" }}
         >
-          {/* Top gradient accent */}
-          {!hideNavigation && !showBackButton && (
-            <GradientAccent height="h-0.5" />
-          )}
-
           {/* Announcements Banner */}
           {!hideNavigation && <AnnouncementsDisplay />}
 
@@ -115,7 +104,7 @@ function ResponsiveLayoutComponent({
           <div
             className={cn(
               "min-h-full",
-              !fullWidth && "py-4"
+              !fullWidth && "pt-4"
             )}
             style={{
               paddingLeft: fullWidth ? 'env(safe-area-inset-left, 0px)' : 'max(16px, env(safe-area-inset-left, 16px))',
@@ -126,8 +115,8 @@ function ResponsiveLayoutComponent({
           </div>
         </main>
 
-        {/* Mobile Bottom Navigation */}
-        {!hideNavigation && <MobileNav />}
+        {/* The phone menu (the rail folded) and the phone gestures */}
+        {!hideNavigation && <MobileNav open={menuOpen} onOpenChange={setMenuOpen} />}
       </div>
     );
   }
@@ -147,14 +136,11 @@ function ResponsiveLayoutComponent({
           )}
         >
           <div className="min-h-full">
-            {/* Top gradient accent */}
-            {!hideNavigation && <GradientAccent />}
-
             {/* Announcements Banner */}
             {!hideNavigation && <AnnouncementsDisplay />}
 
             {/* Content area - tighter padding on tablet */}
-            <ContentWrapper fullWidth={fullWidth} padding="p-4 lg:p-6">
+            <ContentWrapper fullWidth={fullWidth} padding="px-[var(--tw-pad-x)] pt-5 pb-16">
               {children}
             </ContentWrapper>
           </div>
@@ -177,14 +163,11 @@ function ResponsiveLayoutComponent({
         )}
       >
         <div className="min-h-full">
-          {/* Top gradient accent */}
-          {!hideNavigation && <GradientAccent />}
-
           {/* Announcements Banner */}
           {!hideNavigation && <AnnouncementsDisplay />}
 
           {/* Content area */}
-          <ContentWrapper fullWidth={fullWidth} padding="p-6 lg:p-8 xl:p-10">
+          <ContentWrapper fullWidth={fullWidth} padding="px-[var(--tw-pad-x)] pt-5 pb-16">
             {children}
           </ContentWrapper>
         </div>

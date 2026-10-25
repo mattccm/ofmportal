@@ -143,7 +143,7 @@ function SingleComment({
       parts.push(
         <span
           key={match.index}
-          className="inline-flex items-center px-1 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-sm font-medium"
+          className="inline-flex items-center px-1 py-0.5 rounded bg-raised text-ink text-sm font-medium"
         >
           @{match[1]}
         </span>
@@ -175,13 +175,13 @@ function SingleComment({
   }
 
   return (
-    <div className={cn("group", indentLevel > 0 && "border-l-2 border-gray-200 dark:border-gray-700")}>
+    <div className={cn("group", indentLevel > 0 && "border-l border-line")}>
       <div
         className={cn(
           "flex gap-3 p-3 rounded-lg transition-colors",
           comment.isInternal
-            ? "bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-800"
-            : "bg-gray-50 dark:bg-gray-800/50",
+            ? "border border-ctl bg-transparent"
+            : "bg-tile-hi",
           indentLevel > 0 && "ml-4"
         )}
       >
@@ -195,18 +195,18 @@ function SingleComment({
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-medium text-sm">{comment.user.name}</span>
             {comment.isInternal && (
-              <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+              <span className="text-xs text-ink-2 flex items-center gap-1">
                 <Lock className="h-3 w-3" />
-                Internal
+                Staff only
               </span>
             )}
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-ink-2">
               {formatDistanceToNow(new Date(comment.createdAt), {
                 addSuffix: true,
               })}
             </span>
             {comment.editedAt && (
-              <span className="text-xs text-gray-400 dark:text-gray-500">
+              <span className="text-xs text-ink-2">
                 (edited)
               </span>
             )}
@@ -226,7 +226,7 @@ function SingleComment({
                   href={attachment.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-raised rounded hover:bg-raised-hi transition-colors"
                 >
                   <span className="truncate max-w-[150px]">{attachment.name}</span>
                 </a>
@@ -257,7 +257,7 @@ function SingleComment({
             {isOwner && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                  <Button aria-label="Comment actions" variant="ghost" size="sm" className="h-7 w-7 p-0">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -269,7 +269,7 @@ function SingleComment({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => onDelete(comment.id)}
-                    className="text-red-600 dark:text-red-400"
+                    className="text-late"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
@@ -301,7 +301,7 @@ function SingleComment({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs text-gray-500 dark:text-gray-400"
+            className="h-6 px-2 text-xs text-ink-2"
             onClick={() => setShowReplies(!showReplies)}
           >
             {showReplies ? (
@@ -600,8 +600,8 @@ export function CommentThread({
 
       {/* Comments List */}
       {nestedComments.length === 0 ? (
-        <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-          No comments yet. Be the first to comment!
+        <p className="py-2 text-[14px] text-ink-2">
+          No comments yet. Staff-only comments stay hidden from the creator.
         </p>
       ) : (
         <div className="space-y-4">

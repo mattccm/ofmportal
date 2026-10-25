@@ -1737,6 +1737,9 @@ model RecurringRequest {
 
   // Template to use
   templateId String
+  // Every template sent on each run, in order (JSON array of template IDs).
+  // templateId stays the first/primary one; an empty array means [templateId].
+  templateIds Json @default("[]")
 
   // Target creators (can be individual IDs or group IDs)
   creatorIds      Json @default("[]") // Array of creator IDs

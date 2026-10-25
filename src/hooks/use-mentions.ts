@@ -19,6 +19,8 @@ import {
 
 interface UseMentionInputOptions {
   onMentionsChange?: (mentionIds: string[]) => void;
+  /** Only suggest these users (e.g. the members of a team group) */
+  onlyUserIds?: string[];
 }
 
 interface UseMentionInputReturn {
@@ -43,7 +45,7 @@ export function useMentionInput(
   initialText: string = "",
   options: UseMentionInputOptions = {}
 ): UseMentionInputReturn {
-  const { onMentionsChange } = options;
+  const { onMentionsChange, onlyUserIds } = options;
 
   // Text state
   const [text, setText] = useState(initialText);
@@ -93,10 +95,10 @@ export function useMentionInput(
   }, [debouncedQuery, inputState.isOpen]);
 
   // Filter suggestions when query changes (local filtering)
-  const suggestions = useMemo(
-    () => filterSuggestions(allSuggestions, inputState.query),
-    [allSuggestions, inputState.query]
-  );
+  const suggestions = useMemo(() => {
+    const scoped = onlyUserIds ? allSuggestions.filter((s) => onlyUserIds.includes(s.id)) : allSuggestions;
+    return filterSuggestions(scoped, inputState.query);
+  }, [allSuggestions, inputState.query, onlyUserIds]);
 
   // Notify when mention IDs change
   useEffect(() => {

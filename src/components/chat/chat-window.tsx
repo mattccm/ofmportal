@@ -219,7 +219,7 @@ export function ChatWindow({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {onBack && (
-              <Button
+              <Button aria-label="Back to conversations"
                 variant="ghost"
                 size="icon"
                 onClick={onBack}
@@ -279,7 +279,7 @@ export function ChatWindow({
             {conversation.type === "DIRECT" && otherParticipant && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
+                  <Button aria-label="View creator context"
                     variant="ghost"
                     size="icon"
                     onClick={() => openCreatorContext(otherParticipant.id)}
@@ -296,7 +296,7 @@ export function ChatWindow({
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button aria-label="Conversation options" variant="ghost" size="icon">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -328,7 +328,7 @@ export function ChatWindow({
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="flex items-start space-x-3">
-                    <Checkbox
+                    <Checkbox aria-label="Send read receipts"
                       id="sendReadReceipts"
                       checked={readReceiptSettings.sendReadReceipts}
                       onCheckedChange={(checked) =>
@@ -345,7 +345,7 @@ export function ChatWindow({
                     </div>
                   </div>
                   <div className="flex items-start space-x-3">
-                    <Checkbox
+                    <Checkbox aria-label="Show read receipts"
                       id="showReadReceipts"
                       checked={readReceiptSettings.showReadReceipts}
                       onCheckedChange={(checked) =>
@@ -521,7 +521,7 @@ export function ChatWindow({
             className="hidden"
             onChange={handleFileSelect}
           />
-          <Button
+          <Button aria-label="Attach files"
             variant="ghost"
             size="icon"
             className="flex-shrink-0"
@@ -541,7 +541,7 @@ export function ChatWindow({
               disabled={isSending}
             />
             {/* Emoji picker placeholder button */}
-            <Button
+            <Button aria-label="Insert emoji"
               variant="ghost"
               size="icon"
               className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
@@ -551,7 +551,7 @@ export function ChatWindow({
           </div>
 
           {/* Send button */}
-          <Button
+          <Button aria-label={isSending ? "Sending message" : "Send message"}
             onClick={handleSend}
             disabled={!inputValue.trim() || isSending}
             className="flex-shrink-0 btn-gradient rounded-xl h-10 w-10 p-0"

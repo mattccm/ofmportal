@@ -51,6 +51,12 @@ export interface MentionInputProps {
   recentMentions?: string[];
   /** Max character length */
   maxLength?: number;
+  /** Only suggest these users (e.g. the members of a team group) */
+  onlyUserIds?: string[];
+  /** id for the textarea, so a <label htmlFor> can name it */
+  id?: string;
+  /** Open the suggestions above the field (for a composer docked at the bottom) */
+  suggestionsAbove?: boolean;
 }
 
 // MENTION INPUT COMPONENT
@@ -71,6 +77,9 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
       multiline = true,
       recentMentions = [],
       maxLength,
+      onlyUserIds,
+      id,
+      suggestionsAbove = false,
     },
     ref
   ) {
@@ -93,7 +102,7 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
       text: uncontrolledText,
       setText: setUncontrolledText,
       mentionIds,
-    } = useMentionInput(controlledValue ?? "", { onMentionsChange });
+    } = useMentionInput(controlledValue ?? "", { onMentionsChange, onlyUserIds });
 
     // Get current text
     const text = isControlled ? controlledValue : uncontrolledText;
@@ -170,28 +179,6 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
       ]
     );
 
-    // Handle key down
-    const handleKeyDown = useCallback(
-      (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        // Handle mention autocomplete navigation
-        if (handleMentionKeyDown(e)) {
-          return;
-        }
-
-        // Handle submit on Enter (without Shift for multiline)
-        if (
-          e.key === "Enter" &&
-          !e.shiftKey &&
-          onSubmit &&
-          (!multiline || !inputState.isOpen)
-        ) {
-          e.preventDefault();
-          onSubmit(text, mentionIds);
-        }
-      },
-      [handleMentionKeyDown, onSubmit, text, mentionIds, multiline, inputState.isOpen]
-    );
-
     // Handle selection change to track cursor
     const handleSelect = useCallback(
       (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
@@ -213,6 +200,47 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
         }, 0);
       },
       [handleSelectSuggestion, onChange, mentionIds]
+    );
+
+    // Handle key down
+    const handleKeyDown = useCallback(
+      (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Picking a suggestion by keyboard goes through the same path as a
+        // click, so a controlled parent receives the new text via onChange
+        if (inputState.isOpen && suggestions.length > 0 && (e.key === "Enter" || e.key === "Tab")) {
+          e.preventDefault();
+          const picked = suggestions[inputState.selectedIndex] ?? suggestions[0];
+          if (picked) handleSuggestionSelect(picked);
+          return;
+        }
+
+        // Handle mention autocomplete navigation
+        if (handleMentionKeyDown(e)) {
+          return;
+        }
+
+        // Handle submit on Enter (without Shift for multiline)
+        if (
+          e.key === "Enter" &&
+          !e.shiftKey &&
+          onSubmit &&
+          (!multiline || !inputState.isOpen)
+        ) {
+          e.preventDefault();
+          onSubmit(text, mentionIds);
+        }
+      },
+      [
+        handleMentionKeyDown,
+        handleSuggestionSelect,
+        suggestions,
+        inputState.selectedIndex,
+        onSubmit,
+        text,
+        mentionIds,
+        multiline,
+        inputState.isOpen,
+      ]
     );
 
     // Close on click outside
@@ -264,6 +292,7 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
     return (
       <div ref={containerRef} className={cn("relative", containerClassName)}>
         <Textarea
+          id={id}
           ref={textareaRef}
           value={text}
           onChange={handleChange}
@@ -278,9 +307,7 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
             inputState.isOpen && "ring-2 ring-primary/50",
             className
           )}
-          aria-expanded={inputState.isOpen}
-          aria-haspopup="listbox"
-          aria-controls={inputState.isOpen ? "mention-suggestions" : undefined}
+          aria-autocomplete="list"
         />
 
         {/* Character count */}
@@ -306,8 +333,8 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(
             isLoading={isLoadingSuggestions}
             recentMentions={recentMentions}
             onSelect={handleSuggestionSelect}
-            position={dropdownPosition ?? undefined}
-            className="top-full mt-1"
+            position={suggestionsAbove ? undefined : dropdownPosition ?? undefined}
+            className={suggestionsAbove ? "bottom-full left-0 mb-1" : "top-full mt-1"}
           />
         )}
       </div>

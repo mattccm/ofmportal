@@ -397,7 +397,7 @@ function NotificationCheckbox({
           : "border-border hover:bg-muted/50"
       }`}
     >
-      <Checkbox
+      <Checkbox aria-label={label}
         id={id}
         checked={checked}
         onCheckedChange={onCheckedChange}

@@ -100,9 +100,9 @@ interface BundleManagerProps {
 
 const URGENCY_CONFIG: Record<UrgencyLevel, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   LOW: { label: "Low", color: "text-slate-500", icon: Clock },
-  NORMAL: { label: "Normal", color: "text-blue-500", icon: Clock },
-  HIGH: { label: "High", color: "text-amber-500", icon: AlertTriangle },
-  URGENT: { label: "Urgent", color: "text-red-500", icon: Zap },
+  NORMAL: { label: "Normal", color: "text-ink-2", icon: Clock },
+  HIGH: { label: "High", color: "text-ink-2", icon: AlertTriangle },
+  URGENT: { label: "Urgent", color: "text-late", icon: Zap },
 };
 
 // BUNDLE CARD COMPONENT
@@ -141,16 +141,7 @@ function BundleCard({
 
   return (
     <>
-      <Card className="group relative overflow-hidden transition-all duration-200 hover:shadow-md hover:border-border">
-        {/* Bundle Type Indicator */}
-        <div
-          className={cn(
-            "absolute top-0 left-0 right-0 h-1 transition-colors",
-            bundle.isOnboardingBundle
-              ? "bg-gradient-to-r from-violet-500 to-purple-500"
-              : "bg-gradient-to-r from-blue-500 to-cyan-500"
-          )}
-        />
+      <Card className="group relative overflow-hidden transition-all duration-200 hover:border-border">
 
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-4">
@@ -159,8 +150,8 @@ function BundleCard({
                 className={cn(
                   "h-10 w-10 shrink-0 rounded-xl flex items-center justify-center transition-colors",
                   bundle.isOnboardingBundle
-                    ? "bg-violet-500/10 text-violet-500"
-                    : "bg-blue-500/10 text-blue-500"
+                    ? "bg-tile-hi text-foreground"
+                    : "bg-tile-hi text-ink-2"
                 )}
               >
                 <Package className="h-5 w-5" />
@@ -179,7 +170,7 @@ function BundleCard({
               {bundle.isOnboardingBundle && (
                 <Badge
                   variant="secondary"
-                  className="bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800"
+                  className="bg-tile-hi text-foreground dark:text-foreground border-line dark:border-line"
                 >
                   <Users className="h-3 w-3 mr-1" />
                   Onboarding
@@ -189,7 +180,7 @@ function BundleCard({
               {bundle.autoTrigger === "on_creator_create" && (
                 <Badge
                   variant="secondary"
-                  className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                  className="bg-tile-hi text-ink-2 border-line"
                 >
                   <Zap className="h-3 w-3 mr-1" />
                   Auto
@@ -198,10 +189,10 @@ function BundleCard({
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
+                  <Button aria-label={`More actions for ${bundle.name}`}
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-8 w-8"
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
@@ -211,7 +202,7 @@ function BundleCard({
                     <>
                       <DropdownMenuItem onClick={onExecute}>
                         <Play className="h-4 w-4 mr-2" />
-                        Execute Bundle
+                        Send bundle
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
@@ -469,7 +460,7 @@ function BundleEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{bundle ? "Edit Bundle" : "Create Bundle"}</DialogTitle>
+          <DialogTitle>{bundle ? "Edit bundle" : "New bundle"}</DialogTitle>
           <DialogDescription>
             {bundle
               ? "Modify this bundle's templates and settings"
@@ -518,7 +509,7 @@ function BundleEditor({
                   Show this bundle when onboarding new creators
                 </p>
               </div>
-              <Switch
+              <Switch aria-label="Onboarding Bundle"
                 id="onboarding-toggle"
                 checked={isOnboardingBundle}
                 onCheckedChange={setIsOnboardingBundle}
@@ -578,11 +569,11 @@ function BundleEditor({
                     key={template.id}
                     className={cn(
                       "rounded-lg border p-3 transition-colors",
-                      isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                      isSelected ? "border-ink bg-tile-hi" : "border-border hover:bg-muted/50"
                     )}
                   >
                     <div className="flex items-start gap-3">
-                      <Checkbox
+                      <Checkbox aria-label={template.name}
                         id={`template-${template.id}`}
                         checked={isSelected}
                         onCheckedChange={(checked) =>
@@ -593,7 +584,7 @@ function BundleEditor({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           {isSelected && (
-                            <span className="text-xs font-medium text-primary">
+                            <span className="text-xs font-medium text-ink">
                               #{selectedIndex + 1}
                             </span>
                           )}
@@ -620,7 +611,7 @@ function BundleEditor({
                           <div className="mt-3 pt-3 border-t grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div className="space-y-1">
                               <Label className="text-xs">Due Days</Label>
-                              <Input
+                              <Input aria-label="Due Days"
                                 type="number"
                                 min={1}
                                 value={config.defaultDueDays ?? template.defaultDueDays}
@@ -643,7 +634,7 @@ function BundleEditor({
                                   handleConfigChange(template.id, "defaultUrgency", v as UrgencyLevel)
                                 }
                               >
-                                <SelectTrigger className="h-8 text-sm">
+                                <SelectTrigger aria-label="Urgency" className="h-8 text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -658,7 +649,7 @@ function BundleEditor({
 
                             <div className="space-y-1">
                               <Label className="text-xs">Stagger Days</Label>
-                              <Input
+                              <Input aria-label="Stagger Days"
                                 type="number"
                                 min={0}
                                 value={config.staggerDays ?? 0}
@@ -675,7 +666,7 @@ function BundleEditor({
 
                             <div className="flex items-end pb-1">
                               <div className="flex items-center gap-2">
-                                <Checkbox
+                                <Checkbox aria-label="Auto-assign"
                                   id={`autoassign-${template.id}`}
                                   checked={config.autoAssign ?? true}
                                   onCheckedChange={(checked) =>
@@ -694,7 +685,7 @@ function BundleEditor({
                       {/* Reorder Controls */}
                       {isSelected && selectedTemplates.length > 1 && (
                         <div className="flex flex-col gap-1">
-                          <Button
+                          <Button aria-label={`Move ${template.name} up`}
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
@@ -703,7 +694,7 @@ function BundleEditor({
                           >
                             <ChevronUp className="h-4 w-4" />
                           </Button>
-                          <Button
+                          <Button aria-label={`Move ${template.name} down`}
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
@@ -800,18 +791,16 @@ function BundleEditor({
 
 function EmptyBundles({ onCreateClick }: { onCreateClick: () => void }) {
   return (
-    <div className="text-center py-16">
-      <div className="mx-auto h-20 w-20 rounded-2xl bg-muted flex items-center justify-center mb-6">
-        <Package className="h-10 w-10 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold text-foreground">No bundles yet</h3>
-      <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-        Create request bundles to quickly send multiple content requests at once.
-        Perfect for onboarding new creators.
+    <div className="rounded-[var(--tw-r-tile)] bg-tile-dim px-6 py-8">
+      <h3 className="text-[17px] font-semibold">No bundles yet</h3>
+      <p className="mt-1 max-w-[60ch] text-sm text-ink-2">
+        Group the templates you send together, such as a new creator&apos;s first week: profile
+        photos, an intro clip and a monthly set. Send the bundle and each template becomes its own
+        request, with its own due date.
       </p>
-      <Button onClick={onCreateClick} className="mt-6">
+      <Button onClick={onCreateClick} variant="outline" className="mt-4">
         <Plus className="h-4 w-4 mr-2" />
-        Create Your First Bundle
+        Make a bundle
       </Button>
     </div>
   );
@@ -882,7 +871,7 @@ export function BundleManager({
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search bundles..."
+              placeholder="Find a bundle"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -893,11 +882,11 @@ export function BundleManager({
             value={filterType}
             onValueChange={(v) => setFilterType(v as typeof filterType)}
           >
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger aria-label="Filter bundles" className="w-[150px]">
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Bundles</SelectItem>
+              <SelectItem value="all">Every bundle</SelectItem>
               <SelectItem value="onboarding">Onboarding</SelectItem>
               <SelectItem value="standard">Standard</SelectItem>
             </SelectContent>
@@ -906,7 +895,7 @@ export function BundleManager({
 
         <Button onClick={handleCreateClick}>
           <Plus className="h-4 w-4 mr-2" />
-          New Bundle
+          New bundle
         </Button>
       </div>
 

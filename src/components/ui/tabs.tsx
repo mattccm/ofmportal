@@ -65,12 +65,12 @@ function Tabs({
 }
 
 const tabsListVariants = cva(
-  "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground",
+  "group/tabs-list inline-flex w-fit max-w-full items-center justify-start overflow-x-auto scrollbar-hide rounded-[10px] p-[3px] text-ink-2",
   {
     variants: {
       variant: {
-        default: "bg-muted h-9",
-        line: "gap-1 bg-transparent rounded-none border-b border-border pb-0",
+        default: "bg-well h-10 gap-0.5",
+        line: "gap-1 bg-transparent rounded-none border-b border-line p-0",
       },
     },
     defaultVariants: {
@@ -114,10 +114,10 @@ function TabsTrigger({ className, value, children, ...props }: TabsTriggerProps)
       data-state={isActive ? "active" : "inactive"}
       onClick={() => context.onValueChange(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-        "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow",
+        "inline-flex h-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[7px] px-3 text-sm font-medium text-ink-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4",
+        "data-[state=active]:bg-tile-hi data-[state=active]:text-foreground",
         "group-data-[variant=line]/tabs-list:rounded-none group-data-[variant=line]/tabs-list:border-b-2 group-data-[variant=line]/tabs-list:border-transparent group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:pb-2 group-data-[variant=line]/tabs-list:shadow-none",
-        "group-data-[variant=line]/tabs-list:data-[state=active]:border-primary group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none",
+        "group-data-[variant=line]/tabs-list:h-10 group-data-[variant=line]/tabs-list:data-[state=active]:border-ink group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none",
         className
       )}
       {...props}
@@ -142,7 +142,7 @@ function TabsContent({ className, value, children, ...props }: TabsContentProps)
       data-slot="tabs-content"
       role="tabpanel"
       data-state={isActive ? "active" : "inactive"}
-      className={cn("mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2", className)}
+      className={cn("mt-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring", className)}
       {...props}
     >
       {children}

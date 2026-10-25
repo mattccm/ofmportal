@@ -1,0 +1,891 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-24T14:37:02.124Z",
+  "title": "Design System: CCM Portal",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Night Ground",
+        "canonical": "oklch(16.9% 0.006 271.0)",
+        "cssVar": "--tw-ground",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#242528",
+          "#414246",
+          "#606165",
+          "#818286",
+          "#a3a5a9",
+          "#c7c9cd",
+          "#edeef3"
+        ]
+      },
+      "tile": {
+        "role": "neutral",
+        "displayName": "Cover Tile",
+        "canonical": "oklch(23.1% 0.010 268.2)",
+        "cssVar": "--tw-tile",
+        "tonalRamp": [
+          "#090b10",
+          "#23252a",
+          "#404248",
+          "#5f6167",
+          "#808289",
+          "#a2a5ac",
+          "#c6c9d0",
+          "#ebeef6"
+        ]
+      },
+      "tile-hi": {
+        "role": "neutral",
+        "displayName": "Lifted Tile",
+        "canonical": "oklch(26.8% 0.012 264.4)",
+        "cssVar": "--tw-tile-hi",
+        "tonalRamp": [
+          "#090b10",
+          "#22252b",
+          "#3f4249",
+          "#5e6168",
+          "#7f828a",
+          "#a1a5ad",
+          "#c5c9d1",
+          "#eaeff7"
+        ]
+      },
+      "tile-dim": {
+        "role": "neutral",
+        "displayName": "Stepped-Back Tile",
+        "canonical": "oklch(19.1% 0.006 271.1)",
+        "cssVar": "--tw-tile-dim",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#242528",
+          "#414245",
+          "#606165",
+          "#818286",
+          "#a3a5a9",
+          "#c7c9cd",
+          "#edeef3"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Overlay Slate",
+        "canonical": "oklch(28.9% 0.013 267.1)",
+        "cssVar": "--tw-raised",
+        "tonalRamp": [
+          "#090b11",
+          "#22252c",
+          "#3f4249",
+          "#5e6169",
+          "#7f828b",
+          "#a1a5ae",
+          "#c5c9d2",
+          "#eaeef8"
+        ]
+      },
+      "raised-hi": {
+        "role": "neutral",
+        "displayName": "Overlay Highlight",
+        "canonical": "oklch(33.3% 0.015 269.2)",
+        "cssVar": "--tw-raised-hi",
+        "tonalRamp": [
+          "#090b11",
+          "#22252c",
+          "#3f424a",
+          "#5e616a",
+          "#7f828b",
+          "#a1a5af",
+          "#c5c9d3",
+          "#eaeef9"
+        ]
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Input Well",
+        "canonical": "oklch(20.1% 0.008 274.5)",
+        "cssVar": "--tw-well",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#242529",
+          "#414246",
+          "#606166",
+          "#818287",
+          "#a3a5aa",
+          "#c7c9cf",
+          "#edeef4"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(29.7% 0.013 267.1)",
+        "cssVar": "--tw-line",
+        "tonalRamp": [
+          "#090b11",
+          "#22252c",
+          "#3f4249",
+          "#5e6169",
+          "#7f828b",
+          "#a1a5ae",
+          "#c5c9d2",
+          "#eaeef8"
+        ]
+      },
+      "ctl": {
+        "role": "neutral",
+        "displayName": "Control Edge",
+        "canonical": "oklch(37.1% 0.016 266.5)",
+        "cssVar": "--tw-ctl",
+        "tonalRamp": [
+          "#080b12",
+          "#21252d",
+          "#3e424b",
+          "#5d616b",
+          "#7e828c",
+          "#a0a5b0",
+          "#c4c9d4",
+          "#e9eefa"
+        ]
+      },
+      "ctl-hi": {
+        "role": "neutral",
+        "displayName": "Control Edge Hover",
+        "canonical": "oklch(47.1% 0.019 266.1)",
+        "cssVar": "--tw-ctl-hi",
+        "tonalRamp": [
+          "#080b13",
+          "#21252e",
+          "#3d424c",
+          "#5c616c",
+          "#7d828e",
+          "#9fa5b1",
+          "#c3c9d6",
+          "#e9effc"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Paper Ink",
+        "canonical": "oklch(94.9% 0.006 264.5)",
+        "cssVar": "--tw-ink",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#242528",
+          "#404245",
+          "#5f6165",
+          "#808286",
+          "#a3a5a9",
+          "#c7c9cd",
+          "#eceef2"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Quiet Ink",
+        "canonical": "oklch(73.8% 0.014 266.7)",
+        "cssVar": "--tw-ink-2",
+        "tonalRamp": [
+          "#090b11",
+          "#22252c",
+          "#3f424a",
+          "#5e6169",
+          "#7e828b",
+          "#a1a5ae",
+          "#c5c9d2",
+          "#eaeef8"
+        ]
+      },
+      "icon": {
+        "role": "neutral",
+        "displayName": "Icon Grey",
+        "canonical": "oklch(69.9% 0.014 266.7)",
+        "cssVar": "--tw-icon",
+        "tonalRamp": [
+          "#090b11",
+          "#22252c",
+          "#3f424a",
+          "#5e6169",
+          "#7e828b",
+          "#a1a5ae",
+          "#c5c9d3",
+          "#eaeef8"
+        ]
+      },
+      "placeholder": {
+        "role": "neutral",
+        "displayName": "Placeholder Grey",
+        "canonical": "oklch(66.2% 0.015 262.4)",
+        "cssVar": null,
+        "tonalRamp": [
+          "#080b11",
+          "#21252c",
+          "#3e424a",
+          "#5d616a",
+          "#7e838b",
+          "#a0a5ae",
+          "#c4c9d3",
+          "#e9eff9"
+        ]
+      },
+      "acc": {
+        "role": "primary",
+        "displayName": "Marquee Yellow",
+        "canonical": "oklch(87.9% 0.162 90.9)",
+        "cssVar": "--tw-acc",
+        "tonalRamp": [
+          "#120a00",
+          "#302300",
+          "#514000",
+          "#775e00",
+          "#9e7e02",
+          "#c8a000",
+          "#f1c429",
+          "#ffeebd"
+        ]
+      },
+      "acc-hi": {
+        "role": "primary",
+        "displayName": "Marquee Yellow Lit",
+        "canonical": "oklch(90.2% 0.141 92.8)",
+        "cssVar": "--tw-acc-hi",
+        "tonalRamp": [
+          "#120a00",
+          "#2f2400",
+          "#514000",
+          "#755f00",
+          "#9c7f05",
+          "#c4a21c",
+          "#e9c64e",
+          "#ffeeb8"
+        ]
+      },
+      "acc-ink": {
+        "role": "primary",
+        "displayName": "Marquee Ink",
+        "canonical": "oklch(16.9% 0.006 271.0)",
+        "cssVar": "--tw-acc-ink",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#242528",
+          "#414246",
+          "#606165",
+          "#818286",
+          "#a3a5a9",
+          "#c7c9cd",
+          "#edeef3"
+        ]
+      },
+      "approved": {
+        "role": "secondary",
+        "displayName": "Approved Green",
+        "canonical": "oklch(80.6% 0.133 156.1)",
+        "cssVar": "--tw-s-approved",
+        "tonalRamp": [
+          "#001005",
+          "#022a15",
+          "#024727",
+          "#02663b",
+          "#00884f",
+          "#38a76c",
+          "#6dd799",
+          "#c4ffd9"
+        ]
+      },
+      "ready": {
+        "role": "secondary",
+        "displayName": "Ready Blue",
+        "canonical": "oklch(72.9% 0.141 258.3)",
+        "cssVar": "--tw-s-review",
+        "tonalRamp": [
+          "#00003c",
+          "#002157",
+          "#013d8b",
+          "#285fb0",
+          "#4a82d5",
+          "#6ca6fc",
+          "#a9cbfe",
+          "#e5effe"
+        ]
+      },
+      "changes": {
+        "role": "secondary",
+        "displayName": "Changes Orange",
+        "canonical": "oklch(75.2% 0.161 59.5)",
+        "cssVar": "--tw-s-changes",
+        "tonalRamp": [
+          "#170600",
+          "#361900",
+          "#582e02",
+          "#7f4401",
+          "#a65c0c",
+          "#d0750b",
+          "#fda75d",
+          "#ffeadb"
+        ]
+      },
+      "waiting": {
+        "role": "secondary",
+        "displayName": "Waiting Outline",
+        "canonical": "oklch(58.3% 0.019 267.7)",
+        "cssVar": "--tw-s-waiting",
+        "tonalRamp": [
+          "#080b13",
+          "#1e212b",
+          "#363a45",
+          "#505560",
+          "#6d717d",
+          "#8a8f9b",
+          "#b8becb",
+          "#e9eefc"
+        ]
+      },
+      "late": {
+        "role": "secondary",
+        "displayName": "Late Red",
+        "canonical": "oklch(70.1% 0.190 24.4)",
+        "cssVar": "--tw-late",
+        "tonalRamp": [
+          "#200001",
+          "#460106",
+          "#720210",
+          "#a2041b",
+          "#c92f34",
+          "#ec5352",
+          "#fda19b",
+          "#ffe8e6"
+        ]
+      },
+      "print-paper": {
+        "role": "print-only",
+        "displayName": "Paper White",
+        "canonical": "#ffffff",
+        "aliases": [
+          "#fff",
+          "white"
+        ],
+        "scope": "Page background inside @media print only.",
+        "frontmatter": false
+      },
+      "print-wash": {
+        "role": "print-only",
+        "displayName": "Paper Wash",
+        "canonical": "#f9fafb",
+        "aliases": [],
+        "scope": "Faint panel fill inside @media print only.",
+        "frontmatter": false
+      },
+      "print-wash-deep": {
+        "role": "print-only",
+        "displayName": "Paper Wash Deep",
+        "canonical": "#f3f4f6",
+        "aliases": [],
+        "scope": "Deeper panel fill inside @media print only.",
+        "frontmatter": false
+      },
+      "print-black": {
+        "role": "print-only",
+        "displayName": "Print Black",
+        "canonical": "#000000",
+        "aliases": [
+          "#000"
+        ],
+        "scope": "Body text inside @media print only.",
+        "frontmatter": false
+      },
+      "print-ink": {
+        "role": "print-only",
+        "displayName": "Print Ink",
+        "canonical": "#111111",
+        "aliases": [
+          "#111"
+        ],
+        "scope": "Remapped foreground inside @media print only.",
+        "frontmatter": false
+      },
+      "print-grey-dark": {
+        "role": "print-only",
+        "displayName": "Print Grey Dark",
+        "canonical": "#374151",
+        "aliases": [],
+        "scope": "Secondary text inside @media print only.",
+        "frontmatter": false
+      },
+      "print-grey": {
+        "role": "print-only",
+        "displayName": "Print Grey",
+        "canonical": "#6b7280",
+        "aliases": [],
+        "scope": "Tertiary text inside @media print only.",
+        "frontmatter": false
+      },
+      "print-rule": {
+        "role": "print-only",
+        "displayName": "Print Rule",
+        "canonical": "#e5e7eb",
+        "aliases": [],
+        "scope": "Borders and row rules inside @media print only.",
+        "frontmatter": false
+      },
+      "print-rule-strong": {
+        "role": "print-only",
+        "displayName": "Print Rule Strong",
+        "canonical": "#d1d5db",
+        "aliases": [],
+        "scope": "Stronger borders inside @media print only.",
+        "frontmatter": false
+      },
+      "mask-opaque": {
+        "role": "mask-only",
+        "displayName": "Mask Opaque",
+        "canonical": "#000000",
+        "aliases": [
+          "#000"
+        ],
+        "scope": "Alpha stop in mask-image gradients (billboard plate fade). Means fully visible; never paints a surface.",
+        "frontmatter": false
+      },
+      "confirm": {
+        "role": "neutral",
+        "displayName": "Confirm Silver",
+        "canonical": "oklch(87.8% 0.011 261.8)",
+        "cssVar": "--tw-confirm",
+        "tonalRamp": [
+          "#090b10",
+          "#1f2227",
+          "#373b40",
+          "#52555b",
+          "#6e7278",
+          "#8c8f96",
+          "#babec5",
+          "#ebeff6"
+        ]
+      },
+      "email-approved-ink": {
+        "role": "email-only",
+        "displayName": "Email Approved Green",
+        "canonical": "#166534",
+        "scope": "Approved pill text in emails (white body). 6.76:1 on its tint.",
+        "frontmatter": false
+      },
+      "email-approved-tint": {
+        "role": "email-only",
+        "displayName": "Email Approved Tint",
+        "canonical": "#ecfdf3",
+        "scope": "Approved pill background in emails.",
+        "frontmatter": false
+      },
+      "email-changes-ink": {
+        "role": "email-only",
+        "displayName": "Email Changes Orange",
+        "canonical": "#c2410c",
+        "scope": "Needs changes pill text in emails. 4.88:1 on its tint.",
+        "frontmatter": false
+      },
+      "email-changes-tint": {
+        "role": "email-only",
+        "displayName": "Email Changes Tint",
+        "canonical": "#fff7ed",
+        "scope": "Needs changes pill background in emails.",
+        "frontmatter": false
+      },
+      "email-overdue-ink": {
+        "role": "email-only",
+        "displayName": "Email Overdue Red",
+        "canonical": "#b91c1c",
+        "scope": "Overdue and due-today pill text and urgency lines in emails. 5.91:1 on its tint.",
+        "frontmatter": false
+      },
+      "email-overdue-tint": {
+        "role": "email-only",
+        "displayName": "Email Overdue Tint",
+        "canonical": "#fef2f2",
+        "scope": "Overdue pill background in emails.",
+        "frontmatter": false
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The billboard title only; the largest type on any screen. Two lines at most."
+      },
+      "display-phone": {
+        "displayName": "Display phone",
+        "purpose": "The billboard title under 900px."
+      },
+      "cover-medium": {
+        "displayName": "Cover medium",
+        "purpose": "Title-card lettering for titles of 15 to 24 characters."
+      },
+      "cover-long": {
+        "displayName": "Cover long",
+        "purpose": "Title-card lettering for titles longer than 24 characters."
+      },
+      "title-compact": {
+        "displayName": "Title compact",
+        "purpose": "A standalone card title outside the shell (crash page); the Overview h1 on phones."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Chip text, preview kind captions, support lines. Smallest screen size."
+      },
+      "input-phone": {
+        "displayName": "Input phone",
+        "purpose": "Input and textarea text on phones so iOS does not zoom."
+      },
+      "accessibility-dyslexic": {
+        "displayName": "Accessibility (OpenDyslexic)",
+        "purpose": "Opt-in only via html.dyslexia-font; replaces Onest at every size for that user. Never a design choice."
+      },
+      "print-xs": {
+        "displayName": "Print xs",
+        "purpose": "@media print only; size in the DESIGN.md frontmatter."
+      },
+      "print-sm": {
+        "displayName": "Print sm",
+        "purpose": "@media print only; size in the DESIGN.md frontmatter."
+      },
+      "print-base": {
+        "displayName": "Print base",
+        "purpose": "@media print only; size in the DESIGN.md frontmatter."
+      },
+      "print-lg": {
+        "displayName": "Print lg",
+        "purpose": "@media print only; size in the DESIGN.md frontmatter."
+      },
+      "print-xl": {
+        "displayName": "Print xl",
+        "purpose": "@media print only; size in the DESIGN.md frontmatter."
+      },
+      "print-2xl": {
+        "displayName": "Print 2xl",
+        "purpose": "@media print only; size in the DESIGN.md frontmatter."
+      },
+      "cover": {
+        "displayName": "Cover",
+        "purpose": "Title-card lettering, typeset by title length (44 / 38 / 30px caps)."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "The large billboard countdown."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles; Overview sets 22/26px so the billboard stays largest."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Shelf headings, card titles, rail panel headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Page finding sentences, notes, briefs."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Tile foot lines, shelf subtitles, due lines."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Meta lines, sentence-case table headers, strip labels."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Codes and data only: 2FA secrets, template variables, kbd hints, IDs."
+      }
+    },
+    "shadows": [
+      {
+        "name": "none-at-rest",
+        "value": "0 0 #0000",
+        "purpose": "shadow-2xs through shadow-md: nothing at rest has a shadow."
+      },
+      {
+        "name": "overlay",
+        "value": "0 12px 32px -8px rgb(0 0 0 / 0.55), 0 2px 8px -2px rgb(0 0 0 / 0.4)",
+        "purpose": "Popovers, menus, select lists, tooltips, toasts (shadow-lg)."
+      },
+      {
+        "name": "dialog",
+        "value": "0 18px 44px -10px rgb(0 0 0 / 0.6), 0 4px 12px -4px rgb(0 0 0 / 0.4)",
+        "purpose": "Dialogs, alert dialogs, sheets (shadow-xl)."
+      },
+      {
+        "name": "deep",
+        "value": "0 24px 56px -12px rgb(0 0 0 / 0.65)",
+        "purpose": "The largest floating panels (shadow-2xl)."
+      },
+      {
+        "name": "scrim",
+        "value": "rgb(8 9 11 / 0.74)",
+        "purpose": "Backdrop behind dialogs and sheets; no blur."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "150ms ease-out",
+        "purpose": "Colour, border and transform on buttons, inputs, chips."
+      },
+      {
+        "name": "tile-transition",
+        "value": "200ms to 250ms ease-out",
+        "purpose": "Title card background and outline; the wall stepping back."
+      },
+      {
+        "name": "press",
+        "value": "scale(0.97); press 100ms power2.out, release 220ms power3.out",
+        "purpose": "Every button and opted-in tile under the finger; off under reduced motion."
+      },
+      {
+        "name": "cell-fill",
+        "value": "450ms power3.out",
+        "purpose": "A field cell fills from its leading edge when its state changes."
+      },
+      {
+        "name": "tick",
+        "value": "320ms power3.out",
+        "purpose": "Number rolls and label swaps."
+      },
+      {
+        "name": "flip",
+        "value": "500ms power3.inOut",
+        "purpose": "The focused title widens to two tiles (GSAP Flip); its detail slides in over 300ms after 180ms."
+      },
+      {
+        "name": "hover-focus-delay",
+        "value": "260ms",
+        "purpose": "A mouse hover focuses a title on the wall."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "instant",
+        "purpose": "gsap.matchMedia owns reduced motion; state changes apply without animation. Nothing animates on page load."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "599px",
+        "purpose": "max-width: tile gap 12px, page margin 16px"
+      },
+      {
+        "name": "creator-sm",
+        "value": "640px",
+        "purpose": "creator inline nav replaces the bottom tab bar"
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "staff rail appears; controls drop from 40-44px to 36px"
+      },
+      {
+        "name": "billboard-stack",
+        "value": "899px",
+        "purpose": "max-width: the billboard stacks to one column"
+      },
+      {
+        "name": "tablet",
+        "value": "1099px",
+        "purpose": "max-width: page margin 28px"
+      },
+      {
+        "name": "content-max",
+        "value": "1680px",
+        "purpose": "staff content maximum width"
+      }
+    ],
+    "shelfDensity": [
+      {
+        "containerMin": "0px",
+        "tilesInView": 1.15
+      },
+      {
+        "containerMin": "520px",
+        "tilesInView": 2.3
+      },
+      {
+        "containerMin": "760px",
+        "tilesInView": 3.3
+      },
+      {
+        "containerMin": "1000px",
+        "tilesInView": 4.3
+      },
+      {
+        "containerMin": "1400px",
+        "tilesInView": 5.3
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one yellow action in a region (Review, Send). Dark ink, never white.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polygon points=\"6 3 20 12 6 21 6 3\"/></svg>Review</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid transparent;border-radius:8px;background:var(--tw-acc);color:var(--tw-acc-ink);font:600 14px/1 var(--font-sans,Onest,sans-serif);cursor:pointer;transition:background-color .15s ease-out,transform .15s ease-out}.ds-btn-primary:hover{background:var(--tw-acc-hi)}.ds-btn-primary:active{transform:scale(.97)}.ds-btn-primary:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}"
+    },
+    {
+      "name": "Light Button",
+      "kind": "button",
+      "refersTo": "button-light",
+      "description": "Page-level create action (New request) when a region below already owns the yellow.",
+      "html": "<button class=\"ds-btn-light\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg>New request</button>",
+      "css": ".ds-btn-light{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid transparent;border-radius:8px;background:var(--tw-ink);color:var(--tw-ground);font:600 14px/1 var(--font-sans,Onest,sans-serif);cursor:pointer;transition:background-color .15s ease-out,transform .15s ease-out}.ds-btn-light:hover{background:#fff}.ds-btn-light:active{transform:scale(.97)}.ds-btn-light:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Default secondary action (Send reminder, Message).",
+      "html": "<button class=\"ds-btn-outline\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"/><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"/></svg>Send reminder</button>",
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid var(--tw-ctl);border-radius:8px;background:transparent;color:var(--tw-ink);font:600 14px/1 var(--font-sans,Onest,sans-serif);cursor:pointer;transition:background-color .15s ease-out,border-color .15s ease-out,transform .15s ease-out}.ds-btn-outline:hover{border-color:var(--tw-ctl-hi);background:var(--tw-tile-hi)}.ds-btn-outline:active{transform:scale(.97)}.ds-btn-outline:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A well one step below the tile; yellow border and outline on focus, late red when invalid.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search requests\" aria-label=\"Search requests\">",
+      "css": ".ds-input{height:36px;width:260px;padding:0 12px;border:1px solid var(--tw-ctl);border-radius:8px;background:var(--tw-well);color:var(--tw-ink);caret-color:var(--tw-acc);font:400 14px/1.5 var(--font-sans,Onest,sans-serif);transition:border-color .15s ease-out}.ds-input::placeholder{color:#8e939c}.ds-input:hover{border-color:var(--tw-ctl-hi)}.ds-input:focus-visible{border-color:var(--tw-acc);outline:2px solid var(--tw-acc);outline-offset:1px}.ds-input[aria-invalid=\"true\"]{border-color:var(--tw-late)}"
+    },
+    {
+      "name": "State Chips",
+      "kind": "chip",
+      "refersTo": "chip-ready",
+      "description": "Pale state tints with same-hue ink and the state icon before the word; approved is green (the only green), to do and draft are outlines. Inside rows only, never above a heading.",
+      "html": "<span class=\"ds-chip ds-chip-ready\">Ready to review</span> <span class=\"ds-chip ds-chip-approved\">Approved</span> <span class=\"ds-chip ds-chip-changes\">Needs changes</span> <span class=\"ds-chip ds-chip-late\">Overdue</span> <span class=\"ds-chip ds-chip-draft\">Draft</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid transparent;border-radius:6px;font:500 12px/1 var(--font-sans,Onest,sans-serif);font-variant-numeric:tabular-nums;white-space:nowrap}.ds-chip-ready{background:rgb(110 168 255 / .12);color:var(--tw-s-review)}.ds-chip-approved{background:rgb(111 217 155 / .12);color:var(--tw-s-approved)}.ds-chip-changes{background:rgb(247 146 47 / .12);color:var(--tw-s-changes)}.ds-chip-late{background:rgb(255 100 97 / .10);color:var(--tw-late)}.ds-chip-draft{border-color:var(--tw-ctl-hi);color:var(--tw-ink-2)}"
+    },
+    {
+      "name": "Title Card",
+      "kind": "card",
+      "refersTo": "title-card",
+      "description": "A request as a typeset cover: a spine of field cells, Onest 800 lettering, creator and countdown at the foot.",
+      "html": "<a class=\"ds-tcard\" href=\"#\"><span class=\"ds-spine\"><i class=\"ds-c ready\"></i><i class=\"ds-c ready\"></i><i class=\"ds-c\"></i></span><span class=\"ds-face\"><span class=\"ds-ttl\">Socials pack — week 44</span><span class=\"ds-line\"><b>Sofia R.</b><span class=\"ds-left\">2 d 3 h left</span></span><span class=\"ds-meta\">0 of 3 approved · 2 to review · 1 to do</span></span></a>",
+      "css": ".ds-tcard{display:flex;gap:14px;width:280px;padding:12px 16px 12px 12px;border-radius:10px;background:var(--tw-tile);color:var(--tw-ink);text-decoration:none;outline:1.5px solid transparent;outline-offset:-1.5px;transition:background-color .2s ease-out,outline-color .2s ease-out;font-family:var(--font-sans,Onest,sans-serif)}.ds-tcard:hover{background:var(--tw-tile-hi)}.ds-tcard:focus-visible{outline-color:var(--tw-acc)}.ds-spine{display:flex;flex-direction:column;gap:3px;width:6px;flex:none}.ds-c{flex:1;min-height:6px;border-radius:2px;outline:1.5px solid var(--tw-s-waiting);outline-offset:-1.5px}.ds-c.ready{background:var(--tw-s-review);outline:0}.ds-face{display:flex;flex-direction:column;flex:1;min-width:0}.ds-ttl{display:block;aspect-ratio:12/5;font-weight:800;font-size:36px;line-height:1;letter-spacing:-.035em}.ds-line{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:14px;line-height:1.5}.ds-line b{font-weight:500}.ds-left{font-weight:600;font-variant-numeric:tabular-nums}.ds-meta{font-size:13px;line-height:1.5;color:var(--tw-ink-2)}"
+    },
+    {
+      "name": "Labelled Field Strip",
+      "kind": "custom",
+      "refersTo": "field-cell",
+      "description": "One bar per field with its name; used on the billboard and the review player.",
+      "html": "<ol class=\"ds-lstrip\" aria-label=\"Cover photo: Approved; Teaser clip: Ready to review; Full video: Needs changes; Stories: To do, not uploaded yet\"><li><i class=\"ds-bar approved\"></i><span>Cover photo</span></li><li class=\"on\"><i class=\"ds-bar ready\"></i><span>Teaser clip</span></li><li><i class=\"ds-bar changes\"></i><span>Full video</span></li><li><i class=\"ds-bar\"></i><span>Stories</span></li></ol>",
+      "css": ".ds-lstrip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;width:520px;margin:0;padding:0;list-style:none;font-family:var(--font-sans,Onest,sans-serif)}.ds-bar{display:block;height:10px;border-radius:2px;outline:1.5px solid var(--tw-s-waiting);outline-offset:-1.5px}.ds-bar.approved{background:var(--tw-s-approved);outline:0}.ds-bar.ready{background:var(--tw-s-review);outline:0}.ds-bar.changes{background:var(--tw-s-changes);outline:0}.ds-lstrip span{display:block;margin-top:6px;font-size:13px;line-height:1.5;color:var(--tw-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-lstrip li.on span{color:var(--tw-ink)}"
+    },
+    {
+      "name": "Countdown",
+      "kind": "custom",
+      "refersTo": "billboard",
+      "description": "Time left in one rule; late red only when overdue or under 48 hours.",
+      "html": "<span class=\"ds-cd\">5 days <small>left</small></span> <span class=\"ds-cd urgent\">1 d 12 h <small>late</small></span>",
+      "css": ".ds-cd{font:700 40px/1.05 var(--font-sans,Onest,sans-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--tw-ink);white-space:nowrap;margin-right:24px}.ds-cd small{font-size:17px;font-weight:600;letter-spacing:0;margin-left:4px}.ds-cd.urgent{color:var(--tw-late)}"
+    },
+    {
+      "name": "Discreet Preview",
+      "kind": "custom",
+      "refersTo": "preview-plate",
+      "description": "Uploads hidden by default: a flat plate with an eye-off icon and a kind caption; no image loads until revealed.",
+      "html": "<button class=\"ds-preview\" aria-label=\"Show preview: Teaser images, 4 photos\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68\"/><path d=\"M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61\"/><path d=\"M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><line x1=\"2\" x2=\"22\" y1=\"2\" y2=\"22\"/></svg><span class=\"ds-kind\">4 photos</span></button>",
+      "css": ".ds-preview{position:relative;display:grid;place-items:center;width:260px;aspect-ratio:16/7;border:0;border-radius:6px;background:#24272e;color:var(--tw-icon);cursor:pointer;transition:background-color .25s ease-out,color .25s ease-out}.ds-preview:hover{background:#2b2e36;color:var(--tw-ink-2)}.ds-preview:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}.ds-kind{position:absolute;left:8px;bottom:6px;font:500 12px/1.5 var(--font-sans,Onest,sans-serif);color:var(--tw-ink-2)}"
+    },
+    {
+      "name": "Staff Icon Rail",
+      "kind": "nav",
+      "refersTo": "nav-rail",
+      "description": "64px rail on the ground; the active item is a tile background and a 2px ink bar, never colour.",
+      "html": "<nav class=\"ds-rail\" aria-label=\"Main\"><a href=\"#\" class=\"ds-ri\" aria-current=\"page\" aria-label=\"Overview\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1\"/></svg></a><a href=\"#\" class=\"ds-ri\" aria-label=\"Requests\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v5h5M10 13h4M10 17h4\"/></svg></a><a href=\"#\" class=\"ds-ri\" aria-label=\"Creators\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85\"/></svg></a></nav>",
+      "css": ".ds-rail{display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;padding:12px 0;background:var(--tw-ground);border-right:1px solid var(--tw-line)}.ds-ri{position:relative;display:grid;place-items:center;width:44px;height:40px;border-radius:8px;color:var(--tw-icon);transition:background-color .15s ease-out,color .15s ease-out}.ds-ri:hover,.ds-ri[aria-current=\"page\"]{background:var(--tw-tile);color:var(--tw-ink)}.ds-ri[aria-current=\"page\"]::before{content:\"\";position:absolute;left:-10px;top:10px;width:2px;height:20px;border-radius:999px;background:var(--tw-ink)}.ds-ri:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Title Wall",
+    "overview": "CCM Portal is browsed like a catalogue you already know how to use. Every request is a typeset title card: its name set as heavy display lettering on a flat tile, a narrow strip of field cells running down its left edge, the creator and the time left at its foot. Cards sit in horizontal shelves that scroll and let the next title peek at the edge. When a title is focused it widens in place to show its fields, and the rest of the wall steps back a tone. The most urgent request is featured above the shelves as a billboard, the largest lettering on the screen.\n\nThe world is one dark theme, pinned, for staff who review creator uploads late at night in dim rooms and for creators on their phones. Depth comes from tone steps on a deep neutral ground, never from shadow at rest. Colour is scarce on purpose: a single marquee yellow marks keyboard focus and the one primary action in a region, and the field-state hues (to-do grey, ready blue, needs-changes orange, overdue red, approved green) live only inside tiles, strips and the chips that sit in them. Every state is a colour, an icon and a word together, never colour alone. There is no brand green: green means Approved and nothing else.\n\nDiscretion is part of the look. Uploads never show until someone chooses to reveal them; request titles never leave the app through tab titles, texts or email subjects. Dates and countdowns all read on one agency clock. The old green shadcn look, gradients, glass, glows and the KPI-row-over-a-table dashboard are rejected.",
+    "keyCharacteristics": [
+      "One pinned dark theme: ground #0e0f12, tiles #1b1d22, every surface one tone step from the next.",
+      "Titles set as display lettering in Onest 800 with -0.035em tracking, sized by their length, two lines at most.",
+      "One accent, marquee yellow, for focus and the one primary action per region.",
+      "Field-state colour lives only inside tiles; the coloured spine is the request title card's alone.",
+      "Shelves of fractional width so the next tile always peeks; focus widens a title in place.",
+      "Flat at rest; soft shadows only on true overlays.",
+      "Previews hidden until revealed; no request title in any channel that leaves the app."
+    ],
+    "rules": [
+      {
+        "name": "The One Marquee Rule",
+        "body": "Yellow appears only as the focus outline and as the fill of the one primary action in a region. When a page-level create action (New request) would compete with a region's yellow, it takes the light ink fill instead. Pressed, selected and current states are tone steps, never yellow.",
+        "section": "colors"
+      },
+      {
+        "name": "The Green Means Approved Rule",
+        "body": "There is no brand green. Green appears only as Approved Green, on things that are approved (field cells, upload and request chips, the approved count), always with its check icon and the word. Success toasts and \"saved\" confirmations are neutral (Confirm Silver); switches and checkboxes turn on in ink; buttons, chrome and navigation are never green. Green also survives as one choice in user-pickable data palettes (tags, groups, annotations), which are data, not brand.",
+        "section": "colors"
+      },
+      {
+        "name": "The States Stay Inside Rule",
+        "body": "Ready blue, changes orange, late red and approved green appear only inside tiles, field strips, and chips that sit in rows or tiles, and always with their icon and word (never colour alone). Page chrome, headings, navigation and buttons never carry a state hue; destructive actions use a late-red tint, not a red slab.",
+        "section": "colors"
+      },
+      {
+        "name": "The Lettering Rule",
+        "body": "A title is set, not written: Onest 800, tracking -0.035em, sized by its length, never more than two lines, balanced. Nothing else in the interface uses 800.",
+        "section": "typography"
+      },
+      {
+        "name": "The Heading First Rule",
+        "body": "Nothing sits above a heading: no eyebrow, kicker or overline. Context (kind, sender, \"sent 15 days ago\", \"404\") goes in a line under the title. Headings and labels are sentence case; nothing is set in tracked uppercase.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every number is tabular: body, tables, times and countdowns set `tabular-nums` so figures do not jitter as they tick.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tone Step Rule",
+        "body": "If it does not float, it has no shadow. Lift a surface by moving it one tone step, never by adding a shadow, a glow, glass or a gradient. The one gradient in the world is the billboard plate's mask, which fades a flat tile into the ground (horizontally on desktop, vertically under 900px) rather than blending colours.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Only Spine Rule",
+        "body": "The vertical strip of field cells down the left edge of a request title card is the only coloured edge in the system. Creator cards, template cards, message cards, alerts and list rows never take a coloured side stripe.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Discretion Rule",
+        "body": "Request titles can be explicit, so they never leave the app: tab titles on request pages are generic (\"Request · CCM Portal\"), SMS bodies carry no title, and email subjects and preheaders carry no title. Upload previews stay hidden, with no image request, until a person reveals them.",
+        "section": "components"
+      },
+      {
+        "name": "The Agency Clock Rule",
+        "body": "Every date, due line and countdown is formatted through the display-timezone helpers in `src/components/title-wall/time.ts`, never the machine's local time. A plain date is due at 23:59 on that day in the agency's timezone; a timestamp is used as is.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** set every surface as a tone step on the ground: tile for content, tile-hi for hover and focus, raised for overlays, well for inputs.",
+      "**Do** give each region exactly one yellow primary action, and use the light ink button for a page-level create action when yellow is taken.",
+      "**Do** draw keyboard focus as a 2px yellow outline (1.5px inset on title cards) on everything interactive.",
+      "**Do** set titles in Onest 800 at -0.035em, sized by length, two lines at most, with the billboard title the largest type on the screen.",
+      "**Do** open each page with its title and one sentence that answers the screen's question, with context lines under headings.",
+      "**Do** show field state with cells, spines, labelled strips and tinted chips inside tiles, with the state's icon and word wherever it is written out; take colours, icons and words from the shared vocabulary, never hard-code them.",
+      "**Do** keep shelves at fractional widths so the next tile peeks, and step the rest of the wall back to tile-dim without dimming its text.",
+      "**Do** route every date and countdown through `src/components/title-wall/time.ts`, and turn countdowns red only when late or under 48 hours.",
+      "**Do** keep previews hidden until revealed and keep request titles out of tab titles, SMS bodies and email subjects.",
+      "**Do** keep controls 40 to 44px on touch and 36px from 768px, with 16px input text on phones."
+    ],
+    "donts": [
+      "**Don't** use green for anything but Approved: not for success toasts, \"saved\", switches, checkboxes, buttons or brand. Never show a state by colour alone.",
+      "**Don't** use yellow for selected, pressed or current states, for decoration, or for more than one action per region.",
+      "**Don't** put state hues in page chrome, headings, navigation or buttons; destructive actions are a tint, not a red slab.",
+      "**Don't** put a coloured edge stripe on anything but a request title card.",
+      "**Don't** place an eyebrow, kicker or overline above a heading, or set labels in tracked uppercase.",
+      "**Don't** add a light theme, a theme toggle, gradients, glass, glows or a shadow on anything that does not float.",
+      "**Don't** build a KPI row over a table; counts go in a sentence and a quiet counts line.",
+      "**Don't** format dates with the browser's or server's local timezone.",
+      "**Don't** render an upload thumbnail before the person reveals it."
+    ]
+  }
+}

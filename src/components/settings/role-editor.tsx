@@ -278,7 +278,7 @@ export function CategoryPermissionEditor({
                                 {actionConfig.description}
                               </p>
                             </div>
-                            <Switch
+                            <Switch aria-label={showResourceLabel ? `${actionConfig.label} (${resourceLabel})` : actionConfig.label}
                               checked={isEnabled}
                               onCheckedChange={() => togglePermission(resource, actionConfig.action)}
                               disabled={disabled}
@@ -323,7 +323,7 @@ export function CreatorVisibilitySettings({
           }
           disabled={disabled}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Creator Access Level">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -370,7 +370,7 @@ export function CreatorVisibilitySettings({
           <div className="grid grid-cols-2 gap-2">
             {creatorGroups.map((group) => (
               <div key={group.id} className="flex items-center space-x-2">
-                <Checkbox
+                <Checkbox aria-label={group.name}
                   id={`group-${group.id}`}
                   checked={visibility.groupIds?.includes(group.id)}
                   onCheckedChange={(checked) => {
@@ -504,7 +504,7 @@ export function DataFieldVisibilitySettings({
                     <div key={cfg.key} className="grid grid-cols-[1fr,60px,60px] gap-2 items-center p-2 rounded-lg bg-muted/30">
                       <Label className="text-sm">{cfg.label}</Label>
                       <div className="flex justify-center">
-                        <Checkbox
+                        <Checkbox aria-label={`View ${cfg.label}`}
                           checked={fieldVal.view}
                           onCheckedChange={(checked) => {
                             const newVal = cfg.hasEdit
@@ -523,7 +523,7 @@ export function DataFieldVisibilitySettings({
                       </div>
                       <div className="flex justify-center">
                         {cfg.hasEdit ? (
-                          <Checkbox
+                          <Checkbox aria-label={`Edit ${cfg.label}`}
                             checked={fieldVal.edit}
                             onCheckedChange={(checked) => {
                               onChange({
@@ -564,7 +564,7 @@ export function DataFieldVisibilitySettings({
                     <div key={cfg.key} className="grid grid-cols-[1fr,60px,60px] gap-2 items-center p-2 rounded-lg bg-muted/30">
                       <Label className="text-sm">{cfg.label}</Label>
                       <div className="flex justify-center">
-                        <Checkbox
+                        <Checkbox aria-label={`View ${cfg.label}`}
                           checked={fieldVal.view}
                           onCheckedChange={(checked) => {
                             const newVal = cfg.hasEdit
@@ -583,7 +583,7 @@ export function DataFieldVisibilitySettings({
                       </div>
                       <div className="flex justify-center">
                         {cfg.hasEdit ? (
-                          <Checkbox
+                          <Checkbox aria-label={`Edit ${cfg.label}`}
                             checked={fieldVal.edit}
                             onCheckedChange={(checked) => {
                               onChange({
@@ -652,7 +652,7 @@ export function TeamMemberVisibilitySettings({
               <Label htmlFor="see-own-profile" className="cursor-pointer">View Own Profile</Label>
               <p className="text-xs text-muted-foreground">Can view their own profile details</p>
             </div>
-            <Switch
+            <Switch aria-label="View Own Profile"
               id="see-own-profile"
               checked={visibility.canSeeOwnProfile ?? true}
               onCheckedChange={(checked) =>
@@ -666,7 +666,7 @@ export function TeamMemberVisibilitySettings({
               <Label htmlFor="edit-own-profile" className="cursor-pointer">Edit Own Profile</Label>
               <p className="text-xs text-muted-foreground">Can edit their own profile information</p>
             </div>
-            <Switch
+            <Switch aria-label="Edit Own Profile"
               id="edit-own-profile"
               checked={visibility.canEditOwnProfile ?? true}
               onCheckedChange={(checked) =>
@@ -687,7 +687,7 @@ export function TeamMemberVisibilitySettings({
               <Label htmlFor="see-other-members" className="cursor-pointer">See Team Members</Label>
               <p className="text-xs text-muted-foreground">Can view the team member list</p>
             </div>
-            <Switch
+            <Switch aria-label="See Team Members"
               id="see-other-members"
               checked={visibility.canSeeOtherMembers}
               onCheckedChange={(checked) =>
@@ -704,7 +704,7 @@ export function TeamMemberVisibilitySettings({
                   <Label htmlFor="see-member-activity" className="cursor-pointer">See Member Activity</Label>
                   <p className="text-xs text-muted-foreground">Can view other members&apos; activity logs</p>
                 </div>
-                <Switch
+                <Switch aria-label="See Member Activity"
                   id="see-member-activity"
                   checked={visibility.canSeeOtherMemberActivity}
                   onCheckedChange={(checked) =>
@@ -719,7 +719,7 @@ export function TeamMemberVisibilitySettings({
                   <Label htmlFor="see-member-earnings" className="cursor-pointer">See Member Earnings</Label>
                   <p className="text-xs text-muted-foreground">Can view team member compensation</p>
                 </div>
-                <Switch
+                <Switch aria-label="See Member Earnings"
                   id="see-member-earnings"
                   checked={visibility.canSeeMemberEarnings}
                   onCheckedChange={(checked) =>
@@ -734,7 +734,7 @@ export function TeamMemberVisibilitySettings({
                 <Label className="text-xs text-muted-foreground">Visible Member Fields</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                    <Checkbox
+                    <Checkbox aria-label="Email"
                       id="member-email"
                       checked={memberFields.email}
                       onCheckedChange={(checked) =>
@@ -748,7 +748,7 @@ export function TeamMemberVisibilitySettings({
                     <Label htmlFor="member-email" className="text-sm cursor-pointer">Email</Label>
                   </div>
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                    <Checkbox
+                    <Checkbox aria-label="Phone"
                       id="member-phone"
                       checked={memberFields.phone}
                       onCheckedChange={(checked) =>
@@ -762,7 +762,7 @@ export function TeamMemberVisibilitySettings({
                     <Label htmlFor="member-phone" className="text-sm cursor-pointer">Phone</Label>
                   </div>
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                    <Checkbox
+                    <Checkbox aria-label="Role"
                       id="member-role"
                       checked={memberFields.role}
                       onCheckedChange={(checked) =>
@@ -776,7 +776,7 @@ export function TeamMemberVisibilitySettings({
                     <Label htmlFor="member-role" className="text-sm cursor-pointer">Role</Label>
                   </div>
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                    <Checkbox
+                    <Checkbox aria-label="Last Active"
                       id="member-lastActive"
                       checked={memberFields.lastActive}
                       onCheckedChange={(checked) =>
@@ -933,7 +933,7 @@ export function RoleEditorDialog({
       },
     },
     isSystem: false,
-    color: "#6366f1",
+    color: "#6ea8ff",
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -980,7 +980,7 @@ export function RoleEditorDialog({
           },
         },
         isSystem: false,
-        color: "#6366f1",
+        color: "#6ea8ff",
       });
     }
     setActiveTab("general");
@@ -1030,7 +1030,6 @@ export function RoleEditorDialog({
     "#ef4444", // Red
     "#f97316", // Orange
     "#eab308", // Yellow
-    "#22c55e", // Green
     "#14b8a6", // Teal
     "#0ea5e9", // Sky
     "#6b7280", // Gray
@@ -1126,7 +1125,7 @@ export function RoleEditorDialog({
                     >
                       <input
                         type="color"
-                        value={editedRole.color || "#6366f1"}
+                        value={editedRole.color || "#6ea8ff"}
                         onChange={(e) =>
                           setEditedRole((prev) => ({ ...prev, color: e.target.value }))
                         }

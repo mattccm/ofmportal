@@ -55,7 +55,7 @@ interface StatItem {
 function TrendIndicator({ value }: { value: number }) {
   if (value === 0) {
     return (
-      <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+      <span className="flex items-center gap-0.5 text-[12px] text-muted-foreground">
         <Minus className="h-2.5 w-2.5" />
         <span>0%</span>
       </span>
@@ -66,8 +66,8 @@ function TrendIndicator({ value }: { value: number }) {
   return (
     <span
       className={cn(
-        "flex items-center gap-0.5 text-[10px] font-medium",
-        isPositive ? "text-emerald-600" : "text-red-600"
+        "flex items-center gap-0.5 text-[12px] font-medium",
+        isPositive ? "text-success" : "text-red-600"
       )}
     >
       {isPositive ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
@@ -108,8 +108,8 @@ export function QuickStatsWidget({ config, size }: WidgetProps) {
           label: "To Review",
           value: stats.awaitingReview,
           icon: <Eye className="h-4 w-4" />,
-          iconBg: "bg-violet-500/10",
-          iconColor: "text-violet-500",
+          iconBg: "bg-tile-hi",
+          iconColor: "text-foreground",
           href: "/dashboard/uploads?status=pending",
           trend: stats.trends?.awaitingReview,
         },
@@ -117,8 +117,8 @@ export function QuickStatsWidget({ config, size }: WidgetProps) {
           label: "Needs Review",
           value: stats.requestsNeedingReview,
           icon: <ClipboardCheck className="h-4 w-4" />,
-          iconBg: stats.requestsNeedingReview > 0 ? "bg-amber-500/10" : "bg-emerald-500/10",
-          iconColor: stats.requestsNeedingReview > 0 ? "text-amber-600" : "text-emerald-500",
+          iconBg: stats.requestsNeedingReview > 0 ? "bg-amber-500/10" : "bg-success/10",
+          iconColor: stats.requestsNeedingReview > 0 ? "text-amber-600" : "text-success",
           href: "/dashboard/requests?filter=needs-review",
           isWarning: stats.requestsNeedingReview > 0,
         },
@@ -134,8 +134,8 @@ export function QuickStatsWidget({ config, size }: WidgetProps) {
           label: "Overdue",
           value: stats.overdueItems,
           icon: <AlertTriangle className="h-4 w-4" />,
-          iconBg: stats.overdueItems > 0 ? "bg-red-500/10" : "bg-emerald-500/10",
-          iconColor: stats.overdueItems > 0 ? "text-red-500" : "text-emerald-500",
+          iconBg: stats.overdueItems > 0 ? "bg-red-500/10" : "bg-success/10",
+          iconColor: stats.overdueItems > 0 ? "text-red-500" : "text-success",
           href: "/dashboard/requests?status=overdue",
           isAlert: stats.overdueItems > 0,
         },

@@ -66,7 +66,7 @@ export async function GET(
         type: "svg",
         width: 300,
         margin: 2,
-        color: { dark: "#1a1a2e", light: "#ffffff" },
+        color: { dark: "#0e0f12", light: "#ffffff" },
       });
 
       return new NextResponse(svg, {
@@ -82,7 +82,7 @@ export async function GET(
       type: "png",
       width: 400,
       margin: 2,
-      color: { dark: "#1a1a2e", light: "#ffffff" },
+      color: { dark: "#0e0f12", light: "#ffffff" },
     });
 
     return new NextResponse(new Uint8Array(pngBuffer), {

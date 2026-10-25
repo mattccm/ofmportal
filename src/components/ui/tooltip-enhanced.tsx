@@ -254,10 +254,12 @@ function TooltipContent({
       {isPinned && (
         <div className="absolute -top-2 -right-2 flex gap-1">
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close tooltip"
             className="h-5 w-5 rounded-full bg-muted hover:bg-destructive hover:text-destructive-foreground flex items-center justify-center transition-colors shadow-sm"
           >
-            <X className="h-3 w-3" />
+            <X className="h-3 w-3" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -283,9 +285,11 @@ function TooltipContent({
               onPin?.();
             }}
             className="absolute top-1 right-1 h-5 w-5 rounded hover:bg-muted flex items-center justify-center opacity-50 hover:opacity-100 transition-opacity"
+            type="button"
             title="Pin tooltip"
+            aria-label="Pin tooltip"
           >
-            <Pin className="h-3 w-3" />
+            <Pin className="h-3 w-3" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -570,7 +574,7 @@ export function StatTooltip({
             <div
               className={cn(
                 "flex items-center gap-1 text-xs font-medium",
-                trend.value >= 0 ? "text-emerald-600" : "text-red-600"
+                trend.value >= 0 ? "text-success" : "text-red-600"
               )}
             >
               <span>{trend.value >= 0 ? "+" : ""}{trend.value}%</span>

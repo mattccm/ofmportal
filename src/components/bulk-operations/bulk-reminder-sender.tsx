@@ -416,7 +416,7 @@ export function BulkReminderSender({
                         isSelected ? "bg-primary/10" : "hover:bg-muted/50"
                       )}
                     >
-                      <Checkbox checked={isSelected} />
+                      <Checkbox aria-label={`Select ${request.title}`} checked={isSelected} />
 
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{request.title}</p>
@@ -465,7 +465,7 @@ export function BulkReminderSender({
                   </p>
                 </div>
               </div>
-              <Switch checked={enableEmail} onCheckedChange={setEnableEmail} />
+              <Switch aria-label="Email" checked={enableEmail} onCheckedChange={setEnableEmail} />
             </div>
 
             <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -478,7 +478,7 @@ export function BulkReminderSender({
                   </p>
                 </div>
               </div>
-              <Switch
+              <Switch aria-label="SMS"
                 checked={enableSms}
                 onCheckedChange={setEnableSms}
                 disabled={smsEligibleCount === 0}

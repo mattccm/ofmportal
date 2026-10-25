@@ -74,7 +74,7 @@ function ActionButton({
 
 /**
  * Branded error / not-found card shared by every error boundary in the app.
- * Uses design tokens only so it follows light and dark mode.
+ * Uses design tokens only (the one dark Title Wall theme).
  */
 export function ErrorShell({
   title,
@@ -98,24 +98,21 @@ export function ErrorShell({
       )}
     >
       <div className="w-full max-w-md">
-        <Card className="overflow-hidden border-border pt-0 shadow-lg">
-          <div className="h-1.5 w-full bg-primary" aria-hidden="true" />
-
-          <CardHeader className="pt-6 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+        <Card className="overflow-hidden border-0 pt-0">
+          <CardHeader className="pt-7 text-left">
+            <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-md border border-ink">
               <Image
                 src={BRAND.logoPath}
                 alt={BRAND.name}
-                width={40}
-                height={40}
-                className="h-10 w-10 object-contain dark:invert"
+                width={28}
+                height={28}
+                className="h-7 w-7 object-contain invert"
               />
             </div>
-            {eyebrow && (
-              <p className="text-sm font-semibold uppercase tracking-wider text-primary">{eyebrow}</p>
-            )}
-            <CardTitle className="text-xl">{title}</CardTitle>
-            <CardDescription className="mx-auto mt-1 max-w-sm text-base">{message}</CardDescription>
+            <CardTitle className="text-[22px] font-bold leading-tight">{title}</CardTitle>
+            <CardDescription className="mt-1 max-w-sm text-[15px] leading-normal">{message}</CardDescription>
+            {/* the status (e.g. "404") reads after the heading, never above it */}
+            {eyebrow && <p className="mt-1 text-[13px] text-muted-foreground">{eyebrow}</p>}
             {digest && (
               <p className="mt-2 break-all font-mono text-xs text-muted-foreground">Error ID: {digest}</p>
             )}
@@ -124,7 +121,7 @@ export function ErrorShell({
           {children && <CardContent>{children}</CardContent>}
 
           {(primaryAction || secondaryAction || extraActions?.length) && (
-            <CardFooter className="flex flex-col gap-3">
+            <CardFooter className="flex flex-col gap-3 border-t-0 bg-transparent">
               {(primaryAction || secondaryAction) && (
                 <div className="flex w-full flex-col gap-3 sm:flex-row">
                   {primaryAction && (
@@ -150,7 +147,7 @@ export function ErrorShell({
         {support && (
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Still stuck? Email{" "}
-            <a href={`mailto:${support}`} className="text-primary hover:underline">
+            <a href={`mailto:${support}`} className="text-foreground underline decoration-ctl-hi underline-offset-3 hover:decoration-ink">
               {support}
             </a>
           </p>

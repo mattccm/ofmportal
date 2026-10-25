@@ -2,322 +2,271 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, MessageSquare, Plus, Search, Send } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Mail,
-  Phone,
-  MoreHorizontal,
-  FileText,
-  Clock,
-  Upload,
-  ChevronRight,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useFlipLayout } from "@/components/title-wall";
+import { cn } from "@/lib/utils";
+import type { CreatorStatus } from "./insights";
+import { EmptyLine, Initials, Pill, UnreadCount } from "./people-ui";
 
-// TYPES
-
-interface Creator {
+export interface CreatorTile {
   id: string;
   name: string;
   email: string;
   phone: string | null;
-  avatar: string | null;
+  archived: boolean;
   inviteStatus: string;
-  isArchived: boolean;
-  lastLoginAt: Date | null;
-  _count: {
-    requests: number;
-    uploads: number;
-  };
-  requests: { id: string }[];
+  /** "SMS and email · Sydney · last seen 5 days ago" (sits after the name) */
+  meta: string;
+  /** One sentence: "2 active, on time 8 of 9, usually 2 days early." */
+  sentence: string;
+  status: CreatorStatus;
+  unread: number;
+  owed: number;
+  activeCount: number;
+  lastSeen: string | null;
+  onTimeRate: number | null;
+  finished: number;
+  onTime: number;
 }
 
-interface CreatorsListProps {
-  creators: Creator[];
-  favoriteIds?: string[];
-}
+type SortKey = "chase" | "seen" | "ontime" | "name";
+const SORTS: { key: SortKey; label: string; cmp: (a: CreatorTile, b: CreatorTile) => number }[] = [
+  {
+    key: "chase",
+    label: "Most to chase first",
+    cmp: (a, b) =>
+      b.owed - a.owed || (a.lastSeen ?? "").localeCompare(b.lastSeen ?? "") || a.name.localeCompare(b.name),
+  },
+  { key: "seen", label: "Last seen longest ago", cmp: (a, b) => (a.lastSeen ?? "").localeCompare(b.lastSeen ?? "") },
+  {
+    key: "ontime",
+    label: "Lowest on-time rate",
+    cmp: (a, b) => (a.onTimeRate ?? 2) - (b.onTimeRate ?? 2) || b.finished - a.finished,
+  },
+  { key: "name", label: "Name A to Z", cmp: (a, b) => a.name.localeCompare(b.name) },
+];
 
-// HELPER FUNCTIONS
-
-function getInviteStatusBadge(status: string, compact = false) {
-  const configs: Record<string, { class: string; label: string; shortLabel: string }> = {
-    PENDING: {
-      class: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800",
-      label: "Invite Pending",
-      shortLabel: "Pending",
-    },
-    ACCEPTED: {
-      class: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
-      label: "Active",
-      shortLabel: "Active",
-    },
-    EXPIRED: {
-      class: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
-      label: "Invite Expired",
-      shortLabel: "Expired",
-    },
-  };
-
-  const config = configs[status];
-  if (!config) return null;
-
-  return (
-    <Badge variant="outline" className={config.class}>
-      {compact ? config.shortLabel : config.label}
-    </Badge>
-  );
-}
-
-// Renders the status badge for a creator: a distinct "Archived" badge when the
-// creator is archived, otherwise their invite status badge.
-function getCreatorStatusBadge(creator: Creator, compact = false) {
-  if (creator.isArchived) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-800/60 dark:text-gray-300 dark:border-gray-700"
-      >
-        Archived
-      </Badge>
-    );
-  }
-  return getInviteStatusBadge(creator.inviteStatus, compact);
-}
-
-// CREATORS LIST COMPONENT
-
-export function CreatorsList({ creators, favoriteIds = [] }: CreatorsListProps) {
+export function CreatorsList({ creators }: { creators: CreatorTile[] }) {
   const [view, setView] = React.useState<"active" | "archived">("active");
+  const [query, setQuery] = React.useState("");
+  const [sort, setSort] = React.useState<SortKey>("chase");
+  const gridRef = React.useRef<HTMLUListElement>(null);
+  const searchRef = React.useRef<HTMLInputElement>(null);
+  const capture = useFlipLayout(gridRef, "[data-creator]", [sort, view, query]);
 
-  const activeCreators = React.useMemo(
-    () => creators.filter((c) => !c.isArchived),
-    [creators]
-  );
-  const archivedCreators = React.useMemo(
-    () => creators.filter((c) => c.isArchived),
-    [creators]
-  );
-  const displayCreators = view === "archived" ? archivedCreators : activeCreators;
+  const activeCount = creators.filter((c) => !c.archived).length;
+  const archivedCount = creators.length - activeCount;
+  const inView = creators.filter((c) => (view === "archived" ? c.archived : !c.archived));
+  const q = query.trim().toLowerCase();
+  const shown = inView
+    .filter((c) => !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
+    .sort(SORTS.find((s) => s.key === sort)!.cmp);
+
+  // "/" focuses the search, like the other lists
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey) return;
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, select, [contenteditable='true']")) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const sortLabel = SORTS.find((s) => s.key === sort)!.label.toLowerCase();
 
   return (
-    <>
-      {/* Active / Archived filter */}
-      <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit mb-3">
-        <Button
-          size="sm"
-          variant={view === "active" ? "secondary" : "ghost"}
-          className="h-8"
-          onClick={() => setView("active")}
-        >
-          Active ({activeCreators.length})
-        </Button>
-        <Button
-          size="sm"
-          variant={view === "archived" ? "secondary" : "ghost"}
-          className="h-8"
-          onClick={() => setView("archived")}
-        >
-          Archived ({archivedCreators.length})
-        </Button>
-      </div>
-
-      {/* Mobile Card View */}
-      <div className="block md:hidden space-y-3">
-        <p className="text-sm text-muted-foreground px-1">
-          {displayCreators.length} {view} creator{displayCreators.length !== 1 ? "s" : ""}
-        </p>
-        {displayCreators.map((creator) => (
-          <Card
-            key={creator.id}
-            className="card-elevated relative overflow-hidden"
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <label className="relative block w-full md:max-w-[360px]">
+          <span className="sr-only">Search creators by name or email</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-icon" aria-hidden="true" />
+          <Input
+            ref={searchRef}
+            value={query}
+            onChange={(e) => {
+              capture();
+              setQuery(e.target.value);
+            }}
+            placeholder="Search by name or email"
+            className="pl-9"
+            type="search"
+          />
+        </label>
+        <div className="flex items-center gap-2 md:ml-auto">
+          <div role="group" aria-label="Show" className="inline-flex rounded-[8px] bg-well p-0.5">
+            {(["active", "archived"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => {
+                  capture();
+                  setView(v);
+                }}
+                className={cn(
+                  "inline-flex h-10 items-center gap-1.5 rounded-[7px] px-3 text-sm font-medium text-ink-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:h-8",
+                  view === v && "bg-tile-hi text-ink"
+                )}
+              >
+                {v === "active" ? "Active" : "Archived"}
+                <span className="tabular-nums text-ink-2">{v === "active" ? activeCount : archivedCount}</span>
+              </button>
+            ))}
+          </div>
+          <Select
+            value={sort}
+            onValueChange={(v) => {
+              capture();
+              setSort(v as SortKey);
+            }}
           >
-            <CardContent className="p-4">
-              <div className="flex items-start gap-4">
-                {/* Avatar */}
-                <Link href={`/dashboard/creators/${creator.id}`}>
-                  <Avatar
-                    className="h-12 w-12 flex-shrink-0"
-                    user={{
-                      name: creator.name,
-                      email: creator.email,
-                      image: creator.avatar,
-                    }}
-                  />
-                </Link>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <Link
-                        href={`/dashboard/creators/${creator.id}`}
-                        className="font-semibold text-foreground truncate block hover:text-primary transition-colors"
-                      >
-                        {creator.name}
-                      </Link>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {creator.email}
-                      </p>
-                    </div>
-                    <Link href={`/dashboard/creators/${creator.id}`}>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </Link>
-                  </div>
-
-                  {/* Stats Row */}
-                  <div className="flex items-center gap-4 mt-3">
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <FileText className="h-4 w-4" />
-                      <span>{creator.requests.length} active</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Upload className="h-4 w-4" />
-                      <span>{creator._count.uploads} uploads</span>
-                    </div>
-                  </div>
-
-                  {/* Status & Last Active */}
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                    {getCreatorStatusBadge(creator, true)}
-                    <span className="text-xs text-muted-foreground">
-                      {creator.lastLoginAt
-                        ? `Active ${formatDistanceToNow(creator.lastLoginAt, { addSuffix: true })}`
-                        : "Never logged in"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+            <SelectTrigger className="w-full md:w-[220px]" aria-label="Sort creators">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORTS.map((s) => (
+                <SelectItem key={s.key} value={s.key}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Desktop Table View */}
-      <Card className="card-elevated hidden md:block">
-        <CardHeader>
-          <CardTitle>{view === "archived" ? "Archived Creators" : "All Creators"}</CardTitle>
-          <CardDescription>
-            {displayCreators.length} {view} creator{displayCreators.length !== 1 ? "s" : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Creator</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Active Requests</TableHead>
-                <TableHead>Total Uploads</TableHead>
-                <TableHead>Last Active</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayCreators.map((creator) => (
-                <TableRow key={creator.id} className="group">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        user={{
-                          name: creator.name,
-                          email: creator.email,
-                          image: creator.avatar,
-                        }}
-                      />
-                      <div>
-                        <Link
-                          href={`/dashboard/creators/${creator.id}`}
-                          className="font-medium hover:text-primary transition-colors"
-                        >
-                          {creator.name}
-                        </Link>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Mail className="h-3.5 w-3.5" />
-                        {creator.email}
-                      </div>
-                      {creator.phone && (
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Phone className="h-3.5 w-3.5" />
-                          {creator.phone}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{getCreatorStatusBadge(creator)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      {creator.requests.length}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <Upload className="h-4 w-4 text-muted-foreground" />
-                      {creator._count.uploads}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
-                      {creator.lastLoginAt
-                        ? formatDistanceToNow(creator.lastLoginAt, { addSuffix: true })
-                        : "Never"}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-9 w-9">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/creators/${creator.id}`}>
-                            View Details
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/requests/new?creatorId=${creator.id}`}>
-                            New Request
-                          </Link>
-                        </DropdownMenuItem>
-                        {creator.inviteStatus === "PENDING" && (
-                          <DropdownMenuItem>Resend Invite</DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </>
+      <p className="text-sm text-ink-2" aria-live="polite">
+        {q ? (
+          <>
+            <b className="font-semibold text-ink">{shown.length}</b> of {inView.length} {view} creators match
+            &ldquo;{query.trim()}&rdquo;
+          </>
+        ) : (
+          <>
+            <b className="font-semibold text-ink">{inView.length}</b> {view} {inView.length === 1 ? "creator" : "creators"}, {sortLabel}
+          </>
+        )}
+      </p>
+
+      {shown.length === 0 ? (
+        q ? (
+          <EmptyLine>
+            No {view} creator matches &ldquo;{query.trim()}&rdquo;.{" "}
+            <button
+              type="button"
+              className="font-medium text-ink underline decoration-ctl-hi underline-offset-[3px] hover:decoration-ink"
+              onClick={() => {
+                setQuery("");
+                searchRef.current?.focus();
+              }}
+            >
+              Clear the search
+            </button>
+          </EmptyLine>
+        ) : view === "archived" ? (
+          <EmptyLine>No archived creators. Archiving a creator from their profile moves them here, and it can be undone.</EmptyLine>
+        ) : (
+          <EmptyLine>
+            No creators yet. <Link className="font-medium text-ink underline underline-offset-[3px]" href="/dashboard/creators/invite">Invite a creator</Link> to send them their first request, or import a list from a CSV.
+          </EmptyLine>
+        )
+      ) : (
+        <ul ref={gridRef} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">
+          {shown.map((c) => (
+            <li key={c.id} data-creator={c.id}>
+              <CreatorCard c={c} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function CreatorCard({ c }: { c: CreatorTile }) {
+  const [sending, setSending] = React.useState(false);
+  const canResend = !c.archived && (c.inviteStatus === "PENDING" || c.inviteStatus === "EXPIRED");
+
+  const resend = async () => {
+    setSending(true);
+    try {
+      const res = await fetch(`/api/creators/${c.id}/resend-invite`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "The invite could not be sent");
+      }
+      toast.success(`Invite sent to ${c.name}`);
+    } catch (e) {
+      toast.error(`${e instanceof Error ? e.message : "The invite could not be sent"}. Try again in a minute.`);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <article
+      aria-labelledby={`cr-${c.id}`}
+      className="relative flex h-full flex-col gap-3 rounded-[10px] bg-tile p-4 transition-colors hover:bg-tile-hi sm:p-5"
+    >
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.02em] text-ink">
+            <Link
+              id={`cr-${c.id}`}
+              href={`/dashboard/creators/${c.id}`}
+              className="rounded-sm outline-none after:absolute after:inset-0 after:rounded-[10px] focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ring"
+            >
+              {c.name}
+            </Link>
+          </h2>
+          <p className="mt-1 text-[13px] text-ink-2">{c.meta}</p>
+        </div>
+        <Initials name={c.name} />
+      </div>
+      <p className="text-[15px] leading-snug text-ink">{c.sentence}</p>
+      <div>
+        <Pill tone={c.status.tone}>{c.status.label}</Pill>
+      </div>
+      <div className="relative z-[1] mt-auto flex flex-wrap gap-2 pt-1">
+        <Button asChild variant="outline" size="sm">
+          <Link
+            href={`/dashboard/messages?creatorId=${c.id}`}
+            aria-label={`Message ${c.name}${c.unread ? `, ${c.unread} unread` : ""}`}
+          >
+            <MessageSquare aria-hidden="true" />
+            Message
+            <UnreadCount n={c.unread} />
+          </Link>
+        </Button>
+        {canResend ? (
+          <Button variant="outline" size="sm" onClick={resend} disabled={sending}>
+            {sending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
+            {sending ? "Sending" : "Resend invite"}
+          </Button>
+        ) : (
+          !c.archived && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/dashboard/requests/new?creatorId=${c.id}`} aria-label={`New request for ${c.name}`}>
+                <Plus aria-hidden="true" />
+                New request
+              </Link>
+            </Button>
+          )
+        )}
+      </div>
+    </article>
   );
 }
 

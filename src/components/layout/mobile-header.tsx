@@ -2,14 +2,11 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { ArrowLeft, Menu, MessageSquare, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  Search,
-} from "lucide-react";
 import { useSearch } from "@/components/search";
+import { titleForPath } from "./staff-nav";
 
 interface MobileHeaderProps {
   title?: string;
@@ -17,27 +14,15 @@ interface MobileHeaderProps {
   backHref?: string;
   rightContent?: React.ReactNode;
   className?: string;
+  /** Opens the phone menu (the rail folds into it under 768px) */
+  onOpenMenu?: () => void;
+  menuOpen?: boolean;
 }
 
-// Page titles mapping
-const pageTitles: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/dashboard/creators": "Creators",
-  "/dashboard/creators/invite": "Invite Creator",
-  "/dashboard/requests": "Requests",
-  "/dashboard/requests/new": "New Request",
-  "/dashboard/messages": "Messages",
-  "/dashboard/uploads": "Uploads",
-  "/dashboard/reminders": "Reminders",
-  "/dashboard/settings": "Settings",
-  "/dashboard/settings/profile": "Profile",
-  "/dashboard/settings/security": "Security",
-  "/dashboard/team": "Team",
-  "/dashboard/templates": "Templates",
-  "/dashboard/templates/new": "New Template",
-};
+const ICON_BTN =
+  "grid size-11 shrink-0 place-items-center rounded-md text-foreground transition-colors hover:bg-tile focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.97] motion-reduce:active:scale-100 touch-manipulation";
 
-// Routes that should show back button
+// Routes with their own back affordance in the bar
 const showBackRoutes = [
   "/dashboard/creators/invite",
   "/dashboard/requests/new",
@@ -46,121 +31,86 @@ const showBackRoutes = [
   "/dashboard/templates/new",
 ];
 
+/**
+ * The phone bar (Title Wall fold of the icon rail): 48px on the ground with
+ * the menu button, the CCM mark (or Back on a sub-page), the screen's name and
+ * Messages. Titles come from the nav, never from a request (discretion).
+ */
 export function MobileHeader({
   title,
   showBackButton,
   backHref,
   rightContent,
   className,
+  onOpenMenu,
+  menuOpen = false,
 }: MobileHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { openSearch } = useSearch();
 
-  // Determine title from pathname if not provided
-  const pageTitle = title || pageTitles[pathname] || "CCM";
-
-  // Determine if we should show back button
-  const shouldShowBack = showBackButton ?? (
-    showBackRoutes.some(route => pathname.startsWith(route)) ||
-    // Show back for dynamic routes (e.g., /dashboard/requests/[id])
-    (pathname.split("/").length > 3 && pathname.startsWith("/dashboard"))
-  );
+  const pageTitle = title || titleForPath(pathname);
+  const shouldShowBack =
+    showBackButton ??
+    (showBackRoutes.some((route) => pathname.startsWith(route)) ||
+      (pathname.split("/").length > 3 && pathname.startsWith("/dashboard")));
 
   const handleBack = () => {
-    if (backHref) {
-      router.push(backHref);
-    } else {
-      router.back();
-    }
+    if (backHref) router.push(backHref);
+    else router.back();
   };
-
-  // Main navigation pages where the bottom nav is the primary navigation
-  // These pages don't need a top header - saves screen space on mobile
-  // Includes all pages accessible from bottom nav (main tabs + "More" menu)
-  const mainNavPages = [
-    "/dashboard",
-    "/dashboard/creators",
-    "/dashboard/requests",
-    "/dashboard/messages",
-    "/dashboard/uploads",
-    "/dashboard/templates",
-    "/dashboard/recurring-requests",
-    "/dashboard/analytics",
-    "/dashboard/exports",
-    "/dashboard/reminders",
-    "/dashboard/notifications",
-    "/dashboard/team",
-    "/dashboard/settings",
-    "/dashboard/help",
-  ];
-
-  // On main nav pages (not sub-pages), hide the header completely
-  // Sub-pages need the header for back navigation and context
-  const isMainPage = !shouldShowBack && mainNavPages.includes(pathname);
-
-  // Don't render header on main pages - bottom nav provides all navigation
-  if (isMainPage && !rightContent) {
-    return null;
-  }
 
   return (
     <header
-      className={cn(
-        "sticky top-0 z-40 md:hidden",
-        "bg-background/95 backdrop-blur-xl border-b border-border",
-        "safe-area-top",
-        className
-      )}
-      style={{
-        paddingTop: "env(safe-area-inset-top, 0px)",
-      }}
+      className={cn("sticky top-0 z-40 border-b border-line bg-ground md:hidden", className)}
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
     >
-      <div className="flex items-center justify-between h-14 px-4">
-        {/* Left: Back Button or Logo */}
-        <div className="flex items-center gap-3 min-w-[48px]">
-          {shouldShowBack ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleBack}
-              className="h-10 w-10 rounded-xl -ml-2 touch-manipulation active:scale-95 transition-transform"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          ) : (
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 touch-manipulation active:opacity-80 transition-opacity"
-            >
-              <BrandLogo size={28} priority imageClassName="dark:brightness-0 dark:invert" />
-            </Link>
-          )}
-        </div>
+      <div className="flex h-12 items-center gap-1 px-1">
+        {onOpenMenu && (
+          <button
+            type="button"
+            className={ICON_BTN}
+            onClick={onOpenMenu}
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            aria-controls="staff-menu"
+          >
+            <Menu className="size-5" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        )}
+        {shouldShowBack ? (
+          <button type="button" className={ICON_BTN} onClick={handleBack} aria-label="Back">
+            <ArrowLeft className="size-5" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        ) : (
+          <Link
+            href="/dashboard"
+            aria-label="CCM Portal, Overview"
+            className="grid size-11 shrink-0 place-items-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <BrandLogo size={28} priority imageClassName="invert" />
+          </Link>
+        )}
 
-        {/* Center: Title */}
-        <div className="flex-1 text-center">
-          <h1 className="text-sm font-semibold text-foreground truncate px-2">
-            {pageTitle}
-          </h1>
-        </div>
+        <p className="ml-1 min-w-0 flex-1 truncate text-base font-semibold">{pageTitle}</p>
 
-        {/* Right: Minimal actions - most available via bottom nav */}
-        <div className="flex items-center gap-1 min-w-[48px] justify-end">
-          {rightContent ? (
-            rightContent
-          ) : (
-            // Only show search on sub-pages for quick access
-            shouldShowBack && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={openSearch}
-                className="h-10 w-10 rounded-xl touch-manipulation active:scale-95 transition-transform"
+        <div className="flex shrink-0 items-center">
+          {rightContent ?? (
+            <>
+              {shouldShowBack && (
+                <button type="button" className={ICON_BTN} onClick={openSearch} aria-label="Search">
+                  <Search className="size-5" strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              )}
+              <Link
+                href="/dashboard/messages"
+                className={ICON_BTN}
+                aria-label="Messages"
+                aria-current={pathname.startsWith("/dashboard/messages") ? "page" : undefined}
               >
-                <Search className="h-5 w-5" />
-              </Button>
-            )
+                <MessageSquare className="size-5" strokeWidth={1.5} aria-hidden="true" />
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -168,7 +118,7 @@ export function MobileHeader({
   );
 }
 
-// Export a simple back header for use in sub-pages
+/** A bar for sub-pages that need a fixed title and back target. */
 export function MobileBackHeader({
   title,
   backHref,
@@ -178,12 +128,5 @@ export function MobileBackHeader({
   backHref?: string;
   rightContent?: React.ReactNode;
 }) {
-  return (
-    <MobileHeader
-      title={title}
-      showBackButton
-      backHref={backHref}
-      rightContent={rightContent}
-    />
-  );
+  return <MobileHeader title={title} showBackButton backHref={backHref} rightContent={rightContent} />;
 }

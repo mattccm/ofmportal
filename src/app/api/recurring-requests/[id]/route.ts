@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { calculateNextRunDate } from "@/types/recurring-requests";
+import { resolveTemplateIds, templateInput } from "../template-ids";
 
 // VALIDATION SCHEMA
 
@@ -11,6 +12,7 @@ const updateRecurringRequestSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
   templateId: z.string().optional(),
+  templateIds: z.array(z.string().min(1)).max(20, "Pick 20 templates or fewer").optional(),
   creatorIds: z.array(z.string()).optional(),
   creatorGroupIds: z.array(z.string()).optional(),
   frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY"]).optional(),
@@ -68,9 +70,10 @@ export async function GET(
     }
 
     // Fetch related data
-    const [template, creators, groups, createdBy] = await Promise.all([
-      db.requestTemplate.findUnique({
-        where: { id: recurringRequest.templateId },
+    const templateIds = resolveTemplateIds(recurringRequest);
+    const [templateRows, creators, groups, createdBy] = await Promise.all([
+      db.requestTemplate.findMany({
+        where: { id: { in: templateIds }, agencyId: session.user.agencyId },
         select: { id: true, name: true, description: true },
       }),
       (recurringRequest.creatorIds as string[]).length > 0
@@ -95,9 +98,12 @@ export async function GET(
       }),
     ]);
 
+    const templateMap = new Map(templateRows.map((t) => [t.id, t]));
     return NextResponse.json({
       ...recurringRequest,
-      template,
+      templateIds,
+      template: templateMap.get(recurringRequest.templateId) ?? null,
+      templates: templateIds.map((tid) => templateMap.get(tid)).filter(Boolean),
       creators,
       creatorGroups: groups.map(g => ({ ...g, memberCount: g._count.members })),
       createdBy,
@@ -143,16 +149,26 @@ export async function PUT(
       );
     }
 
-    // Validate template if changing
-    if (validatedData.templateId && validatedData.templateId !== existing.templateId) {
-      const template = await db.requestTemplate.findFirst({
+    // Validate templates if changing
+    const nextTemplateIds =
+      validatedData.templateIds !== undefined || validatedData.templateId !== undefined
+        ? templateInput(validatedData)
+        : null;
+    if (validatedData.templateIds !== undefined && !nextTemplateIds) {
+      return NextResponse.json(
+        { error: "Pick at least one template" },
+        { status: 400 }
+      );
+    }
+    if (nextTemplateIds) {
+      const found = await db.requestTemplate.count({
         where: {
-          id: validatedData.templateId,
+          id: { in: nextTemplateIds },
           agencyId: session.user.agencyId,
         },
       });
 
-      if (!template) {
+      if (found !== nextTemplateIds.length) {
         return NextResponse.json(
           { error: "Template not found" },
           { status: 404 }
@@ -165,7 +181,10 @@ export async function PUT(
 
     if (validatedData.name !== undefined) updateData.name = validatedData.name;
     if (validatedData.description !== undefined) updateData.description = validatedData.description;
-    if (validatedData.templateId !== undefined) updateData.templateId = validatedData.templateId;
+    if (nextTemplateIds) {
+      updateData.templateId = nextTemplateIds[0];
+      updateData.templateIds = nextTemplateIds;
+    }
     if (validatedData.creatorIds !== undefined) updateData.creatorIds = validatedData.creatorIds;
     if (validatedData.creatorGroupIds !== undefined) updateData.creatorGroupIds = validatedData.creatorGroupIds;
     if (validatedData.frequency !== undefined) updateData.frequency = validatedData.frequency;

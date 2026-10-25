@@ -31,7 +31,7 @@ export function TagBadge({
   const textColor = getContrastColor(color);
 
   const sizeClasses = {
-    sm: "h-5 text-[10px] px-1.5 gap-0.5",
+    sm: "h-5 text-[12px] px-1.5 gap-0.5",
     md: "h-6 text-xs px-2 gap-1",
     lg: "h-7 text-sm px-2.5 gap-1.5",
   };
@@ -55,7 +55,7 @@ export function TagBadge({
         "border border-transparent",
         sizeClasses[size],
         clickable && "cursor-pointer hover:opacity-80 active:scale-95",
-        selected && "ring-2 ring-offset-1 ring-indigo-500",
+        selected && "ring-2 ring-offset-1 ring-ctl",
         className
       )}
       style={{
@@ -138,7 +138,7 @@ export function TagList({
             "inline-flex items-center justify-center rounded-full font-medium",
             "bg-muted text-muted-foreground",
             size === "sm"
-              ? "h-5 text-[10px] px-1.5"
+              ? "h-5 text-[12px] px-1.5"
               : size === "lg"
               ? "h-7 text-sm px-2.5"
               : "h-6 text-xs px-2"

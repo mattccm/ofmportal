@@ -1,37 +1,22 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Progress,
-  ProgressTrack,
-  ProgressIndicator,
-} from "@/components/ui/progress";
-import {
-  Upload,
   File,
   Image as ImageIcon,
   Video,
   Music,
   X,
-  Check,
-  AlertCircle,
   RefreshCw,
   Pause,
   Play,
-  Trash2,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Loader2,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/file-utils";
 import type { QueuedFile, UploadStatus } from "@/hooks/use-file-upload";
-import { useState } from "react";
 
 export interface UploadQueueProps {
   queue: QueuedFile[];
@@ -48,24 +33,24 @@ export interface UploadQueueProps {
   uploadedSize?: number;
   isUploading?: boolean;
   className?: string;
-  /** Show only active/pending uploads, collapsed otherwise */
+  /** Lets the list fold away under its heading */
   collapsible?: boolean;
-  /** Maximum items to show before collapsing */
+  /** Maximum items to show before "Show N more" */
   maxVisibleItems?: number;
 }
 
 function getFileIcon(mimeType: string, className?: string) {
-  const iconClass = cn("h-4 w-4", className);
-  if (mimeType.startsWith("image/")) return <ImageIcon className={iconClass} />;
-  if (mimeType.startsWith("video/")) return <Video className={iconClass} />;
-  if (mimeType.startsWith("audio/")) return <Music className={iconClass} />;
-  return <File className={iconClass} />;
+  const iconClass = cn("size-4", className);
+  if (mimeType.startsWith("image/")) return <ImageIcon className={iconClass} aria-hidden="true" />;
+  if (mimeType.startsWith("video/")) return <Video className={iconClass} aria-hidden="true" />;
+  if (mimeType.startsWith("audio/")) return <Music className={iconClass} aria-hidden="true" />;
+  return <File className={iconClass} aria-hidden="true" />;
 }
 
 function formatTime(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-  return `${Math.round(seconds / 3600)}h`;
+  if (seconds < 60) return `${Math.round(seconds)} s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  return `${Math.round(seconds / 3600)} h`;
 }
 
 function formatSpeed(bytesPerSecond: number): string {
@@ -74,47 +59,37 @@ function formatSpeed(bytesPerSecond: number): string {
   return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
 }
 
-const statusConfig: Record<
-  UploadStatus,
-  { label: string; icon: React.ReactNode; color: string; bgColor: string }
-> = {
-  pending: {
-    label: "Pending",
-    icon: <Clock className="h-3.5 w-3.5" />,
-    color: "text-muted-foreground",
-    bgColor: "bg-muted/50",
-  },
-  uploading: {
-    label: "Uploading",
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-blue-600",
-    bgColor: "bg-blue-50 dark:bg-blue-900/20",
-  },
-  paused: {
-    label: "Paused",
-    icon: <Pause className="h-3.5 w-3.5" />,
-    color: "text-amber-600",
-    bgColor: "bg-amber-50 dark:bg-amber-900/20",
-  },
-  completed: {
-    label: "Completed",
-    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50 dark:bg-emerald-900/20",
-  },
-  error: {
-    label: "Failed",
-    icon: <XCircle className="h-3.5 w-3.5" />,
-    color: "text-red-600",
-    bgColor: "bg-red-50 dark:bg-red-900/20",
-  },
-  cancelled: {
-    label: "Cancelled",
-    icon: <X className="h-3.5 w-3.5" />,
-    color: "text-gray-500",
-    bgColor: "bg-gray-50 dark:bg-gray-900/20",
-  },
+/** The creator's own words for each upload state */
+const STATUS_WORD: Record<UploadStatus, string> = {
+  pending: "Waiting",
+  uploading: "Uploading",
+  paused: "Paused",
+  completed: "Uploaded",
+  error: "Didn't upload",
+  cancelled: "Cancelled",
 };
+
+/** A thin bar that fills by transform only, so it never reflows the row */
+function Bar({ value, tone }: { value: number; tone: "ready" | "ink" | "late" }) {
+  const v = Math.max(0, Math.min(100, value));
+  return (
+    <span
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(v)}
+      className="relative block h-1.5 w-full overflow-hidden rounded-full bg-ctl"
+    >
+      <span
+        className={cn(
+          "absolute inset-0 origin-left rounded-full transition-transform duration-200 ease-out motion-reduce:transition-none",
+          tone === "ready" ? "bg-ready" : tone === "late" ? "bg-late" : "bg-ink"
+        )}
+        style={{ transform: `scaleX(${v / 100})` }}
+      />
+    </span>
+  );
+}
 
 interface QueueItemProps {
   file: QueuedFile;
@@ -125,184 +100,96 @@ interface QueueItemProps {
   onRemove?: (fileId: string) => void;
 }
 
-function QueueItem({
-  file,
-  onPause,
-  onResume,
-  onRetry,
-  onCancel,
-  onRemove,
-}: QueueItemProps) {
-  const status = statusConfig[file.status];
+/** 44px icon actions that are always visible: a phone has no hover */
+function RowAction({
+  label,
+  onClick,
+  children,
+  tone,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  tone?: "late";
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className={cn("size-11 md:size-9", tone === "late" ? "text-late hover:text-late" : "text-icon hover:text-ink")}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
+      {children}
+    </Button>
+  );
+}
+
+function QueueItem({ file, onPause, onResume, onRetry, onCancel, onRemove }: QueueItemProps) {
+  const name = file.file.name;
+  const meta: string[] = [formatFileSize(file.file.size)];
+  if (file.status === "uploading") {
+    meta.push(`${file.progress}%`);
+    if (file.speed) meta.push(formatSpeed(file.speed));
+    if (file.timeRemaining !== undefined && file.timeRemaining > 0) meta.push(`${formatTime(file.timeRemaining)} left`);
+  } else {
+    meta.push(STATUS_WORD[file.status]);
+  }
+  if (file.retryCount > 0 && file.status !== "completed") meta.push(`try ${file.retryCount + 1}`);
+
+  const showBar = file.status === "uploading" || file.status === "paused" || file.status === "completed";
 
   return (
-    <div
-      className={cn(
-        "group flex items-center gap-3 p-3 rounded-xl border transition-all duration-200",
-        status.bgColor,
-        "hover:shadow-sm"
-      )}
-    >
-      {/* File icon */}
-      <div
-        className={cn(
-          "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-          file.status === "completed" && "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40",
-          file.status === "error" && "bg-red-100 text-red-600 dark:bg-red-900/40",
-          file.status === "uploading" && "bg-blue-100 text-blue-600 dark:bg-blue-900/40",
-          file.status === "paused" && "bg-amber-100 text-amber-600 dark:bg-amber-900/40",
-          (file.status === "pending" || file.status === "cancelled") &&
-            "bg-muted text-muted-foreground"
-        )}
-      >
+    <li className="flex items-center gap-3 py-2">
+      <span className="grid size-9 shrink-0 place-items-center rounded-md bg-well text-icon">
         {getFileIcon(file.file.type)}
-      </div>
+      </span>
 
-      {/* File info */}
-      <div className="flex-1 min-w-0 space-y-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium truncate">{file.file.name}</p>
-          <span className={cn("flex items-center gap-1 text-xs", status.color)}>
-            {status.icon}
-            {file.status === "uploading" && file.progress > 0 && (
-              <span className="font-medium">{file.progress}%</span>
-            )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-ink">{name}</p>
+        <p className={cn("text-[13px] text-ink-2 tabular-nums", file.status === "error" && "text-late")}>
+          {meta.join(" · ")}
+        </p>
+        {file.status === "error" && file.error && (
+          <p className="text-[13px] text-late">{file.error}. Tap retry to try again.</p>
+        )}
+        {showBar && (
+          <span className="mt-1.5 block">
+            <Bar value={file.status === "completed" ? 100 : file.progress} tone={file.status === "paused" ? "ink" : "ready"} />
           </span>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{formatFileSize(file.file.size)}</span>
-          {file.status === "uploading" && file.speed && (
-            <>
-              <span className="text-border">|</span>
-              <span>{formatSpeed(file.speed)}</span>
-            </>
-          )}
-          {file.status === "uploading" && file.timeRemaining !== undefined && file.timeRemaining > 0 && (
-            <>
-              <span className="text-border">|</span>
-              <span>{formatTime(file.timeRemaining)} left</span>
-            </>
-          )}
-          {file.status === "error" && file.error && (
-            <>
-              <span className="text-border">|</span>
-              <span className="text-red-600">{file.error}</span>
-            </>
-          )}
-          {file.retryCount > 0 && file.status !== "completed" && (
-            <>
-              <span className="text-border">|</span>
-              <span className="text-amber-600">Retry {file.retryCount}</span>
-            </>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        {file.status === "uploading" && (
-          <div className="pt-1">
-            <Progress value={file.progress}>
-              <ProgressTrack className="h-1.5">
-                <ProgressIndicator className="bg-gradient-to-r from-primary/70 to-primary transition-all duration-300" />
-              </ProgressTrack>
-            </Progress>
-          </div>
         )}
       </div>
 
-      {/* Actions */}
-      <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex shrink-0 items-center">
         {file.status === "uploading" && onPause && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
-            onClick={() => onPause(file.id)}
-            title="Pause upload"
-          >
-            <Pause className="h-4 w-4" />
-          </Button>
+          <RowAction label={`Pause ${name}`} onClick={() => onPause(file.id)}>
+            <Pause className="size-4" />
+          </RowAction>
         )}
-
         {file.status === "paused" && onResume && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-            onClick={() => onResume(file.id)}
-            title="Resume upload"
-          >
-            <Play className="h-4 w-4" />
-          </Button>
+          <RowAction label={`Resume ${name}`} onClick={() => onResume(file.id)}>
+            <Play className="size-4" />
+          </RowAction>
         )}
-
         {file.status === "error" && onRetry && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-            onClick={() => onRetry(file.id)}
-            title="Retry upload"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <RowAction label={`Retry ${name}`} onClick={() => onRetry(file.id)}>
+            <RefreshCw className="size-4" />
+          </RowAction>
         )}
-
-        {(file.status === "uploading" || file.status === "pending") && onCancel && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-100"
-            onClick={() => onCancel(file.id)}
-            title="Cancel upload"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+        {(file.status === "uploading" || file.status === "pending" || file.status === "paused") && onCancel && (
+          <RowAction label={`Cancel ${name}`} onClick={() => onCancel(file.id)} tone="late">
+            <X className="size-4" />
+          </RowAction>
         )}
-
-        {(file.status === "completed" || file.status === "error" || file.status === "cancelled") &&
-          onRemove && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-              onClick={() => onRemove(file.id)}
-              title="Remove from queue"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-      </div>
-
-      {/* Status indicator (visible when actions hidden) */}
-      <div className="shrink-0 group-hover:hidden">
-        {file.status === "completed" && (
-          <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-            <Check className="h-4 w-4 text-emerald-600" />
-          </div>
-        )}
-        {file.status === "error" && (
-          <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-          </div>
-        )}
-        {file.status === "paused" && (
-          <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
-            <Pause className="h-4 w-4 text-amber-600" />
-          </div>
-        )}
-        {file.status === "uploading" && (
-          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-            <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
-          </div>
-        )}
-        {file.status === "pending" && (
-          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </div>
+        {(file.status === "completed" || file.status === "error" || file.status === "cancelled") && onRemove && (
+          <RowAction label={`Remove ${name} from this list`} onClick={() => onRemove(file.id)}>
+            <X className="size-4" />
+          </RowAction>
         )}
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -327,145 +214,70 @@ export function UploadQueue({
   const [isExpanded, setIsExpanded] = useState(true);
   const [showAll, setShowAll] = useState(false);
 
-  // Group files by status
-  const stats = useMemo(() => {
-    return {
+  const stats = useMemo(
+    () => ({
       uploading: queue.filter((f) => f.status === "uploading").length,
       pending: queue.filter((f) => f.status === "pending").length,
       paused: queue.filter((f) => f.status === "paused").length,
       completed: queue.filter((f) => f.status === "completed").length,
       error: queue.filter((f) => f.status === "error").length,
       cancelled: queue.filter((f) => f.status === "cancelled").length,
-    };
-  }, [queue]);
+    }),
+    [queue]
+  );
 
   const hasActiveUploads = stats.uploading > 0 || stats.pending > 0 || stats.paused > 0;
   const hasCompletedOrFailed = stats.completed > 0 || stats.error > 0 || stats.cancelled > 0;
 
-  // Sort queue: uploading first, then pending, paused, error, cancelled, completed
+  // Uploading first, then waiting, paused, failed, cancelled, uploaded
   const sortedQueue = useMemo(() => {
-    const statusOrder: Record<UploadStatus, number> = {
-      uploading: 0,
-      pending: 1,
-      paused: 2,
-      error: 3,
-      cancelled: 4,
-      completed: 5,
-    };
-    return [...queue].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+    const order: Record<UploadStatus, number> = { uploading: 0, pending: 1, paused: 2, error: 3, cancelled: 4, completed: 5 };
+    return [...queue].sort((a, b) => order[a.status] - order[b.status]);
   }, [queue]);
 
   const visibleQueue = showAll ? sortedQueue : sortedQueue.slice(0, maxVisibleItems);
   const hiddenCount = sortedQueue.length - visibleQueue.length;
 
-  if (queue.length === 0) {
-    return null;
-  }
+  if (queue.length === 0) return null;
+
+  const active = stats.uploading + stats.pending + stats.paused;
+  const heading = active > 0
+    ? `Uploading ${active} file${active !== 1 ? "s" : ""}`
+    : stats.error > 0
+      ? `${stats.error} file${stats.error !== 1 ? "s" : ""} didn't upload`
+      : `${stats.completed} file${stats.completed !== 1 ? "s" : ""} uploaded`;
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      {/* Header */}
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Upload className="h-5 w-5 text-primary" />
-            Upload Queue
-            <span className="text-sm font-normal text-muted-foreground">
-              ({queue.length} file{queue.length !== 1 ? "s" : ""})
+    <section className={cn("rounded-[var(--tw-r-ctl)] bg-well px-3 py-2", className)} aria-label="Uploads in progress">
+      <div className="flex min-h-11 items-center gap-2">
+        <p className="flex-1 text-sm font-semibold text-ink" aria-live="polite">
+          {heading}
+          {isUploading && totalSize > 0 && (
+            <span className="ml-2 font-normal text-ink-2 tabular-nums">
+              {formatFileSize(uploadedSize)} of {formatFileSize(totalSize)} · {totalProgress}%
             </span>
-          </CardTitle>
-
-          <div className="flex items-center gap-2">
-            {/* Quick stats */}
-            {stats.uploading > 0 && (
-              <span className="flex items-center gap-1 text-xs text-blue-600 font-medium">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                {stats.uploading}
-              </span>
-            )}
-            {stats.completed > 0 && (
-              <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                <CheckCircle2 className="h-3 w-3" />
-                {stats.completed}
-              </span>
-            )}
-            {stats.error > 0 && (
-              <span className="flex items-center gap-1 text-xs text-red-600 font-medium">
-                <XCircle className="h-3 w-3" />
-                {stats.error}
-              </span>
-            )}
-
-            {collapsible && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Total progress bar - only show when we have meaningful size data */}
-        {isUploading && isExpanded && totalSize > 0 && (
-          <div className="space-y-2 pt-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                {formatFileSize(uploadedSize)} of {formatFileSize(totalSize)}
-              </span>
-              <span className="font-medium text-blue-600">{totalProgress}%</span>
-            </div>
-            <Progress value={totalProgress}>
-              <ProgressTrack className="h-2">
-                <ProgressIndicator className="bg-gradient-to-r from-primary to-primary/70 transition-all duration-300" />
-              </ProgressTrack>
-            </Progress>
-          </div>
+          )}
+        </p>
+        {collapsible && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-11 md:size-9"
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? "Hide the upload list" : "Show the upload list"}
+          >
+            {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </Button>
         )}
-      </CardHeader>
+      </div>
 
-      {/* Queue content */}
+      {isUploading && totalSize > 0 && <Bar value={totalProgress} tone="ready" />}
+
       {isExpanded && (
-        <CardContent className="space-y-3">
-          {/* Bulk actions */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {hasActiveUploads && stats.paused < stats.pending + stats.uploading && onPauseAll && (
-                <Button variant="outline" size="sm" onClick={onPauseAll}>
-                  <Pause className="h-3.5 w-3.5 mr-1.5" />
-                  Pause All
-                </Button>
-              )}
-              {stats.paused > 0 && onResumeAll && (
-                <Button variant="outline" size="sm" onClick={onResumeAll}>
-                  <Play className="h-3.5 w-3.5 mr-1.5" />
-                  Resume All
-                </Button>
-              )}
-            </div>
-
-            {hasCompletedOrFailed && onClearCompleted && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={onClearCompleted}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                Clear Completed
-              </Button>
-            )}
-          </div>
-
-          {/* File list */}
-          <div className="space-y-2">
+        <>
+          <ul className="divide-y divide-line">
             {visibleQueue.map((file) => (
               <QueueItem
                 key={file.id}
@@ -477,128 +289,84 @@ export function UploadQueue({
                 onRemove={onRemove}
               />
             ))}
-          </div>
+          </ul>
 
-          {/* Show more/less */}
-          {sortedQueue.length > maxVisibleItems && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-muted-foreground"
-              onClick={() => setShowAll(!showAll)}
-            >
-              {showAll ? (
-                <>
-                  <ChevronUp className="h-4 w-4 mr-1.5" />
-                  Show Less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-4 w-4 mr-1.5" />
-                  Show {hiddenCount} More
-                </>
+          {(hiddenCount > 0 || showAll || hasActiveUploads || hasCompletedOrFailed) && (
+            <div className="flex flex-wrap items-center gap-1 pt-1">
+              {hasActiveUploads && stats.paused < stats.pending + stats.uploading && onPauseAll && (
+                <Button type="button" variant="ghost" size="sm" className="h-11 md:h-9" onClick={onPauseAll}>
+                  <Pause className="size-4" />
+                  Pause all
+                </Button>
               )}
-            </Button>
+              {stats.paused > 0 && onResumeAll && (
+                <Button type="button" variant="ghost" size="sm" className="h-11 md:h-9" onClick={onResumeAll}>
+                  <Play className="size-4" />
+                  Resume all
+                </Button>
+              )}
+              {sortedQueue.length > maxVisibleItems && (
+                <Button type="button" variant="ghost" size="sm" className="h-11 md:h-9" onClick={() => setShowAll(!showAll)}>
+                  {showAll ? "Show fewer" : `Show ${hiddenCount} more`}
+                </Button>
+              )}
+              <span className="flex-1" />
+              {hasCompletedOrFailed && onClearCompleted && (
+                <Button type="button" variant="ghost" size="sm" className="h-11 text-ink-2 md:h-9" onClick={onClearCompleted}>
+                  Clear finished
+                </Button>
+              )}
+            </div>
           )}
-        </CardContent>
+        </>
       )}
-    </Card>
+    </section>
   );
 }
 
-// Compact inline version for smaller spaces
+/** One line for small spaces: what is uploading and how far along */
 export function UploadQueueInline({
   queue,
   totalProgress,
   isUploading,
   onClearCompleted,
   className,
-}: Pick<
-  UploadQueueProps,
-  "queue" | "totalProgress" | "isUploading" | "onClearCompleted" | "className"
->) {
-  const stats = useMemo(() => {
-    return {
+}: Pick<UploadQueueProps, "queue" | "totalProgress" | "isUploading" | "onClearCompleted" | "className">) {
+  const stats = useMemo(
+    () => ({
       uploading: queue.filter((f) => f.status === "uploading").length,
       pending: queue.filter((f) => f.status === "pending").length,
       completed: queue.filter((f) => f.status === "completed").length,
       error: queue.filter((f) => f.status === "error").length,
-    };
-  }, [queue]);
+    }),
+    [queue]
+  );
 
-  if (queue.length === 0) {
-    return null;
-  }
+  if (queue.length === 0) return null;
+
+  const line = isUploading
+    ? `Uploading ${stats.uploading + stats.pending} file${stats.uploading + stats.pending !== 1 ? "s" : ""}`
+    : stats.completed === queue.length
+      ? "Everything uploaded"
+      : stats.error > 0
+        ? `${stats.error} file${stats.error !== 1 ? "s" : ""} didn't upload`
+        : `${queue.length} in the list`;
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-4 p-3 rounded-xl bg-muted/50 border",
-        isUploading && "border-blue-200 bg-blue-50/50 dark:bg-blue-900/10",
-        className
-      )}
-    >
-      {/* Progress indicator */}
-      <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center shrink-0">
-        {isUploading ? (
-          <div className="relative">
-            <svg className="w-8 h-8 transform -rotate-90">
-              <circle
-                cx="16"
-                cy="16"
-                r="14"
-                stroke="currentColor"
-                strokeWidth="3"
-                fill="none"
-                className="text-muted"
-              />
-              <circle
-                cx="16"
-                cy="16"
-                r="14"
-                stroke="currentColor"
-                strokeWidth="3"
-                fill="none"
-                strokeDasharray={88}
-                strokeDashoffset={88 - (88 * (totalProgress || 0)) / 100}
-                className="text-blue-500 transition-all duration-300"
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
-              {totalProgress}%
-            </span>
-          </div>
-        ) : stats.completed === queue.length ? (
-          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-        ) : stats.error > 0 ? (
-          <AlertCircle className="h-5 w-5 text-red-500" />
-        ) : (
-          <Upload className="h-5 w-5 text-muted-foreground" />
+    <div className={cn("flex items-center gap-3 rounded-[var(--tw-r-ctl)] bg-well p-3", className)}>
+      <div className="min-w-0 flex-1">
+        <p className={cn("text-sm font-medium", stats.error > 0 && !isUploading ? "text-late" : "text-ink")} aria-live="polite">
+          {line}
+          {isUploading && <span className="ml-2 font-normal text-ink-2 tabular-nums">{totalProgress ?? 0}%</span>}
+        </p>
+        {isUploading && (
+          <span className="mt-1.5 block">
+            <Bar value={totalProgress ?? 0} tone="ready" />
+          </span>
         )}
       </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">
-          {isUploading
-            ? `Uploading ${stats.uploading + stats.pending} file${stats.uploading + stats.pending !== 1 ? "s" : ""}...`
-            : stats.completed === queue.length
-              ? "All uploads complete"
-              : stats.error > 0
-                ? `${stats.error} upload${stats.error !== 1 ? "s" : ""} failed`
-                : "Upload queue"}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {stats.completed > 0 && `${stats.completed} completed`}
-          {stats.completed > 0 && stats.error > 0 && ", "}
-          {stats.error > 0 && `${stats.error} failed`}
-          {!stats.completed && !stats.error && `${queue.length} in queue`}
-        </p>
-      </div>
-
-      {/* Clear button */}
       {stats.completed > 0 && onClearCompleted && (
-        <Button variant="ghost" size="sm" onClick={onClearCompleted}>
+        <Button type="button" variant="ghost" size="sm" className="h-11 md:h-9" onClick={onClearCompleted}>
           Clear
         </Button>
       )}

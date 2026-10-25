@@ -93,7 +93,7 @@ export function TutorialOverlay({
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <Card className="relative w-full max-w-md animate-fade-in">
           {/* Close button */}
-          <button
+          <button aria-label="Skip tutorial"
             onClick={handleSkip}
             className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted transition-colors"
           >
@@ -108,7 +108,7 @@ export function TutorialOverlay({
                   key={index}
                   className={cn(
                     "h-1.5 w-6 rounded-full transition-all",
-                    index === currentStep ? "bg-primary" : "bg-muted"
+                    index === currentStep ? "bg-ink" : "bg-ctl"
                   )}
                 />
               ))}
@@ -123,7 +123,7 @@ export function TutorialOverlay({
             {/* Don't show again checkbox */}
             {showDontShowAgain && (
               <div className="flex items-center justify-center gap-2">
-                <Checkbox
+                <Checkbox aria-label="Don't show this again"
                   id="dontShowAgain"
                   checked={dontShowAgain}
                   onCheckedChange={(checked) =>

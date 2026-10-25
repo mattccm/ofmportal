@@ -250,7 +250,7 @@ export function RequestViewStatus({
           variant="secondary"
           className={cn(
             creatorViewed
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+              ? "bg-success/10 text-success"
               : "",
             className
           )}
@@ -269,7 +269,7 @@ export function RequestViewStatus({
         {creatorViewed ? (
           <Badge
             variant="secondary"
-            className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 w-fit"
+            className="bg-success/10 text-success w-fit"
           >
             <UserCheck className="h-3 w-3 mr-1" />
             Creator viewed
@@ -320,7 +320,7 @@ export function RequestViewStatus({
       <Badge
         variant="secondary"
         className={cn(
-          "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+          "bg-success/10 text-success",
           className
         )}
       >
@@ -397,7 +397,7 @@ export function RequestViewTracker({
               className={cn(
                 "w-10 h-10 rounded-full flex items-center justify-center",
                 creatorViewed
-                  ? "bg-emerald-100 dark:bg-emerald-900/30"
+                  ? "bg-success/10"
                   : "bg-muted"
               )}
             >
@@ -405,7 +405,7 @@ export function RequestViewTracker({
                 className={cn(
                   "h-5 w-5",
                   creatorViewed
-                    ? "text-emerald-600 dark:text-emerald-400"
+                    ? "text-success"
                     : "text-muted-foreground"
                 )}
               />
@@ -423,7 +423,7 @@ export function RequestViewTracker({
           </div>
 
           {creatorViewed && (
-            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+            <Badge variant="secondary" className="bg-success/10 text-success">
               Viewed
             </Badge>
           )}
@@ -435,7 +435,7 @@ export function RequestViewTracker({
             <Users className="h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-lg font-semibold">{uniqueViewers}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              <p className="text-[12px] text-muted-foreground uppercase tracking-wider">
                 Unique Viewers
               </p>
             </div>
@@ -445,7 +445,7 @@ export function RequestViewTracker({
             <Eye className="h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-lg font-semibold">{views.length}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              <p className="text-[12px] text-muted-foreground uppercase tracking-wider">
                 Total Views
               </p>
             </div>
@@ -480,7 +480,7 @@ export function RequestViewTracker({
                         />
                         <div>
                           <p className="text-sm font-medium">{view.userName}</p>
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-[12px] text-muted-foreground">
                             {format(new Date(view.viewedAt), "MMM d, h:mm a")}
                           </p>
                         </div>
@@ -488,7 +488,7 @@ export function RequestViewTracker({
 
                       <div className="flex items-center gap-2">
                         {view.duration && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          <Badge variant="outline" className="text-[12px] px-1.5 py-0">
                             <Clock className="h-2.5 w-2.5 mr-1" />
                             {formatViewDuration(view.duration)}
                           </Badge>
@@ -544,7 +544,7 @@ export function RequestViewInline({
           <div
             className={cn(
               "h-2 w-2 rounded-full",
-              creatorViewed ? "bg-emerald-500" : "bg-muted-foreground/30"
+              creatorViewed ? "bg-success" : "bg-muted-foreground/30"
             )}
           />
         </ViewTooltip>

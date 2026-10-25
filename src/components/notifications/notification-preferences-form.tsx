@@ -419,7 +419,7 @@ export function NotificationPreferencesForm({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600"
+              className=" bg-raised-hi text-white hover:bg-raised-hi "
             >
               {isSaving ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -433,7 +433,7 @@ export function NotificationPreferencesForm({
       )}
 
       {/* Do Not Disturb Toggle */}
-      <Card className="mb-6 border-2 border-red-200/50 dark:border-red-800/30 bg-gradient-to-br from-red-50/50 to-orange-50/50 dark:from-red-950/20 dark:to-orange-950/20">
+      <Card className="mb-6 border-2 border-red-200/50 dark:border-red-800/30 bg-red-50/50 dark:bg-red-950/20 ">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -447,7 +447,7 @@ export function NotificationPreferencesForm({
                 </CardDescription>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Do Not Disturb"
               checked={preferences.doNotDisturb}
               onCheckedChange={updateDoNotDisturb}
             />
@@ -548,7 +548,7 @@ export function NotificationPreferencesForm({
                         })}
                       </div>
                     )}
-                    <Switch
+                    <Switch aria-label={categoryInfo.title}
                       checked={settings.enabled}
                       onCheckedChange={(checked) => {
                         updateCategoryEnabled(category, checked);
@@ -654,8 +654,8 @@ export function NotificationPreferencesForm({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-indigo-500" />
+              <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+                <Clock className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -667,7 +667,7 @@ export function NotificationPreferencesForm({
                 </CardDescription>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Quiet Hours"
               checked={preferences.quietHours.enabled}
               onCheckedChange={(checked) =>
                 updateQuietHours("enabled", checked)
@@ -719,10 +719,10 @@ export function NotificationPreferencesForm({
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-800/30">
-              <Clock className="h-8 w-8 text-indigo-500" />
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-tile-hi dark:bg-tile-hi border border-line dark:border-line">
+              <Clock className="h-8 w-8 text-foreground" />
               <div>
-                <p className="font-medium text-indigo-700 dark:text-indigo-400">
+                <p className="font-medium text-foreground dark:text-foreground">
                   Quiet Hours: {preferences.quietHours.startTime} -{" "}
                   {preferences.quietHours.endTime}
                 </p>
@@ -741,8 +741,8 @@ export function NotificationPreferencesForm({
       <Card className="mb-6">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <Volume2 className="h-5 w-5 text-violet-500" />
+            <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+              <Volume2 className="h-5 w-5 text-foreground" />
             </div>
             <div>
               <CardTitle className="text-base">Notification Sound</CardTitle>
@@ -759,7 +759,7 @@ export function NotificationPreferencesForm({
               updateNotificationSound(value as NotificationSound)
             }
           >
-            <SelectTrigger className="w-full md:w-64">
+            <SelectTrigger aria-label="Notification sound" className="w-full md:w-64">
               <SelectValue placeholder="Select sound" />
             </SelectTrigger>
             <SelectContent>
@@ -778,8 +778,8 @@ export function NotificationPreferencesForm({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <Play className="h-5 w-5 text-emerald-500" />
+              <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center">
+                <Play className="h-5 w-5 text-success" />
               </div>
               <div>
                 <CardTitle className="text-base">Test Notification</CardTitle>

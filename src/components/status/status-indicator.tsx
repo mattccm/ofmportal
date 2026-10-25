@@ -29,8 +29,8 @@ const STATUS_CONFIG: Record<
   }
 > = {
   operational: {
-    color: "bg-emerald-500",
-    bgColor: "bg-emerald-500/20",
+    color: "bg-success",
+    bgColor: "bg-success/20",
     label: "Operational",
     description: "All systems are working normally",
   },
@@ -169,7 +169,7 @@ export function ServiceStatusBadge({
             "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium",
             config.bgColor,
             status === "operational"
-              ? "text-emerald-700 dark:text-emerald-300"
+              ? "text-success"
               : status === "degraded"
                 ? "text-amber-700 dark:text-amber-300"
                 : status === "partial_outage"
@@ -205,17 +205,17 @@ export function OverallStatusBanner({
   const config = STATUS_CONFIG[status];
 
   const gradientColors = {
-    operational: "from-emerald-500/10 via-emerald-500/5 to-transparent",
-    degraded: "from-amber-500/10 via-amber-500/5 to-transparent",
-    partial_outage: "from-orange-500/10 via-orange-500/5 to-transparent",
-    major_outage: "from-red-500/10 via-red-500/5 to-transparent",
+    operational: "bg-success/10 ",
+    degraded: "bg-amber-500/10 ",
+    partial_outage: "bg-orange-500/10 ",
+    major_outage: "bg-red-500/10 ",
   };
 
   return (
     <div
       className={cn(
         "relative overflow-hidden rounded-2xl border p-6 md:p-8",
-        "bg-gradient-to-r",
+        "",
         gradientColors[status],
         className
       )}

@@ -113,7 +113,7 @@ const taskTypes: TaskTypeOption[] = [
   {
     type: "create_bundle",
     icon: <Package className="h-6 w-6" />,
-    color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+    color: "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground",
   },
 ];
 
@@ -375,7 +375,7 @@ export function ScheduleRequestModal({
         <div className="flex items-center justify-between mb-6">
           {steps.map((s, i) => (
             <React.Fragment key={s}>
-              <button
+              <button aria-label={`Step ${i + 1}: ${s}${i < currentStepIndex ? " (done)" : ""}`} aria-current={i === currentStepIndex ? "step" : undefined}
                 onClick={() => i < currentStepIndex && setStep(s)}
                 disabled={i > currentStepIndex}
                 className={cn(
@@ -477,7 +477,7 @@ export function ScheduleRequestModal({
                             selectedCreatorIds.includes(creator.id) && "bg-primary/5"
                           )}
                         >
-                          <Checkbox
+                          <Checkbox aria-label={`Select ${creator.name}`}
                             checked={selectedCreatorIds.includes(creator.id)}
                             onCheckedChange={() => toggleCreator(creator.id)}
                           />
@@ -579,7 +579,7 @@ export function ScheduleRequestModal({
                   value={recurrence}
                   onValueChange={(v) => setRecurrence(v as RecurrencePattern)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Recurrence">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -681,7 +681,7 @@ export function ScheduleRequestModal({
                       value={selectedTemplateId}
                       onValueChange={setSelectedTemplateId}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Template">
                         <SelectValue placeholder="Select a template" />
                       </SelectTrigger>
                       <SelectContent>
@@ -727,7 +727,7 @@ export function ScheduleRequestModal({
                         value={urgency}
                         onValueChange={(v) => setUrgency(v as typeof urgency)}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="Urgency">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -747,7 +747,7 @@ export function ScheduleRequestModal({
                         Automatically notify creators when requests are created
                       </p>
                     </div>
-                    <Switch
+                    <Switch aria-label="Auto-send notifications"
                       checked={autoSend}
                       onCheckedChange={setAutoSend}
                     />
@@ -768,7 +768,7 @@ export function ScheduleRequestModal({
                       taskType === "create_request" && "bg-blue-100 text-blue-600",
                       taskType === "send_reminder" && "bg-amber-100 text-amber-600",
                       taskType === "archive_request" && "bg-gray-100 text-gray-600",
-                      taskType === "create_bundle" && "bg-purple-100 text-purple-600"
+                      taskType === "create_bundle" && "bg-tile-hi text-foreground"
                     )}
                   >
                     {taskTypes.find((t) => t.type === taskType)?.icon}

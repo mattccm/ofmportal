@@ -226,7 +226,7 @@ export function UndoToast({
             </p>
           </div>
 
-          <Button
+          <Button aria-label="Dismiss"
             variant="ghost"
             size="icon-sm"
             onClick={onDismiss}
@@ -359,7 +359,7 @@ export function UndoManager({ className }: UndoManagerProps) {
 
                   <div className="flex gap-2">
                     {!isExpired && (
-                      <Button
+                      <Button aria-label={`Undo ${operation.description}`}
                         size="sm"
                         variant="outline"
                         onClick={() => handleUndo(operation)}
@@ -372,7 +372,7 @@ export function UndoManager({ className }: UndoManagerProps) {
                         )}
                       </Button>
                     )}
-                    <Button
+                    <Button aria-label={`Remove ${operation.description}`}
                       size="sm"
                       variant="ghost"
                       onClick={() => removeOperation(operation.operationId)}

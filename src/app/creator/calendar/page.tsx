@@ -4,18 +4,17 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useBranding } from "@/components/providers/branding-provider";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  Loader2,
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  Clock,
-  AlertTriangle,
-  ArrowRight,
-} from "lucide-react";
+  Countdown,
+  StateIcon,
+  StateLegend,
+  formatDay,
+  requestStatusState,
+  stateShort,
+  type FieldState,
+} from "@/components/title-wall";
 import {
   format,
   startOfMonth,
@@ -32,13 +31,8 @@ import {
 import { cn } from "@/lib/utils";
 import { isRequestOverdue } from "@/lib/request-status";
 
-type RequestStatus =
-  | "PENDING"
-  | "IN_PROGRESS"
-  | "SUBMITTED"
-  | "UNDER_REVIEW"
-  | "NEEDS_REVISION"
-  | "APPROVED";
+// Approved, cancelled and archived requests never reach the creator
+type RequestStatus = "PENDING" | "IN_PROGRESS" | "SUBMITTED" | "UNDER_REVIEW" | "NEEDS_REVISION";
 
 interface Request {
   id: string;
@@ -54,9 +48,17 @@ interface Request {
   };
 }
 
+/** Phone day cells: a dot per request in its state's colour (the key shows each state's icon and word) */
+const DOT_CLASS: Record<FieldState, string> = {
+  waiting: "outline outline-[1.5px] -outline-offset-[1.5px] outline-waiting",
+  overdue: "bg-late",
+  changes: "bg-changes",
+  ready: "bg-ready",
+  approved: "bg-approved",
+};
+
 export default function CreatorCalendarPage() {
   const router = useRouter();
-  const { branding } = useBranding();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<Request[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -144,335 +146,213 @@ export default function CreatorCalendarPage() {
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
   }, [requests]);
 
-  const getStatusColor = (status: RequestStatus) => {
-    switch (status) {
-      case "PENDING":
-        return "bg-amber-500";
-      case "IN_PROGRESS":
-        return "bg-blue-500";
-      case "SUBMITTED":
-        return "bg-primary";
-      case "UNDER_REVIEW":
-        return "bg-muted-foreground";
-      case "NEEDS_REVISION":
-        return "bg-red-500";
-      case "APPROVED":
-        return "bg-emerald-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  const getStatusBadgeColor = (status: RequestStatus) => {
-    switch (status) {
-      case "PENDING":
-        return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-      case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "SUBMITTED":
-        return "bg-primary/10 text-primary";
-      case "UNDER_REVIEW":
-        return "bg-muted text-foreground";
-      case "NEEDS_REVISION":
-        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      case "APPROVED":
-        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-      default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400";
-    }
-  };
+  /** One state per request, from the shared state vocabulary */
+  const stateOf = (r: Request): FieldState => requestStatusState(r.status, isRequestOverdue(r)) ?? "waiting";
+  const dotClass = (r: Request) => DOT_CLASS[stateOf(r)];
+  const stateWord = (r: Request) => stateShort(stateOf(r), "creator");
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2
-            className="h-10 w-10 animate-spin mx-auto"
-            style={{ color: branding.primaryColor }}
-          />
-          <p className="text-muted-foreground">Loading calendar...</p>
-        </div>
+      <div className="px-4 pt-5 lg:px-6 lg:pt-10" role="status" aria-label="Loading your calendar">
+        <Skeleton className="h-7 w-32" />
+        <Skeleton className="mt-4 h-80 w-full" />
+        <Skeleton className="mt-6 h-24 w-full" />
       </div>
     );
   }
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Calendar</h1>
-        <p className="text-muted-foreground">
-          View your upcoming deadlines and requests
-        </p>
-      </div>
+  const open = requests.filter((r) => r.status === "PENDING" || r.status === "IN_PROGRESS" || r.status === "NEEDS_REVISION");
+  const late = open.filter((r) => isRequestOverdue(r));
+  const next = [...open]
+    .filter((r) => r.dueDate && !isRequestOverdue(r))
+    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())[0];
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Calendar */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">
-                {format(currentMonth, "MMMM yyyy")}
-              </CardTitle>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setCurrentMonth(new Date())}
-                >
-                  Today
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Day headers */}
-            <div className="grid grid-cols-7 mb-2">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div
-                  key={day}
-                  className="text-center text-xs font-medium text-muted-foreground py-2"
-                >
-                  {day}
-                </div>
-              ))}
-            </div>
+  const lede =
+    open.length === 0
+      ? "Nothing due. New deadlines appear here."
+      : [
+          late.length ? `${late.length} late` : null,
+          next ? `next due ${formatDay(next.dueDate!)}` : null,
+        ]
+          .filter(Boolean)
+          .join(", ")
+          .replace(/^./, (c) => c.toUpperCase()) + ".";
 
-            {/* Calendar grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {calendarDays.map((day) => {
-                const dateKey = format(day, "yyyy-MM-dd");
-                const dayRequests = requestsByDate[dateKey] || [];
-                const isCurrentMonth = isSameMonth(day, currentMonth);
-                const isSelected = selectedDate && isSameDay(day, selectedDate);
-                const hasOverdue = dayRequests.some((r) => isRequestOverdue(r));
-
-                return (
-                  <button
-                    key={day.toISOString()}
-                    onClick={() => setSelectedDate(day)}
-                    className={cn(
-                      "relative aspect-square p-1 rounded-lg text-sm transition-all",
-                      "hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20",
-                      !isCurrentMonth && "text-muted-foreground/50",
-                      isSelected && "ring-2 ring-primary bg-primary/10",
-                      isToday(day) && !isSelected && "bg-muted font-bold"
-                    )}
-                  >
-                    <span className={cn(
-                      "block w-6 h-6 mx-auto flex items-center justify-center rounded-full",
-                      isToday(day) && "bg-primary text-primary-foreground"
-                    )}>
-                      {format(day, "d")}
-                    </span>
-
-                    {/* Request indicators */}
-                    {dayRequests.length > 0 && (
-                      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                        {dayRequests.slice(0, 3).map((request, i) => (
-                          <div
-                            key={request.id}
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              getStatusColor(request.status)
-                            )}
-                          />
-                        ))}
-                        {dayRequests.length > 3 && (
-                          <span className="text-[8px] text-muted-foreground">
-                            +{dayRequests.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Selected date details */}
-            {selectedDate && (
-              <div className="mt-4 pt-4 border-t">
-                <h3 className="font-medium mb-3">
-                  {format(selectedDate, "EEEE, MMMM d, yyyy")}
-                </h3>
-                {selectedDateRequests.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No requests due on this date
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {selectedDateRequests.map((request) => (
-                      <Link
-                        key={request.id}
-                        href={`/creator/requests/${request.id}`}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
-                      >
-                        <div
-                          className={cn(
-                            "w-2 h-2 rounded-full shrink-0",
-                            getStatusColor(request.status)
-                          )}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                            {request.title}
-                          </p>
-                          <Badge
-                            variant="secondary"
-                            className={cn("text-xs mt-1", getStatusBadgeColor(request.status))}
-                          >
-                            {request.status.replace("_", " ")}
-                          </Badge>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
+  const renderRow = (request: Request) => {
+    const ACT = request.status === "PENDING" || request.status === "IN_PROGRESS" || request.status === "NEEDS_REVISION";
+    return (
+      <Link
+        href={`/creator/requests/${request.id}`}
+        className="flex items-center gap-3 rounded-[10px] bg-tile p-3.5 transition-colors hover:bg-tile-hi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <StateIcon state={stateOf(request)} className="size-4" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold">{request.title}</span>
+          <span className="block text-[14px] text-ink-2">
+            {request.dueDate && ACT && isRequestOverdue(request) ? (
+              <Countdown due={request.dueDate} />
+            ) : (
+              <>
+                {stateWord(request)}
+                {request.dueDate && ACT ? (
+                  <>
+                    {" · "}
+                    <Countdown due={request.dueDate} />
+                  </>
+                ) : null}
+              </>
             )}
-          </CardContent>
-        </Card>
+          </span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-icon" aria-hidden="true" />
+      </Link>
+    );
+  };
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Upcoming Deadlines */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-5 w-5" style={{ color: branding.primaryColor }} />
-                Coming Up
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {upcomingRequests.length === 0 ? (
-                <div className="text-center py-6">
-                  <CalendarIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    No upcoming deadlines
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {upcomingRequests.slice(0, 5).map((request) => {
-                    const dueDate = new Date(request.dueDate!);
-                    const isOverdue = isRequestOverdue(request);
+  return (
+    <div className="px-4 pt-5 lg:px-6 lg:pt-10">
+      <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] lg:text-[26px]">Calendar</h1>
+      <p className="mt-1 text-[15px] leading-normal text-ink-2">{lede}</p>
 
-                    return (
-                      <Link
-                        key={request.id}
-                        href={`/creator/requests/${request.id}`}
-                        className="flex items-start gap-3 group"
-                      >
-                        <div className="w-10 text-center shrink-0">
-                          <p className="text-lg font-bold" style={{ color: branding.primaryColor }}>
-                            {format(dueDate, "d")}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground uppercase">
-                            {format(dueDate, "MMM")}
-                          </p>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                            {request.title}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge
-                              variant="secondary"
-                              className={cn("text-[10px]", getStatusBadgeColor(request.status))}
-                            >
-                              {request.status.replace("_", " ")}
-                            </Badge>
-                            {isOverdue && (
-                              <span className="text-[10px] text-red-500 font-medium flex items-center gap-0.5">
-                                <AlertTriangle className="h-3 w-3" />
-                                Overdue
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      {/* From 1024px: the month on the left, the chosen day and the week ahead on the right */}
+      <div className="lg:mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-start lg:gap-10">
+        <section aria-labelledby="month-h" className="mt-4 rounded-[var(--tw-r-tile)] bg-tile p-3 lg:mt-0 lg:p-4">
+          <div className="flex items-center gap-1 px-1">
+            <h2 id="month-h" className="flex-1 text-[17px] font-semibold" aria-live="polite">
+              {format(currentMonth, "MMMM yyyy")}
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 md:size-9"
+              aria-label="Previous month"
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button variant="ghost" className="h-11 px-3 md:h-9" onClick={() => setCurrentMonth(new Date())}>
+              Today
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 md:size-9"
+              aria-label="Next month"
+              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
 
-          {/* Legend */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Status Legend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {[
-                  { status: "PENDING", label: "Pending" },
-                  { status: "IN_PROGRESS", label: "In Progress" },
-                  { status: "NEEDS_REVISION", label: "Needs Revision" },
-                  { status: "SUBMITTED", label: "Submitted" },
-                  { status: "APPROVED", label: "Approved" },
-                ].map((item) => (
-                  <div key={item.status} className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        "w-3 h-3 rounded-full",
-                        getStatusColor(item.status as RequestStatus)
-                      )}
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {item.label}
-                    </span>
-                  </div>
-                ))}
+          <div className="mt-2 grid grid-cols-7" aria-hidden="true">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              <div key={day} className="py-1.5 text-center text-[13px] text-ink-2 lg:pl-2.5 lg:text-left">
+                {day}
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
 
-          {/* Quick stats */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <p
-                    className="text-2xl font-bold"
-                    style={{ color: branding.primaryColor }}
+          <div className="grid grid-cols-7 gap-0.5">
+            {calendarDays.map((day) => {
+              const dateKey = format(day, "yyyy-MM-dd");
+              const dayRequests = requestsByDate[dateKey] || [];
+              const isCurrentMonth = isSameMonth(day, currentMonth);
+              const isSelected = !!selectedDate && isSameDay(day, selectedDate);
+              const today = isToday(day);
+
+              return (
+                <button
+                  key={day.toISOString()}
+                  type="button"
+                  onClick={() => setSelectedDate(isSelected ? null : day)}
+                  aria-pressed={isSelected}
+                  aria-label={`${format(day, "EEEE d MMMM")}${dayRequests.length ? `, ${dayRequests.length} due` : ""}${today ? ", today" : ""}`}
+                  className={cn(
+                    "relative flex min-h-11 flex-col items-center justify-start rounded-md pb-2 pt-1.5 text-[15px] tabular-nums transition-colors",
+                    "lg:min-h-[92px] lg:items-stretch lg:px-1.5 lg:text-[14px]",
+                    "hover:bg-tile-hi focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                    !isCurrentMonth && "text-ink-2",
+                    isSelected && "!bg-tile-hi"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid size-7 place-items-center rounded-full lg:self-start",
+                      today && "bg-ink font-semibold text-ground"
+                    )}
                   >
-                    {requests.filter(
-                      (r) =>
-                        r.status === "PENDING" ||
-                        r.status === "IN_PROGRESS" ||
-                        r.status === "NEEDS_REVISION"
-                    ).length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-emerald-500">
-                    {requests.filter((r) => r.status === "APPROVED").length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                    {format(day, "d")}
+                  </span>
+                  {dayRequests.length > 0 && (
+                    <>
+                      <span className="mt-1 flex gap-[3px] lg:hidden" aria-hidden="true">
+                        {dayRequests.slice(0, 3).map((request) => (
+                          <span key={request.id} className={cn("size-1.5 rounded-full", dotClass(request))} />
+                        ))}
+                      </span>
+                      {/* Desktop: the titles due that day */}
+                      <span className="mt-1 hidden min-w-0 flex-col gap-1 text-left lg:flex" aria-hidden="true">
+                        {dayRequests.slice(0, 2).map((request) => (
+                          <span key={request.id} className="flex min-w-0 items-center gap-1.5 text-[12px] leading-tight">
+                            <StateIcon state={stateOf(request)} className="size-3" />
+                            <span className="truncate">{request.title}</span>
+                          </span>
+                        ))}
+                        {dayRequests.length > 2 && (
+                          <span className="text-[12px] leading-tight text-ink-2">{dayRequests.length - 2} more</span>
+                        )}
+                      </span>
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <StateLegend
+            className="mt-3 px-1"
+            kind="icons"
+            audience="creator"
+            states={["waiting", "overdue", "changes", "ready"]}
+          />
+        </section>
+
+        <div className="lg:space-y-8">
+          {selectedDate && (
+            <section aria-labelledby="day-h" className="mt-6 lg:mt-0">
+              <h2 id="day-h" className="mb-2 text-[17px] font-semibold">
+                {format(selectedDate, "EEEE d MMMM")}
+              </h2>
+              {selectedDateRequests.length === 0 ? (
+                <p className="text-[15px] text-ink-2">Nothing due this day.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {selectedDateRequests.map((r) => (
+                    <li key={r.id}>
+                      {renderRow(r)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          <section aria-labelledby="soon-h" className="mt-6 lg:mt-0">
+            <h2 id="soon-h" className="mb-2 text-[17px] font-semibold">
+              Due in the next 7 days
+            </h2>
+            {late.length + upcomingRequests.length === 0 ? (
+              <p className="text-[15px] leading-normal text-ink-2">Nothing due this week.</p>
+            ) : (
+              <ul className="space-y-2">
+                {[...late, ...upcomingRequests.filter((r) => !late.includes(r))].slice(0, 8).map((r) => (
+                  <li key={r.id}>
+                    {renderRow(r)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
       </div>
     </div>

@@ -77,7 +77,7 @@ export default function BrandingSettingsPage() {
       <div className="max-w-5xl mx-auto py-8">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard/settings">
+            <Link href="/dashboard/settings" aria-label="Back to settings">
               <ChevronLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -100,7 +100,7 @@ export default function BrandingSettingsPage() {
       <div className="max-w-5xl mx-auto py-8">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard/settings">
+            <Link href="/dashboard/settings" aria-label="Back to settings">
               <ChevronLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -142,12 +142,12 @@ export default function BrandingSettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/settings" aria-label="Back to settings">
             <ChevronLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-500/20 via-purple-500/20 to-fuchsia-500/20 flex items-center justify-center">
-          <Palette className="h-7 w-7 text-violet-600" />
+        <div className="h-14 w-14 rounded-2xl bg-tile-hi flex items-center justify-center">
+          <Palette className="h-7 w-7 text-foreground" />
         </div>
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Agency Branding</h1>
@@ -158,15 +158,15 @@ export default function BrandingSettingsPage() {
       </div>
 
       {/* Info Banner */}
-      <Card className="overflow-hidden border-violet-200/50 bg-gradient-to-r from-violet-50/50 to-purple-50/50 dark:from-violet-950/20 dark:to-purple-950/20 dark:border-violet-800/30">
-        <div className="h-1 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500" />
+      <Card className="overflow-hidden border-line bg-tile-hi dark:bg-tile-hi dark:border-line">
+        <div className="h-1 bg-raised-hi " />
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
-              <Sparkles className="h-5 w-5 text-violet-500" />
+            <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center shrink-0">
+              <Sparkles className="h-5 w-5 text-foreground" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-violet-700 dark:text-violet-400">
+              <h3 className="font-semibold text-foreground dark:text-foreground">
                 Customize Your Portal
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
@@ -176,7 +176,7 @@ export default function BrandingSettingsPage() {
               </p>
               <div className="flex flex-wrap items-center gap-4 mt-4">
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <div className="w-3 h-3 rounded-full bg-success" />
                   <span className="text-muted-foreground">Custom logos</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
@@ -184,7 +184,7 @@ export default function BrandingSettingsPage() {
                   <span className="text-muted-foreground">Brand colors</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-3 h-3 rounded-full bg-violet-500" />
+                  <div className="w-3 h-3 rounded-full bg-raised-hi" />
                   <span className="text-muted-foreground">Custom domain</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">

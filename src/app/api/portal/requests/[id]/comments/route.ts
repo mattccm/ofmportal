@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
-import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
+import {
+  validateCreatorSession,
+  CREATOR_HIDDEN_STATUSES,
+  staffFirstName,
+  isCreatorPseudoEmail,
+} from "@/lib/portal-auth";
 import { notifyTeam, NotificationType } from "@/lib/notifications";
 
 /**
@@ -45,6 +50,7 @@ export async function GET(
             id: true,
             name: true,
             avatar: true,
+            email: true,
           },
         },
       },
@@ -66,7 +72,9 @@ export async function GET(
       } catch {
         // Not a creator comment
       }
-      const isCreatorComment = creatorInfo !== null;
+      // A creator's own comment (marker, or a hidden .internal pseudo-user)
+      // shows as "You"; staff show by first name only, never an email
+      const isCreatorComment = creatorInfo !== null || isCreatorPseudoEmail(comment.user?.email);
 
       return {
         id: comment.id,
@@ -78,7 +86,7 @@ export async function GET(
           ? { name: creatorInfo?.name || creator.name }
           : comment.user
             ? {
-                name: comment.user.name,
+                name: staffFirstName(comment.user.name),
                 image: comment.user.avatar,
               }
             : undefined,

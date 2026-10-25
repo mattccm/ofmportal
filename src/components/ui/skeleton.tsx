@@ -28,20 +28,20 @@ function Skeleton({
   style,
   ...props
 }: SkeletonProps) {
-  const baseStyles = "bg-muted"
+  const baseStyles = "bg-tile-hi"
 
   const animationStyles = animate
-    ? "animate-shimmer"
+    ? "animate-pulse motion-reduce:animate-none"
     : ""
 
   const variantStyles = {
-    default: "rounded-lg",
+    default: "rounded-md",
     circle: "rounded-full aspect-square",
     text: "h-4 rounded-md",
     title: "h-6 rounded-md",
-    button: "h-10 rounded-lg",
+    button: "h-9 rounded-md",
     avatar: "h-10 w-10 rounded-full",
-    badge: "h-5 w-16 rounded-full",
+    badge: "h-[22px] w-16 rounded-sm",
   }
 
   return (

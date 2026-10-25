@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { CalendarDays, Sparkles } from "lucide-react";
+import { Bell, CalendarDays, Flag, Sparkles, TriangleAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { CalendarClient } from "./calendar-client";
 
 // DATA FETCHING
@@ -137,52 +138,26 @@ export default async function CalendarPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <CalendarDays className="h-6 w-6 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.todayDeadlines}</p>
-              <p className="text-sm text-muted-foreground">Due Today</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <CalendarDays className="h-6 w-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.weekDeadlines}</p>
-              <p className="text-sm text-muted-foreground">This Week</p>
+      {/* Counts: neutral tiles with the calendar's own icons; only overdue takes its state colour */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 mb-6">
+        {[
+          { n: stats.todayDeadlines, label: "Due today", Icon: Flag, late: false },
+          { n: stats.weekDeadlines, label: "Due this week", Icon: CalendarDays, late: false },
+          { n: stats.overdueRequests, label: "Overdue", Icon: TriangleAlert, late: stats.overdueRequests > 0 },
+          { n: stats.pendingReminders, label: "Reminders scheduled", Icon: Bell, late: false },
+        ].map(({ n, label, Icon, late }) => (
+          <div key={label} className="rounded-xl bg-tile p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tile-hi">
+                <Icon aria-hidden="true" className={cn("h-5 w-5", late ? "text-late" : "text-ink-2")} />
+              </div>
+              <div className="min-w-0">
+                <p className={cn("text-[22px] font-bold leading-tight tabular-nums", late && "text-late")}>{n}</p>
+                <p className="text-[14px] text-ink-2">{label}</p>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <CalendarDays className="h-6 w-6 text-red-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.overdueRequests}</p>
-              <p className="text-sm text-muted-foreground">Overdue</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <CalendarDays className="h-6 w-6 text-violet-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.pendingReminders}</p>
-              <p className="text-sm text-muted-foreground">Reminders</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Calendar Client Component */}

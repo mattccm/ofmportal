@@ -343,7 +343,7 @@ export function CommunicationPreferencesForm({
                 updatePreferences("secondaryMethod", value === "none" ? undefined : (value as ContactMethod))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Secondary Contact Method (Optional)">
                 <SelectValue placeholder="Select secondary method" />
               </SelectTrigger>
               <SelectContent>
@@ -460,7 +460,7 @@ export function CommunicationPreferencesForm({
                 value={preferences.timezone}
                 onValueChange={(value) => updatePreferences("timezone", value)}
               >
-                <SelectTrigger className="flex-1">
+                <SelectTrigger aria-label="Timezone" className="flex-1">
                   <SelectValue placeholder="Select timezone" />
                 </SelectTrigger>
                 <SelectContent>
@@ -549,7 +549,7 @@ export function CommunicationPreferencesForm({
               value={preferences.expectedResponseTime}
               onValueChange={(value) => updatePreferences("expectedResponseTime", value as ResponseExpectation)}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Expected Response Time">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -617,7 +617,7 @@ export function CommunicationPreferencesForm({
                       </p>
                     )}
                   </div>
-                  <Button
+                  <Button aria-label="Remove quiet period"
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
@@ -651,7 +651,7 @@ export function CommunicationPreferencesForm({
               value={preferences.primaryLanguage}
               onValueChange={(value) => updatePreferences("primaryLanguage", value)}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Primary Language">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -682,7 +682,7 @@ export function CommunicationPreferencesForm({
               ))}
             </div>
             <Select value="" onValueChange={addSecondaryLanguage}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Additional Languages">
                 <SelectValue placeholder="Add a language..." />
               </SelectTrigger>
               <SelectContent>
@@ -732,7 +732,7 @@ export function CommunicationPreferencesForm({
                   Get notified when a new request is assigned to you
                 </p>
               </div>
-              <Switch
+              <Switch aria-label="New Content Requests"
                 checked={preferences.notifyOnNewRequest}
                 onCheckedChange={(checked) => updatePreferences("notifyOnNewRequest", checked)}
               />
@@ -746,7 +746,7 @@ export function CommunicationPreferencesForm({
                   Receive reminders before deadlines
                 </p>
               </div>
-              <Switch
+              <Switch aria-label="Deadline Reminders"
                 checked={preferences.notifyOnDeadlineReminder}
                 onCheckedChange={(checked) => updatePreferences("notifyOnDeadlineReminder", checked)}
               />
@@ -760,7 +760,7 @@ export function CommunicationPreferencesForm({
                   Get notified when feedback is left on your uploads
                 </p>
               </div>
-              <Switch
+              <Switch aria-label="Feedback Notifications"
                 checked={preferences.notifyOnFeedback}
                 onCheckedChange={(checked) => updatePreferences("notifyOnFeedback", checked)}
               />
@@ -774,7 +774,7 @@ export function CommunicationPreferencesForm({
                   Get notified when your content is approved or rejected
                 </p>
               </div>
-              <Switch
+              <Switch aria-label="Approval Notifications"
                 checked={preferences.notifyOnApproval}
                 onCheckedChange={(checked) => updatePreferences("notifyOnApproval", checked)}
               />

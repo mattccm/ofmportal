@@ -8,7 +8,6 @@ import {
   MessageSquare,
   AlertTriangle,
   Zap,
-  Calendar as CalendarIcon,
 } from "lucide-react";
 import {
   addMonths,
@@ -234,9 +233,6 @@ export function ReminderPreviewCalendar({
     <Card className={cn("card-elevated", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-            <CalendarIcon className="h-5 w-5 text-blue-500" />
-          </div>
           <div>
             <CardTitle className="text-base">{title}</CardTitle>
             {description && (
@@ -248,7 +244,7 @@ export function ReminderPreviewCalendar({
       <CardContent className="space-y-4">
         {/* Calendar Header */}
         <div className="flex items-center justify-between">
-          <Button
+          <Button aria-label="Previous month"
             variant="outline"
             size="icon"
             className="h-7 w-7"
@@ -259,7 +255,7 @@ export function ReminderPreviewCalendar({
           <span className="text-sm font-medium">
             {format(currentMonth, "MMMM yyyy")}
           </span>
-          <Button
+          <Button aria-label="Next month"
             variant="outline"
             size="icon"
             className="h-7 w-7"
@@ -322,7 +318,7 @@ export function ReminderPreviewCalendar({
                       />
                     ))}
                     {dayReminders.length > 4 && (
-                      <span className="text-[8px] text-muted-foreground">
+                      <span className="text-[12px] text-muted-foreground">
                         +{dayReminders.length - 4}
                       </span>
                     )}

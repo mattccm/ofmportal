@@ -1,31 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono, Bricolage_Grotesque } from "next/font/google";
+import { Onest, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { BRAND } from "@/lib/brand";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { KeyboardShortcutsProvider } from "@/components/providers/keyboard-shortcuts-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { ThemeProvider, ThemeScript } from "@/components/theme/theme-provider";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 
-const inter = Inter({
-  variable: "--font-inter",
+// The one typeface of the Title Wall world.
+const onest = Onest({
+  variable: "--font-onest",
   subsets: ["latin"],
   display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-geist-mono",
+// Mono only for codes, keys and IDs (2FA secrets, template variables, kbd hints).
+const mono = JetBrains_Mono({
+  variable: "--font-mono-face",
   subsets: ["latin"],
   display: "swap",
-});
-
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["500", "600", "700"],
 });
 
 export const viewport: Viewport = {
@@ -34,10 +30,9 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: BRAND.primaryColor },
-    { media: "(prefers-color-scheme: dark)", color: BRAND.primaryColor },
-  ],
+  // One dark theme: browser chrome and the PWA status bar sit on the ground.
+  themeColor: BRAND.groundColor,
+  colorScheme: "dark",
 };
 
 const ICON_VERSION = "v=4";
@@ -93,7 +88,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   other: {
     "mobile-web-app-capable": "yes",
-    "msapplication-TileColor": BRAND.primaryColor,
+    "msapplication-TileColor": BRAND.groundColor,
     "msapplication-tap-highlight": "no",
   },
 };
@@ -104,33 +99,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
-      <head>
-        <ThemeScript />
-      </head>
+    <html
+      lang="en"
+      className="dark scroll-smooth"
+      style={{ colorScheme: "dark" }}
+      suppressHydrationWarning
+    >
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} ${bricolage.variable} font-sans antialiased`}
+        className={`${onest.variable} ${mono.variable} font-sans antialiased`}
       >
-        <ThemeProvider
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange={false}
-        >
+        <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
               <KeyboardShortcutsProvider>
                 {children}
                 <InstallPrompt />
-                <Toaster
-                  position="bottom-right"
-                  toastOptions={{
-                    style: {
-                      background: 'var(--card)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--foreground)',
-                    },
-                  }}
-                />
+                <Toaster position="bottom-center" />
               </KeyboardShortcutsProvider>
             </AuthProvider>
           </QueryProvider>

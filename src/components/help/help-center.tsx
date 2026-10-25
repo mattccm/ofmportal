@@ -429,13 +429,13 @@ function QuickStartCard({ guide }: { guide: QuickStartGuide }) {
       >
         <CardHeader className="pb-3">
           <div className="flex items-start gap-4">
-            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary/10 to-violet-500/10 flex items-center justify-center text-primary flex-shrink-0">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
               {guide.icon}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <CardTitle className="text-base">{guide.title}</CardTitle>
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-[12px]">
                   <Clock className="w-3 h-3 mr-1" />
                   {guide.estimatedTime}
                 </Badge>
@@ -525,7 +525,7 @@ function FAQAccordion({
             className="w-full flex items-center justify-between p-4 text-left hover:bg-accent/30 transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <Badge variant="outline" className="text-[10px] flex-shrink-0">
+              <Badge variant="outline" className="text-[12px] flex-shrink-0">
                 {item.category}
               </Badge>
               <span className="font-medium text-sm truncate">
@@ -560,7 +560,7 @@ function FeatureGuideCard({ guide }: { guide: FeatureGuide }) {
       <Card className="card-elevated h-full hover:border-primary/30 transition-all group cursor-pointer">
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
-            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary/10 to-violet-500/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
               {guide.icon}
             </div>
             <div className="flex-1 min-w-0">
@@ -571,7 +571,7 @@ function FeatureGuideCard({ guide }: { guide: FeatureGuide }) {
                 {guide.badge && (
                   <Badge
                     variant="default"
-                    className="text-[10px] bg-primary/10 text-primary border-0"
+                    className="text-[12px] bg-primary/10 text-primary border-0"
                   >
                     {guide.badge}
                   </Badge>
@@ -597,11 +597,11 @@ function VideoTutorialCard({ tutorial }: { tutorial: VideoTutorial }) {
         tutorial.comingSoon && "opacity-75"
       )}
     >
-      <div className="aspect-video bg-gradient-to-br from-primary/20 via-violet-500/15 to-purple-500/20 flex items-center justify-center relative">
+      <div className="aspect-video bg-primary/20 flex items-center justify-center relative">
         {tutorial.comingSoon ? (
           <div className="text-center">
             <Clock className="w-8 h-8 text-primary/50 mx-auto mb-2" />
-            <span className="text-xs text-muted-foreground">Coming Soon</span>
+            <span className="text-xs text-foreground">Coming Soon</span>
           </div>
         ) : (
           <div className="w-14 h-14 rounded-full bg-white/90 dark:bg-black/50 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
@@ -697,8 +697,8 @@ function KeyboardShortcutsCard() {
 function ChangelogSection() {
   const typeConfig = {
     feature: {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-600 dark:text-emerald-400",
+      bg: "bg-success/10",
+      text: "text-success",
       label: "New Feature",
     },
     improvement: {
@@ -741,7 +741,7 @@ function ChangelogSection() {
                     <h4 className="font-medium text-sm">{entry.title}</h4>
                     <Badge
                       variant="secondary"
-                      className={cn("text-[10px]", config.bg, config.text)}
+                      className={cn("text-[12px]", config.bg, config.text)}
                     >
                       {config.label}
                     </Badge>
@@ -749,7 +749,7 @@ function ChangelogSection() {
                   <p className="text-xs text-muted-foreground mb-1">
                     {entry.description}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[12px] text-muted-foreground">
                     {entry.date}
                   </p>
                 </div>
@@ -816,13 +816,13 @@ function ContactSupportSection() {
             className="flex items-center gap-3 p-4 rounded-xl border hover:border-primary/30 hover:bg-accent/30 transition-all group cursor-not-allowed opacity-60"
             disabled
           >
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+            <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center text-success">
               <MessageCircle className="w-5 h-5" />
             </div>
             <div className="text-left">
               <div className="flex items-center gap-2">
                 <p className="font-medium text-sm">Live Chat</p>
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-[12px]">
                   Coming Soon
                 </Badge>
               </div>
@@ -840,7 +840,7 @@ function ContactSupportSection() {
             Submit a Support Ticket
           </h4>
           {isSubmitted ? (
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-success/10 text-success">
               <CheckCircle className="w-5 h-5" />
               <span className="text-sm">
                 Ticket submitted. We&apos;ll get back to you soon.

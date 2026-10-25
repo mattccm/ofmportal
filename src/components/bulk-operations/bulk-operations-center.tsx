@@ -142,7 +142,7 @@ export function BulkOperationsCenter() {
       id: "review-pending",
       label: "Review Pending Uploads",
       description: `${stats.pendingUploads} uploads waiting for review`,
-      icon: <FileCheck className="h-5 w-5 text-purple-500" />,
+      icon: <FileCheck className="h-5 w-5 text-foreground" />,
       action: () => setActiveTab("review"),
       badge: stats.pendingUploads > 0 ? String(stats.pendingUploads) : undefined,
       badgeVariant: "default",
@@ -196,7 +196,7 @@ export function BulkOperationsCenter() {
   const getStatusIcon = (status: BulkOperationStatus) => {
     switch (status) {
       case "completed":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-success" />;
       case "failed":
         return <XCircle className="h-4 w-4 text-red-500" />;
       case "partially_completed":
@@ -217,23 +217,23 @@ export function BulkOperationsCenter() {
     <div className="space-y-6">
       {/* Header with stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/20 border-purple-200 dark:border-purple-800">
+        <Card className=" bg-tile-hi dark:bg-tile-hi border-line dark:border-line">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                <p className="text-sm font-medium text-foreground dark:text-foreground">
                   Pending Reviews
                 </p>
-                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                <p className="text-2xl font-bold text-foreground dark:text-foreground">
                   {isLoadingStats ? "-" : stats.pendingUploads}
                 </p>
               </div>
-              <FileCheck className="h-8 w-8 text-purple-500/50" />
+              <FileCheck className="h-8 w-8 text-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200 dark:border-red-800">
+        <Card className=" bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -249,7 +249,7 @@ export function BulkOperationsCenter() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200 dark:border-amber-800">
+        <Card className=" bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -265,18 +265,18 @@ export function BulkOperationsCenter() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200 dark:border-green-800">
+        <Card className=" bg-success/10 dark:bg-success/30 border-success/30">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                <p className="text-sm font-medium text-success">
                   Ready to Archive
                 </p>
-                <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                <p className="text-2xl font-bold text-success">
                   {isLoadingStats ? "-" : stats.completedToArchive}
                 </p>
               </div>
-              <RefreshCw className="h-8 w-8 text-green-500/50" />
+              <RefreshCw className="h-8 w-8 text-success/50" />
             </div>
           </CardContent>
         </Card>
@@ -323,11 +323,11 @@ export function BulkOperationsCenter() {
       {/* Main content tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="requests" className="flex items-center gap-2">
+          <TabsTrigger aria-label="Requests" value="requests" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Requests</span>
           </TabsTrigger>
-          <TabsTrigger value="review" className="flex items-center gap-2">
+          <TabsTrigger aria-label={stats.pendingUploads > 0 ? `Review, ${stats.pendingUploads} pending` : "Review"} value="review" className="flex items-center gap-2">
             <FileCheck className="h-4 w-4" />
             <span className="hidden sm:inline">Review</span>
             {stats.pendingUploads > 0 && (
@@ -336,11 +336,11 @@ export function BulkOperationsCenter() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="status" className="flex items-center gap-2">
+          <TabsTrigger aria-label="Status" value="status" className="flex items-center gap-2">
             <RefreshCw className="h-4 w-4" />
             <span className="hidden sm:inline">Status</span>
           </TabsTrigger>
-          <TabsTrigger value="reminders" className="flex items-center gap-2">
+          <TabsTrigger aria-label={stats.overdueRequests > 0 ? `Reminders, ${stats.overdueRequests} overdue` : "Reminders"} value="reminders" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">Reminders</span>
             {stats.overdueRequests > 0 && (
@@ -349,7 +349,7 @@ export function BulkOperationsCenter() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
+          <TabsTrigger aria-label="History" value="history" className="flex items-center gap-2">
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">History</span>
           </TabsTrigger>

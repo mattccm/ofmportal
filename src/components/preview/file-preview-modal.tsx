@@ -75,7 +75,7 @@ function getStatusBadge(status?: string) {
     case "PENDING":
       return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
     case "APPROVED":
-      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Approved</Badge>;
+      return <Badge variant="outline" className="bg-success/10 text-success border-success/30">Approved</Badge>;
     case "REJECTED":
       return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejected</Badge>;
     default:
@@ -341,7 +341,7 @@ export function FilePreviewModal({
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="File info"
               variant="ghost"
               size="icon-sm"
               className="text-white hover:bg-white/20"
@@ -351,7 +351,7 @@ export function FilePreviewModal({
               <Info className="h-4 w-4" />
             </Button>
 
-            <Button
+            <Button aria-label={copiedLink ? "Link copied" : "Share"}
               variant="ghost"
               size="icon-sm"
               className="text-white hover:bg-white/20"
@@ -359,13 +359,13 @@ export function FilePreviewModal({
               title="Share"
             >
               {copiedLink ? (
-                <Check className="h-4 w-4 text-green-400" />
+                <Check className="h-4 w-4 text-success" />
               ) : (
                 <Share2 className="h-4 w-4" />
               )}
             </Button>
 
-            <Button
+            <Button aria-label="Download"
               variant="ghost"
               size="icon-sm"
               className="text-white hover:bg-white/20"
@@ -377,7 +377,7 @@ export function FilePreviewModal({
 
             <div className="w-px h-5 bg-white/20 mx-1" />
 
-            <Button
+            <Button aria-label="Close preview"
               variant="ghost"
               size="icon-sm"
               className="text-white hover:bg-white/20"
@@ -402,7 +402,7 @@ export function FilePreviewModal({
             {/* Navigation arrows */}
             {hasMultipleFiles && (
               <>
-                <Button
+                <Button aria-label="Previous file"
                   variant="ghost"
                   size="icon"
                   className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
@@ -412,7 +412,7 @@ export function FilePreviewModal({
                   <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
                 </Button>
 
-                <Button
+                <Button aria-label="Next file"
                   variant="ghost"
                   size="icon"
                   className={cn(
@@ -454,7 +454,7 @@ export function FilePreviewModal({
 
               {isAudio && (
                 <div className="flex flex-col items-center gap-6 p-8 bg-white/5 rounded-2xl backdrop-blur-sm">
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full bg-raised-hi flex items-center justify-center">
                     <Music className="h-16 w-16 text-white" />
                   </div>
                   <div className="text-center">
@@ -649,7 +649,7 @@ export function FilePreviewModal({
                 >
                   {copiedLink ? (
                     <>
-                      <Check className="h-4 w-4 text-green-400" />
+                      <Check className="h-4 w-4 text-success" />
                       Copied!
                     </>
                   ) : (
@@ -669,7 +669,7 @@ export function FilePreviewModal({
           <div className="absolute bottom-0 left-0 right-0 z-40 p-4 bg-gradient-to-t from-black/70 to-transparent">
             <div className="flex items-center justify-center gap-2 overflow-x-auto py-2">
               {files.map((file, index) => (
-                <button
+                <button aria-label={`View ${file.originalName}`}
                   key={file.id}
                   onClick={() => {
                     setCurrentIndex(index);

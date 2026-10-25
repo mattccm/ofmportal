@@ -296,7 +296,7 @@ export function ImageViewer({ src, alt, className, onLoad, onError }: ImageViewe
 
       {/* Controls toolbar */}
       <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10">
-        <Button
+        <Button aria-label="Zoom out"
           variant="ghost"
           size="icon-sm"
           className="text-white hover:bg-white/20"
@@ -311,7 +311,7 @@ export function ImageViewer({ src, alt, className, onLoad, onError }: ImageViewe
           {Math.round(scale * 100)}%
         </span>
 
-        <Button
+        <Button aria-label="Zoom in"
           variant="ghost"
           size="icon-sm"
           className="text-white hover:bg-white/20"
@@ -324,7 +324,7 @@ export function ImageViewer({ src, alt, className, onLoad, onError }: ImageViewe
 
         <div className="w-px h-5 bg-white/20 mx-1" />
 
-        <Button
+        <Button aria-label="Rotate left"
           variant="ghost"
           size="icon-sm"
           className="text-white hover:bg-white/20"
@@ -334,7 +334,7 @@ export function ImageViewer({ src, alt, className, onLoad, onError }: ImageViewe
           <RotateCcw className="h-4 w-4" />
         </Button>
 
-        <Button
+        <Button aria-label="Rotate right"
           variant="ghost"
           size="icon-sm"
           className="text-white hover:bg-white/20"
@@ -346,7 +346,7 @@ export function ImageViewer({ src, alt, className, onLoad, onError }: ImageViewe
 
         <div className="w-px h-5 bg-white/20 mx-1" />
 
-        <Button
+        <Button aria-label="Fit to screen"
           variant="ghost"
           size="icon-sm"
           className="text-white hover:bg-white/20"

@@ -72,7 +72,7 @@ function getResponseTimeStatus(avgTime: number): {
   icon: React.ElementType;
 } {
   if (avgTime <= 15) {
-    return { label: "Excellent", color: "text-green-600", icon: CheckCircle };
+    return { label: "Excellent", color: "text-success", icon: CheckCircle };
   }
   if (avgTime <= 30) {
     return { label: "Good", color: "text-blue-600", icon: TrendingUp };
@@ -299,7 +299,7 @@ export function CreatorCommunicationLog() {
             </div>
 
             <Select value={filterStaff} onValueChange={setFilterStaff}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter by assigned staff" className="w-[180px]">
                 <User className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Assigned Staff" />
               </SelectTrigger>
@@ -319,7 +319,7 @@ export function CreatorCommunicationLog() {
                 setSortBy(v as "recent" | "messages" | "response" | "name")
               }
             >
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger aria-label="Sort by" className="w-[160px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -524,7 +524,7 @@ export function CreatorCommunicationLog() {
                       >
                         <Avatar size="xs" user={{ name: staff.name }} />
                         <span className="text-sm">{staff.name}</span>
-                        <Badge variant="outline" className="text-[10px] h-4">
+                        <Badge variant="outline" className="text-[12px] h-5">
                           {staff.role}
                         </Badge>
                       </div>
@@ -625,7 +625,7 @@ export function CreatorCommunicationLog() {
                                 </span>
                                 <Badge
                                   variant="outline"
-                                  className="text-[10px] h-4"
+                                  className="text-[12px] h-5"
                                 >
                                   {message.senderRole}
                                 </Badge>

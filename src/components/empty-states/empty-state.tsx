@@ -47,16 +47,16 @@ export interface EmptyStateProps {
 // GRADIENT CONFIGS
 
 const ICON_GRADIENTS = {
-  primary: "from-primary/20 to-violet-500/20",
-  success: "from-emerald-500/20 to-green-500/20",
-  warning: "from-amber-500/20 to-orange-500/20",
-  info: "from-blue-500/20 to-cyan-500/20",
-  muted: "from-muted to-muted/50",
+  primary: "bg-primary/20 ",
+  success: "bg-success/20 ",
+  warning: "bg-amber-500/20 ",
+  info: "bg-blue-500/20 ",
+  muted: "bg-muted ",
 };
 
 const ICON_COLORS = {
   primary: "text-primary",
-  success: "text-emerald-600 dark:text-emerald-400",
+  success: "text-success",
   warning: "text-amber-600 dark:text-amber-400",
   info: "text-blue-600 dark:text-blue-400",
   muted: "text-muted-foreground",
@@ -94,7 +94,7 @@ const SIZES = {
 function IllustrationPattern({ variant }: { variant: "primary" | "success" | "muted" }) {
   const colors = {
     primary: { stroke: "stroke-primary/10", fill: "fill-primary/5" },
-    success: { stroke: "stroke-emerald-500/10", fill: "fill-emerald-500/5" },
+    success: { stroke: "stroke-success/10", fill: "fill-success/5" },
     muted: { stroke: "stroke-muted-foreground/10", fill: "fill-muted/30" },
   };
 
@@ -164,15 +164,15 @@ export function EmptyState({
         className={cn(
           "relative mx-auto flex items-center justify-center mb-4",
           sizeConfig.iconWrapper,
-          `bg-gradient-to-br ${gradientClass}`,
+          ` ${gradientClass}`,
           animated && "animate-pulse"
         )}
       >
         {/* Subtle ring animation for success variant */}
         {variant === "success" && (
           <>
-            <span className="absolute inset-0 rounded-inherit animate-ping opacity-20 bg-emerald-500" />
-            <span className="absolute -inset-2 rounded-inherit border-2 border-emerald-500/20 animate-pulse" />
+            <span className="absolute inset-0 rounded-inherit animate-ping opacity-20 bg-success" />
+            <span className="absolute -inset-2 rounded-inherit border-2 border-success/20 animate-pulse" />
           </>
         )}
         <Icon className={cn(sizeConfig.icon, iconColorClass)} />
@@ -217,7 +217,7 @@ export function EmptyState({
     return (
       <Card className={cn(
         "card-elevated overflow-hidden",
-        variant === "success" && "border-emerald-200 dark:border-emerald-800/50"
+        variant === "success" && "border-success/30"
       )}>
         <CardContent className="p-0">
           {content}

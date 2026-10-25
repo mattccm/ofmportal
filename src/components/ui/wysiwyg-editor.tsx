@@ -52,6 +52,8 @@ function ToolbarButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={title}
+      aria-pressed={isActive === undefined ? undefined : isActive}
       className={cn(
         "p-1.5 rounded-md transition-colors",
         "hover:bg-muted focus:bg-muted focus:outline-none",
@@ -99,13 +101,14 @@ function LinkPopover({ editor }: { editor: Editor | null }) {
         <button
           type="button"
           title="Add link"
+          aria-label="Add link"
           className={cn(
             "p-1.5 rounded-md transition-colors",
             "hover:bg-muted focus:bg-muted focus:outline-none",
             editor?.isActive("link") && "bg-primary/10 text-primary"
           )}
         >
-          <LinkIcon className="h-4 w-4" />
+          <LinkIcon className="h-4 w-4" aria-hidden="true" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-3" align="start">
@@ -161,7 +164,7 @@ function EditorToolbar({ editor }: EditorToolbarProps) {
   if (!editor) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border/50 bg-muted/30">
+    <div role="toolbar" aria-label="Formatting" className="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border/50 bg-muted/30">
       {/* Text formatting */}
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
@@ -275,6 +278,8 @@ interface WysiwygEditorProps {
   minHeight?: string;
   maxHeight?: string;
   disabled?: boolean;
+  /** Accessible name for the editable area: use the visible label's words. */
+  "aria-label"?: string;
 }
 
 export function WysiwygEditor({
@@ -286,8 +291,11 @@ export function WysiwygEditor({
   minHeight = "120px",
   maxHeight = "400px",
   disabled = false,
+  "aria-label": ariaLabel = "Rich text editor",
 }: WysiwygEditorProps) {
   const editor = useEditor({
+    // Render on the client only: Tiptap cannot hydrate a server-rendered editor.
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {
@@ -308,6 +316,14 @@ export function WysiwygEditor({
     ],
     content: value,
     editable: !disabled,
+    editorProps: {
+      // The contenteditable is a textbox: give it a role and a name.
+      attributes: {
+        role: "textbox",
+        "aria-multiline": "true",
+        "aria-label": ariaLabel,
+      },
+    },
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
     },
@@ -361,8 +377,8 @@ export function WysiwygEditor({
           "[&_.ProseMirror_p]:my-1.5",
           "[&_.ProseMirror_ul]:my-1.5",
           "[&_.ProseMirror_ol]:my-1.5",
-          "[&_.ProseMirror_blockquote]:border-l-4",
-          "[&_.ProseMirror_blockquote]:border-primary/30",
+          "[&_.ProseMirror_blockquote]:border-l",
+          "[&_.ProseMirror_blockquote]:border-ctl-hi",
           "[&_.ProseMirror_blockquote]:pl-4",
           "[&_.ProseMirror_blockquote]:italic",
           "[&_.ProseMirror_blockquote]:text-muted-foreground",

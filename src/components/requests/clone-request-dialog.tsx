@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { PRIORITY_TONE } from "@/components/editable";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -239,7 +240,7 @@ export function CloneRequestDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Copy className="h-5 w-5 text-indigo-600" />
+            <Copy className="h-5 w-5 text-foreground" />
             Clone Request
           </DialogTitle>
           <DialogDescription>
@@ -255,9 +256,9 @@ export function CloneRequestDialog({
                 <div
                   className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
                     currentStep === step
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-raised-hi text-ink"
                       : getStepNumber(currentStep) > getStepNumber(step)
-                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      ? "bg-success/10 text-success"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
@@ -294,7 +295,7 @@ export function CloneRequestDialog({
           {currentStep === "select" && (
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <Checkbox
+                <Checkbox aria-label={`Clone to same creator (${request.creator.name})`}
                   id="clone-same-creator"
                   checked={cloneToSameCreator}
                   onCheckedChange={(checked) =>
@@ -321,19 +322,19 @@ export function CloneRequestDialog({
                           key={creator.id}
                           className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
                             isSelected
-                              ? "bg-indigo-50 border-indigo-200 border dark:bg-indigo-900/20 dark:border-indigo-800"
+                              ? "bg-tile-hi border-line border dark:bg-tile-hi dark:border-line"
                               : "bg-muted/50 hover:bg-muted border border-transparent"
                           }`}
                           onClick={() => toggleCreatorSelection(creator.id)}
                         >
-                          <Checkbox
+                          <Checkbox aria-label={`Select ${creator.name}`}
                             checked={isSelected}
                             onCheckedChange={() =>
                               toggleCreatorSelection(creator.id)
                             }
                           />
                           <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-xs">
+                            <AvatarFallback className=" bg-raised-hi text-ink text-xs">
                               {creator.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -419,7 +420,7 @@ export function CloneRequestDialog({
                 {selectedCreatorIds.length > 1 && (
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center space-x-2">
-                      <Checkbox
+                      <Checkbox aria-label="Stagger due dates for each creator"
                         id="use-offset"
                         checked={useDueDateOffset}
                         onCheckedChange={(checked) =>
@@ -455,7 +456,7 @@ export function CloneRequestDialog({
                 )}
 
                 <div className="flex items-center space-x-2 pt-2">
-                  <Checkbox
+                  <Checkbox aria-label="Send notification to creator(s)"
                     id="send-notification"
                     checked={sendNotification}
                     onCheckedChange={(checked) =>
@@ -476,7 +477,7 @@ export function CloneRequestDialog({
                         <Label htmlFor={`field-${field.id}`}>
                           {field.label}
                           {field.required && (
-                            <span className="text-red-500 ml-1">*</span>
+                            <span className="text-late ml-1">*</span>
                           )}
                         </Label>
                         <Input
@@ -524,15 +525,9 @@ export function CloneRequestDialog({
                       <span className="text-muted-foreground">Priority</span>
                       <Badge
                         variant="outline"
-                        className={
-                          modifiedUrgency === "URGENT"
-                            ? "bg-red-100 text-red-700 border-red-200"
-                            : modifiedUrgency === "HIGH"
-                            ? "bg-orange-100 text-orange-700 border-orange-200"
-                            : ""
-                        }
+                        className={PRIORITY_TONE[modifiedUrgency] ?? PRIORITY_TONE.NORMAL}
                       >
-                        {modifiedUrgency}
+                        {modifiedUrgency.charAt(0) + modifiedUrgency.slice(1).toLowerCase()}
                       </Badge>
                     </div>
                     <div className="flex justify-between">
@@ -584,7 +579,7 @@ export function CloneRequestDialog({
                           >
                             <div className="flex items-center gap-2">
                               <Avatar className="h-6 w-6">
-                                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-xs">
+                                <AvatarFallback className=" bg-raised-hi text-ink text-xs">
                                   {creator.name.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
@@ -631,17 +626,17 @@ export function CloneRequestDialog({
                 </CardContent>
               </Card>
 
-              <Card className="border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/10 dark:border-indigo-800">
+              <Card className="border-line bg-tile-hi dark:border-line">
                 <CardContent className="pt-4">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900/30">
-                      <Copy className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    <div className="p-2 rounded-full bg-tile-hi dark:bg-tile-hi">
+                      <Copy className="h-4 w-4 text-foreground dark:text-foreground" />
                     </div>
                     <div className="text-sm">
-                      <p className="font-medium text-indigo-900 dark:text-indigo-300">
+                      <p className="font-medium text-foreground dark:text-foreground">
                         {selectedCreatorIds.length} request(s) will be created
                       </p>
-                      <p className="text-indigo-700 dark:text-indigo-400 mt-1">
+                      <p className="text-foreground dark:text-foreground mt-1">
                         Each cloned request will be linked to the original for
                         tracking purposes.
                       </p>
@@ -688,7 +683,7 @@ export function CloneRequestDialog({
                   )
                 }
                 disabled={!canProceed()}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="bg-raised-hi text-ink hover:bg-raised-hi"
               >
                 {currentStep === "select" && (
                   <>
@@ -708,7 +703,7 @@ export function CloneRequestDialog({
                 type="button"
                 onClick={handleClone}
                 disabled={loading}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="bg-raised-hi text-ink hover:bg-raised-hi"
               >
                 {loading ? (
                   <>

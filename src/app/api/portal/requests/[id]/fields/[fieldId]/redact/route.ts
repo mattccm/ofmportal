@@ -46,7 +46,7 @@ export async function POST(
 
     if (!existingSubmission) {
       return NextResponse.json(
-        { error: "Field has not been submitted" },
+        { error: "This field hasn't been submitted yet." },
         { status: 400 }
       );
     }
@@ -54,7 +54,7 @@ export async function POST(
     // Can only redact a SUBMITTED field awaiting review (redacting NEEDS_REVISION would erase staff feedback)
     if (existingSubmission.status !== "SUBMITTED") {
       return NextResponse.json(
-        { error: "Only submitted fields awaiting review can be redacted" },
+        { error: "Only a field that is waiting for review can be taken back." },
         { status: 400 }
       );
     }

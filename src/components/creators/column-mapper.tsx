@@ -128,7 +128,7 @@ export function ColumnMapper({
                   variant={isMapped ? "default" : "outline"}
                   className={
                     isMapped
-                      ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
+                      ? "bg-success/10 text-success border-success/30"
                       : "bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800"
                   }
                 >
@@ -194,7 +194,7 @@ export function ColumnMapper({
                         value={currentMapping || ""}
                         onValueChange={(value) => handleMappingChange(header, value)}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger aria-label={`Map column ${header}`} className="w-full">
                           <SelectValue placeholder="Select field..." />
                         </SelectTrigger>
                         <SelectContent>

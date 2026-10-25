@@ -29,8 +29,8 @@ interface SuccessCheckmarkProps {
 
 export function SuccessCheckmark({
   size = 80,
-  color = "#10B981",
-  backgroundColor = "#ECFDF5",
+  color = "var(--tw-confirm)",
+  backgroundColor = "var(--tw-tile-hi)",
   strokeWidth = 3,
   duration = 800,
   loop = false,
@@ -211,21 +211,23 @@ export type CheckmarkPreset = keyof typeof CHECKMARK_PRESETS;
 
 // Color variants
 export const CHECKMARK_COLORS = {
+  /** Done or saved: the neutral confirm grey on a raised tile (green is for Approved only) */
   success: {
-    color: "#10B981",
-    backgroundColor: "#ECFDF5",
+    color: "var(--tw-confirm)",
+    backgroundColor: "var(--tw-tile-hi)",
   },
   primary: {
-    color: "#3B82F6",
-    backgroundColor: "#EFF6FF",
+    color: "var(--tw-ink)",
+    backgroundColor: "var(--tw-tile-hi)",
   },
   warning: {
-    color: "#F59E0B",
-    backgroundColor: "#FFFBEB",
+    color: "var(--tw-acc)",
+    backgroundColor: "var(--tw-tile-hi)",
   },
+  /** Kept for callers; violet is off-palette, so it renders as ink */
   purple: {
-    color: "#8B5CF6",
-    backgroundColor: "#F5F3FF",
+    color: "var(--tw-ink)",
+    backgroundColor: "var(--tw-tile-hi)",
   },
 } as const;
 

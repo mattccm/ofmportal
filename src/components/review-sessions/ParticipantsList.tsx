@@ -80,7 +80,7 @@ export function ParticipantsList({
                           {getInitials(participant.user.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-green-500" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-success" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">

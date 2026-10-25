@@ -134,9 +134,9 @@ function ActionBadge({ action }: { action: DuplicateActionEnum }) {
       icon: AlertTriangle,
     },
     ALLOWED: {
-      bg: "bg-green-50 dark:bg-green-950/30",
-      text: "text-green-700 dark:text-green-400",
-      border: "border-green-200 dark:border-green-800/50",
+      bg: "bg-success/10",
+      text: "text-success",
+      border: "border-success/30",
       icon: CheckCircle2,
     },
     OVERRIDDEN: {
@@ -166,7 +166,7 @@ function ActionBadge({ action }: { action: DuplicateActionEnum }) {
 }
 
 function SimilarityBadge({ similarity }: { similarity: number }) {
-  let color = "text-green-600 dark:text-green-400";
+  let color = "text-success";
   if (similarity >= 95) {
     color = "text-red-600 dark:text-red-400";
   } else if (similarity >= 85) {
@@ -228,7 +228,7 @@ function ExpandedRowDetails({ attempt }: { attempt: DuplicateAttempt }) {
         {/* Original File */}
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Copy className="h-4 w-4 text-indigo-500" />
+            <Copy className="h-4 w-4 text-foreground" />
             Original Content
           </h4>
 
@@ -262,7 +262,7 @@ function ExpandedRowDetails({ attempt }: { attempt: DuplicateAttempt }) {
       {/* Match Details */}
       <div className="mt-4 pt-4 border-t">
         <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <ShieldAlert className="h-4 w-4 text-violet-500" />
+          <ShieldAlert className="h-4 w-4 text-foreground" />
           Match Details
         </h4>
         <div className="flex flex-wrap gap-2">
@@ -308,7 +308,7 @@ function StatsCards({
 }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="p-4 rounded-xl bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-200/50 dark:border-red-800/30">
+      <div className="p-4 rounded-xl bg-red-500/10 border border-red-200/50 dark:border-red-800/30">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center">
             <Ban className="h-5 w-5 text-red-500" />
@@ -320,7 +320,7 @@ function StatsCards({
         </div>
       </div>
 
-      <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-yellow-500/10 border border-amber-200/50 dark:border-amber-800/30">
+      <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-200/50 dark:border-amber-800/30">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -332,10 +332,10 @@ function StatsCards({
         </div>
       </div>
 
-      <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-200/50 dark:border-indigo-800/30">
+      <div className="p-4 rounded-xl bg-tile-hi border border-line dark:border-line">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-            <TrendingUp className="h-5 w-5 text-indigo-500" />
+          <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+            <TrendingUp className="h-5 w-5 text-foreground" />
           </div>
           <div>
             <p className="text-2xl font-bold">{stats.totalAttempts.toLocaleString()}</p>
@@ -344,10 +344,10 @@ function StatsCards({
         </div>
       </div>
 
-      <div className="p-4 rounded-xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-200/50 dark:border-violet-800/30">
+      <div className="p-4 rounded-xl bg-tile-hi border border-line dark:border-line">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-            <Users className="h-5 w-5 text-violet-500" />
+          <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+            <Users className="h-5 w-5 text-foreground" />
           </div>
           <div>
             <p className="text-2xl font-bold">{stats.uniqueCreators}</p>
@@ -566,9 +566,9 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
       return <ArrowUpDown className="h-4 w-4 text-muted-foreground/50" />;
     }
     return currentSort.sortOrder === "asc" ? (
-      <ChevronUp className="h-4 w-4 text-indigo-500" />
+      <ChevronUp className="h-4 w-4 text-foreground" />
     ) : (
-      <ChevronDown className="h-4 w-4 text-indigo-500" />
+      <ChevronDown className="h-4 w-4 text-foreground" />
     );
   };
 
@@ -645,7 +645,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
               "gap-2",
-              hasActiveFilters && "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+              hasActiveFilters && "border-ctl text-foreground dark:text-foreground"
             )}
           >
             <Filter className="h-4 w-4" />
@@ -657,13 +657,13 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
             )}
           </Button>
 
-          <Button variant="outline" onClick={handleRefresh} disabled={isLoading} className="gap-2">
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+          <Button variant="outline" onClick={handleRefresh} disabled={isLoading} className="gap-2" aria-label="Refresh">
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
 
-          <Button variant="outline" onClick={handleExport} disabled={isLoading || !data?.attempts?.length} className="gap-2">
-            <Download className="h-4 w-4" />
+          <Button variant="outline" onClick={handleExport} disabled={isLoading || !data?.attempts?.length} className="gap-2" aria-label="Export">
+            <Download className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">Export</span>
           </Button>
         </div>
@@ -685,7 +685,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
                   setLocalFilters({ ...localFilters, creatorId: value === "all" ? "" : value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Creator">
                   <SelectValue placeholder="All creators" />
                 </SelectTrigger>
                 <SelectContent>
@@ -711,7 +711,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
                   setLocalFilters({ ...localFilters, matchType: value === "all" ? "" : value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Match Type">
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
@@ -735,7 +735,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
                   setLocalFilters({ ...localFilters, action: value === "all" ? "" : value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Action">
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
                 <SelectContent>
@@ -776,7 +776,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
               <X className="h-4 w-4" />
               Clear
             </Button>
-            <Button onClick={handleApplyFilters} className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+            <Button onClick={handleApplyFilters} className="gap-2 bg-raised-hi text-ink hover:bg-raised-hi">
               Apply Filters
             </Button>
           </div>
@@ -785,7 +785,12 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
 
       {/* Table */}
       <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="overflow-auto max-h-[600px]">
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Duplicate upload attempts"
+          className="overflow-auto max-h-[600px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+        >
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
@@ -838,10 +843,10 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
                 <TableRow>
                   <TableCell colSpan={9} className="h-32">
                     <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                      <CheckCircle2 className="h-8 w-8 text-green-500" />
+                      <CheckCircle2 className="h-8 w-8 text-success" />
                       <p>No duplicate attempts found</p>
                       {hasActiveFilters && (
-                        <Button variant="link" onClick={handleClearFilters} className="text-indigo-600">
+                        <Button variant="link" onClick={handleClearFilters} className="text-foreground">
                           Clear filters
                         </Button>
                       )}
@@ -914,7 +919,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            <Button
+                            <Button aria-label="View original upload"
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
@@ -927,7 +932,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
                               <Eye className="h-4 w-4" />
                             </Button>
                             {attempt.action === "BLOCKED" && (
-                              <Button
+                              <Button aria-label="Override block"
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-blue-600 hover:text-blue-700"
@@ -1001,7 +1006,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
                     disabled={isLoading}
                     className={cn(
                       "w-9",
-                      currentPage === pageNum && "bg-indigo-600 hover:bg-indigo-700"
+                      currentPage === pageNum && "bg-raised-hi text-ink hover:bg-raised-hi"
                     )}
                   >
                     {pageNum}
@@ -1060,7 +1065,7 @@ export function DuplicateAttemptsLog({ initialData }: DuplicateAttemptsLogProps)
             <Button
               onClick={handleOverride}
               disabled={!overrideReason.trim() || isOverriding}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-raised-hi text-ink hover:bg-raised-hi"
             >
               {isOverriding ? (
                 <>

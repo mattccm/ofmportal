@@ -2,41 +2,24 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
-import {
-  FileText,
-  MoreHorizontal,
-  Edit,
-  Copy,
-  Trash2,
-  Layers,
-  BarChart3,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Plus,
-} from "lucide-react";
+import { Copy, FolderInput, MoreHorizontal, Pencil, Send, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteConfirmDialog } from "@/components/ui/confirm-dialog";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-
-// TYPES
+import { Skeleton } from "@/components/ui/skeleton";
+import { TemplateCover, type TemplateCoverField } from "./template-cover";
 
 interface TemplateCategory {
   id: string;
@@ -51,316 +34,195 @@ interface TemplateCardProps {
   description?: string | null;
   category?: TemplateCategory | null;
   fieldCount: number;
+  fields?: TemplateCoverField[];
   usageCount: number;
+  lastUsedAt?: string | Date | null;
   isActive: boolean;
   updatedAt: Date;
-  isFavorited?: boolean;
   onDuplicate?: () => Promise<void>;
   onDelete?: () => Promise<void>;
-  onFavoriteToggle?: (isFavorited: boolean) => void;
+  /** Groups the template can move to; shows "Move to group" when given with onMove */
+  groups?: { id: string; name: string }[];
+  /** Move to a group (null for Ungrouped) */
+  onMove?: (groupId: string | null) => void;
+  /** Show the group's name after the title (off on a group's own shelf) */
+  showGroup?: boolean;
 }
 
-// Helper function to strip HTML tags and truncate text
-function stripHtmlAndTruncate(html: string | null | undefined, maxLength: number = 80): string {
+function plain(html: string | null | undefined): string {
   if (!html) return "";
-  // Remove HTML tags
-  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-  // Truncate if too long
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength).trim() + "...";
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-// TEMPLATE CARD COMPONENT
-
+/**
+ * A template on the shelf: a typeset title card (TemplateCover) with its
+ * usage after the title, and Send / Edit / more actions at its foot.
+ */
 export function TemplateCard({
   id,
   name,
   description,
   category,
   fieldCount,
+  fields,
   usageCount,
+  lastUsedAt,
   isActive,
-  updatedAt,
-  isFavorited = false,
   onDuplicate,
   onDelete,
-  onFavoriteToggle,
+  groups,
+  onMove,
+  showGroup = false,
 }: TemplateCardProps) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const [isDeleting, setIsDeleting] = React.useState(false);
-  const [isDuplicating, setIsDuplicating] = React.useState(false);
+  const [confirm, setConfirm] = React.useState(false);
+  const [busy, setBusy] = React.useState<false | "copy" | "delete">(false);
 
-  const handleDuplicate = async () => {
+  const duplicate = async () => {
     if (!onDuplicate) return;
-
-    setIsDuplicating(true);
+    setBusy("copy");
     try {
       await onDuplicate();
-      toast.success("Template duplicated");
-    } catch (error) {
-      toast.error("Failed to duplicate template");
-      console.error(error);
+      toast.success(`Copy of ${name} made`);
+    } catch {
+      toast.error("Couldn't copy the template. Try again.");
     } finally {
-      setIsDuplicating(false);
+      setBusy(false);
     }
   };
 
-  const handleDelete = async () => {
+  const remove = async () => {
     if (!onDelete) return;
-
-    setIsDeleting(true);
+    setBusy("delete");
     try {
       await onDelete();
-      toast.success("Template deleted");
-      setShowDeleteConfirm(false);
-    } catch (error) {
-      toast.error("Failed to delete template");
-      console.error(error);
+      toast.success(`${name} deleted`);
+      setConfirm(false);
+    } catch {
+      toast.error("Couldn't delete the template. Try again.");
     } finally {
-      setIsDeleting(false);
+      setBusy(false);
     }
   };
+
+  const aside = [showGroup ? category?.name : null, !isActive ? "Switched off" : null].filter(Boolean).join(" · ");
 
   return (
     <>
-      <Card className="group relative overflow-hidden transition-all duration-200 hover:shadow-md hover:border-border">
-        {/* Active Indicator */}
-        <div
-          className={cn(
-            "absolute top-0 left-0 right-0 h-1 transition-colors",
-            isActive
-              ? "bg-gradient-to-r from-emerald-500 to-green-500"
-              : "bg-muted"
-          )}
-        />
-
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <div
-                className={cn(
-                  "h-10 w-10 shrink-0 rounded-xl flex items-center justify-center transition-colors",
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                <FileText className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <CardTitle className="text-base truncate">
-                  <Link
-                    href={`/dashboard/templates/${id}/edit`}
-                    className="hover:text-primary transition-colors"
-                  >
-                    {name}
+      <TemplateCover
+        name={name}
+        usageCount={usageCount}
+        lastUsedAt={lastUsedAt}
+        description={plain(description)}
+        fields={fields}
+        foot={fieldCount ? `${fieldCount} ${fieldCount === 1 ? "field" : "fields"}` : "No fields yet"}
+        href={`/dashboard/templates/${id}/edit`}
+        ariaLabel={`Edit ${name}`}
+        muted={!isActive}
+        aside={aside ? <span> · {aside}</span> : null}
+        actions={
+          <>
+            {isActive && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/dashboard/requests/new?templateId=${id}`}>
+                  <Send className="size-4" aria-hidden="true" />
+                  Send
+                </Link>
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon-sm" variant="ghost" aria-label={`More for ${name}`} disabled={!!busy}>
+                  <MoreHorizontal className="size-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem asChild>
+                  <Link href={`/dashboard/templates/${id}/edit`}>
+                    <Pencil className="size-4" aria-hidden="true" />
+                    Edit
                   </Link>
-                </CardTitle>
-                {description && (
-                  <CardDescription className="line-clamp-1 text-xs">
-                    {stripHtmlAndTruncate(description, 60)}
-                  </CardDescription>
+                </DropdownMenuItem>
+                {onMove && groups && groups.length > 0 && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <FolderInput className="size-4" aria-hidden="true" />
+                      Move to group
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuRadioGroup
+                        value={category?.id ?? "__none"}
+                        onValueChange={(v) => onMove(v === "__none" ? null : v)}
+                      >
+                        {groups.map((g) => (
+                          <DropdownMenuRadioItem key={g.id} value={g.id}>
+                            {g.name}
+                          </DropdownMenuRadioItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioItem value="__none">Ungrouped</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge
-                variant={isActive ? "default" : "secondary"}
-                className={cn(
-                  isActive &&
-                    "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                {onDuplicate && (
+                  <DropdownMenuItem onClick={duplicate}>
+                    <Copy className="size-4" aria-hidden="true" />
+                    Make a copy
+                  </DropdownMenuItem>
                 )}
-              >
-                {isActive ? (
+                {onDelete && (
                   <>
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Active
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Inactive
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-late focus:text-late" onClick={() => setConfirm(true)}>
+                      <Trash2 className="size-4" aria-hidden="true" />
+                      Delete
+                    </DropdownMenuItem>
                   </>
                 )}
-              </Badge>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/requests/new?template=${id}`}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Request
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/templates/${id}/edit`}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Template
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleDuplicate}
-                    disabled={isDuplicating}
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    {isDuplicating ? "Duplicating..." : "Duplicate"}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-3">
-          {/* Category Badge */}
-          {category && (
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className="text-xs font-normal"
-                style={category.color ? {
-                  borderColor: `${category.color}40`,
-                  backgroundColor: `${category.color}10`,
-                  color: category.color,
-                } : undefined}
-              >
-                {category.name}
-              </Badge>
-            </div>
-          )}
-
-          {/* Stats */}
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Layers className="h-4 w-4" />
-              <span>
-                {fieldCount} field{fieldCount !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <BarChart3 className="h-4 w-4" />
-              <span>
-                {usageCount} request{usageCount !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4" />
-              <span>
-                {formatDistanceToNow(new Date(updatedAt), { addSuffix: true })}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Delete Confirmation Dialog */}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
       <DeleteConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
+        open={confirm}
+        onOpenChange={setConfirm}
         itemName={name}
         itemType="template"
         description={
-          usageCount > 0
-            ? `This template is used by ${usageCount} content request${usageCount > 1 ? "s" : ""}. Deleting it will not affect existing requests, but you won't be able to use it for new ones.`
+          usageCount
+            ? `Requests already sent from ${name} keep their fields. You can't send new ones from it.`
             : undefined
         }
-        loading={isDeleting}
-        onConfirm={handleDelete}
+        loading={busy === "delete"}
+        onConfirm={remove}
       />
     </>
   );
 }
 
-// TEMPLATE CARD SKELETON
-
 export function TemplateCardSkeleton() {
   return (
-    <Card className="overflow-hidden">
-      <div className="h-1 bg-muted animate-pulse" />
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-muted animate-pulse" />
-            <div className="space-y-2">
-              <div className="h-4 w-32 bg-muted rounded animate-pulse" />
-              <div className="h-3 w-48 bg-muted rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="h-6 w-16 bg-muted rounded animate-pulse" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-6">
-          <div className="h-4 w-16 bg-muted rounded animate-pulse" />
-          <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-          <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex min-h-[236px] flex-col gap-3 rounded-[var(--tw-r-tile)] bg-tile px-[18px] py-4">
+      <Skeleton className="h-10 w-3/4" />
+      <Skeleton className="h-5 w-1/2" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="mt-auto h-5 w-16" />
+    </div>
   );
 }
 
-// EMPTY STATE
-
-interface EmptyTemplatesProps {
-  searchQuery?: string;
-  filterActive?: boolean | null;
-}
-
-export function EmptyTemplates({ searchQuery, filterActive }: EmptyTemplatesProps) {
-  const hasFilters = searchQuery || filterActive !== null;
-
+export function EmptyTemplates() {
   return (
-    <div className="text-center py-16">
-      <div className="mx-auto h-20 w-20 rounded-2xl bg-muted flex items-center justify-center mb-6">
-        <FileText className="h-10 w-10 text-muted-foreground" />
-      </div>
-      {hasFilters ? (
-        <>
-          <h3 className="text-lg font-semibold text-foreground">
-            No templates found
-          </h3>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-            No templates match your current filters. Try adjusting your search or
-            filter criteria.
-          </p>
-        </>
-      ) : (
-        <>
-          <h3 className="text-lg font-semibold text-foreground">
-            No templates yet
-          </h3>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-            Create your first template to streamline your content requests. Templates
-            help ensure consistency across all your requests.
-          </p>
-          <Button asChild className="mt-6">
-            <Link href="/dashboard/templates/new">
-              <FileText className="h-4 w-4 mr-2" />
-              Create Your First Template
-            </Link>
-          </Button>
-        </>
-      )}
+    <div className="rounded-[var(--tw-r-tile)] bg-tile-dim px-6 py-10">
+      <h3 className="text-[17px] font-semibold">No templates yet</h3>
+      <p className="mt-1 max-w-[52ch] text-sm text-ink-2">
+        A template is a request you send often: its fields, due date and priority. Build one and it
+        fills in the new-request form for you.
+      </p>
+      <Button asChild className="mt-4">
+        <Link href="/dashboard/templates/new">Build a template</Link>
+      </Button>
     </div>
   );
 }

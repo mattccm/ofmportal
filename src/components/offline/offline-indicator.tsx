@@ -138,7 +138,7 @@ export function OfflineIndicator({
                   ? 'text-red-500 bg-red-500/10'
                   : pendingActions > 0
                   ? 'text-amber-500 bg-amber-500/10'
-                  : 'text-emerald-500 bg-emerald-500/10',
+                  : 'text-success bg-success/10',
                 className
               )}
             >
@@ -156,7 +156,7 @@ export function OfflineIndicator({
                 <span
                   className={cn(
                     'absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center',
-                    'rounded-full bg-amber-500 text-[10px] font-bold text-white'
+                    'rounded-full bg-amber-500 text-[12px] font-bold text-white'
                   )}
                 >
                   {pendingActions > 9 ? '9+' : pendingActions}
@@ -192,7 +192,7 @@ export function OfflineIndicator({
                 ? 'bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20'
                 : pendingActions > 0
                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
-                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20',
+                : 'bg-success/10 text-success hover:bg-success/20',
               className
             )}
           >
@@ -239,7 +239,7 @@ export function OfflineIndicator({
           ? 'border-red-500/20 bg-red-500/5'
           : pendingActions > 0
           ? 'border-amber-500/20 bg-amber-500/5'
-          : 'border-emerald-500/20 bg-emerald-500/5',
+          : 'border-success/20 bg-success/5',
         className
       )}
     >
@@ -252,7 +252,7 @@ export function OfflineIndicator({
                 ? 'bg-red-500/10 text-red-500'
                 : pendingActions > 0
                 ? 'bg-amber-500/10 text-amber-500'
-                : 'bg-emerald-500/10 text-emerald-500'
+                : 'bg-success/10 text-success'
             )}
           >
             {isOffline ? (
@@ -363,7 +363,7 @@ function OfflineStatusPanel({ onSync }: OfflineStatusPanelProps) {
               'flex h-10 w-10 items-center justify-center rounded-full',
               isOffline
                 ? 'bg-red-500/10 text-red-500'
-                : 'bg-emerald-500/10 text-emerald-500'
+                : 'bg-success/10 text-success'
             )}
           >
             {isOffline ? (

@@ -1,52 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { WidgetGrid, type WidgetConfig } from "@/components/dashboard/widget-grid";
-import { WIDGET_DEFINITIONS } from "@/components/dashboard/widgets";
-import { WidgetDataProvider } from "@/components/dashboard/widget-data-provider";
-import { Sparkles } from "lucide-react";
+import { OverviewWall } from "@/components/overview/overview-wall";
+import type { OverviewData } from "./_overview/types";
 
 interface DashboardClientProps {
-  userName: string;
-  initialLayout: WidgetConfig[];
+  data: OverviewData;
+  canRemind: boolean;
 }
 
-export function DashboardClient({ userName, initialLayout }: DashboardClientProps) {
-  const [layout, setLayout] = useState<WidgetConfig[]>(initialLayout);
-
-  const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  };
-
-  return (
-    <WidgetDataProvider>
-      <div className="space-y-6 md:space-y-8 animate-fade-in">
-        {/* Header */}
-        <div className="flex flex-col gap-1" data-tour="dashboard-header">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Sparkles className="h-4 w-4" />
-            <span>{greeting()}</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Welcome back, {userName}
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Here&apos;s what&apos;s happening with your content today.
-          </p>
-        </div>
-
-        {/* Widget Grid */}
-        <div data-tour="dashboard-widgets">
-          <WidgetGrid
-            widgets={WIDGET_DEFINITIONS}
-            initialLayout={layout}
-            onLayoutChange={setLayout}
-          />
-        </div>
-      </div>
-    </WidgetDataProvider>
-  );
+/**
+ * The staff Overview. The customisable widget grid (Quick Stats and the other
+ * widgets) is replaced by the Title Wall; its components stay in
+ * src/components/dashboard for now but are no longer rendered here.
+ */
+export function DashboardClient({ data, canRemind }: DashboardClientProps) {
+  return <OverviewWall data={data} canRemind={canRemind} />;
 }

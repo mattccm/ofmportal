@@ -16,12 +16,12 @@ export default function TimezoneSettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard/settings/profile">
+          <Link href="/dashboard/settings/profile" aria-label="Back to profile">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 via-violet-500/20 to-purple-500/20 flex items-center justify-center">
+          <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center">
             <Globe className="h-6 w-6 text-primary" />
           </div>
           <div>
@@ -36,14 +36,14 @@ export default function TimezoneSettingsPage() {
       </div>
 
       {/* Info Card */}
-      <Card className="card-elevated border-violet-200/50 bg-gradient-to-r from-violet-50/50 to-purple-50/50 dark:from-violet-950/20 dark:to-purple-950/20 dark:border-violet-800/30">
+      <Card className="card-elevated border-line bg-tile-hi dark:bg-tile-hi dark:border-line">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
-              <Sparkles className="h-5 w-5 text-violet-500" />
+            <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center shrink-0">
+              <Sparkles className="h-5 w-5 text-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-violet-700 dark:text-violet-400">
+              <h3 className="font-semibold text-foreground dark:text-foreground">
                 Why Timezone Settings Matter
               </h3>
               <p className="text-sm text-muted-foreground mt-1">

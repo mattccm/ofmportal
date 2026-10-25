@@ -296,8 +296,9 @@ export function EmailEditor({
               variant="outline"
               size="sm"
               className="gap-1.5 h-8"
+              aria-label="Insert variable"
             >
-              <Variable className="h-4 w-4" />
+              <Variable className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Insert Variable</span>
             </Button>
           </DialogTrigger>
@@ -332,7 +333,7 @@ export function EmailEditor({
 
         {/* Template blocks */}
         <Select onValueChange={insertTemplateBlock}>
-          <SelectTrigger className="h-8 w-auto gap-1.5">
+          <SelectTrigger aria-label="Insert template block" className="h-8 w-auto gap-1.5">
             <SelectValue placeholder="Template Block" />
           </SelectTrigger>
           <SelectContent>
@@ -346,7 +347,7 @@ export function EmailEditor({
 
         {/* Preview toggle */}
         <div className="ml-auto">
-          <Button
+          <Button aria-label={isPreviewMode ? "Edit" : "Preview"}
             variant={isPreviewMode ? "default" : "outline"}
             size="sm"
             className="gap-1.5 h-8"
@@ -442,7 +443,7 @@ function ToolbarButton({
   active?: boolean;
 }) {
   return (
-    <button
+    <button aria-label={title}
       type="button"
       onClick={onClick}
       title={title}

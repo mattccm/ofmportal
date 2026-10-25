@@ -191,8 +191,8 @@ export function TrustedDevices() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <ShieldCheck className="h-5 w-5 text-emerald-500" />
+              <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-success" />
               </div>
               <div>
                 <CardTitle>Trusted Devices</CardTitle>
@@ -260,7 +260,7 @@ export function TrustedDevices() {
                             </div>
                           </div>
                         </div>
-                        <Button
+                        <Button aria-label={`Remove ${device.deviceName || "Unknown Device"}`}
                           variant="ghost"
                           size="icon"
                           onClick={() => openRevokeDialog(device)}
@@ -333,7 +333,7 @@ export function TrustedDevices() {
                             {formatDate(device.expiresAt)}
                           </TableCell>
                           <TableCell>
-                            <Button
+                            <Button aria-label={`Remove ${device.deviceName || "Unknown Device"}`}
                               variant="ghost"
                               size="sm"
                               onClick={() => openRevokeDialog(device)}

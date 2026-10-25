@@ -114,34 +114,34 @@ const NOTIFICATION_TYPE_ICONS: Record<string, React.ComponentType<{ className?: 
 
 const NOTIFICATION_TYPE_COLORS: Record<string, string> = {
   UPLOAD_SUBMITTED: "text-blue-500",
-  UPLOAD_APPROVED: "text-emerald-500",
+  UPLOAD_APPROVED: "text-success",
   UPLOAD_REJECTED: "text-red-500",
-  REQUEST_CREATED: "text-violet-500",
+  REQUEST_CREATED: "text-foreground",
   REQUEST_DUE_SOON: "text-amber-500",
   REQUEST_OVERDUE: "text-red-500",
   COMMENT_ADDED: "text-blue-500",
-  MENTION: "text-violet-500",
-  MESSAGE_RECEIVED: "text-indigo-500",
+  MENTION: "text-foreground",
+  MESSAGE_RECEIVED: "text-foreground",
   SYSTEM: "text-gray-500",
-  TEAM_MEMBER_JOINED: "text-emerald-500",
-  CREATOR_INVITED: "text-violet-500",
-  CREATOR_JOINED: "text-emerald-500",
+  TEAM_MEMBER_JOINED: "text-success",
+  CREATOR_INVITED: "text-foreground",
+  CREATOR_JOINED: "text-success",
 };
 
 const NOTIFICATION_TYPE_GRADIENTS: Record<string, string> = {
-  UPLOAD_SUBMITTED: "bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30",
-  UPLOAD_APPROVED: "bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30",
-  UPLOAD_REJECTED: "bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30",
-  REQUEST_CREATED: "bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/30 dark:to-violet-800/30",
-  REQUEST_DUE_SOON: "bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30",
-  REQUEST_OVERDUE: "bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30",
-  COMMENT_ADDED: "bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30",
-  MENTION: "bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/30 dark:to-violet-800/30",
-  MESSAGE_RECEIVED: "bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30",
-  SYSTEM: "bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-800/30",
-  TEAM_MEMBER_JOINED: "bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30",
-  CREATOR_INVITED: "bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/30 dark:to-violet-800/30",
-  CREATOR_JOINED: "bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30",
+  UPLOAD_SUBMITTED: " bg-blue-50 dark:bg-blue-900/30 ",
+  UPLOAD_APPROVED: " bg-success/10 dark:bg-success/30 ",
+  UPLOAD_REJECTED: " bg-red-50 dark:bg-red-900/30 ",
+  REQUEST_CREATED: " bg-tile-hi dark:bg-tile-hi ",
+  REQUEST_DUE_SOON: " bg-amber-50 dark:bg-amber-900/30 ",
+  REQUEST_OVERDUE: " bg-red-50 dark:bg-red-900/30 ",
+  COMMENT_ADDED: " bg-blue-50 dark:bg-blue-900/30 ",
+  MENTION: " bg-tile-hi dark:bg-tile-hi ",
+  MESSAGE_RECEIVED: " bg-tile-hi dark:bg-tile-hi ",
+  SYSTEM: " bg-gray-50 dark:bg-gray-900/30 ",
+  TEAM_MEMBER_JOINED: " bg-success/10 dark:bg-success/30 ",
+  CREATOR_INVITED: " bg-tile-hi dark:bg-tile-hi ",
+  CREATOR_JOINED: " bg-success/10 dark:bg-success/30 ",
 };
 
 const FILTER_CATEGORIES = [
@@ -228,7 +228,7 @@ function NotificationItemCard({
   const IconComponent = NOTIFICATION_TYPE_ICONS[notification.type] || Bell;
   const iconColor = NOTIFICATION_TYPE_COLORS[notification.type] || "text-gray-500";
   const iconGradient = NOTIFICATION_TYPE_GRADIENTS[notification.type] ||
-    "bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-800/30";
+    " bg-gray-50 dark:bg-gray-900/30 ";
 
   const handleClick = (e: React.MouseEvent) => {
     // Don't navigate if clicking on actions
@@ -261,7 +261,7 @@ function NotificationItemCard({
     >
       {/* Selection checkbox */}
       <div className="flex items-center pt-1" data-action>
-        <Checkbox
+        <Checkbox aria-label={`Select notification: ${notification.title}`}
           checked={isSelected}
           onCheckedChange={(checked) => onSelect(notification.id, checked as boolean)}
           onClick={(e) => e.stopPropagation()}
@@ -270,7 +270,7 @@ function NotificationItemCard({
 
       {/* Unread indicator */}
       {isUnread && (
-        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-primary to-violet-500" />
+        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary " />
       )}
 
       {/* Icon */}
@@ -309,7 +309,7 @@ function NotificationItemCard({
             data-action
           >
             {isUnread ? (
-              <Button
+              <Button aria-label="Mark as read"
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
@@ -322,7 +322,7 @@ function NotificationItemCard({
                 <Eye className="h-4 w-4" />
               </Button>
             ) : (
-              <Button
+              <Button aria-label="Mark as unread"
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
@@ -335,7 +335,7 @@ function NotificationItemCard({
                 <EyeOff className="h-4 w-4" />
               </Button>
             )}
-            <Button
+            <Button aria-label="Delete notification"
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive"
@@ -862,8 +862,8 @@ export default function NotificationsPage() {
         </div>
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <CheckCircle className="h-6 w-6 text-emerald-500" />
+            <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+              <CheckCircle className="h-6 w-6 text-success" />
             </div>
             <div>
               <p className="text-2xl font-bold">{total - unreadCount}</p>
@@ -873,8 +873,8 @@ export default function NotificationsPage() {
         </div>
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <Filter className="h-6 w-6 text-violet-500" />
+            <div className="h-12 w-12 rounded-xl bg-tile-hi flex items-center justify-center">
+              <Filter className="h-6 w-6 text-foreground" />
             </div>
             <div>
               <p className="text-2xl font-bold">{filteredNotifications.length}</p>
@@ -904,7 +904,7 @@ export default function NotificationsPage() {
 
                 {/* Type filter */}
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-full sm:w-40 h-9">
+                  <SelectTrigger aria-label="Filter by type" className="w-full sm:w-40 h-9">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Filter type" />
                   </SelectTrigger>
@@ -919,7 +919,7 @@ export default function NotificationsPage() {
 
                 {/* Read filter */}
                 <Select value={readFilter} onValueChange={(v) => setReadFilter(v as ReadFilter)}>
-                  <SelectTrigger className="w-full sm:w-32 h-9">
+                  <SelectTrigger aria-label="Filter by status" className="w-full sm:w-32 h-9">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -938,7 +938,7 @@ export default function NotificationsPage() {
               <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Checkbox
+                    <Checkbox aria-label="Select all notifications"
                       checked={allSelected}
                       indeterminate={someSelected}
                       onCheckedChange={handleSelectAll}
@@ -1007,7 +1007,7 @@ export default function NotificationsPage() {
               <div>
                 {/* Select all header */}
                 <div className="flex items-center gap-3 px-4 py-2 border-b border-border/50 bg-muted/30">
-                  <Checkbox
+                  <Checkbox aria-label="Select all"
                     checked={allSelected}
                     indeterminate={someSelected}
                     onCheckedChange={handleSelectAll}

@@ -123,29 +123,29 @@ const defaultRoleConfig: Record<string, { icon: React.ElementType; label: string
   OWNER: {
     icon: ShieldCheck,
     label: "Owner",
-    color: "#7c3aed",
-    bgColor: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800",
+    color: "#eceef2",
+    bgColor: "bg-tile-hi text-ink border-ctl",
     description: "Full access, can manage team and billing",
   },
   ADMIN: {
     icon: Shield,
     label: "Admin",
-    color: "#2563eb",
-    bgColor: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+    color: "#eceef2",
+    bgColor: "bg-tile-hi text-ink border-ctl",
     description: "Full access except billing",
   },
   MANAGER: {
     icon: UserCog,
     label: "Manager",
-    color: "#059669",
-    bgColor: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
+    color: "#a6aab3",
+    bgColor: "bg-transparent text-ink border-ctl",
     description: "Can manage creators and requests",
   },
   MEMBER: {
     icon: User,
     label: "Member",
-    color: "#6b7280",
-    bgColor: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-400 dark:border-gray-800",
+    color: "#a6aab3",
+    bgColor: "bg-transparent text-ink-2 border-ctl",
     description: "Can view and comment only",
   },
 };
@@ -363,6 +363,9 @@ export default function TeamClient({
   const canManageMembers = ["OWNER", "ADMIN"].includes(currentUserRole);
   const canAssignOwner = currentUserRole === "OWNER";
 
+  const twoFactorOn = members.filter((m) => m.twoFactorEnabled).length;
+  const teamLede = `${members.length} ${members.length === 1 ? "person" : "people"} on the team. Two-factor sign-in is on for ${twoFactorOn} of ${members.length}${twoFactorOn < members.length ? "; ask the rest to turn it on in Security settings" : ""}.`;
+
   // Count members by role type
   const roleCounts = {
     default: Object.keys(defaultRoleConfig).reduce((acc, role) => {
@@ -379,11 +382,9 @@ export default function TeamClient({
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Team</h1>
-          <p className="mt-1 text-sm md:text-base text-muted-foreground">
-            Manage your team members and their roles
-          </p>
+        <div className="min-w-0 max-w-[72ch]">
+          <h1 className="text-[22px] font-bold leading-tight tracking-[-0.015em] text-ink sm:text-[26px]">Team</h1>
+          <p className="mt-1.5 text-[15px] text-ink">{teamLede}</p>
         </div>
         <div className="flex items-center gap-2">
           {canManageMembers && (
@@ -393,13 +394,13 @@ export default function TeamClient({
                 onClick={() => router.push("/dashboard/settings/roles")}
               >
                 <Settings className="mr-2 h-4 w-4" />
-                Manage Roles
+                Roles and permissions
               </Button>
               <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="min-h-[44px]">
+                  <Button variant="light">
                     <Plus className="mr-2 h-4 w-4" />
-                    Invite Member
+                    Invite a team member
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
@@ -449,7 +450,7 @@ export default function TeamClient({
                           }
                         }}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="Role">
                           <SelectValue placeholder="Select a role" />
                         </SelectTrigger>
                         <SelectContent>
@@ -511,37 +512,23 @@ export default function TeamClient({
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        {Object.entries(defaultRoleConfig).map(([role, config]) => {
-          const count = roleCounts.default[role] || 0;
-          const Icon = config.icon;
-          return (
-            <Card
-              key={role}
-              className={cn(
-                "card-elevated cursor-pointer transition-all hover:shadow-md",
-                roleFilter === role && "ring-2 ring-primary"
-              )}
-              onClick={() => setRoleFilter(roleFilter === role ? "ALL" : role)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="p-2 rounded-lg"
-                    style={{ backgroundColor: `${config.color}15`, color: config.color }}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{count}</p>
-                    <p className="text-xs text-muted-foreground">{config.label}s</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Role filter: counts as a segmented control, not stat tiles */}
+      <div role="group" aria-label="Show role" className="inline-flex max-w-full flex-wrap gap-0.5 rounded-[8px] bg-well p-0.5">
+        {[["ALL", "Everyone", members.length] as const, ...Object.entries(defaultRoleConfig).map(([role, config]) => [role, `${config.label}s`, roleCounts.default[role] || 0] as const)].map(([key, label, count]) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={roleFilter === key}
+            onClick={() => setRoleFilter(key)}
+            className={cn(
+              "inline-flex h-10 items-center gap-1.5 rounded-[7px] px-3 text-sm font-medium text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-ring md:h-8",
+              roleFilter === key && "bg-tile-hi text-ink"
+            )}
+          >
+            {label}
+            <span className="tabular-nums">{count}</span>
+          </button>
+        ))}
       </div>
 
       {/* Custom Roles Summary */}
@@ -604,7 +591,7 @@ export default function TeamClient({
           />
         </div>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger aria-label="Filter by role" className="w-full sm:w-[200px]">
             <SelectValue placeholder="Filter by role" />
           </SelectTrigger>
           <SelectContent>
@@ -695,7 +682,7 @@ export default function TeamClient({
                         {canManageMembers && member.id !== currentUserId && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
+                              <Button aria-label={`More actions for ${member.name}`} variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -739,7 +726,7 @@ export default function TeamClient({
                       <div className="flex items-center gap-2 mt-3 flex-wrap">
                         {getRoleBadge(member)}
                         {member.twoFactorEnabled && (
-                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
                             2FA
                           </Badge>
                         )}
@@ -835,7 +822,7 @@ export default function TeamClient({
                         <div className="flex items-center gap-2">
                           <span
                             className={`h-2 w-2 rounded-full ${
-                              member.isOnline ? "bg-emerald-500" : "bg-gray-400"
+                              member.isOnline ? "bg-success" : "bg-gray-400"
                             }`}
                           />
                           <span className="text-sm">
@@ -853,7 +840,7 @@ export default function TeamClient({
                       </TableCell>
                       <TableCell>
                         {member.twoFactorEnabled ? (
-                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
                             2FA Enabled
                           </Badge>
                         ) : (
@@ -864,7 +851,7 @@ export default function TeamClient({
                         {canManageMembers && member.id !== currentUserId && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-9 w-9">
+                              <Button aria-label={`More actions for ${member.name}`} variant="ghost" size="icon" className="h-9 w-9">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -943,7 +930,7 @@ export default function TeamClient({
                   }
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="New Role">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>

@@ -56,8 +56,8 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 const CATEGORY_COLORS: Record<ShortcutCategory, string> = {
   navigation: "text-blue-500 bg-blue-500/10",
   actions: "text-amber-500 bg-amber-500/10",
-  search: "text-violet-500 bg-violet-500/10",
-  content: "text-emerald-500 bg-emerald-500/10",
+  search: "text-foreground bg-tile-hi",
+  content: "text-success bg-success/10",
   general: "text-slate-500 bg-slate-500/10",
 };
 
@@ -71,7 +71,7 @@ interface KeyProps {
 
 function Key({ children, isModifier = false, size = "md" }: KeyProps) {
   const sizeClasses = {
-    sm: "min-w-[1.5rem] h-6 px-1.5 text-[10px]",
+    sm: "min-w-[1.5rem] h-6 px-1.5 text-[12px]",
     md: "min-w-[2rem] h-7 px-2 text-xs",
   };
 
@@ -79,10 +79,10 @@ function Key({ children, isModifier = false, size = "md" }: KeyProps) {
     <kbd
       className={cn(
         "inline-flex items-center justify-center rounded-md font-mono font-medium",
-        "bg-gradient-to-b from-muted to-muted/80",
+        " bg-muted ",
         "border border-border/50 shadow-[0_1px_0_1px_rgba(0,0,0,0.1)]",
         "dark:shadow-[0_1px_0_1px_rgba(255,255,255,0.05)]",
-        isModifier && "bg-gradient-to-b from-primary/10 to-primary/5 text-primary border-primary/20",
+        isModifier && " bg-primary/10 text-primary border-primary/20",
         sizeClasses[size]
       )}
     >
@@ -116,7 +116,7 @@ function ShortcutKeysDisplay({ keys, size = "md" }: ShortcutKeysDisplayProps) {
           <React.Fragment key={i}>
             <Key size={size}>{part}</Key>
             {i < keyParts.length - 1 && (
-              <span className="text-[10px] text-muted-foreground mx-0.5">then</span>
+              <span className="text-[12px] text-muted-foreground mx-0.5">then</span>
             )}
           </React.Fragment>
         ))}
@@ -135,7 +135,7 @@ function ShortcutKeysDisplay({ keys, size = "md" }: ShortcutKeysDisplayProps) {
             {part === "Cmd" && isMacOS() ? <Command className="h-3 w-3" /> : part}
           </Key>
           {i < keyParts.length - 1 && (
-            <span className="text-[10px] text-muted-foreground mx-0.5">+</span>
+            <span className="text-[12px] text-muted-foreground mx-0.5">+</span>
           )}
         </React.Fragment>
       ))}
@@ -186,7 +186,7 @@ function CategorySection({ group, shortcuts, searchQuery }: CategorySectionProps
         <h3 className="text-sm font-medium text-muted-foreground">
           {group.label}
         </h3>
-        <Badge variant="secondary" className="text-[10px] ml-auto">
+        <Badge variant="secondary" className="text-[12px] ml-auto">
           {shortcuts.length}
         </Badge>
       </div>
@@ -264,7 +264,7 @@ function QuickTips() {
             Use{" "}
             <span className="inline-flex items-center gap-0.5">
               <Key size="sm">{modKey === "Cmd" ? <Command className="h-3 w-3" /> : "Ctrl"}</Key>
-              <span className="text-[10px] mx-0.5">+</span>
+              <span className="text-[12px] mx-0.5">+</span>
               <Key size="sm">K</Key>
             </span>{" "}
             to search for any action
@@ -357,7 +357,7 @@ export function KeyboardShortcutsDialog({
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center">
               <Keyboard className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1">
@@ -383,7 +383,7 @@ export function KeyboardShortcutsDialog({
               className="pl-9 pr-4 h-10"
             />
             {searchQuery && (
-              <button
+              <button type="button" aria-label="Clear search"
                 onClick={() => setSearchQuery("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted transition-colors"
               >

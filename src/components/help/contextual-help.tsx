@@ -342,7 +342,7 @@ export function HelpBadge({ helpKey, className }: HelpBadgeProps) {
           type="button"
           className={cn(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full",
-            "text-[10px] font-medium text-muted-foreground",
+            "text-[12px] font-medium text-muted-foreground",
             "bg-muted/50 hover:bg-muted hover:text-foreground",
             "transition-colors duration-200",
             className
@@ -435,7 +435,7 @@ function QuickHelpCard({ helpKey, onClose }: QuickHelpCardProps) {
       <div className="flex items-start justify-between gap-2 mb-2">
         <h5 className="font-medium text-sm">{content.title}</h5>
         {onClose && (
-          <button
+          <button type="button" aria-label="Close"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground p-0.5 rounded"
           >

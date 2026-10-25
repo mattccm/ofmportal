@@ -3,353 +3,111 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import {
-  User,
-  Shield,
-  Bell,
-  CreditCard,
-  ChevronRight,
-  Settings,
-  Sparkles,
-  Lock,
-  Mail,
-  Clock,
-  FileText,
-  Palette,
-  Sun,
-  MailOpen,
-  Megaphone,
-  Globe,
-  Database,
-  Tag,
-  Users,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { ChevronRight } from "lucide-react";
+import { PageHead, SettingsSection } from "@/components/creators/people-ui";
+import { plural } from "@/components/creators/insights";
 
-interface SettingSection {
+interface Row {
   title: string;
   description: string;
   href: string;
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  features: string[];
-  badge?: {
-    text: string;
-    variant: "default" | "secondary" | "outline";
-  };
-  disabled?: boolean;
   adminOnly?: boolean;
 }
 
-const settingsSections: SettingSection[] = [
+interface Group {
+  id: string;
+  title: string;
+  description: string;
+  rows: Row[];
+}
+
+const GROUPS: Group[] = [
   {
-    title: "Profile Settings",
-    description: "Manage your personal information and preferences",
-    href: "/dashboard/settings/profile",
-    icon: <User className="h-6 w-6" />,
-    iconBg: "bg-primary/10",
-    iconColor: "text-primary",
-    features: ["Avatar & photo", "Name & contact info", "Email address", "Timezone preferences"],
+    id: "you",
+    title: "You",
+    description: "Your own account. Nobody else on the team sees these.",
+    rows: [
+      { title: "Profile", description: "Your name, photo, email and contact details", href: "/dashboard/settings/profile" },
+      { title: "Security", description: "Password, two-factor sign-in and active sessions", href: "/dashboard/settings/security" },
+      { title: "Notifications", description: "What reaches you by email and in the app, and your quiet hours", href: "/dashboard/settings/notifications" },
+      { title: "Time zone and dates", description: "How times and dates show for you", href: "/dashboard/settings/timezone" },
+      { title: "Appearance", description: "The one dark theme, and what follows your device", href: "/dashboard/settings/appearance" },
+    ],
   },
   {
-    title: "Appearance",
-    description: "Customize the look and feel of your portal",
-    href: "/dashboard/settings/appearance",
-    icon: <Sun className="h-6 w-6" />,
-    iconBg: "bg-orange-500/10",
-    iconColor: "text-orange-500",
-    features: ["Light & dark mode", "System theme sync", "Color preferences", "Display density"],
+    id: "creators",
+    title: "Creators and reminders",
+    description: "What creators receive: reminders, emails and banners.",
+    rows: [
+      { title: "Reminder rules", description: "When reminders go out, quiet hours, and a preview of the lock screen", href: "/dashboard/settings/reminder-rules", adminOnly: true },
+      { title: "Email templates", description: "The wording of emails sent to creators", href: "/dashboard/settings/email-templates", adminOnly: true },
+      { title: "Announcements", description: "Banners shown across the portal", href: "/dashboard/settings/announcements", adminOnly: true },
+      { title: "Duplicate detection", description: "Catch the same file uploaded twice", href: "/dashboard/settings/duplicate-detection", adminOnly: true },
+    ],
   },
   {
-    title: "Security Settings",
-    description: "Keep your account secure with advanced protection",
-    href: "/dashboard/settings/security",
-    icon: <Shield className="h-6 w-6" />,
-    iconBg: "bg-emerald-500/10",
-    iconColor: "text-emerald-500",
-    features: ["Two-factor authentication", "Password management", "Active sessions", "API keys"],
-  },
-  {
-    title: "Notification Settings",
-    description: "Control how and when you receive updates",
-    href: "/dashboard/settings/notifications",
-    icon: <Bell className="h-6 w-6" />,
-    iconBg: "bg-violet-500/10",
-    iconColor: "text-violet-500",
-    features: ["Email notifications", "Push notifications", "Digest frequency", "Quiet hours"],
-  },
-  {
-    title: "Timezone & Date Format",
-    description: "Configure timezone, date, and time display preferences",
-    href: "/dashboard/settings/timezone",
-    icon: <Globe className="h-6 w-6" />,
-    iconBg: "bg-teal-500/10",
-    iconColor: "text-teal-500",
-    features: ["Timezone selection", "Date formats", "Time formats", "Auto-detect"],
-  },
-  {
-    title: "Data Management",
-    description: "Manage storage, retention policies, and data exports",
-    href: "/dashboard/settings/data",
-    icon: <Database className="h-6 w-6" />,
-    iconBg: "bg-rose-500/10",
-    iconColor: "text-rose-500",
-    features: ["Storage usage", "Retention policies", "Manual cleanup", "Data export"],
-    badge: { text: "Admin", variant: "default" },
-    adminOnly: true,
-  },
-  {
-    title: "Billing & Plan",
-    description: "Manage your subscription and payment methods",
-    href: "/dashboard/settings/billing",
-    icon: <CreditCard className="h-6 w-6" />,
-    iconBg: "bg-amber-500/10",
-    iconColor: "text-amber-500",
-    features: ["Subscription plan", "Payment methods", "Billing history", "Usage & limits"],
-    badge: { text: "Coming Soon", variant: "secondary" },
-    disabled: true,
-  },
-  {
-    title: "Audit Log",
-    description: "View all system activities and user actions",
-    href: "/dashboard/settings/audit-log",
-    icon: <FileText className="h-6 w-6" />,
-    iconBg: "bg-indigo-500/10",
-    iconColor: "text-indigo-500",
-    features: ["Activity tracking", "User actions", "System events", "Export reports"],
-    badge: { text: "Admin", variant: "default" },
-    adminOnly: true,
-  },
-  {
-    title: "Agency Branding",
-    description: "Customize your portal with your branding",
-    href: "/dashboard/settings/branding",
-    icon: <Palette className="h-6 w-6" />,
-    iconBg: "bg-fuchsia-500/10",
-    iconColor: "text-fuchsia-500",
-    features: ["Custom logos", "Brand colors", "Portal domain", "Custom styling"],
-    badge: { text: "Admin", variant: "default" },
-    adminOnly: true,
-  },
-  {
-    title: "Email Templates",
-    description: "Customize emails sent to your creators",
-    href: "/dashboard/settings/email-templates",
-    icon: <MailOpen className="h-6 w-6" />,
-    iconBg: "bg-cyan-500/10",
-    iconColor: "text-cyan-500",
-    features: ["Welcome emails", "Request notifications", "Reminder emails", "Custom variables"],
-    badge: { text: "Admin", variant: "default" },
-    adminOnly: true,
-  },
-  {
-    title: "Announcements",
-    description: "Create and manage banner announcements",
-    href: "/dashboard/settings/announcements",
-    icon: <Megaphone className="h-6 w-6" />,
-    iconBg: "bg-rose-500/10",
-    iconColor: "text-rose-500",
-    features: ["System banners", "Scheduled announcements", "Target audiences", "Dismissal tracking"],
-    badge: { text: "Admin", variant: "default" },
-    adminOnly: true,
-  },
-  {
-    title: "Auto-Reminder Rules",
-    description: "Configure automatic reminder schedules by urgency level",
-    href: "/dashboard/settings/reminder-rules",
-    icon: <Clock className="h-6 w-6" />,
-    iconBg: "bg-amber-500/10",
-    iconColor: "text-amber-500",
-    features: ["Urgency-based rules", "SMS escalation", "Overdue reminders", "Creator overrides"],
-    badge: { text: "Admin", variant: "default" },
-    adminOnly: true,
-  },
-  {
-    title: "Template Categories",
-    description: "Organize templates into categories for easier management",
-    href: "/dashboard/settings/template-categories",
-    icon: <Tag className="h-6 w-6" />,
-    iconBg: "bg-blue-500/10",
-    iconColor: "text-blue-500",
-    features: ["Create categories", "Assign templates", "Category colors", "Team access control"],
-    badge: { text: "Admin", variant: "default" },
-    adminOnly: true,
-  },
-  {
-    title: "Roles & Permissions",
-    description: "Manage team roles and access controls",
-    href: "/dashboard/settings/roles",
-    icon: <Users className="h-6 w-6" />,
-    iconBg: "bg-purple-500/10",
-    iconColor: "text-purple-500",
-    features: ["Custom roles", "Permission overrides", "Category access", "Creator assignments"],
-    badge: { text: "Admin", variant: "default" },
-    adminOnly: true,
+    id: "agency",
+    title: "Agency",
+    description: "Settings that apply to everyone on the team.",
+    rows: [
+      { title: "Branding", description: "Agency name, logos and email sender", href: "/dashboard/settings/branding", adminOnly: true },
+      { title: "Template groups", description: "Group request templates so they are easier to find, and limit who can send them", href: "/dashboard/settings/template-categories", adminOnly: true },
+      { title: "Roles and permissions", description: "What each role can see and change", href: "/dashboard/settings/roles", adminOnly: true },
+      { title: "Data", description: "Storage used, retention and exports", href: "/dashboard/settings/data", adminOnly: true },
+      { title: "Audit log", description: "Every action taken by staff, newest first", href: "/dashboard/settings/audit-log", adminOnly: true },
+      { title: "Feedback", description: "Bug reports and ideas sent from the app", href: "/dashboard/settings/feedback", adminOnly: true },
+    ],
   },
 ];
 
-function SettingsCard({ section }: { section: SettingSection }) {
-  const cardContent = (
-    <Card
-      className={`card-elevated h-full transition-all duration-200 ${
-        section.disabled
-          ? "opacity-60 cursor-not-allowed"
-          : "hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
-      }`}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            <div
-              className={`h-12 w-12 rounded-xl ${section.iconBg} ${section.iconColor} flex items-center justify-center transition-transform group-hover:scale-110`}
-            >
-              {section.icon}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg">{section.title}</CardTitle>
-                {section.badge && (
-                  <Badge variant={section.badge.variant} className="text-xs">
-                    {section.badge.text}
-                  </Badge>
-                )}
-                </div>
-                <CardDescription className="mt-1">
-                  {section.description}
-                </CardDescription>
-              </div>
-            </div>
-            {!section.disabled && (
-              <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2">
-            {section.features.map((feature, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-                {feature}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-
-  if (section.disabled) {
-    return <div>{cardContent}</div>;
-  }
-
-  return <Link href={section.href}>{cardContent}</Link>;
-}
-
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "OWNER";
+  const role = session?.user?.role;
+  const isAdmin = role === "ADMIN" || role === "OWNER";
+  const [rules, setRules] = React.useState<{ on: number; total: number } | null>(null);
 
-  // Filter sections based on user role
-  const visibleSections = settingsSections.filter(
-    (section) => !section.adminOnly || isAdmin
-  );
+  React.useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/reminder-rules")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setRules({ on: d.rules.filter((r: { isActive: boolean }) => r.isActive).length, total: d.rules.length }))
+      .catch(() => {});
+  }, [isAdmin]);
+
+  const groups = GROUPS.map((g) => ({ ...g, rows: g.rows.filter((r) => !r.adminOnly || isAdmin) })).filter((g) => g.rows.length);
+  const who = session?.user?.name ? `Signed in as ${session.user.name}${role ? `, ${role.toLowerCase()}` : ""}.` : "";
+  const lede = isAdmin
+    ? `${who} ${rules ? `${rules.on} of ${plural(rules.total, "reminder rule")} on.` : ""}`.trim()
+    : `${who} Agency settings are kept to owners and admins.`.trim();
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/20 via-violet-500/20 to-purple-500/20 flex items-center justify-center">
-          <Settings className="h-7 w-7 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your account settings and preferences
-          </p>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <Card className="card-elevated overflow-hidden">
-        <div className="h-1.5 bg-gradient-to-r from-primary via-violet-500 to-purple-500" />
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <Lock className="h-6 w-6 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Account Security</p>
-                <p className="font-semibold text-emerald-600">Protected</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <Mail className="h-6 w-6 text-violet-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Email Notifications</p>
-                <p className="font-semibold">Enabled</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Last Updated</p>
-                <p className="font-semibold text-sm">Just now</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Settings Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {visibleSections.map((section) => (
-          <SettingsCard key={section.href} section={section} />
-        ))}
-      </div>
-
-      {/* Pro Tip */}
-      <Card className="card-elevated border-violet-200/50 bg-gradient-to-r from-violet-50/50 to-purple-50/50 dark:from-violet-950/20 dark:to-purple-950/20 dark:border-violet-800/30">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
-              <Sparkles className="h-5 w-5 text-violet-500" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-violet-700 dark:text-violet-400">
-                Pro Tip: Enable Two-Factor Authentication
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Protect your account with an extra layer of security. Go to Security Settings
-                to enable 2FA using an authenticator app.
-              </p>
-              <Link
-                href="/dashboard/settings/security"
-                className="inline-flex items-center gap-1 text-sm font-medium text-violet-600 dark:text-violet-400 mt-3 hover:underline"
-              >
-                Set up 2FA now
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="mx-auto max-w-[1152px] space-y-8">
+      <PageHead title="Settings" lede={lede || "Your account and the agency's settings."} />
+      {groups.map((g) => (
+        <SettingsSection key={g.id} id={`set-${g.id}`} title={g.title} description={g.description}>
+          <nav aria-label={g.title} className="overflow-hidden rounded-[10px] bg-tile">
+            <ul className="divide-y divide-line">
+              {g.rows.map((r) => (
+                <li key={r.href}>
+                  <Link
+                    href={r.href}
+                    className="group flex min-h-[64px] items-center gap-4 px-4 py-3 transition-colors hover:bg-tile-hi focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:px-5"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold text-ink">{r.title}</span>
+                      <span className="block text-sm text-ink-2">
+                        {r.href.endsWith("reminder-rules") && rules ? `${rules.on} of ${rules.total} on. ` : ""}
+                        {r.description}
+                      </span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-icon transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </SettingsSection>
+      ))}
     </div>
   );
 }

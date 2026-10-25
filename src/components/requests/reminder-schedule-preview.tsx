@@ -13,18 +13,11 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 // TYPES
@@ -82,21 +75,6 @@ function ChannelIcon({ channel }: { channel: "EMAIL" | "SMS" }) {
   ) : (
     <Mail className="h-3.5 w-3.5" />
   );
-}
-
-function getTypeColor(type: ReminderPreview["type"]) {
-  switch (type) {
-    case "UPCOMING":
-      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-    case "DUE_TODAY":
-      return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-    case "OVERDUE":
-      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-    case "ESCALATION":
-      return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
-    default:
-      return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
-  }
 }
 
 function getConfigSourceLabel(source: ReminderPreviewResponse["config"]["source"]) {
@@ -183,148 +161,101 @@ export function ReminderSchedulePreview({
     return null;
   }
 
-  // Loading state
   if (isLoading && !preview) {
     return (
-      <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", className)}>
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>Loading reminder schedule...</span>
-      </div>
+      <p className={cn("flex items-center gap-2 text-sm text-ink-2", className)}>
+        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        Working out the reminder schedule
+      </p>
     );
   }
 
-  // Error state
   if (error && !preview) {
     return (
-      <div className={cn("flex items-center gap-2 text-sm text-red-600 dark:text-red-400", className)}>
-        <AlertCircle className="h-4 w-4" />
-        <span>{error}</span>
-      </div>
+      <p className={cn("flex items-center gap-2 text-sm text-ink-2", className)}>
+        <AlertCircle className="size-4 text-late" aria-hidden="true" />
+        Couldn&apos;t load the reminder schedule. It will still follow your reminder rules.
+      </p>
     );
   }
 
-  // No preview available
-  if (!preview) {
-    return null;
-  }
+  if (!preview) return null;
 
-  // No reminders scheduled
   if (preview.count === 0) {
     return (
-      <div className={cn("flex items-center gap-2 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30", className)}>
-        <Info className="h-4 w-4 text-amber-500" />
-        <span className="text-sm text-amber-700 dark:text-amber-400">
-          No automatic reminders will be scheduled for this request
-        </span>
-      </div>
+      <p className={cn("flex items-center gap-2 text-sm text-ink-2", className)}>
+        <Info className="size-4 text-icon" aria-hidden="true" />
+        No automatic reminders for this one. Your reminder rules don&apos;t cover this priority.
+      </p>
     );
   }
 
-  // Compact view
   if (!showDetails) {
     return (
-      <div className={cn("flex items-center gap-2", className)}>
-        <Bell className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">
-          {preview.summary}
-        </span>
-        {isLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-      </div>
+      <p className={cn("flex items-center gap-2 text-sm text-ink-2", className)}>
+        <Bell className="size-4 text-icon" aria-hidden="true" />
+        {preview.summary}
+        {isLoading && <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
+      </p>
     );
   }
 
-  // Full view with details
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className={cn("rounded-lg border bg-card", className)}>
+      <div className={cn("rounded-[var(--tw-r-tile)] bg-tile", className)}>
         <CollapsibleTrigger asChild>
-          <button className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Bell className="h-4 w-4 text-primary" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-medium">{preview.summary}</p>
-                <p className="text-xs text-muted-foreground">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 rounded-[var(--tw-r-tile)] px-3.5 py-3 text-left transition-colors hover:bg-tile-hi focus-visible:outline-2 focus-visible:outline-acc"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <Bell className="size-4 shrink-0 text-icon" aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{preview.summary}</span>
+                <span className="block text-[13px] text-ink-2">
                   {getConfigSourceLabel(preview.config.source)}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {isLoading && (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-              {isOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
+                </span>
+              </span>
+            </span>
+            <span className="flex items-center gap-2 text-icon">
+              {isLoading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+              <span className="text-[13px] text-ink-2">{isOpen ? "Hide" : "Show"} schedule</span>
+              {isOpen ? <ChevronUp className="size-4" aria-hidden="true" /> : <ChevronDown className="size-4" aria-hidden="true" />}
+            </span>
           </button>
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <div className="border-t p-3 space-y-2">
+          <ol className="flex flex-col gap-1 px-2 pb-2">
             {preview.reminders.map((reminder, index) => (
-              <div
+              <li
                 key={index}
-                className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-3 rounded-[var(--tw-r-ctl)] px-2 py-2 hover:bg-tile-hi"
               >
-                <div className="flex items-center gap-3">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className={cn("h-6 w-6 rounded-full flex items-center justify-center", getTypeColor(reminder.type))}>
-                          <ReminderTypeIcon type={reminder.type} />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{reminder.type.replace("_", " ")}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <div>
-                    <p className="text-sm font-medium">{reminder.formattedDate}</p>
-                    <p className="text-xs text-muted-foreground">{reminder.label}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant="outline" className="gap-1">
-                          <ChannelIcon channel={reminder.channel} />
-                          {reminder.channel}
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          {reminder.channel === "SMS"
-                            ? "SMS notification"
-                            : "Email notification"}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  {reminder.isEscalation && (
-                    <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                      <Zap className="h-3 w-3 mr-1" />
-                      Escalation
-                    </Badge>
-                  )}
-                </div>
-              </div>
+                <span className={cn(reminder.type === "OVERDUE" || reminder.isEscalation ? "text-late" : "text-icon")}>
+                  <ReminderTypeIcon type={reminder.type} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium tabular-nums">
+                    {reminder.formattedDate}
+                    <span className="font-normal text-ink-2"> · {reminder.formattedTime}</span>
+                  </span>
+                  <span className="block truncate text-[13px] text-ink-2">
+                    {reminder.label}
+                    {reminder.isEscalation ? " · escalation" : ""}
+                  </span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[13px] text-ink-2">
+                  <ChannelIcon channel={reminder.channel} />
+                  {reminder.channel === "SMS" ? "Text" : "Email"}
+                </span>
+              </li>
             ))}
-
-            <div className="pt-2 flex items-start gap-2 text-xs text-muted-foreground">
-              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              <p>
-                Reminders are sent automatically based on the due date. You can modify
-                the schedule after the request is created or customize settings for
-                specific creators.
-              </p>
-            </div>
-          </div>
+          </ol>
+          <p className="px-3.5 pb-3 text-[13px] text-ink-2">
+            Reminders follow the due date and never carry the request title. Change a
+            creator&apos;s schedule from their profile.
+          </p>
         </CollapsibleContent>
       </div>
     </Collapsible>

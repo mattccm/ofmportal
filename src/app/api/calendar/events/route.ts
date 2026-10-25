@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { rescheduleReminders } from "@/lib/auto-reminder-scheduler";
+import { isRequestOverdue } from "@/lib/request-status";
+import { requestStatusState, type FieldState } from "@/components/title-wall/types";
 
 // VALIDATION SCHEMAS
 
@@ -35,37 +37,29 @@ export interface CalendarEvent {
   creatorId?: string;
   creatorName?: string;
   requestId?: string;
+  /**
+   * The request's state in the shared vocabulary, for events that show one:
+   * request events always (null for drafts and closed requests), deadline
+   * events only when overdue. Reminders and upcoming due dates have none and
+   * draw in neutral ink with their own icon.
+   */
+  state: FieldState | null;
+  /** The state's colour token (neutral control grey when there is no state) */
   color: string;
   metadata?: Record<string, unknown>;
 }
 
-// COLOR MAPPING
+// COLOURS: the state tokens only. Event types carry no hue of their own.
 
-const statusColors: Record<string, string> = {
-  DRAFT: "#94a3b8",
-  PENDING: "#f59e0b",
-  IN_PROGRESS: "#3b82f6",
-  SUBMITTED: "#8b5cf6",
-  UNDER_REVIEW: "#f97316",
-  NEEDS_REVISION: "#ef4444",
-  APPROVED: "#10b981",
-  CANCELLED: "#6b7280",
-  ARCHIVED: "#9ca3af",
+const STATE_COLOR: Record<FieldState, string> = {
+  waiting: "var(--tw-s-waiting)",
+  ready: "var(--tw-s-review)",
+  approved: "var(--tw-s-approved)",
+  changes: "var(--tw-s-changes)",
+  overdue: "var(--tw-late)",
 };
-
-const reminderTypeColors: Record<string, string> = {
-  UPCOMING: "#3b82f6",
-  DUE_TODAY: "#f59e0b",
-  OVERDUE: "#ef4444",
-  ESCALATION: "#dc2626",
-};
-
-const urgencyColors: Record<string, string> = {
-  LOW: "#94a3b8",
-  NORMAL: "#3b82f6",
-  HIGH: "#f97316",
-  URGENT: "#ef4444",
-};
+const NEUTRAL_COLOR = "var(--tw-ctl-hi)";
+const colorOf = (state: FieldState | null) => (state ? STATE_COLOR[state] : NEUTRAL_COLOR);
 
 // GET - Fetch calendar events
 
@@ -127,6 +121,8 @@ export async function GET(req: NextRequest) {
       });
 
       for (const request of requests) {
+        const isOverdue = isRequestOverdue(request);
+        const state = requestStatusState(request.status, isOverdue);
         events.push({
           id: `request-${request.id}`,
           title: request.title,
@@ -138,9 +134,11 @@ export async function GET(req: NextRequest) {
           creatorId: request.creatorId,
           creatorName: request.creator.name,
           requestId: request.id,
-          color: statusColors[request.status] || "#6b7280",
+          state,
+          color: colorOf(state),
           metadata: {
             requirements: request.requirements,
+            isOverdue,
           },
         });
       }
@@ -172,7 +170,9 @@ export async function GET(req: NextRequest) {
 
       for (const request of deadlines) {
         if (request.dueDate) {
-          const isOverdue = new Date(request.dueDate) < new Date();
+          // Late only while the creator still owes content (same rule as everywhere else)
+          const isOverdue = isRequestOverdue(request);
+          const state: FieldState | null = isOverdue ? "overdue" : null;
           events.push({
             id: `deadline-${request.id}`,
             title: `Due: ${request.title}`,
@@ -184,7 +184,8 @@ export async function GET(req: NextRequest) {
             creatorId: request.creatorId,
             creatorName: request.creator.name,
             requestId: request.id,
-            color: isOverdue ? "#ef4444" : urgencyColors[request.urgency] || "#3b82f6",
+            state,
+            color: colorOf(state),
             metadata: {
               isOverdue,
             },
@@ -246,7 +247,8 @@ export async function GET(req: NextRequest) {
           creatorId: reminder.request.creator.id,
           creatorName: reminder.request.creator.name,
           requestId: reminder.request.id,
-          color: reminderTypeColors[reminder.type] || "#3b82f6",
+          state: null,
+          color: NEUTRAL_COLOR,
           metadata: {
             reminderType: reminder.type,
             channel: reminder.channel,

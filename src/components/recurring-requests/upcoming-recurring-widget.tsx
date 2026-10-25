@@ -65,7 +65,7 @@ function UpcomingItem({
       <div
         className={cn(
           "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-          "bg-primary/10 text-primary"
+          "bg-tile-hi text-ink"
         )}
       >
         <Repeat className="h-5 w-5" />
@@ -76,7 +76,7 @@ function UpcomingItem({
           {nextRunAt && isToday(nextRunAt) && (
             <Badge
               variant="outline"
-              className="text-xs bg-primary/10 text-primary border-primary/20"
+              className="text-xs bg-tile-hi text-ink border-line"
             >
               Today
             </Badge>
@@ -89,7 +89,7 @@ function UpcomingItem({
           <span>{totalCreators} creator{totalCreators !== 1 ? "s" : ""}</span>
         </div>
       </div>
-      <Button
+      <Button aria-label="Run now"
         variant="ghost"
         size="icon"
         className="h-8 w-8"
@@ -199,12 +199,12 @@ export function UpcomingRecurringWidget({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base flex items-center gap-2">
-              <Repeat className="h-5 w-5 text-primary" />
+              <Repeat className="h-5 w-5 text-ink" />
               Upcoming Recurring Requests
             </CardTitle>
             <CardDescription className="text-xs">
               {todayCount > 0 && (
-                <span className="text-primary font-medium">{todayCount} today</span>
+                <span className="text-ink font-medium">{todayCount} today</span>
               )}
               {todayCount > 0 && thisWeekCount > todayCount && " / "}
               {thisWeekCount > todayCount && (

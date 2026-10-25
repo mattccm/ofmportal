@@ -1006,6 +1006,8 @@ export async function pauseRemindersForCreator(
     create: {
       agencyId,
       creatorId,
+      // A pause alone must not move this creator onto a custom schedule
+      useCustomSettings: false,
       isPaused: true,
       pausedAt: new Date(),
       pauseResumeAt: options.resumeAt || null,

@@ -495,7 +495,7 @@ export function TimestampForm({
 
               {/* Annotation toolbar */}
               <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-background/80 backdrop-blur rounded-lg p-1">
-                <Button
+                <Button aria-label="Point marker"
                   variant={annotationTool === "point" ? "secondary" : "ghost"}
                   size="icon-sm"
                   onClick={() => setAnnotationTool(annotationTool === "point" ? null : "point")}
@@ -503,7 +503,7 @@ export function TimestampForm({
                 >
                   <MousePointer2 className="h-4 w-4" />
                 </Button>
-                <Button
+                <Button aria-label="Rectangle"
                   variant={annotationTool === "rectangle" ? "secondary" : "ghost"}
                   size="icon-sm"
                   onClick={() => setAnnotationTool(annotationTool === "rectangle" ? null : "rectangle")}
@@ -511,7 +511,7 @@ export function TimestampForm({
                 >
                   <Square className="h-4 w-4" />
                 </Button>
-                <Button
+                <Button aria-label="Arrow"
                   variant={annotationTool === "arrow" ? "secondary" : "ghost"}
                   size="icon-sm"
                   onClick={() => setAnnotationTool(annotationTool === "arrow" ? null : "arrow")}
@@ -519,7 +519,7 @@ export function TimestampForm({
                 >
                   <ArrowUpRight className="h-4 w-4" />
                 </Button>
-                <Button
+                <Button aria-label="Freehand"
                   variant={annotationTool === "freehand" ? "secondary" : "ghost"}
                   size="icon-sm"
                   onClick={() => setAnnotationTool(annotationTool === "freehand" ? null : "freehand")}
@@ -632,7 +632,7 @@ export function TimestampForm({
             <div className="space-y-2">
               <Label>Severity</Label>
               <Select value={severity} onValueChange={(v) => setSeverity(v as VideoTimestamp["severity"])}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Severity">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

@@ -287,7 +287,9 @@ export function KeyboardShortcutsProvider({
         description: "Preview content",
         category: "content",
         context: ["uploads", "requests"],
-        preventDefault: true,
+        // Never swallow Space: it presses the focused button (Show preview,
+        // Approve, a checkbox) and scrolls the page everywhere else.
+        preventDefault: false,
       },
       {
         id: "navigate-next",

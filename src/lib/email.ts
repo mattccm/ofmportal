@@ -1,11 +1,11 @@
 import { Resend } from "resend";
 import { db } from "./db";
 import {
-  isValidHexColor,
   getContrastColor,
   type BrandingSettings,
 } from "./branding";
 import { BRAND } from "./brand";
+import { reminderEmailSubject } from "./reminder-copy";
 
 // Lazy initialization to avoid errors when API key is not configured
 let resend: Resend | null = null;
@@ -54,36 +54,29 @@ interface EmailBranding {
   replyTo: string | null;
 }
 
+/** Dark ink for header bar, links and buttons (see resolvePrimaryColor) */
+const EMAIL_INK = BRAND.groundColor;
+
 const FALLBACK_BRANDING: EmailBranding = {
   agencyName: BRAND.name,
   fromName: BRAND.name,
   logoUrl: null,
-  primaryColor: BRAND.primaryColor,
-  buttonTextColor: getContrastColor(BRAND.primaryColor),
+  primaryColor: EMAIL_INK,
+  buttonTextColor: "#ffffff",
   signature: null,
   supportEmail: null,
   replyTo: null,
 };
 
 /**
- * Violet/purple defaults left over from the old theme. Agencies that saved
- * their settings while these were the defaults still have them stored, so
- * treat them as "unset" and use the brand green instead.
+ * Emails are read on light mail clients, where the yellow accent has no
+ * contrast. Every email therefore uses the Title Wall's dark ink (the ground,
+ * #0e0f12) for the header bar, links and buttons, with white text on buttons.
+ * Saved agency colours (the retired green, the older violet) are ignored so
+ * nothing off-palette reaches a creator's inbox.
  */
-const LEGACY_THEME_COLORS = new Set([
-  "#7c3aed",
-  "#8b5cf6",
-  "#a855f7",
-  "#6d28d9",
-  "#9333ea",
-  "#667eea",
-  "#764ba2",
-]);
-
-function resolvePrimaryColor(saved: string | null | undefined): string {
-  if (!saved || !isValidHexColor(saved)) return BRAND.primaryColor;
-  if (LEGACY_THEME_COLORS.has(saved.toLowerCase())) return BRAND.primaryColor;
-  return saved;
+function resolvePrimaryColor(_saved?: string | null): string {
+  return EMAIL_INK;
 }
 
 /** Swap old product-name literals in a saved signature for the current brand */
@@ -184,6 +177,17 @@ export function note(html: string): string {
   return `<p style="margin:0 0 12px;font-family:${FONT_STACK};font-size:13px;line-height:1.6;color:${TEXT.muted};">${html}</p>`;
 }
 
+/**
+ * The field-state vocabulary on a white email: the app's state hues darkened
+ * to pass 4.5:1 on their own pale tint. Green means Approved and nothing else;
+ * the word always travels with the colour.
+ */
+const EMAIL_STATE = {
+  approved: { color: "#166534", background: "#ecfdf3" }, // 6.76:1
+  changes: { color: "#c2410c", background: "#fff7ed" }, // 4.88:1
+  overdue: { color: "#b91c1c", background: "#fef2f2" }, // 5.91:1
+} as const;
+
 /** Rounded pill used to signal status (approved / changes / overdue) */
 function statusPill(label: string, color: string, background: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr><td style="padding:6px 14px;background-color:${background};border-radius:999px;font-family:${FONT_STACK};font-size:12px;font-weight:600;letter-spacing:0.02em;text-transform:uppercase;color:${color};">${escapeHtml(label)}</td></tr></table>`;
@@ -222,14 +226,14 @@ export function renderEmail(options: {
 
   const headerInner = branding.logoUrl
     ? `<img src="${escapeHtml(branding.logoUrl)}" alt="${safeAgency}" height="36" style="display:block;height:36px;max-height:36px;width:auto;border:0;line-height:100%;outline:none;text-decoration:none;">`
-    : `<span style="font-family:${FONT_STACK};font-size:19px;font-weight:700;letter-spacing:-0.01em;color:${branding.primaryColor};">${safeAgency}</span>`;
+    : `<span style="font-family:${FONT_STACK};font-size:17px;font-weight:700;letter-spacing:-0.01em;color:${branding.primaryColor};">${safeAgency}</span>`;
 
   const signatureLine = branding.signature
     ? escapeHtml(branding.signature)
     : `Sent by ${safeAgency}`;
 
   const supportLine = branding.supportEmail
-    ? `<p style="margin:8px 0 0;font-family:${FONT_STACK};font-size:12px;line-height:1.5;color:${TEXT.faint};">Need a hand? Email <a href="mailto:${escapeHtml(branding.supportEmail)}" style="color:${branding.primaryColor};text-decoration:none;">${escapeHtml(branding.supportEmail)}</a>.</p>`
+    ? `<p style="margin:8px 0 0;font-family:${FONT_STACK};font-size:12px;line-height:1.5;color:${TEXT.faint};">Need a hand? Email <a href="mailto:${escapeHtml(branding.supportEmail)}" style="color:${branding.primaryColor};text-decoration:underline;">${escapeHtml(branding.supportEmail)}</a>.</p>`
     : "";
 
   const headingHtml = heading
@@ -251,7 +255,7 @@ export function renderEmail(options: {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f7;">
       <tr>
         <td align="center" style="padding:32px 16px;">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
             <tr>
               <td style="height:4px;line-height:4px;font-size:0;background-color:${branding.primaryColor};">&nbsp;</td>
             </tr>
@@ -467,17 +471,17 @@ function convertToHtml(text: string, linkColor: string): string {
   html = html.replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/g, "<u>$1</u>");
 
   // Code: `text`
-  html = html.replace(/`(.*?)`/g, "<code style=\"background: #f0f0f0; padding: 2px 6px; border-radius: 4px;\">$1</code>");
+  html = html.replace(/`(.*?)`/g, "<code style=\"background: #f0f0f0; padding: 2px 6px; border-radius: 6px;\">$1</code>");
 
   // Headers
   html = html.replace(/^## (.*$)/gm, "<h2 style=\"font-size: 1.25em; font-weight: 600; margin: 1em 0 0.5em;\">$1</h2>");
   html = html.replace(/^# (.*$)/gm, "<h1 style=\"font-size: 1.5em; font-weight: 700; margin: 1em 0 0.5em;\">$1</h1>");
 
   // Blockquotes
-  html = html.replace(/^&gt; (.*$)/gm, "<blockquote style=\"border-left: 4px solid #ddd; margin: 1em 0; padding-left: 1em; color: #666;\">$1</blockquote>");
+  html = html.replace(/^&gt; (.*$)/gm, "<blockquote style=\"border-left: 4px solid #eef0f2; margin: 1em 0; padding-left: 1em; color: #666;\">$1</blockquote>");
 
   // Horizontal rule
-  html = html.replace(/^---$/gm, "<hr style=\"border: none; border-top: 1px solid #ddd; margin: 1.5em 0;\">");
+  html = html.replace(/^---$/gm, "<hr style=\"border: none; border-top: 1px solid #eef0f2; margin: 1.5em 0;\">");
 
   // Restore links
   html = html.replace(/\u0000LINK(\d+)\u0000/g, (_m, i: string) => links[Number(i)]);
@@ -649,44 +653,54 @@ export async function sendContentRequestEmail({
   dueDate,
   portalLink,
   agencyId,
+  requestCount = 1,
 }: {
   to: string;
   creatorName: string;
   agencyName: string;
+  /** One title, or a line listing several ("2 requests: Feed photos, Stories") */
   requestTitle: string;
+  /** The earliest due date when several requests are listed */
   dueDate: string;
   portalLink: string;
   agencyId?: string;
+  /** How many requests this one email announces (a recurring run can send several) */
+  requestCount?: number;
 }) {
   const branding = await loadEmailBranding(agencyId, agencyName);
+  const several = requestCount > 1;
   // Lock-screen safe: never put the request title in the subject/preheader
-  const subject = "You have a new content request";
+  const subject = several ? "You have new content requests" : "You have a new content request";
+  const intro = several
+    ? `We have ${requestCount} new content requests ready for you:`
+    : "We have a new content request ready for you:";
+  const dueWord = several ? "First due" : "Due";
 
   const content = `
     ${p(`Hi ${escapeHtml(creatorName)},`)}
-    ${p(`We have a new content request ready for you:`)}
+    ${p(intro)}
     ${infoCard(`
       <p style="margin:0 0 6px;font-family:${FONT_STACK};font-size:16px;font-weight:600;color:${TEXT.heading};">${escapeHtml(requestTitle)}</p>
-      <p style="margin:0;font-family:${FONT_STACK};font-size:14px;color:${TEXT.muted};">Due <strong style="color:${TEXT.body};">${escapeHtml(dueDate)}</strong></p>
+      <p style="margin:0;font-family:${FONT_STACK};font-size:14px;color:${TEXT.muted};">${dueWord} <strong style="color:${TEXT.body};">${escapeHtml(dueDate)}</strong></p>
     `)}
     ${p(`Head to your portal to see the details and upload your content.`)}
-    ${ctaButton(portalLink, "View request & upload", branding)}
+    ${ctaButton(portalLink, several ? "View requests & upload" : "View request & upload", branding)}
   `;
 
   const html = renderEmail({
     subject,
     branding,
-    heading: "New content request",
+    heading: several ? "New content requests" : "New content request",
     content,
   });
 
   const text = `
 Hi ${creatorName},
 
-We have a new content request ready for you:
+${intro}
 
 ${requestTitle}
-Due ${dueDate}
+${dueWord} ${dueDate}
 
 See the details and upload your content here: ${portalLink}
   `.trim() + textFooter(branding);
@@ -725,16 +739,14 @@ export async function sendReminderEmail({
       ? "due today"
       : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? "s" : ""}`;
 
-  const testPrefix = isTest ? "[TEST] " : "";
-  // Lock-screen safe: never put the request title in the subject/preheader
-  const subject = isOverdue
-    ? `${testPrefix}Reminder: your content is ${urgencyText}`
-    : `${testPrefix}Reminder: content ${urgencyText}`;
+  // Lock-screen safe: never put the request title in the subject/preheader.
+  // Shared with the reminder-rules preview (src/lib/reminder-copy.ts).
+  const subject = reminderEmailSubject(daysUntilDue, isTest);
 
   const pill = isOverdue
-    ? statusPill("Overdue", "#b91c1c", "#fef2f2")
+    ? statusPill("Overdue", EMAIL_STATE.overdue.color, EMAIL_STATE.overdue.background)
     : isDueToday
-      ? statusPill("Due today", "#b45309", "#fffbeb")
+      ? statusPill("Due today", EMAIL_STATE.overdue.color, EMAIL_STATE.overdue.background)
       : statusPill("Reminder", branding.primaryColor, "#f4f4f7");
 
   const content = `
@@ -787,11 +799,11 @@ export async function sendContentApprovedEmail({
   const subject = "Your content was approved";
 
   const content = `
-    ${statusPill("Approved", "#15803d", "#f0fdf4")}
+    ${statusPill("Approved", EMAIL_STATE.approved.color, EMAIL_STATE.approved.background)}
     ${p(`Hi ${escapeHtml(creatorName)},`)}
     ${p(`Great news &mdash; your submission for <strong>"${escapeHtml(requestTitle)}"</strong> has been approved.`)}
     ${p(`Thank you for the great work. We really appreciate it!`)}
-    ${portalLink ? ctaButton(portalLink, "View in portal", branding) : ""}
+    ${portalLink ? ctaButton(portalLink.replace(/\/(portal|creator)\/.*$/, "/creator/dashboard"), "Open your portal", branding) : ""}
   `;
 
   const html = renderEmail({
@@ -806,7 +818,7 @@ export async function sendContentApprovedEmail({
       `Hi ${creatorName},`,
       `Great news - your submission for "${requestTitle}" has been approved.`,
       `Thank you for the great work. We really appreciate it!`,
-      portalLink ? `View it in your portal: ${portalLink}` : "",
+      portalLink ? `Open your portal: ${portalLink.replace(/\/(portal|creator)\/.*$/, "/creator/dashboard")}` : "",
     ]
       .filter(Boolean)
       .join("\n\n") + textFooter(branding);
@@ -834,7 +846,7 @@ export async function sendRevisionRequestEmail({
   const subject = "Changes requested on your content";
 
   const content = `
-    ${statusPill("Changes requested", "#b45309", "#fffbeb")}
+    ${statusPill("Needs changes", EMAIL_STATE.changes.color, EMAIL_STATE.changes.background)}
     ${p(`Hi ${escapeHtml(creatorName)},`)}
     ${p(`Thanks for your submission for <strong>"${escapeHtml(requestTitle)}"</strong>. Before we can approve it, we'd love a few changes:`)}
     ${infoCard(`
@@ -991,11 +1003,7 @@ export async function sendBatchedReminderEmail({
   const requestListHtml = requests
     .map((req) => {
       const urgencyColor =
-        req.daysUntilDue < 0
-          ? "#dc2626"
-          : req.daysUntilDue === 0
-            ? "#d97706"
-            : branding.primaryColor;
+        req.daysUntilDue <= 0 ? EMAIL_STATE.overdue.color : branding.primaryColor;
       const statusText =
         req.daysUntilDue < 0
           ? `${Math.abs(req.daysUntilDue)} day${Math.abs(req.daysUntilDue) !== 1 ? "s" : ""} overdue`
@@ -1004,7 +1012,7 @@ export async function sendBatchedReminderEmail({
             : `Due in ${req.daysUntilDue} day${req.daysUntilDue !== 1 ? "s" : ""}`;
 
       return `
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;background-color:#f9fafb;border:1px solid #eef0f2;border-left:4px solid ${urgencyColor};border-radius:8px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;background-color:#f9fafb;border:1px solid #eef0f2;border-radius:8px;">
           <tr><td style="padding:14px 18px;">
             <p style="margin:0 0 4px;font-family:${FONT_STACK};font-size:15px;font-weight:600;color:${TEXT.heading};">${escapeHtml(req.title)}</p>
             <p style="margin:0;font-family:${FONT_STACK};font-size:13px;">

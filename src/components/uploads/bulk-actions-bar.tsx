@@ -98,8 +98,8 @@ export function BulkActionsBar({
     <>
       <div
         className={cn(
-          "flex items-center justify-between gap-4 p-4 bg-muted/30 rounded-xl border transition-all duration-200",
-          selectedCount > 0 && "bg-primary/5 border-primary/20",
+          "flex flex-wrap items-center justify-between gap-3 rounded-[10px] bg-tile px-3 py-2 transition-colors duration-150",
+          selectedCount > 0 && "bg-raised",
           className
         )}
       >
@@ -115,33 +115,20 @@ export function BulkActionsBar({
                   onDeselectAll();
                 }
               }}
-              className={cn(
-                "transition-all",
-                someSelected && "data-[state=checked]:bg-primary/60"
-              )}
+              aria-label={allSelected ? "Clear selection" : "Select every upload waiting for review"}
             />
             <button
               onClick={allSelected ? onDeselectAll : onSelectAll}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              type="button"
+              className="text-sm font-medium text-ink-2 transition-colors hover:text-ink"
             >
               {allSelected
-                ? "Deselect all"
+                ? "Clear selection"
                 : someSelected
                 ? `${selectedCount} selected`
-                : "Select all"}
+                : "Select all waiting"}
             </button>
           </div>
-
-          {selectedCount > 0 && (
-            <div className="flex items-center gap-1 px-3 py-1 bg-primary/10 rounded-full">
-              <span className="text-sm font-semibold text-primary">
-                {selectedCount}
-              </span>
-              <span className="text-sm text-primary/80">
-                {selectedCount === 1 ? "item" : "items"} selected
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Right side - Action buttons */}
@@ -151,7 +138,7 @@ export function BulkActionsBar({
             <>
               <Button
                 size="sm"
-                className="gap-1.5 btn-gradient"
+                className="gap-1.5"
                 onClick={() => setApproveDialogOpen(true)}
                 disabled={isProcessing}
               >
@@ -160,25 +147,25 @@ export function BulkActionsBar({
                 ) : (
                   <Check className="h-4 w-4" />
                 )}
-                Approve ({selectedCount})
+                Approve {selectedCount}
               </Button>
 
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                className="gap-1.5"
                 onClick={() => setRejectDialogOpen(true)}
                 disabled={isProcessing}
               >
                 <X className="h-4 w-4" />
-                Reject
+                Send back
               </Button>
 
               {onBulkDelete && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  className="gap-1.5 hover:text-late"
                   onClick={() => setDeleteDialogOpen(true)}
                   disabled={isProcessing}
                 >
@@ -187,7 +174,7 @@ export function BulkActionsBar({
                 </Button>
               )}
 
-              <div className="w-px h-6 bg-border mx-1" />
+              <div className="mx-1 h-6 w-px bg-line" aria-hidden="true" />
             </>
           )}
 
@@ -233,8 +220,8 @@ export function BulkActionsBar({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="rounded-full bg-emerald-100 p-1.5">
-                <Check className="h-4 w-4 text-emerald-600" />
+              <div className="rounded-full bg-success/10 p-1.5">
+                <Check className="h-4 w-4 text-success" />
               </div>
               Approve {selectedCount} Upload{selectedCount !== 1 ? "s" : ""}
             </DialogTitle>
@@ -245,14 +232,14 @@ export function BulkActionsBar({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center gap-3 p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-900">
-            <CheckSquare className="h-5 w-5 text-emerald-600 shrink-0" />
+          <div className="flex items-center gap-3 p-4 bg-success/10 rounded-lg border border-success/30">
+            <CheckSquare className="h-5 w-5 text-success shrink-0" />
             <div className="text-sm">
-              <p className="font-medium text-emerald-800 dark:text-emerald-200">
+              <p className="font-medium text-success">
                 {selectedCount} upload{selectedCount !== 1 ? "s" : ""} will be
                 approved
               </p>
-              <p className="text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-success mt-0.5">
                 Creators will receive approval notifications
               </p>
             </div>
@@ -267,7 +254,7 @@ export function BulkActionsBar({
               Cancel
             </Button>
             <Button
-              className="gap-1.5 btn-gradient"
+              className="gap-1.5"
               onClick={handleBulkApprove}
               disabled={isProcessing}
             >
@@ -287,10 +274,10 @@ export function BulkActionsBar({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="rounded-full bg-red-100 p-1.5">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
+              <div className="rounded-full bg-late/15 p-1.5">
+                <AlertTriangle className="h-4 w-4 text-late" />
               </div>
-              Reject {selectedCount} Upload{selectedCount !== 1 ? "s" : ""}
+              Send {selectedCount} file{selectedCount !== 1 ? "s" : ""} back
             </DialogTitle>
             <DialogDescription>
               Provide a reason for rejection. This feedback will be sent to all
@@ -299,14 +286,14 @@ export function BulkActionsBar({
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-900">
-              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+            <div className="flex items-center gap-3 rounded-[8px] bg-tile p-4">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-changes" />
               <div className="text-sm">
-                <p className="font-medium text-amber-800 dark:text-amber-200">
+                <p className="font-medium text-ink">
                   {selectedCount} upload{selectedCount !== 1 ? "s" : ""} will be
                   rejected
                 </p>
-                <p className="text-amber-600 dark:text-amber-400 mt-0.5">
+                <p className="mt-0.5 text-ink-2">
                   The same rejection reason will be sent to all creators
                 </p>
               </div>
@@ -314,7 +301,7 @@ export function BulkActionsBar({
 
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                Rejection Reason <span className="text-destructive">*</span>
+                What needs to change <span className="text-destructive">*</span>
               </label>
               <Textarea
                 placeholder="Please explain why these uploads are being rejected and what changes are needed..."
@@ -356,8 +343,8 @@ export function BulkActionsBar({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="rounded-full bg-red-100 p-1.5">
-                <Trash2 className="h-4 w-4 text-red-600" />
+              <div className="rounded-full bg-late/15 p-1.5">
+                <Trash2 className="h-4 w-4 text-late" />
               </div>
               Delete {selectedCount} Upload{selectedCount !== 1 ? "s" : ""}
             </DialogTitle>
@@ -367,14 +354,14 @@ export function BulkActionsBar({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
-            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+          <div className="flex items-center gap-3 rounded-[8px] bg-tile p-4">
+            <AlertTriangle className="h-5 w-5 text-late shrink-0" />
             <div className="text-sm">
-              <p className="font-medium text-red-800 dark:text-red-200">
+              <p className="font-medium text-ink">
                 {selectedCount} upload{selectedCount !== 1 ? "s" : ""} will be
                 permanently deleted
               </p>
-              <p className="text-red-600 dark:text-red-400 mt-0.5">
+              <p className="mt-0.5 text-ink-2">
                 Files will be removed from storage and cannot be recovered
               </p>
             </div>
@@ -432,12 +419,12 @@ export function SelectionBar({
     <div
       className={cn(
         "flex items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border",
-        selectedCount > 0 && "bg-primary/5 border-primary/20",
+        selectedCount > 0 && "bg-raised",
         className
       )}
     >
       <div className="flex items-center gap-3">
-        <Checkbox
+        <Checkbox aria-label="Select all"
           checked={allSelected}
           onCheckedChange={(checked) => {
             if (checked) {

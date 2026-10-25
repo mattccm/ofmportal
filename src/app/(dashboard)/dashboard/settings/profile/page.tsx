@@ -369,7 +369,7 @@ export default function ProfileSettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard">
+          <Link href="/dashboard" aria-label="Back to dashboard">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -384,7 +384,7 @@ export default function ProfileSettingsPage() {
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Avatar Section */}
         <Card className="card-elevated overflow-hidden">
-          <div className="h-24 bg-gradient-to-r from-primary/20 via-violet-500/20 to-purple-500/20" />
+          <div className="h-24 bg-primary/20 " />
           <CardContent className="relative pt-0 pb-6">
             <div className="-mt-12 flex flex-col items-center text-center">
               <AvatarUpload
@@ -514,8 +514,8 @@ export default function ProfileSettingsPage() {
         <Card className="card-elevated">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <Globe className="h-5 w-5 text-violet-500" />
+              <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+                <Globe className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <CardTitle>Preferences</CardTitle>
@@ -565,7 +565,7 @@ export default function ProfileSettingsPage() {
                   handleSelectChange("preferredLanguage", value)
                 }
               >
-                <SelectTrigger className="h-10">
+                <SelectTrigger id="language" className="h-10">
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
@@ -612,8 +612,8 @@ export default function ProfileSettingsPage() {
               className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-emerald-500" />
+                <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-success" />
                 </div>
                 <div>
                   <p className="font-medium">Security Settings</p>
@@ -643,10 +643,10 @@ export default function ProfileSettingsPage() {
             >
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                  <LogOut className="h-5 w-5 text-red-600" />
+                  <LogOut className="h-5 w-5 text-late" />
                 </div>
                 <div>
-                  <p className="font-medium text-red-600">Sign Out</p>
+                  <p className="font-medium text-late">Sign Out</p>
                   <p className="text-sm text-muted-foreground">
                     Sign out of your account on this device
                   </p>
@@ -672,7 +672,7 @@ export default function ProfileSettingsPage() {
               type="submit"
               onClick={handleSubmit}
               disabled={!hasChanges || isSaving}
-              className={hasChanges ? "bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90" : ""}
+              className={hasChanges ? " bg-primary hover:bg-primary/90 " : ""}
             >
               {isSaving ? (
                 <>

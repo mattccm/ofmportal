@@ -756,7 +756,7 @@ export function ReviewSessionView({
             <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600">
               <WifiOff className="h-3 w-3" />
               Disconnected
-              <Button
+              <Button aria-label="Rejoin session"
                 variant="ghost"
                 size="sm"
                 className="h-5 ml-1 px-1"
@@ -790,7 +790,7 @@ export function ReviewSessionView({
           <Separator orientation="vertical" className="h-6" />
 
           {/* History Button */}
-          <Button
+          <Button aria-label="View session history"
             variant="ghost"
             size="icon"
             onClick={() => setShowHistoryViewer(true)}
@@ -865,7 +865,7 @@ export function ReviewSessionView({
                 </Button>
               )}
 
-              <Button
+              <Button aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsFullscreen(!isFullscreen)}
@@ -906,7 +906,7 @@ export function ReviewSessionView({
                       controls
                       muted={isMuted}
                     />
-                    <Button
+                    <Button aria-label={isMuted ? "Unmute" : "Mute"}
                       variant="ghost"
                       size="icon"
                       className="absolute top-2 right-2"
@@ -977,7 +977,7 @@ export function ReviewSessionView({
             </Button>
 
             <div className="flex-1 mx-8">
-              <Progress value={progress.percentComplete} className="h-2" />
+              <Progress aria-label="Review progress" value={progress.percentComplete} className="h-2" />
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 <span>
                   {progress.approvedCount} approved, {progress.rejectedCount} rejected

@@ -52,7 +52,7 @@ export function SessionSummary({
   const getDecisionIcon = (decision: ReviewVoteType | "PENDING") => {
     switch (decision) {
       case "APPROVE":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-approved" />;
       case "REJECT":
         return <XCircle className="h-4 w-4 text-red-500" />;
       case "DISCUSS":
@@ -67,7 +67,7 @@ export function SessionSummary({
   const getDecisionBadge = (decision: ReviewVoteType | "PENDING") => {
     switch (decision) {
       case "APPROVE":
-        return <Badge className="bg-green-500">Approved</Badge>;
+        return <Badge className="bg-approved">Approved</Badge>;
       case "REJECT":
         return <Badge className="bg-red-500">Rejected</Badge>;
       case "DISCUSS":
@@ -148,7 +148,7 @@ export function SessionSummary({
               </h3>
               <div className="flex gap-3 flex-wrap">
                 <Badge variant="outline" className="gap-1 py-1 px-3">
-                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  <CheckCircle className="h-3 w-3 text-approved" />
                   {approvedCount} Approved
                 </Badge>
                 <Badge variant="outline" className="gap-1 py-1 px-3">
@@ -203,7 +203,7 @@ export function SessionSummary({
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <ThumbsUp className="h-3 w-3 text-green-500" />
+                        <ThumbsUp className="h-3 w-3 text-approved" />
                         {decision.voteBreakdown.approve}
                       </span>
                       <span className="flex items-center gap-1">
@@ -265,10 +265,10 @@ export function SessionSummary({
                     <div className="flex items-center gap-4 text-sm">
                       <div className="text-center">
                         <div className="font-medium">{participant.totalVotes}</div>
-                        <div className="text-[10px] text-muted-foreground">Votes</div>
+                        <div className="text-[12px] text-muted-foreground">Votes</div>
                       </div>
                       <div className="flex items-center gap-1 text-xs">
-                        <span className="text-green-500">{participant.approveVotes}</span>
+                        <span className="text-approved">{participant.approveVotes}</span>
                         /
                         <span className="text-red-500">{participant.rejectVotes}</span>
                         /
@@ -276,7 +276,7 @@ export function SessionSummary({
                       </div>
                       <div className="text-center">
                         <div className="font-medium">{participant.messagesCount}</div>
-                        <div className="text-[10px] text-muted-foreground">Messages</div>
+                        <div className="text-[12px] text-muted-foreground">Messages</div>
                       </div>
                     </div>
                   </div>

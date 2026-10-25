@@ -305,8 +305,8 @@ function ColorPicker({ value, onChange, className }: ColorPickerProps) {
             type="button"
             className={cn(
               "w-8 h-8 rounded-lg transition-all duration-150",
-              "hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
-              value === preset.value && "ring-2 ring-offset-2 ring-indigo-500"
+              "hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ctl",
+              value === preset.value && "ring-2 ring-offset-2 ring-ctl"
             )}
             style={{ backgroundColor: preset.value }}
             onClick={() => onChange(preset.value)}
@@ -401,8 +401,8 @@ function TagDialog({ open, onOpenChange, tag, onSave }: TagDialogProps) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="rounded-full bg-indigo-100 dark:bg-indigo-900/30 p-1.5">
-              <TagIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <div className="rounded-full bg-tile-hi dark:bg-tile-hi p-1.5">
+              <TagIcon className="h-4 w-4 text-foreground dark:text-foreground" />
             </div>
             {tag ? "Edit Tag" : "Create New Tag"}
           </DialogTitle>
@@ -546,7 +546,7 @@ export function TagFilter({
             className={cn(
               "px-2 py-1 rounded-md transition-colors",
               filterMode === "any"
-                ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
+                ? "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground"
                 : "text-muted-foreground hover:bg-muted"
             )}
             onClick={() => onFilterModeChange("any")}
@@ -558,7 +558,7 @@ export function TagFilter({
             className={cn(
               "px-2 py-1 rounded-md transition-colors",
               filterMode === "all"
-                ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
+                ? "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground"
                 : "text-muted-foreground hover:bg-muted"
             )}
             onClick={() => onFilterModeChange("all")}
@@ -584,7 +584,7 @@ export function TagFilter({
                 className={cn(
                   "flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-left",
                   "transition-colors hover:bg-muted/50",
-                  isSelected && "bg-indigo-50 dark:bg-indigo-900/20"
+                  isSelected && "bg-tile-hi dark:bg-tile-hi"
                 )}
                 onClick={() => toggleTag(tag.id)}
               >
@@ -592,7 +592,7 @@ export function TagFilter({
                   className={cn(
                     "w-4 h-4 rounded border flex items-center justify-center",
                     isSelected
-                      ? "border-indigo-500 bg-indigo-500"
+                      ? "border-ctl bg-raised-hi"
                       : "border-muted-foreground/30"
                   )}
                 >
@@ -669,8 +669,8 @@ export function BulkTagDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="rounded-full bg-indigo-100 dark:bg-indigo-900/30 p-1.5">
-              <Tags className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <div className="rounded-full bg-tile-hi dark:bg-tile-hi p-1.5">
+              <Tags className="h-4 w-4 text-foreground dark:text-foreground" />
             </div>
             Bulk Tag {selectedCount} Item{selectedCount !== 1 ? "s" : ""}
           </DialogTitle>
@@ -732,17 +732,17 @@ export function BulkTagDialog({
                 tags.map((tag) => {
                   const isSelected = selectedTagIds.includes(tag.id);
                   return (
-                    <button
+                    <button aria-pressed={isSelected}
                       key={tag.id}
                       type="button"
                       className={cn(
                         "flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm",
                         "transition-colors hover:bg-muted/50",
-                        isSelected && "bg-indigo-50 dark:bg-indigo-900/20"
+                        isSelected && "bg-tile-hi dark:bg-tile-hi"
                       )}
                       onClick={() => toggleTag(tag.id)}
                     >
-                      <Checkbox
+                      <Checkbox aria-hidden="true" tabIndex={-1} aria-label={`Select ${tag.name}`}
                         checked={isSelected}
                         onCheckedChange={() => toggleTag(tag.id)}
                         className="pointer-events-none"
@@ -917,8 +917,8 @@ export function TagManager({ className }: TagManagerProps) {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2">
-                <Tags className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              <div className="rounded-lg bg-tile-hi dark:bg-tile-hi p-2">
+                <Tags className="h-5 w-5 text-foreground dark:text-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{tags.length}</p>
@@ -931,8 +931,8 @@ export function TagManager({ className }: TagManagerProps) {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-violet-100 dark:bg-violet-900/30 p-2">
-                <BarChart3 className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              <div className="rounded-lg bg-tile-hi dark:bg-tile-hi p-2">
+                <BarChart3 className="h-5 w-5 text-foreground dark:text-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalUsage}</p>
@@ -1003,7 +1003,7 @@ export function TagManager({ className }: TagManagerProps) {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button aria-label={`More actions for ${tag.name}`} variant="ghost" size="icon" className="h-8 w-8">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

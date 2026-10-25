@@ -65,9 +65,9 @@ function getTypeBadgeColor(type: VideoTimestamp["type"]) {
     case "issue":
       return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
     case "praise":
-      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+      return "bg-success/10 text-success";
     case "note":
-      return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+      return "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground";
     default:
       return "";
   }
@@ -320,7 +320,7 @@ export function TimestampMarker({
           {/* Resolved status */}
           {timestamp.resolved && timestamp.resolvedAt && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-              <Check className="h-3.5 w-3.5 text-green-500" />
+              <Check className="h-3.5 w-3.5 text-success" />
               <span>Resolved {formatDistanceToNow(new Date(timestamp.resolvedAt), { addSuffix: true })}</span>
             </div>
           )}
@@ -344,7 +344,7 @@ export function TimestampMarker({
               "flex-1 gap-1.5",
               timestamp.resolved
                 ? "text-muted-foreground"
-                : "text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                : "text-success hover:text-success hover:bg-success/10 dark:hover:bg-success/20"
             )}
             onClick={handleResolve}
           >

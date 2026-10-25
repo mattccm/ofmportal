@@ -83,8 +83,8 @@ function AuditStats({
       <Card className="card-elevated">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-indigo-500" />
+            <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+              <Activity className="h-5 w-5 text-foreground" />
             </div>
             <div>
               <p className="text-2xl font-bold">{total.toLocaleString()}</p>
@@ -97,8 +97,8 @@ function AuditStats({
       <Card className="card-elevated">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-violet-500" />
+            <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-foreground" />
             </div>
             <div>
               <p className="text-2xl font-bold">{todayCount.toLocaleString()}</p>
@@ -111,8 +111,8 @@ function AuditStats({
       <Card className="card-elevated">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <Users className="h-5 w-5 text-emerald-500" />
+            <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-success" />
             </div>
             <div>
               <p className="text-2xl font-bold">{uniqueUsers}</p>
@@ -330,13 +330,13 @@ export default function AuditLogPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/settings" aria-label="Back to settings">
             <ChevronLeft className="h-5 w-5" />
           </Link>
         </Button>
         <div className="flex items-center gap-4 flex-1">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-violet-500/20 to-purple-500/20 flex items-center justify-center">
-            <Shield className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
+          <div className="h-14 w-14 rounded-2xl bg-tile-hi flex items-center justify-center">
+            <Shield className="h-7 w-7 text-foreground dark:text-foreground" />
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Audit Log</h1>
@@ -348,14 +348,14 @@ export default function AuditLogPage() {
       </div>
 
       {/* Info Banner */}
-      <Card className="card-elevated border-indigo-200/50 bg-gradient-to-r from-indigo-50/50 to-violet-50/50 dark:from-indigo-950/20 dark:to-violet-950/20 dark:border-indigo-800/30">
+      <Card className="card-elevated border-line bg-tile-hi dark:bg-tile-hi dark:border-line">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="h-9 w-9 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
-              <FileText className="h-5 w-5 text-indigo-500" />
+            <div className="h-9 w-9 rounded-lg bg-tile-hi flex items-center justify-center shrink-0">
+              <FileText className="h-5 w-5 text-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-indigo-700 dark:text-indigo-400">
+              <h3 className="font-semibold text-foreground dark:text-foreground">
                 System Activity Monitor
               </h3>
               <p className="text-sm text-muted-foreground mt-0.5">
@@ -399,7 +399,7 @@ export default function AuditLogPage() {
       <Card className="card-elevated">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-indigo-500" />
+            <Activity className="h-5 w-5 text-foreground" />
             Activity Log
           </CardTitle>
           <CardDescription>

@@ -176,7 +176,7 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
           {/* Creator Selector */}
           {creators.length > 0 && (
             <Select value={creatorId} onValueChange={handleCreatorChange}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter by creator" className="w-[180px]">
                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="All Creators" />
               </SelectTrigger>
@@ -209,7 +209,7 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
             ))}
           </div>
 
-          <Button
+          <Button aria-label="Refresh analytics"
             variant="outline"
             size="icon"
             onClick={handleRefresh}
@@ -241,8 +241,8 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
           previousValue={data.overview.previousUploads}
           trend={Math.round(uploadTrend * 10) / 10}
           icon={<Upload />}
-          iconColor="text-violet-500"
-          iconBgColor="bg-violet-500/10"
+          iconColor="text-foreground"
+          iconBgColor="bg-tile-hi"
           sparklineData={uploadSparkline}
           sparklineColor="#8b5cf6"
           comparison="vs previous period"
@@ -256,10 +256,10 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
           trend={Math.round(approvalTrend * 10) / 10}
           trendSuffix=" pts"
           icon={<CheckCircle />}
-          iconColor="text-emerald-500"
-          iconBgColor="bg-emerald-500/10"
+          iconColor="text-success"
+          iconBgColor="bg-success/10"
           sparklineData={approvalSparkline}
-          sparklineColor="#10b981"
+          sparklineColor="#d3d7de"
           comparison="vs previous period"
           helpKey="dashboard.approval-rate"
         />
@@ -291,14 +291,14 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
           icon={<Timer />}
           iconColor={
             responseTimeData.slaCompliance.firstResponseCompliance >= 80
-              ? "text-green-500"
+              ? "text-success"
               : responseTimeData.slaCompliance.firstResponseCompliance >= 50
               ? "text-yellow-500"
               : "text-red-500"
           }
           iconBgColor={
             responseTimeData.slaCompliance.firstResponseCompliance >= 80
-              ? "bg-green-500/10"
+              ? "bg-success/10"
               : responseTimeData.slaCompliance.firstResponseCompliance >= 50
               ? "bg-yellow-500/10"
               : "bg-red-500/10"
@@ -346,7 +346,7 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
                 <div className="space-y-3 flex-1 max-w-xs">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                      <div className="h-3 w-3 rounded-full bg-success" />
                       <span className="text-sm">Completed</span>
                     </div>
                     <span className="font-semibold">
@@ -355,7 +355,7 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full bg-violet-500" />
+                      <div className="h-3 w-3 rounded-full bg-raised-hi" />
                       <span className="text-sm">In Review</span>
                     </div>
                     <span className="font-semibold">
@@ -428,10 +428,10 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
 
 
       {/* Insights Card */}
-      <Card className="card-elevated bg-gradient-to-br from-primary/5 via-background to-violet-500/5 border-primary/20">
+      <Card className="card-elevated bg-primary/5 border-primary/20">
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25">
+            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
               <Sparkles className="h-6 w-6 text-white" />
             </div>
             <div className="flex-1">
@@ -440,7 +440,7 @@ export function AnalyticsDashboard({ data, responseTimeData, initialRange, creat
                 {data.overview.approvalRate >= 80 ? (
                   <>
                     Excellent work! Your approval rate of{" "}
-                    <span className="font-medium text-emerald-600">
+                    <span className="font-medium text-success">
                       {data.overview.approvalRate}%
                     </span>{" "}
                     is above average. Keep up the great quality standards with your creators.

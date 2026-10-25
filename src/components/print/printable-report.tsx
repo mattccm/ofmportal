@@ -78,7 +78,7 @@ function TrendIndicator({
       className={cn(
         "inline-flex items-center gap-1 text-xs font-medium",
         isPositive
-          ? "text-emerald-600 print:text-emerald-700"
+          ? "text-success print:text-success"
           : "text-red-600 print:text-red-700"
       )}
     >

@@ -1,4 +1,4 @@
-import { BRAND } from "./brand";
+import { reminderSmsBody, withBrandPrefix } from "./reminder-copy";
 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -9,16 +9,12 @@ interface SendSmsOptions {
   message: string;
 }
 
-const SMS_PREFIX = `${BRAND.name}: `;
-
 /**
  * Prefix the body with the brand ("CCM: ...") so creators recognise the
  * sender, unless the message already starts with the brand name.
  */
 export function withSmsBrandPrefix(message: string): string {
-  const trimmed = message.trimStart();
-  if (trimmed.toLowerCase().startsWith(BRAND.name.toLowerCase())) return trimmed;
-  return `${SMS_PREFIX}${trimmed}`;
+  return withBrandPrefix(message);
 }
 
 export async function sendSms({ to, message: rawMessage }: SendSmsOptions) {
@@ -98,16 +94,8 @@ export async function sendReminderSms({
   portalLink: string;
   isTest?: boolean;
 }) {
-  const urgencyText =
-    daysUntilDue < 0
-      ? `${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) !== 1 ? "s" : ""} overdue`
-      : daysUntilDue === 0
-        ? "due today"
-        : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? "s" : ""}`;
-
-  const testPrefix = isTest ? "[TEST] " : "";
-
-  const message = `${testPrefix}Hi ${creatorName}, you have content ${urgencyText}. View it here: ${portalLink}`;
+  // Shared with the reminder-rules preview (src/lib/reminder-copy.ts)
+  const message = reminderSmsBody({ creatorName, daysUntilDue, portalLink, isTest });
   return sendSms({ to, message });
 }
 

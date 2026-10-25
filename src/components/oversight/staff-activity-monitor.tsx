@@ -57,7 +57,7 @@ function getActionLabel(action: string, details: Record<string, unknown>): strin
 function getStatusColor(staff: StaffActivityMetrics): string {
   if (!staff.lastActivity) return "bg-gray-400";
   const diffMins = (Date.now() - staff.lastActivity.getTime()) / 60000;
-  if (diffMins < 5) return "bg-green-500";
+  if (diffMins < 5) return "bg-success";
   if (diffMins < 30) return "bg-yellow-500";
   return "bg-gray-400";
 }
@@ -208,12 +208,12 @@ export function StaffActivityMonitor() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">Active Now</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-success">
                   {teamStats.activeNow}
                 </p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-green-500" />
+              <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-success" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
@@ -246,8 +246,8 @@ export function StaffActivityMonitor() {
                 <p className="text-xs text-muted-foreground">Avg Response</p>
                 <p className="text-2xl font-bold">{teamStats.avgResponseTime}m</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-purple-500" />
+              <div className="h-10 w-10 rounded-full bg-tile-hi flex items-center justify-center">
+                <Clock className="h-5 w-5 text-foreground" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">team average</p>
@@ -294,7 +294,7 @@ export function StaffActivityMonitor() {
             </div>
 
             <Select value={filterRole} onValueChange={setFilterRole}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger aria-label="Filter by role" className="w-[160px]">
                 <User className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
@@ -314,7 +314,7 @@ export function StaffActivityMonitor() {
                 setSortBy(v as "activity" | "response" | "name")
               }
             >
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger aria-label="Sort by" className="w-[160px]">
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
@@ -416,7 +416,7 @@ export function StaffActivityMonitor() {
                                   {staff.actionsToday}
                                 </span>
                               </div>
-                              <Progress
+                              <Progress aria-label={`${staff.userName}: actions today`}
                                 value={activityPercent}
                                 className="h-1.5"
                               />

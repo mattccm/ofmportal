@@ -226,26 +226,22 @@ export function NotesPanel({
 
   if (compact) {
     return (
-      <div className="space-y-4">
-        {/* Compact Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <StickyNote className="h-4 w-4 text-amber-500" />
-            <span className="text-sm font-medium">{title}</span>
-            <Badge variant="secondary" className="h-5 text-xs">
-              {notes.length}
-            </Badge>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-3 w-3 mr-1" />
-            Add
+      <div className="space-y-2">
+        {/* Compact Header: a plain row heading inside a rail group */}
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-[14px] font-semibold text-ink">
+            {title} <span className="font-normal text-ink-2">{notes.length}</span>
+          </h3>
+          <Button size="sm" variant="ghost" onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            Add a note
           </Button>
         </div>
 
         {/* Compact Notes List */}
         {notes.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No notes yet
+          <p className="text-[14px] text-ink-2">
+            {description}
           </p>
         ) : (
           <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
@@ -290,7 +286,7 @@ export function NotesPanel({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <StickyNote className="h-5 w-5 text-amber-500" />
+              <StickyNote className="h-5 w-5 text-icon" />
               {title}
               <Badge variant="secondary" className="ml-2">
                 {notes.length}
@@ -317,7 +313,7 @@ export function NotesPanel({
               className="pl-9"
             />
             {searchQuery && (
-              <Button
+              <Button aria-label="Clear search"
                 variant="ghost"
                 size="icon"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
@@ -327,7 +323,7 @@ export function NotesPanel({
               </Button>
             )}
           </div>
-          <Button
+          <Button aria-label="Filter notes" aria-pressed={showFilters}
             variant={showFilters ? "secondary" : "outline"}
             size="icon"
             onClick={() => setShowFilters(!showFilters)}
@@ -351,7 +347,7 @@ export function NotesPanel({
 
             {/* Pinned filter */}
             <div className="flex items-center gap-2">
-              <Checkbox
+              <Checkbox aria-label="Pinned only"
                 id="pinned-only"
                 checked={showPinnedOnly}
                 onCheckedChange={(checked) => setShowPinnedOnly(checked === true)}
@@ -377,8 +373,8 @@ export function NotesPanel({
                       className={cn(
                         "cursor-pointer transition-colors",
                         selectedHashtag === tag
-                          ? "bg-violet-600 hover:bg-violet-700"
-                          : "hover:bg-violet-100 dark:hover:bg-violet-900/30"
+                          ? "bg-raised-hi hover:bg-raised-hi"
+                          : "hover:bg-tile-hi dark:hover:bg-tile-hi"
                       )}
                       onClick={() =>
                         setSelectedHashtag(selectedHashtag === tag ? null : tag)
@@ -488,7 +484,7 @@ function AddNoteDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <StickyNote className="h-5 w-5 text-amber-500" />
+            <StickyNote className="h-5 w-5 text-icon" />
             Add Note
           </DialogTitle>
           <DialogDescription>
@@ -510,7 +506,7 @@ Use #tag to add hashtags"
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Checkbox
+              <Checkbox aria-label="Pin this note"
                 id="pin-note"
                 checked={isPinned}
                 onCheckedChange={(checked) => setIsPinned(checked === true)}
@@ -522,7 +518,7 @@ Use #tag to add hashtags"
             </div>
 
             <div className="flex items-center gap-2">
-              <Checkbox
+              <Checkbox aria-label="Internal only"
                 id="internal-note"
                 checked={isInternal}
                 onCheckedChange={(checked) => setIsInternal(checked === true)}
@@ -616,7 +612,7 @@ export function InlineNotes({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <StickyNote className="h-4 w-4 text-amber-500" />
+          <StickyNote className="h-4 w-4 text-icon" />
           <span className="text-sm font-medium">Notes</span>
           {notes.length > 0 && (
             <Badge variant="secondary" className="h-5 text-xs">
@@ -638,13 +634,12 @@ export function InlineNotes({
 
       {/* Add Form */}
       {showAddForm && (
-        <div className="space-y-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-800/30">
+        <div className="space-y-2 p-3 rounded-lg bg-tile-hi">
           <Textarea
             placeholder="Write a note..."
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             rows={3}
-            className="bg-white/50 dark:bg-black/20"
             autoFocus
           />
           <div className="flex items-center justify-end gap-2">

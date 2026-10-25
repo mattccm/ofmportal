@@ -93,7 +93,7 @@ export function PrintableCreatorProfile({
               className="w-20 h-20 rounded-full border-2 border-border object-cover print:w-16 print:h-16"
             />
           ) : (
-            <div className="w-20 h-20 rounded-full border-2 border-border bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-2xl font-bold print:w-16 print:h-16">
+            <div className="w-20 h-20 rounded-full border-2 border-border bg-primary flex items-center justify-center text-white text-2xl font-bold print:w-16 print:h-16">
               {creator.name.charAt(0).toUpperCase()}
             </div>
           )}
@@ -175,7 +175,7 @@ export function PrintableCreatorProfile({
           </div>
 
           <div className="stat-box p-4 border rounded-lg text-center print:flex-1 print:min-w-[120px] print:border-gray-300">
-            <div className="text-3xl font-bold text-emerald-600 print:text-2xl">
+            <div className="text-3xl font-bold text-success print:text-2xl">
               {creator.stats.completedRequests}
             </div>
             <div className="text-xs text-muted-foreground uppercase tracking-wide mt-1">
@@ -228,7 +228,7 @@ export function PrintableCreatorProfile({
                     On-Time Delivery
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-emerald-600">
+                <div className="text-2xl font-bold text-success">
                   {creator.stats.onTimeDeliveryRate}%
                 </div>
               </div>

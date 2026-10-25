@@ -72,7 +72,7 @@ export function MessageBubble({
           className={cn(
             "relative rounded-2xl px-4 py-2 shadow-sm",
             isOwn
-              ? "bg-gradient-to-r from-primary to-violet-500 text-white rounded-br-md"
+              ? " bg-primary text-white rounded-br-md"
               : "bg-muted/80 text-foreground rounded-bl-md",
             hasAttachments && "pb-3"
           )}
@@ -116,7 +116,7 @@ export function MessageBubble({
             showTime ? "opacity-100" : "opacity-0"
           )}
         >
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[12px] text-muted-foreground">
             {format(new Date(message.createdAt), "h:mm a")}
           </span>
         </div>
@@ -351,9 +351,9 @@ export function TypingIndicator({
         }}
       />
       <div className="flex items-center gap-1 bg-muted/80 rounded-2xl rounded-bl-md px-4 py-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.3s]" />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.15s]" />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
+        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-pulse motion-reduce:animate-none [animation-delay:-0.3s]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-pulse motion-reduce:animate-none [animation-delay:-0.15s]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-pulse motion-reduce:animate-none" />
       </div>
     </div>
   );

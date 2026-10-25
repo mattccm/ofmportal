@@ -73,10 +73,10 @@ const STATUS_OPTIONS: { value: RequestStatus; label: string; color: string }[] =
   { value: "DRAFT", label: "Draft", color: "bg-gray-500" },
   { value: "PENDING", label: "Pending", color: "bg-yellow-500" },
   { value: "IN_PROGRESS", label: "In Progress", color: "bg-blue-500" },
-  { value: "SUBMITTED", label: "Submitted", color: "bg-purple-500" },
-  { value: "UNDER_REVIEW", label: "Under Review", color: "bg-indigo-500" },
+  { value: "SUBMITTED", label: "Submitted", color: "bg-raised-hi" },
+  { value: "UNDER_REVIEW", label: "Under Review", color: "bg-raised-hi" },
   { value: "NEEDS_REVISION", label: "Needs Revision", color: "bg-orange-500" },
-  { value: "APPROVED", label: "Approved", color: "bg-green-500" },
+  { value: "APPROVED", label: "Approved", color: "bg-approved" },
   { value: "CANCELLED", label: "Cancelled", color: "bg-red-500" },
   { value: "ARCHIVED", label: "Archived", color: "bg-slate-500" },
 ];
@@ -452,7 +452,7 @@ export function BulkStatusUpdater({
             </div>
 
             <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter by creator" className="w-[180px]">
                 <User className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="All Creators" />
               </SelectTrigger>
@@ -467,7 +467,7 @@ export function BulkStatusUpdater({
             </Select>
 
             <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter by age" className="w-[180px]">
                 <Calendar className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Any Time" />
               </SelectTrigger>
@@ -518,7 +518,7 @@ export function BulkStatusUpdater({
                       isSelected ? "bg-primary/10" : "hover:bg-muted/50"
                     )}
                   >
-                    <Checkbox checked={isSelected} />
+                    <Checkbox aria-label={`Select ${request.title}`} checked={isSelected} />
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -587,7 +587,7 @@ export function BulkStatusUpdater({
                   value={targetStatus || ""}
                   onValueChange={(v) => setTargetStatus(v as RequestStatus)}
                 >
-                  <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectTrigger aria-label="New status" className="w-full sm:w-[200px]">
                     <SelectValue placeholder="Select new status..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -605,9 +605,10 @@ export function BulkStatusUpdater({
                 <Button
                   onClick={() => setShowConfirmDialog(true)}
                   disabled={!targetStatus || isProcessing}
+                  aria-label={isProcessing ? "Applying" : undefined}
                 >
                   {isProcessing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                   ) : (
                     <>
                       Apply

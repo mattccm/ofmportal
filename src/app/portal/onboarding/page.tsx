@@ -148,7 +148,7 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
       {/* Agency Logo */}
       {agencyInfo.logo ? (
         <div className="flex justify-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center overflow-hidden">
+          <div className="size-20 rounded-[10px] bg-tile-hi flex items-center justify-center overflow-hidden">
             <Image
               src={agencyInfo.logo}
               alt={agencyInfo.name}
@@ -161,7 +161,7 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
         </div>
       ) : (
         <div className="flex justify-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-primary/25">
+          <div className="size-20 rounded-[10px] bg-tile-hi flex items-center justify-center text-ink font-extrabold text-3xl tracking-[-0.03em]">
             {agencyInfo.name.charAt(0)}
           </div>
         </div>
@@ -170,7 +170,7 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
       {/* Welcome message */}
       <div className="space-y-2">
         <h2 className="text-xl md:text-2xl font-bold text-foreground">
-          Welcome to {agencyInfo.name}!
+          Welcome to {agencyInfo.name}
         </h2>
         <p className="text-muted-foreground text-base max-w-md mx-auto">
           Hi {creatorName}! We&apos;re excited to have you on board. Let&apos;s take a few
@@ -187,13 +187,12 @@ function WelcomeStep({ agencyInfo, creatorName }: WelcomeStepProps) {
         ].map((item, index) => (
           <div
             key={index}
-            className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 animate-fade-in"
-            style={{ animationDelay: `${index * 100}ms` }}
+            className="flex min-h-11 items-center gap-3 rounded-[var(--tw-r-ctl)] bg-well px-3 py-2.5"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary">
+            <div className="flex size-5 items-center justify-center text-icon" aria-hidden="true">
               <item.icon className="w-4 h-4" />
             </div>
-            <span className="text-sm font-medium">{item.text}</span>
+            <span className="text-[15px] font-medium">{item.text}</span>
           </div>
         ))}
       </div>
@@ -329,9 +328,9 @@ function TimezoneStep({ timezone, onTimezoneChange }: TimezoneStepProps) {
     <div className="space-y-6">
       {/* Detected timezone notice */}
       {detectedTimezone && (
-        <div className="p-3 rounded-xl bg-primary/5 border border-primary/30">
+        <div className="rounded-[var(--tw-r-ctl)] bg-well p-3">
           <div className="flex items-start gap-3">
-            <Globe className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <Globe className="mt-0.5 size-5 shrink-0 text-icon" aria-hidden="true" />
             <div>
               <p className="text-sm font-medium text-foreground">
                 We detected your timezone
@@ -346,10 +345,10 @@ function TimezoneStep({ timezone, onTimezoneChange }: TimezoneStepProps) {
 
       {/* Timezone selector */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Your Timezone</Label>
+        <Label className="text-sm font-medium">Your time zone</Label>
         <Select value={timezone} onValueChange={onTimezoneChange}>
-          <SelectTrigger className="h-12">
-            <SelectValue placeholder="Select your timezone" />
+          <SelectTrigger aria-label="Your time zone" className="h-12">
+            <SelectValue placeholder="Choose your time zone" />
           </SelectTrigger>
           <SelectContent>
             {TIMEZONES.map((tz) => (
@@ -369,12 +368,12 @@ function TimezoneStep({ timezone, onTimezoneChange }: TimezoneStepProps) {
 
       {/* Current time preview */}
       {timezone && (
-        <div className="p-4 rounded-xl bg-muted/50 text-center">
+        <div className="rounded-[var(--tw-r-ctl)] bg-well p-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <Clock className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Current time</span>
           </div>
-          <p className="text-2xl font-bold gradient-text">{currentTime}</p>
+          <p className="text-2xl font-bold tabular-nums text-ink">{currentTime}</p>
         </div>
       )}
     </div>
@@ -393,8 +392,8 @@ function TutorialStep({ onStartTutorial, onSkipTutorial }: TutorialStepProps) {
     <div className="space-y-6 text-center py-4">
       {/* Tutorial illustration */}
       <div className="flex justify-center">
-        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-          <Sparkles className="w-12 h-12 text-primary" />
+        <div className="size-20 rounded-[10px] bg-tile-hi flex items-center justify-center">
+          <Sparkles className="size-9 text-icon" aria-hidden="true" />
         </div>
       </div>
 
@@ -417,9 +416,9 @@ function TutorialStep({ onStartTutorial, onSkipTutorial }: TutorialStepProps) {
         ].map((item, index) => (
           <div
             key={index}
-            className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 text-sm"
+            className="flex items-center gap-2 rounded-[var(--tw-r-ctl)] bg-well p-3 text-sm"
           >
-            <item.icon className="w-4 h-4 text-primary" />
+            <item.icon className="size-4 text-icon" aria-hidden="true" />
             <span>{item.text}</span>
           </div>
         ))}
@@ -429,10 +428,10 @@ function TutorialStep({ onStartTutorial, onSkipTutorial }: TutorialStepProps) {
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
         <Button
           onClick={onStartTutorial}
-          className="w-full sm:w-auto min-w-[160px] h-11 btn-gradient touch-manipulation"
+          className="w-full sm:w-auto min-w-[160px] h-11 touch-manipulation"
         >
           <Play className="w-4 h-4 mr-2" />
-          Start Tutorial
+          Start the tour
         </Button>
         <Button
           variant="ghost"
@@ -559,7 +558,7 @@ export default function CreatorOnboardingPage() {
       router.push("/creator/dashboard");
     } catch (error) {
       console.error("Error saving profile:", error);
-      toast.error("Failed to save profile. Please try again.");
+      toast.error("Your profile didn't save. Check your connection and try again.");
     } finally {
       setIsSaving(false);
     }
@@ -691,7 +690,7 @@ export default function CreatorOnboardingPage() {
       ),
       validationFn: () => {
         if (!profile.name.trim()) {
-          toast.error("Please enter your display name");
+          toast.error("Add the name CCM should call you.");
           return false;
         }
         return true;
@@ -710,7 +709,7 @@ export default function CreatorOnboardingPage() {
       ),
       validationFn: () => {
         if (!profile.timezone) {
-          toast.error("Please select your timezone");
+          toast.error("Choose your time zone to continue.");
           return false;
         }
         return true;
@@ -718,7 +717,7 @@ export default function CreatorOnboardingPage() {
     },
     {
       id: "tutorial",
-      title: "Quick Tour",
+      title: "Quick tour",
       description: "Learn the basics",
       icon: <Play className="w-5 h-5" />,
       content: (
@@ -737,8 +736,8 @@ export default function CreatorOnboardingPage() {
       content: (
         <div className="text-center py-8 space-y-6">
           <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-              <CheckCircle2 className="w-10 h-10 text-green-500" />
+            <div className="size-20 rounded-[10px] bg-tile-hi flex items-center justify-center">
+              <CheckCircle2 className="w-10 h-10 text-success" />
             </div>
           </div>
           <div className="space-y-2">
@@ -758,7 +757,7 @@ export default function CreatorOnboardingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
+          <Loader2 className="mx-auto size-8 animate-spin text-icon motion-reduce:animate-none" aria-hidden="true" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -767,19 +766,12 @@ export default function CreatorOnboardingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
-      {/* Background decoration */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/15 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 right-1/3 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
-      </div>
-
       {/* Main content */}
       <div className="relative z-10 w-full max-w-2xl mx-auto">
         <OnboardingWizard
           steps={onboardingSteps}
-          title={`Welcome to ${agencyInfo.name}!`}
-          subtitle="Let's set up your creator portal"
+          title={`Welcome to ${agencyInfo.name}`}
+          subtitle="A few quick steps, then you'll see your requests."
           agencyName={agencyInfo.name}
           onComplete={handleComplete}
           onSkip={handleSkip}
@@ -803,9 +795,9 @@ export default function CreatorOnboardingPage() {
 
       {/* Saving overlay */}
       {isSaving && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card rounded-xl p-6 flex items-center gap-4 shadow-xl">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(8_9_11/0.74)]" role="status">
+          <div className="flex items-center gap-4 rounded-[10px] bg-raised p-6 shadow-lg">
+            <Loader2 className="size-6 animate-spin text-icon motion-reduce:animate-none" aria-hidden="true" />
             <span className="font-medium">Saving your profile...</span>
           </div>
         </div>

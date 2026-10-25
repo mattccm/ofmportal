@@ -3,6 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { broadcastConversationMessage } from "@/lib/realtime-broadcast";
+import { cleanGroupName, findStaffConversation, staffIdsInAgency } from "@/lib/conversation-access";
+import { extractMentionIds, formatMentionsForDisplay } from "@/lib/mention-parser";
+import { notifyTeam, NotificationType } from "@/lib/notifications";
+
+const notFound = () =>
+  NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
 interface ForwardedItem {
   type: "upload" | "request";
@@ -16,7 +22,7 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session.user.agencyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -27,18 +33,9 @@ export async function GET(
 
     const userId = session.user.id;
 
-    // Verify user is participant
-    const participant = await db.conversationParticipant.findUnique({
-      where: {
-        conversationId_userId: { conversationId, userId },
-      },
-    });
-
-    if (!participant) {
-      return NextResponse.json(
-        { error: "Not a participant in this conversation" },
-        { status: 403 }
-      );
+    // Same agency and a participant, or it does not exist for this user
+    if (!(await findStaffConversation(conversationId, userId, session.user.agencyId))) {
+      return notFound();
     }
 
     // Get conversation details
@@ -202,7 +199,7 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session.user.agencyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -212,18 +209,10 @@ export async function POST(
 
     const userId = session.user.id;
 
-    // Verify user is participant
-    const participant = await db.conversationParticipant.findUnique({
-      where: {
-        conversationId_userId: { conversationId, userId },
-      },
-    });
-
-    if (!participant) {
-      return NextResponse.json(
-        { error: "Not a participant in this conversation" },
-        { status: 403 }
-      );
+    // Same agency and a participant, or it does not exist for this user
+    const convo = await findStaffConversation(conversationId, userId, session.user.agencyId);
+    if (!convo) {
+      return notFound();
     }
 
     if (!content && !forwardedContent?.length && !attachments?.length) {
@@ -254,7 +243,7 @@ export async function POST(
       where: { id: conversationId },
       data: {
         lastMessageAt: message.createdAt,
-        lastMessagePreview: (content || "Shared content").substring(0, 100),
+        lastMessagePreview: (content ? formatMentionsForDisplay(content) : "Shared content").substring(0, 100),
       },
     });
 
@@ -266,6 +255,25 @@ export async function POST(
       senderName: message.sender?.name || undefined,
       createdAt: message.createdAt.toISOString(),
     }).catch(() => {});
+
+    // Team threads notify the other members through the in-app staff path
+    // (the same MESSAGE_RECEIVED notifications creator messages use; no email).
+    // In a group, @mentioned members get a mention instead of the plain notice.
+    if (convo.type === "GROUP" || convo.type === "DIRECT") {
+      try {
+        await notifyTeamThread({
+          conversationId,
+          convo,
+          senderId: userId,
+          senderName: message.sender?.name || "A teammate",
+          agencyId: session.user.agencyId,
+          messageId: message.id,
+          content: content || "",
+        });
+      } catch (notifyError) {
+        console.warn("Failed to notify team thread members:", notifyError);
+      }
+    }
 
     return NextResponse.json({
       message: {
@@ -284,5 +292,188 @@ export async function POST(
       { error: "Failed to send message" },
       { status: 500 }
     );
+  }
+}
+
+async function notifyTeamThread({
+  conversationId,
+  convo,
+  senderId,
+  senderName,
+  agencyId,
+  messageId,
+  content,
+}: {
+  conversationId: string;
+  convo: { type: string; name: string | null };
+  senderId: string;
+  senderName: string;
+  agencyId: string;
+  messageId: string;
+  content: string;
+}) {
+  const others = (
+    await db.conversationParticipant.findMany({
+      where: { conversationId, userId: { not: senderId } },
+      select: { userId: true },
+    })
+  ).map((p) => p.userId);
+  if (others.length === 0) return;
+
+  const link = `/dashboard/messages?conversation=${conversationId}`;
+  const text = formatMentionsForDisplay(content);
+  const preview = text ? (text.length > 80 ? text.slice(0, 77) + "..." : text) : "Shared content";
+  const where = convo.type === "GROUP" && convo.name ? ` in ${convo.name}` : "";
+
+  // Mentions only count for people who are in this thread
+  const mentioned =
+    convo.type === "GROUP" ? extractMentionIds(content).filter((id) => others.includes(id)) : [];
+  if (mentioned.length > 0) {
+    await db.mention.createMany({
+      data: mentioned.map((mentionedUserId) => ({
+        agencyId,
+        mentionedById: senderId,
+        mentionedUserId,
+        contextType: "MESSAGE" as const,
+        contextId: messageId,
+        contextUrl: link,
+        content: text.substring(0, 500),
+      })),
+    });
+    await notifyTeam(mentioned, NotificationType.MENTION, `${senderName} mentioned you${where}`, preview, link);
+  }
+
+  const rest = others.filter((id) => !mentioned.includes(id));
+  if (rest.length > 0) {
+    await notifyTeam(rest, NotificationType.MESSAGE_RECEIVED, `New message from ${senderName}${where}`, preview, link);
+  }
+}
+
+async function groupMembers(conversationId: string) {
+  const rows = await db.conversationParticipant.findMany({
+    where: { conversationId },
+    orderBy: { joinedAt: "asc" },
+    select: { user: { select: { id: true, name: true, email: true } } },
+  });
+  return rows.map((r) => r.user);
+}
+
+/**
+ * PATCH /api/inbox/[conversationId] - Manage a team group
+ * Body: { name?: string, add?: string[], remove?: string[] }
+ * Any member may rename the group, add teammates or remove other members.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ conversationId: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || !session.user.agencyId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { conversationId } = await params;
+    const userId = session.user.id;
+    const agencyId = session.user.agencyId;
+
+    const convo = await findStaffConversation(conversationId, userId, agencyId);
+    if (!convo) return notFound();
+    if (convo.type !== "GROUP") {
+      return NextResponse.json({ error: "Only team groups can be changed" }, { status: 400 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const ids = (v: unknown) =>
+      Array.isArray(v) ? Array.from(new Set(v.filter((x): x is string => typeof x === "string" && !!x))) : [];
+    const add = ids(body.add);
+    // Removing yourself is leaving (DELETE)
+    const remove = ids(body.remove).filter((id) => id !== userId);
+
+    let name: string | undefined;
+    if (body.name !== undefined) {
+      const clean = cleanGroupName(body.name);
+      if (!clean) return NextResponse.json({ error: "Give the group a name" }, { status: 400 });
+      name = clean;
+    }
+
+    if (add.length > 0) {
+      const valid = await staffIdsInAgency(add, agencyId);
+      if (valid.length !== add.length) {
+        return NextResponse.json({ error: "Only people on your team can be added" }, { status: 400 });
+      }
+    }
+
+    const current = (
+      await db.conversationParticipant.findMany({ where: { conversationId }, select: { userId: true } })
+    ).map((p) => p.userId);
+    const after = new Set([...current, ...add]);
+    remove.forEach((id) => after.delete(id));
+    if (after.size < 2) {
+      return NextResponse.json(
+        { error: "A group needs at least two people. Leave the group instead" },
+        { status: 400 }
+      );
+    }
+
+    await db.$transaction([
+      ...(name !== undefined ? [db.conversation.update({ where: { id: conversationId }, data: { name } })] : []),
+      ...(add.length > 0
+        ? [
+            db.conversationParticipant.createMany({
+              data: add.map((id) => ({ conversationId, userId: id })),
+              skipDuplicates: true,
+            }),
+          ]
+        : []),
+      ...(remove.length > 0
+        ? [db.conversationParticipant.deleteMany({ where: { conversationId, userId: { in: remove } } })]
+        : []),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      name: name ?? convo.name,
+      members: await groupMembers(conversationId),
+    });
+  } catch (error) {
+    console.error("Error updating group:", error);
+    return NextResponse.json({ error: "The group could not be changed" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/inbox/[conversationId] - Leave a team group
+ * The last member to leave removes the group and its messages.
+ */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ conversationId: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || !session.user.agencyId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { conversationId } = await params;
+    const userId = session.user.id;
+
+    const convo = await findStaffConversation(conversationId, userId, session.user.agencyId);
+    if (!convo) return notFound();
+    if (convo.type !== "GROUP") {
+      return NextResponse.json({ error: "Only team groups can be left" }, { status: 400 });
+    }
+
+    await db.conversationParticipant.delete({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    const left = await db.conversationParticipant.count({ where: { conversationId } });
+    if (left === 0) {
+      await db.conversation.delete({ where: { id: conversationId } });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error leaving group:", error);
+    return NextResponse.json({ error: "You could not leave the group" }, { status: 500 });
   }
 }

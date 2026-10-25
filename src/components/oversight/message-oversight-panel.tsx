@@ -242,7 +242,7 @@ export function MessageOversightPanel() {
                   })
                 }
               >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger aria-label="Filter by type" className="w-[160px]">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
@@ -262,7 +262,7 @@ export function MessageOversightPanel() {
                   })
                 }
               >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger aria-label="Filter by staff" className="w-[160px]">
                   <User className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Staff" />
                 </SelectTrigger>
@@ -285,7 +285,7 @@ export function MessageOversightPanel() {
                   })
                 }
               >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger aria-label="Filter by creator" className="w-[160px]">
                   <Users className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Creator" />
                 </SelectTrigger>
@@ -338,7 +338,7 @@ export function MessageOversightPanel() {
                       {filter.conversationType === "staff_creator"
                         ? "Staff-Creator"
                         : "Internal"}
-                      <button
+                      <button aria-label="Remove conversation type filter"
                         onClick={() =>
                           setFilter({ ...filter, conversationType: "all" })
                         }
@@ -351,7 +351,7 @@ export function MessageOversightPanel() {
                 {filter.staffId && (
                   <Badge variant="secondary">
                     Staff: {staffList.find((s) => s.id === filter.staffId)?.name}
-                    <button
+                    <button aria-label="Remove staff filter"
                       onClick={() => setFilter({ ...filter, staffId: undefined })}
                       className="ml-1 hover:text-foreground"
                     >
@@ -363,7 +363,7 @@ export function MessageOversightPanel() {
                   <Badge variant="secondary">
                     Creator:{" "}
                     {creatorList.find((c) => c.id === filter.creatorId)?.name}
-                    <button
+                    <button aria-label="Remove creator filter"
                       onClick={() =>
                         setFilter({ ...filter, creatorId: undefined })
                       }
@@ -376,7 +376,7 @@ export function MessageOversightPanel() {
                 {filter.flagged && (
                   <Badge variant="secondary">
                     Flagged
-                    <button
+                    <button aria-label="Remove flagged filter"
                       onClick={() => setFilter({ ...filter, flagged: undefined })}
                       className="ml-1 hover:text-foreground"
                     >
@@ -525,7 +525,7 @@ export function MessageOversightPanel() {
                       .join(", ")}
                   </CardDescription>
                 </div>
-                <Button
+                <Button aria-label="Close thread"
                   variant="ghost"
                   size="icon-sm"
                   onClick={handleCloseThread}
@@ -598,7 +598,7 @@ export function MessageOversightPanel() {
                                 </span>
                                 <Badge
                                   variant="outline"
-                                  className="text-[10px] h-4"
+                                  className="text-[12px] h-5"
                                 >
                                   {message.senderRole}
                                 </Badge>

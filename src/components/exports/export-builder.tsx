@@ -348,14 +348,14 @@ export function ExportBuilder({
     <div className="flex items-center justify-center gap-2 mb-6">
       {[1, 2, 3, 4].map((step) => (
         <React.Fragment key={step}>
-          <button
+          <button aria-label={`Step ${step}`}
             onClick={() => setCurrentStep(step as 1 | 2 | 3 | 4)}
             className={cn(
               "h-10 w-10 rounded-full flex items-center justify-center text-sm font-medium transition-all",
               currentStep === step
                 ? "bg-primary text-primary-foreground"
                 : currentStep > step
-                ? "bg-emerald-500 text-white"
+                ? "bg-success text-ground"
                 : "bg-muted text-muted-foreground"
             )}
           >
@@ -365,7 +365,7 @@ export function ExportBuilder({
             <div
               className={cn(
                 "h-0.5 w-8",
-                currentStep > step ? "bg-emerald-500" : "bg-muted"
+                currentStep > step ? "bg-success" : "bg-muted"
               )}
             />
           )}
@@ -437,7 +437,7 @@ export function ExportBuilder({
                     isSelected ? "bg-primary/10" : "hover:bg-muted"
                   )}
                 >
-                  <Checkbox
+                  <Checkbox aria-label={field.label}
                     checked={isSelected}
                     onCheckedChange={() => handleFieldToggle(field.key)}
                   />
@@ -483,7 +483,7 @@ export function ExportBuilder({
                         {index + 1}.
                       </span>
                       <span className="flex-1 text-sm">{field.label}</span>
-                      <Button
+                      <Button aria-label={`Remove ${field.label}`}
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
@@ -560,7 +560,7 @@ export function ExportBuilder({
                   key={creator.id}
                   className="flex items-center gap-2 cursor-pointer"
                 >
-                  <Checkbox
+                  <Checkbox aria-label={creator.name}
                     checked={selectedCreators.includes(creator.id)}
                     onCheckedChange={(checked) => {
                       if (checked) {
@@ -614,7 +614,7 @@ export function ExportBuilder({
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  <Checkbox
+                  <Checkbox aria-label={status}
                     checked={selectedStatuses.includes(status)}
                     onCheckedChange={(checked) => {
                       if (checked) {
@@ -679,7 +679,7 @@ export function ExportBuilder({
                     updateFilterCondition(condition.id, { field: v })
                   }
                 >
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger aria-label="Filter field" className="w-40">
                     <SelectValue placeholder="Field" />
                   </SelectTrigger>
                   <SelectContent>
@@ -698,7 +698,7 @@ export function ExportBuilder({
                     })
                   }
                 >
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger aria-label="Filter operator" className="w-36">
                     <SelectValue placeholder="Operator" />
                   </SelectTrigger>
                   <SelectContent>
@@ -723,7 +723,7 @@ export function ExportBuilder({
                     className="flex-1"
                   />
                 )}
-                <Button
+                <Button aria-label="Remove condition"
                   variant="ghost"
                   size="sm"
                   onClick={() => removeFilterCondition(condition.id)}

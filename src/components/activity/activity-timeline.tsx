@@ -139,26 +139,26 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 
 // Color mapping
 const COLOR_MAP: Record<string, string> = {
-  emerald: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
+  emerald: "bg-success/10 text-success",
   red: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
-  violet: "bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400",
+  violet: "bg-tile-hi dark:bg-tile-hi text-foreground dark:text-foreground",
   blue: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
   amber: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
   orange: "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400",
-  indigo: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400",
+  indigo: "bg-tile-hi dark:bg-tile-hi text-foreground dark:text-foreground",
   gray: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
 };
 
 // Gradient color mapping for icon backgrounds
 const GRADIENT_MAP: Record<string, string> = {
-  emerald: "from-emerald-500 to-teal-500",
-  red: "from-red-500 to-rose-500",
-  violet: "from-violet-500 to-purple-500",
-  blue: "from-blue-500 to-cyan-500",
-  amber: "from-amber-500 to-orange-500",
-  orange: "from-orange-500 to-red-500",
-  indigo: "from-indigo-500 to-violet-500",
-  gray: "from-gray-500 to-slate-500",
+  emerald: "bg-success ",
+  red: "bg-red-500 ",
+  violet: "bg-raised-hi ",
+  blue: "bg-blue-500 ",
+  amber: "bg-amber-500 ",
+  orange: "bg-orange-500 ",
+  indigo: "bg-raised-hi ",
+  gray: "bg-gray-500 ",
 };
 
 // Activity type labels
@@ -172,11 +172,11 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 
 // Activity category badges
 const CATEGORY_BADGES: Record<string, { label: string; className: string }> = {
-  upload: { label: "Upload", className: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400" },
+  upload: { label: "Upload", className: "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground" },
   comment: { label: "Comment", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
   request: { label: "Request", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
   reminder: { label: "Reminder", className: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
-  creator: { label: "Creator", className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" },
+  creator: { label: "Creator", className: "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground" },
   other: { label: "Other", className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400" },
 };
 
@@ -395,7 +395,7 @@ export function ActivityTimeline({
               <div
                 className={cn(
                   "absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center ring-2 ring-background",
-                  `bg-gradient-to-br ${GRADIENT_MAP[activity.color] || GRADIENT_MAP.gray}`
+                  ` ${GRADIENT_MAP[activity.color] || GRADIENT_MAP.gray}`
                 )}
               >
                 <span className="text-white scale-75">
@@ -433,7 +433,7 @@ export function ActivityTimeline({
                   {time.relative}
                 </span>
                 {mode === "standalone" && (
-                  <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", categoryBadge.className)}>
+                  <Badge variant="outline" className={cn("text-[12px] px-1.5 py-0", categoryBadge.className)}>
                     {categoryBadge.label}
                   </Badge>
                 )}
@@ -446,7 +446,7 @@ export function ActivityTimeline({
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               )}
               {mode === "standalone" && (
-                <Button
+                <Button aria-label={isExpanded ? "Hide details" : "Show details"} aria-expanded={isExpanded}
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
@@ -556,7 +556,7 @@ export function ActivityTimeline({
               value={filters.type}
               onValueChange={(value) => setFilters((prev) => ({ ...prev, type: value === "all" ? "" : value }))}
             >
-              <SelectTrigger className="w-[130px] h-9">
+              <SelectTrigger aria-label="Activity type" className="w-[130px] h-9">
                 <SelectValue placeholder="All types" />
               </SelectTrigger>
               <SelectContent>
@@ -587,7 +587,7 @@ export function ActivityTimeline({
                 className="pl-9"
               />
               {filters.search && (
-                <Button
+                <Button aria-label="Clear search"
                   variant="ghost"
                   size="icon"
                   className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
@@ -638,7 +638,7 @@ export function ActivityTimeline({
                     value={filters.type || "all"}
                     onValueChange={(value) => setFilters((prev) => ({ ...prev, type: value === "all" ? "" : value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Activity Type">
                       <SelectValue placeholder="All types" />
                     </SelectTrigger>
                     <SelectContent>
@@ -658,7 +658,7 @@ export function ActivityTimeline({
                     value={filters.userId || "all"}
                     onValueChange={(value) => setFilters((prev) => ({ ...prev, userId: value === "all" ? "" : value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="User">
                       <SelectValue placeholder="All users" />
                     </SelectTrigger>
                     <SelectContent>

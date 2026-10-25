@@ -150,7 +150,7 @@ export function NotificationItem({
       {/* Unread indicator */}
       {isUnread && (
         <span
-          className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-primary to-violet-500"
+          className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary "
           aria-hidden="true"
         />
       )}
@@ -184,7 +184,7 @@ export function NotificationItem({
             <span
               className={cn(
                 "flex-shrink-0 text-muted-foreground",
-                compact ? "text-[10px]" : "text-xs"
+                compact ? "text-[12px]" : "text-xs"
               )}
             >
               {formatTimeAgo(createdAt)}
@@ -198,7 +198,7 @@ export function NotificationItem({
           )}
 
           {compact && (
-            <p className="text-[11px] text-muted-foreground truncate">
+            <p className="text-[12px] text-muted-foreground truncate">
               {notification.message}
             </p>
           )}
@@ -209,7 +209,7 @@ export function NotificationItem({
       <div
         className={cn(
           "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none",
-          "bg-gradient-to-r from-primary/5 to-violet-500/5"
+          " bg-primary/5 "
         )}
         aria-hidden="true"
       />
@@ -257,7 +257,7 @@ export function NotificationItemSkeleton({ compact = false }: { compact?: boolea
 export function NotificationEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center mb-3">
+      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
         <Bell className="w-6 h-6 text-muted-foreground" />
       </div>
       <p className="text-sm font-medium text-foreground">All caught up!</p>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { validateCreatorSession } from "@/lib/portal-auth";
+import { validateCreatorSession, staffFirstName, isCreatorPseudoEmail } from "@/lib/portal-auth";
 import { excludePseudoUsers } from "@/lib/staff";
 import { broadcastConversationMessage } from "@/lib/realtime-broadcast";
 import { notifyTeam, NotificationType } from "@/lib/notifications";
@@ -25,14 +25,14 @@ export async function GET(request: NextRequest) {
           take: 50,
           include: {
             sender: {
-              select: { id: true, name: true, avatar: true },
+              select: { id: true, name: true, avatar: true, email: true },
             },
           },
         },
         participants: {
           include: {
             user: {
-              select: { id: true, name: true, avatar: true },
+              select: { id: true, name: true, avatar: true, email: true },
             },
           },
         },
@@ -48,19 +48,34 @@ export async function GET(request: NextRequest) {
     }
 
     // Format messages
+    // Staff are named by first name only ("Sam"); the email never leaves the
+    // server. A hidden .internal pseudo-user is the creator's own voice.
     const messages = conversation.messages.reverse().map((msg) => ({
       id: msg.id,
       content: msg.content,
-      sender: msg.sender,
-      isFromCreator: msg.creatorId === creator.id,
+      sender:
+        msg.sender && !isCreatorPseudoEmail(msg.sender.email)
+          ? { id: msg.sender.id, name: staffFirstName(msg.sender.name), avatar: msg.sender.avatar }
+          : null,
+      isFromCreator: msg.creatorId === creator.id || isCreatorPseudoEmail(msg.sender?.email),
       attachments: msg.attachments,
       forwardedContent: msg.forwardedContent,
       createdAt: msg.createdAt,
     }));
 
+    // Unread: staff messages this creator has not read yet
+    const isUnread = (msg: (typeof conversation.messages)[number]) =>
+      !!msg.senderId &&
+      msg.senderId !== creator.id &&
+      !((msg.readBy as Array<{ creatorId?: string }> | null) || []).some((r) => r.creatorId === creator.id);
+    const unreadCount = conversation.messages.filter(isUnread).length;
+
+    // ?peek=1 (the creator home's preview) reads without marking anything read
+    const peek = request.nextUrl.searchParams.get("peek") === "1";
+
     // Mark messages as read by creator (using creator's ID)
     const now = new Date().toISOString();
-    for (const msg of conversation.messages) {
+    for (const msg of peek ? [] : conversation.messages) {
       if (msg.senderId && msg.senderId !== creator.id) {
         const readBy = (msg.readBy as Array<{ creatorId?: string; userId?: string; readAt: string }>) || [];
         if (!readBy.some((r) => r.creatorId === creator.id)) {
@@ -83,9 +98,16 @@ export async function GET(request: NextRequest) {
       conversation: {
         id: conversation.id,
         teamName: agency?.name ?? "",
-        participants: conversation.participants.map((p) => p.user),
+        participants: conversation.participants
+          .filter((p) => !isCreatorPseudoEmail(p.user.email))
+          .map((p) => ({
+            id: p.user.id,
+            name: staffFirstName(p.user.name),
+            avatar: p.user.avatar,
+          })),
       },
       messages,
+      unreadCount,
     });
   } catch (error) {
     console.error("Error fetching creator inbox:", error);

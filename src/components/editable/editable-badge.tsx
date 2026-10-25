@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { Loader2, ChevronDown, Check } from "lucide-react";
+import { FIELD_STATE_ICON, requestStatusState } from "@/components/title-wall/types";
 
 export interface BadgeOption {
   value: string;
@@ -124,7 +125,7 @@ export function EditableBadge({
   // Size classes
   const sizeClasses = {
     sm: {
-      badge: "h-5 text-[10px] px-1.5 gap-0.5",
+      badge: "h-6 text-[12px] px-2 gap-1",
       icon: "h-2.5 w-2.5",
       dropdown: "text-xs py-1 px-2",
       check: "h-3 w-3",
@@ -221,7 +222,7 @@ export function EditableBadge({
                     <Badge
                       variant={variant}
                       className={cn(
-                        "h-5 text-[10px] px-1.5",
+                        "h-[22px] text-[12px] px-2",
                         getBadgeClasses(option)
                       )}
                     >
@@ -246,77 +247,59 @@ export function EditableBadge({
   );
 }
 
-// Pre-configured status badge options
+/**
+ * Request status and priority tones on the Title Wall state tokens. Status
+ * follows whose turn it is, in the field-state vocabulary: to do (grey
+ * outline) while the creator works, ready (blue) when staff have something to
+ * review, needs changes (orange) when it went back, approved (green). Each
+ * carries its state icon. Priority is neutral until it is urgent (red).
+ */
+export const STATUS_TONE: Record<string, string> = {
+  DRAFT: "border-ctl-hi bg-transparent text-ink-2",
+  PENDING: "border-waiting bg-transparent text-ink-2 [&>svg]:text-waiting",
+  IN_PROGRESS: "border-waiting bg-transparent text-ink [&>svg]:text-waiting",
+  SUBMITTED: "border-ready/30 bg-ready/12 text-ready",
+  UNDER_REVIEW: "border-ready/30 bg-ready/12 text-ready",
+  NEEDS_REVISION: "border-changes/30 bg-changes/12 text-changes",
+  APPROVED: "border-success/30 bg-success/12 text-success",
+  CANCELLED: "border-ctl bg-transparent text-ink-2",
+  ARCHIVED: "border-ctl bg-transparent text-ink-2",
+};
+
+export const PRIORITY_TONE: Record<string, string> = {
+  LOW: "border-ctl bg-transparent text-ink-2",
+  NORMAL: "border-line bg-tile-hi text-ink-2",
+  HIGH: "border-ctl-hi bg-tile-hi text-ink font-semibold",
+  URGENT: "border-late/30 bg-late/15 text-late font-semibold",
+};
+
+/** A request status's state icon (none for draft, cancelled and archived) */
+function statusIcon(status: string): React.ReactNode {
+  const state = requestStatusState(status);
+  if (!state) return undefined;
+  const Icon = FIELD_STATE_ICON[state];
+  return <Icon aria-hidden="true" className="size-3 shrink-0" />;
+}
+
+// Pre-configured status badge options: the field-state colour, icon and word
 export const STATUS_BADGE_OPTIONS: BadgeOption[] = [
-  {
-    value: "DRAFT",
-    label: "Draft",
-    className: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800",
-  },
-  {
-    value: "PENDING",
-    label: "Pending",
-    className: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800",
-  },
-  {
-    value: "IN_PROGRESS",
-    label: "In Progress",
-    className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
-  },
-  {
-    value: "SUBMITTED",
-    label: "Submitted",
-    className: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800",
-  },
-  {
-    value: "UNDER_REVIEW",
-    label: "Under Review",
-    className: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800",
-  },
-  {
-    value: "NEEDS_REVISION",
-    label: "Needs Revision",
-    className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
-  },
-  {
-    value: "APPROVED",
-    label: "Approved",
-    className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
-  },
-  {
-    value: "CANCELLED",
-    label: "Cancelled",
-    className: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/30 dark:text-gray-400 dark:border-gray-800",
-  },
-  {
-    value: "ARCHIVED",
-    label: "Archived",
-    className: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-900/30 dark:text-gray-500 dark:border-gray-800",
-  },
+  { value: "DRAFT", label: "Draft", className: STATUS_TONE.DRAFT },
+  { value: "PENDING", label: "Pending", icon: statusIcon("PENDING"), className: STATUS_TONE.PENDING },
+  { value: "IN_PROGRESS", label: "In progress", icon: statusIcon("IN_PROGRESS"), className: STATUS_TONE.IN_PROGRESS },
+  { value: "SUBMITTED", label: "Submitted", icon: statusIcon("SUBMITTED"), className: STATUS_TONE.SUBMITTED },
+  { value: "UNDER_REVIEW", label: "Under review", icon: statusIcon("UNDER_REVIEW"), className: STATUS_TONE.UNDER_REVIEW },
+  { value: "NEEDS_REVISION", label: "Needs changes", icon: statusIcon("NEEDS_REVISION"), className: STATUS_TONE.NEEDS_REVISION },
+  { value: "APPROVED", label: "Approved", icon: statusIcon("APPROVED"), className: STATUS_TONE.APPROVED },
+  { value: "CANCELLED", label: "Cancelled", className: STATUS_TONE.CANCELLED },
+  { value: "ARCHIVED", label: "Archived", className: STATUS_TONE.ARCHIVED },
 ];
 
 // Pre-configured priority badge options
 export const PRIORITY_BADGE_OPTIONS: BadgeOption[] = [
-  {
-    value: "LOW",
-    label: "Low",
-    className: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700",
-  },
-  {
-    value: "NORMAL",
-    label: "Normal",
-    className: "bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
-  },
-  {
-    value: "HIGH",
-    label: "High",
-    className: "bg-orange-100 text-orange-600 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800",
-  },
-  {
-    value: "URGENT",
-    label: "Urgent",
-    className: "bg-red-100 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
-  },
+  { value: "LOW", label: "Low", className: PRIORITY_TONE.LOW },
+  { value: "NORMAL", label: "Normal", className: PRIORITY_TONE.NORMAL },
+  { value: "HIGH", label: "High", className: PRIORITY_TONE.HIGH },
+  { value: "URGENT", label: "Urgent", className: PRIORITY_TONE.URGENT },
 ];
 
 export default EditableBadge;

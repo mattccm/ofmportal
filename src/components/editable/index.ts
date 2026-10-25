@@ -7,6 +7,8 @@ export {
   type BadgeOption,
   STATUS_BADGE_OPTIONS,
   PRIORITY_BADGE_OPTIONS,
+  STATUS_TONE,
+  PRIORITY_TONE,
 } from "./editable-badge";
 export { EditableDate, type EditableDateProps } from "./editable-date";
 

@@ -80,9 +80,9 @@ const statusConfig: Record<
   },
   APPROVED: {
     label: "Approved",
-    color: "text-emerald-600",
-    icon: <CheckCircle2 className="h-3 w-3 text-emerald-500" />,
-    bgClass: "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800",
+    color: "text-approved",
+    icon: <CheckCircle2 className="h-3 w-3 text-approved" />,
+    bgClass: "bg-approved/10 border-approved/30",
   },
 };
 
@@ -164,7 +164,7 @@ export function RequestCard({
             status === "SUBMITTED" && "bg-primary",
             status === "UNDER_REVIEW" && "bg-orange-500",
             status === "NEEDS_REVISION" && "bg-red-500",
-            status === "APPROVED" && "bg-emerald-500"
+            status === "APPROVED" && "bg-approved"
           )}
         />
 
@@ -204,13 +204,13 @@ export function RequestCard({
                   {uploadCount}/{totalRequired}
                 </span>
               </div>
-              <Progress value={uploadProgress}>
+              <Progress aria-label="Upload progress" value={uploadProgress}>
                 <ProgressTrack className="h-2">
                   <ProgressIndicator
                     className={cn(
                       uploadProgress >= 100
-                        ? "bg-emerald-500"
-                        : "bg-gradient-to-r from-primary/80 to-primary"
+                        ? "bg-success"
+                        : " bg-primary/80 "
                     )}
                   />
                 </ProgressTrack>
@@ -306,7 +306,7 @@ export function RequestCardCompact({
             status === "SUBMITTED" && "bg-primary",
             status === "UNDER_REVIEW" && "bg-orange-500",
             status === "NEEDS_REVISION" && "bg-red-500",
-            status === "APPROVED" && "bg-emerald-500"
+            status === "APPROVED" && "bg-approved"
           )}
         />
         <div className="flex-1 min-w-0">

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { handleCreatorResponse } from "@/lib/auto-reminder-scheduler";
 import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
-import type { RequestStatus } from "@prisma/client";
+import type { Prisma, RequestStatus } from "@prisma/client";
 
 // Only requests still awaiting the creator can be (re)submitted
 const SUBMITTABLE_STATUSES: RequestStatus[] = ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"];
@@ -55,12 +55,27 @@ export async function POST(
       );
     }
 
+    // Sending the request in sends every field that has unreviewed uploads,
+    // so staff review (and the "ready" counts) see those fields as submitted
+    const now = new Date();
+    const unreviewed = await db.upload.findMany({
+      where: { requestId: id, uploadStatus: "COMPLETED", status: "PENDING", fieldId: { not: null } },
+      select: { fieldId: true },
+      distinct: ["fieldId"],
+    });
+    const fieldSubmissions = { ...((request.fieldSubmissions as Record<string, Record<string, unknown>> | null) ?? {}) };
+    for (const { fieldId } of unreviewed) {
+      if (!fieldId || fieldSubmissions[fieldId]?.status === "APPROVED") continue;
+      fieldSubmissions[fieldId] = { ...fieldSubmissions[fieldId], status: "SUBMITTED", submittedAt: now.toISOString() };
+    }
+
     // Update request status (guarded so a concurrent status change isn't overwritten)
     const updated = await db.contentRequest.updateMany({
       where: { id, creatorId: creator.id, status: { in: SUBMITTABLE_STATUSES } },
       data: {
         status: "SUBMITTED",
-        submittedAt: new Date(),
+        submittedAt: now,
+        fieldSubmissions: fieldSubmissions as Prisma.InputJsonValue,
       },
     });
 

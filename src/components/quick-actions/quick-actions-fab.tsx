@@ -250,15 +250,15 @@ export function QuickActionsFAB({
           size="icon"
           className={cn(
             "h-14 w-14 rounded-2xl shadow-lg",
-            "bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600",
-            "hover:from-indigo-600 hover:via-violet-600 hover:to-purple-700",
+            " bg-raised-hi ",
+            "hover:bg-raised-hi ",
             "text-white border-0",
             "transition-all duration-300 ease-out",
-            "hover:shadow-xl hover:shadow-violet-500/30",
+            "hover:shadow-xl hover:shadow-black/20",
             "hover:scale-105",
             "active:scale-95",
             "touch-manipulation",
-            isOpen && "rotate-45 shadow-xl shadow-violet-500/40"
+            isOpen && "rotate-45 shadow-xl shadow-black/20"
           )}
           onClick={() => setIsOpen(!isOpen)}
           aria-label={isOpen ? "Close quick actions" : "Open quick actions"}
@@ -282,7 +282,7 @@ export function QuickActionsFAB({
             "hidden md:block"
           )}
         >
-          <kbd className="px-1.5 py-0.5 bg-muted/80 rounded text-[10px]">
+          <kbd className="px-1.5 py-0.5 bg-muted/80 rounded text-[12px]">
             {formatShortcut("Alt+Q", modKey)}
           </kbd>
         </div>
@@ -348,7 +348,7 @@ function QuickActionItem({
           className={cn(
             "hidden md:inline-flex items-center gap-0.5",
             "px-1.5 py-0.5 rounded",
-            "bg-muted/80 text-[10px] text-muted-foreground",
+            "bg-muted/80 text-[12px] text-muted-foreground",
             "font-mono"
           )}
         >
@@ -361,10 +361,10 @@ function QuickActionItem({
         className={cn(
           "flex items-center justify-center",
           "h-12 w-12 rounded-xl",
-          "bg-gradient-to-br from-indigo-500/90 via-violet-500/90 to-purple-600/90",
+          " bg-tile-hi ",
           "text-white shadow-lg",
           "transition-all duration-200",
-          "group-hover:shadow-xl group-hover:shadow-violet-500/30",
+          "group-hover:shadow-xl group-hover:shadow-black/20",
           "group-hover:scale-110",
           "group-active:scale-95"
         )}
@@ -403,12 +403,12 @@ function KeyboardShortcutsModal({
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10">
-              <Keyboard className="h-5 w-5 text-violet-600" />
+            <div className="p-2 rounded-xl bg-tile-hi ">
+              <Keyboard className="h-5 w-5 text-foreground" />
             </div>
             <h2 className="text-lg font-semibold">Keyboard Shortcuts</h2>
           </div>
-          <Button
+          <Button aria-label="Close"
             variant="ghost"
             size="icon"
             className="h-8 w-8 rounded-lg"
@@ -471,7 +471,7 @@ function KeyboardShortcutsModal({
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground text-center">
-          Press <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">?</kbd> anytime to see shortcuts
+          Press <kbd className="px-1 py-0.5 bg-muted rounded text-[12px]">?</kbd> anytime to see shortcuts
         </p>
       </div>
     </div>

@@ -1,820 +1,700 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { useBranding } from "@/components/providers/branding-provider";
-import {
-  Loader2,
-  Send,
-  MessageSquare,
-  Search,
-  ArrowRight,
-  FileText,
-  Users,
-  Image as ImageIcon,
-  ExternalLink,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight, FileText, Image as ImageIcon, Loader2, RefreshCw, Send, Users } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { formatDay } from "@/components/title-wall";
+import { STATUS_WORD } from "@/components/portal/creator-words";
+import { cn } from "@/lib/utils";
 
-interface Message {
+interface ForwardedItem {
+  type: string;
+  id: string;
+  data?: { id: string; originalName?: string; title?: string; status?: string };
+}
+
+interface ChatMessage {
   id: string;
   content: string;
   createdAt: string;
-  isAgency: boolean;
-  isFromCreator?: boolean;
-  user?: {
-    name: string;
-    image?: string;
-  };
-  sender?: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  forwardedContent?: Array<{
-    type: string;
-    id: string;
-    data?: {
-      id: string;
-      originalName?: string;
-      title?: string;
-      thumbnailUrl?: string;
-      status?: string;
-    };
-  }>;
+  /** true when the creator wrote it */
+  mine: boolean;
+  /** The team member's first name ("Sam") */
+  from?: string;
+  forwardedContent?: ForwardedItem[];
 }
 
 interface RequestThread {
   id: string;
   title: string;
   status: string;
-  lastMessage?: Message;
-  unreadCount: number;
-  messages: Message[];
+  messages: ChatMessage[];
 }
 
-interface TeamConversation {
-  id: string;
-  teamName: string;
-  participants: Array<{
-    id: string;
-    name: string;
-    avatar?: string;
-  }>;
+const DESKTOP = "(min-width: 1024px)";
+
+/** True from 1024px: the list and the conversation sit side by side */
+function useDesktop() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(DESKTOP);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(DESKTOP).matches,
+    () => false
+  );
+}
+
+function timeOf(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function dayKey(iso: string) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function dayLabel(iso: string) {
+  const today = new Date();
+  const y = new Date();
+  y.setDate(today.getDate() - 1);
+  const k = dayKey(iso);
+  if (k === dayKey(today.toISOString())) return "Today";
+  if (k === dayKey(y.toISOString())) return "Yesterday";
+  return formatDay(iso);
+}
+
+function token() {
+  try {
+    return localStorage.getItem("creatorToken") || "";
+  } catch {
+    return "";
+  }
+}
+
+/** Who wrote it: "You", or the team member's first name */
+function senderName(m: ChatMessage) {
+  return m.mine ? "You" : m.from || "Your team";
+}
+
+/** The conversation, oldest first, with a day line where the day changes */
+function Timeline({ messages, emptyText }: { messages: ChatMessage[]; emptyText: string }) {
+  if (messages.length === 0) {
+    return <p className="mt-6 text-center text-[15px] leading-normal text-ink-2">{emptyText}</p>;
+  }
+  return (
+    <ol className="mt-4 space-y-3" aria-label="Messages">
+      {messages.map((m, i) => {
+        const newDay = i === 0 || dayKey(messages[i - 1].createdAt) !== dayKey(m.createdAt);
+        return (
+          <li key={m.id}>
+            {newDay && (
+              <p className="mb-3 mt-5 text-center text-[13px] font-medium text-ink-2 first:mt-0">
+                {dayLabel(m.createdAt)}
+              </p>
+            )}
+            <div className={cn("flex flex-col", m.mine ? "items-end" : "items-start")}>
+              <div
+                className={cn(
+                  "max-w-[85%] rounded-[12px] px-3.5 py-2.5 lg:max-w-[70%]",
+                  m.mine ? "bg-tile-hi" : "bg-tile"
+                )}
+              >
+                {m.content && (
+                  <p className="whitespace-pre-wrap break-words text-[15px] leading-normal">{m.content}</p>
+                )}
+                {m.forwardedContent && m.forwardedContent.length > 0 && (
+                  <ul className="mt-2 space-y-1.5">
+                    {m.forwardedContent.map((item, idx) => (
+                      <li
+                        key={`${item.id}-${idx}`}
+                        className="flex items-center gap-2 rounded-md bg-well px-2.5 py-2 text-[14px]"
+                      >
+                        {item.type === "request" ? (
+                          <>
+                            <FileText className="size-4 shrink-0 text-icon" aria-hidden="true" />
+                            {item.data?.id ? (
+                              <Link href={`/creator/requests/${item.data.id}`} className="truncate underline underline-offset-[3px]">
+                                {item.data?.title || "A request"}
+                              </Link>
+                            ) : (
+                              <span className="truncate">{item.data?.title || "A request"}</span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {/* No thumbnail here: previews stay out of the chat */}
+                            <ImageIcon className="size-4 shrink-0 text-icon" aria-hidden="true" />
+                            <span className="truncate">{item.data?.originalName || "A file"}</span>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <p className="mt-1 text-[13px] text-ink-2">
+                {senderName(m)} · {timeOf(m.createdAt)}
+              </p>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/**
+ * The composer. On a phone it is pinned above the tab bar (at the foot on a
+ * tablet); on a desktop it is docked at the bottom of the conversation panel.
+ */
+function Composer({
+  value,
+  onChange,
+  onSend,
+  sending,
+  placeholder,
+  docked = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSend: () => void;
+  sending: boolean;
+  placeholder: string;
+  docked?: boolean;
+}) {
+  const form = (
+    <form
+      className={cn(
+        docked
+          ? "border-t border-line"
+          : "fixed inset-x-0 z-30 border-t border-line bg-ground bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:bottom-0 sm:pb-[env(safe-area-inset-bottom,0px)]"
+      )}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSend();
+      }}
+    >
+      <div
+        className={cn(
+          "flex items-end gap-2 py-3",
+          docked
+            ? "px-4"
+            : "mx-auto max-w-[560px] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:max-w-[720px]"
+        )}
+      >
+        <label htmlFor="composer" className="sr-only">
+          {placeholder}
+        </label>
+        <Textarea
+          id="composer"
+          rows={1}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter sends on a keyboard; Shift+Enter is a new line
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && window.matchMedia("(hover: hover)").matches) {
+              e.preventDefault();
+              onSend();
+            }
+          }}
+          className={cn("max-h-36 resize-none", docked ? "min-h-11 py-2.5" : "min-h-12 py-3")}
+        />
+        <Button
+          type="submit"
+          className={cn("shrink-0 px-4 text-[15px]", docked ? "h-11" : "h-12")}
+          disabled={!value.trim() || sending}
+        >
+          {sending ? <Loader2 className="animate-spin" /> : <Send />}
+          Send
+        </Button>
+      </div>
+    </form>
+  );
+  if (docked) return form;
+  return (
+    <>
+      <div aria-hidden="true" className="h-24" />
+      {form}
+    </>
+  );
 }
 
 export default function CreatorMessagesPage() {
   const router = useRouter();
-  const { branding } = useBranding();
-  const [loading, setLoading] = useState(true);
-  const [threads, setThreads] = useState<RequestThread[]>([]);
-  const [selectedThread, setSelectedThread] = useState<RequestThread | null>(null);
-  const [newMessage, setNewMessage] = useState("");
-  const [sending, setSending] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [creator, setCreator] = useState<{
-    id: string;
-    name: string;
-    email: string;
-    image?: string;
-  } | null>(null);
-  const [activeTab, setActiveTab] = useState<"team" | "requests">("team");
-
-  // Team chat state
-  const [teamConversation, setTeamConversation] = useState<TeamConversation | null>(null);
-  const [teamMessages, setTeamMessages] = useState<Message[]>([]);
+  const desktop = useDesktop();
+  const [view, setView] = useState<"team" | "requests">("team");
   const [teamLoading, setTeamLoading] = useState(true);
+  const [teamFailed, setTeamFailed] = useState(false);
+  const [teamMessages, setTeamMessages] = useState<ChatMessage[]>([]);
+  const [threadsLoading, setThreadsLoading] = useState(true);
+  const [threads, setThreads] = useState<RequestThread[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrolledFor = useRef<string | null>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem("creatorToken");
-    const creatorId = localStorage.getItem("creatorId");
-    const name = localStorage.getItem("creatorName");
-    const email = localStorage.getItem("creatorEmail");
-    const avatar = localStorage.getItem("creatorAvatar");
-
-    if (!token || !creatorId) {
-      router.push("/login");
-      return;
-    }
-
-    setCreator({
-      id: creatorId,
-      name: name || "Creator",
-      email: email || "",
-      image: avatar || undefined,
-    });
-
-    fetchThreads();
-    fetchTeamConversation();
-  }, [router]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [selectedThread?.messages, teamMessages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const fetchTeamConversation = async () => {
+  const fetchTeam = useCallback(async () => {
+    setTeamFailed(false);
     try {
-      setTeamLoading(true);
-      const token = localStorage.getItem("creatorToken");
-      const response = await fetch("/api/portal/inbox", {
-        headers: {
-          "x-creator-token": token || "",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.conversation) {
-          setTeamConversation(data.conversation);
-          setTeamMessages(data.messages || []);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching team conversation:", error);
+      const res = await fetch("/api/portal/inbox", { headers: { "x-creator-token": token() } });
+      if (!res.ok) throw new Error("inbox");
+      const data = await res.json();
+      const list: Array<{
+        id: string;
+        content: string;
+        createdAt: string;
+        isFromCreator: boolean;
+        sender?: { name?: string } | null;
+        forwardedContent?: ForwardedItem[];
+      }> = data.messages || [];
+      setTeamMessages(
+        list.map((m) => ({
+          id: m.id,
+          content: m.content,
+          createdAt: m.createdAt,
+          mine: m.isFromCreator,
+          from: m.sender?.name,
+          forwardedContent: m.forwardedContent,
+        }))
+      );
+    } catch {
+      setTeamFailed(true);
     } finally {
       setTeamLoading(false);
     }
-  };
+  }, []);
 
-  const fetchThreads = async () => {
+  const fetchThreads = useCallback(async () => {
     try {
-      const token = localStorage.getItem("creatorToken");
-
-      // Fetch requests to get message threads
-      const response = await fetch(`/api/portal/requests`, {
-        headers: {
-          "x-creator-token": token || "",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch requests");
-      }
-
-      const requests = await response.json();
-
-      // For each request, we'll simulate message threads
-      const threadsData: RequestThread[] = requests.map((request: { id: string; title: string; status: string }) => ({
-        id: request.id,
-        title: request.title,
-        status: request.status,
-        lastMessage: undefined,
-        unreadCount: 0,
-        messages: [],
-      }));
-
-      // Fetch comments for each request to get messages
-      const threadsWithMessages = await Promise.all(
-        threadsData.map(async (thread) => {
+      const res = await fetch("/api/portal/requests", { headers: { "x-creator-token": token() } });
+      if (!res.ok) throw new Error("requests");
+      const requests: Array<{ id: string; title: string; status: string }> = await res.json();
+      const withMessages = await Promise.all(
+        requests.map(async (r) => {
           try {
-            // Use the side-effect-free comments endpoint; the request detail
-            // route marks the request as viewed and presigns upload previews.
-            const commentsResponse = await fetch(`/api/portal/requests/${thread.id}/comments`, {
-              headers: {
-                "x-creator-token": token || "",
-              },
-            });
-
-            if (commentsResponse.ok) {
-              const data = await commentsResponse.json();
-              const comments = Array.isArray(data) ? data : [];
-
-              return {
-                ...thread,
-                messages: comments.map((c: { id: string; content: string; createdAt: string; isAgency: boolean; user?: { name: string; image?: string } }) => ({
-                  id: c.id,
-                  content: c.content,
-                  createdAt: c.createdAt,
-                  isAgency: c.isAgency,
-                  user: c.user,
-                })),
-                lastMessage: comments.length > 0 ? comments[comments.length - 1] : undefined,
-                unreadCount: comments.filter((c: { isAgency: boolean }) => c.isAgency).length > 0 ? 0 : 0,
-              };
-            }
-            return thread;
+            // The side-effect-free comments endpoint (the request detail route
+            // marks the request viewed and signs upload previews)
+            const c = await fetch(`/api/portal/requests/${r.id}/comments`, { headers: { "x-creator-token": token() } });
+            const data = c.ok ? await c.json() : [];
+            const comments: Array<{ id: string; content: string; createdAt: string; isAgency: boolean; user?: { name: string } }> =
+              Array.isArray(data) ? data : [];
+            return {
+              id: r.id,
+              title: r.title,
+              status: r.status,
+              messages: comments.map((m) => ({
+                id: m.id,
+                content: m.content,
+                createdAt: m.createdAt,
+                mine: !m.isAgency,
+                from: m.isAgency ? m.user?.name : undefined,
+              })),
+            };
           } catch {
-            return thread;
+            return { id: r.id, title: r.title, status: r.status, messages: [] };
           }
         })
       );
-
-      // Filter to only show threads with messages or active requests
-      const activeThreads = threadsWithMessages.filter(
-        (t) => t.messages.length > 0 || !["CANCELLED", "DRAFT", "ARCHIVED"].includes(t.status)
-      );
-
-      setThreads(activeThreads);
-    } catch (error) {
-      console.error("Error fetching threads:", error);
+      // Conversations first (most recent message first), then the open requests without one
+      withMessages.sort((a, b) => {
+        const la = a.messages.at(-1)?.createdAt;
+        const lb = b.messages.at(-1)?.createdAt;
+        if (la && lb) return new Date(lb).getTime() - new Date(la).getTime();
+        if (la) return -1;
+        if (lb) return 1;
+        return 0;
+      });
+      setThreads(withMessages);
+    } catch {
+      setThreads([]);
     } finally {
-      setLoading(false);
+      setThreadsLoading(false);
     }
-  };
+  }, []);
 
-  const handleSendTeamMessage = async () => {
-    if (!newMessage.trim()) return;
+  useEffect(() => {
+    if (!token() || !localStorage.getItem("creatorId")) {
+      router.push("/login");
+      return;
+    }
+    fetchTeam();
+    fetchThreads();
+  }, [router, fetchTeam, fetchThreads]);
 
+  const selected = threads.find((t) => t.id === selectedId) || null;
+  const visibleMessages = view === "team" ? teamMessages : selected?.messages || [];
+  const conversationKey = view === "team" ? "team" : selectedId;
+
+  // Open a conversation at its latest message; follow new ones as they arrive.
+  // A phone scrolls the page; a desktop scrolls the conversation panel.
+  useLayoutEffect(() => {
+    if (!conversationKey || (view === "team" && teamLoading)) return;
+    const first = scrolledFor.current !== conversationKey;
+    scrolledFor.current = conversationKey;
+    const behavior: ScrollBehavior = first ? "auto" : "smooth";
+    if (desktop) {
+      const el = threadRef.current;
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+    } else {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+    }
+  }, [conversationKey, visibleMessages.length, view, teamLoading, desktop]);
+
+  const sendTeam = async () => {
+    const text = draft.trim();
+    if (!text) return;
     setSending(true);
     try {
-      const token = localStorage.getItem("creatorToken");
-      const response = await fetch("/api/portal/inbox", {
+      const res = await fetch("/api/portal/inbox", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-creator-token": token || "",
-        },
-        body: JSON.stringify({ content: newMessage }),
+        headers: { "Content-Type": "application/json", "x-creator-token": token() },
+        body: JSON.stringify({ content: text }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      const data = await response.json();
-
-      // Add message to local state
-      setTeamMessages((prev) => [...prev, {
-        id: data.message.id,
-        content: data.message.content,
-        createdAt: data.message.createdAt,
-        isAgency: false,
-        isFromCreator: true,
-        forwardedContent: data.message.forwardedContent,
-      }]);
-
-      setNewMessage("");
-      // First message creates the conversation; load it so the empty state clears
-      if (!teamConversation) {
-        await fetchTeamConversation();
-      }
-      toast.success("Message sent");
+      if (!res.ok) throw new Error("send");
+      const data = await res.json();
+      setTeamMessages((prev) => [
+        ...prev,
+        {
+          id: data.message.id,
+          content: data.message.content,
+          createdAt: data.message.createdAt,
+          mine: true,
+          forwardedContent: data.message.forwardedContent,
+        },
+      ]);
+      setDraft("");
     } catch {
-      toast.error("Failed to send message");
+      toast.error("Your message didn't send. Check your connection and try again.");
     } finally {
       setSending(false);
     }
   };
 
-  const handleSendRequestMessage = async () => {
-    if (!newMessage.trim() || !selectedThread) return;
-
+  const sendRequest = async () => {
+    const text = draft.trim();
+    if (!text || !selected) return;
     setSending(true);
     try {
-      const token = localStorage.getItem("creatorToken");
-      const response = await fetch(`/api/portal/requests/${selectedThread.id}/comments`, {
+      const res = await fetch(`/api/portal/requests/${selected.id}/comments`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-creator-token": token || "",
-        },
-        body: JSON.stringify({ content: newMessage }),
+        headers: { "Content-Type": "application/json", "x-creator-token": token() },
+        body: JSON.stringify({ content: text }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      const newMsg: Message = {
-        id: Date.now().toString(),
-        content: newMessage,
-        createdAt: new Date().toISOString(),
-        isAgency: false,
-      };
-
-      // Update local state
-      setSelectedThread({
-        ...selectedThread,
-        messages: [...selectedThread.messages, newMsg],
-        lastMessage: newMsg,
-      });
-
-      setThreads((prev) =>
-        prev.map((t) =>
-          t.id === selectedThread.id
-            ? {
-                ...t,
-                messages: [...t.messages, newMsg],
-                lastMessage: newMsg,
-              }
-            : t
-        )
-      );
-
-      setNewMessage("");
-      toast.success("Message sent");
+      if (!res.ok) throw new Error("send");
+      const msg: ChatMessage = { id: `local-${Date.now()}`, content: text, createdAt: new Date().toISOString(), mine: true };
+      setThreads((prev) => prev.map((t) => (t.id === selected.id ? { ...t, messages: [...t.messages, msg] } : t)));
+      setDraft("");
     } catch {
-      toast.error("Failed to send message");
+      toast.error("Your message didn't send. Check your connection and try again.");
     } finally {
       setSending(false);
     }
   };
 
-  const filteredThreads = threads.filter((thread) =>
-    thread.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-      case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "NEEDS_REVISION":
-        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      case "APPROVED":
-        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-      default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400";
-    }
+  const openTeam = () => {
+    setView("team");
+    setSelectedId(null);
+  };
+  const openThread = (id: string) => {
+    setView("requests");
+    setSelectedId(id);
   };
 
-  if (loading && teamLoading) {
+  const lastFromTeam = [...teamMessages].reverse().find((m) => !m.mine);
+  const teamLede = lastFromTeam
+    ? `Your conversation with your team. ${lastFromTeam.from || "Your team"} last wrote ${formatDay(lastFromTeam.createdAt)}.`
+    : "Your conversation with your team. Ask anything, any time.";
+
+  const teamEmpty = "No messages yet. Write to your team below; they usually reply the same day.";
+  const threadEmpty = "No messages about this request yet. Ask anything below.";
+
+  const teamState = teamLoading ? (
+    <div className="mt-5 space-y-3" role="status" aria-label="Loading messages">
+      <Skeleton className="h-16 w-3/4" />
+      <Skeleton className="ml-auto h-12 w-2/3" />
+      <Skeleton className="h-20 w-4/5" />
+    </div>
+  ) : teamFailed ? (
+    <div className="mt-5 rounded-[10px] bg-tile p-4">
+      <p className="text-[15px]">Your messages didn&apos;t load. Check your connection, then try again.</p>
+      <Button variant="outline" className="mt-3 h-11 md:h-9" onClick={() => { setTeamLoading(true); fetchTeam(); }}>
+        <RefreshCw aria-hidden="true" />
+        Try again
+      </Button>
+    </div>
+  ) : null;
+
+  /* ---------- Desktop: the conversation list beside the open conversation ---------- */
+  if (desktop) {
+    const lastTeam = teamMessages.at(-1);
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2
-            className="h-10 w-10 animate-spin mx-auto"
-            style={{ color: branding.primaryColor }}
-          />
-          <p className="text-muted-foreground">Loading messages...</p>
+      <div className="px-6 pt-10">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em]">Messages</h1>
+        <p className="mt-1 text-[15px] leading-normal text-ink-2">
+          Your team, and notes on each request. Enter sends; Shift+Enter adds a new line.
+        </p>
+
+        <div className="mt-6 grid h-[calc(100dvh-11rem)] min-h-[480px] grid-cols-[minmax(260px,320px)_minmax(0,1fr)] overflow-hidden rounded-[10px] border border-line">
+          <nav aria-label="Conversations" className="flex min-h-0 flex-col border-r border-line bg-tile">
+            <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2">
+              <li>
+                <ConversationItem
+                  current={view === "team"}
+                  onClick={openTeam}
+                  icon={<Users className="size-4 text-icon" aria-hidden="true" />}
+                  title="Your team"
+                  preview={lastTeam ? `${senderName(lastTeam)}: ${lastTeam.content}` : "No messages yet"}
+                  when={lastTeam ? formatDay(lastTeam.createdAt) : undefined}
+                />
+              </li>
+              <li aria-hidden="true" className="px-3 pb-1 pt-3 text-[13px] font-medium text-ink-2">
+                About a request
+              </li>
+              {threadsLoading ? (
+                <li className="space-y-2 px-1" role="status" aria-label="Loading requests">
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                </li>
+              ) : threads.length === 0 ? (
+                <li className="px-3 py-2 text-[14px] leading-normal text-ink-2">
+                  No open requests. When your team sends one, you can write about it here.
+                </li>
+              ) : (
+                threads.map((t) => {
+                  const last = t.messages.at(-1);
+                  return (
+                    <li key={t.id}>
+                      <ConversationItem
+                        current={view === "requests" && selectedId === t.id}
+                        onClick={() => openThread(t.id)}
+                        icon={<FileText className="size-4 text-icon" aria-hidden="true" />}
+                        title={t.title}
+                        preview={last ? `${senderName(last)}: ${last.content}` : `${STATUS_WORD[t.status] || "Open"} · no messages yet`}
+                        when={last ? formatDay(last.createdAt) : undefined}
+                      />
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </nav>
+
+          <section aria-labelledby="thread-h" className="flex min-h-0 flex-col">
+            <header className="flex min-h-16 items-center gap-3 border-b border-line px-5 py-3">
+              <div className="min-w-0 flex-1">
+                <h2 id="thread-h" className="truncate text-[17px] font-semibold leading-snug">
+                  {view === "team" ? "Your team" : selected ? selected.title : "About a request"}
+                </h2>
+                <p className="truncate text-[14px] text-ink-2">
+                  {view === "team"
+                    ? teamLede
+                    : selected
+                      ? STATUS_WORD[selected.status] || "Open"
+                      : "Choose a request on the left."}
+                </p>
+              </div>
+              {view === "requests" && selected && (
+                <Button asChild variant="outline" className="shrink-0">
+                  <Link href={`/creator/requests/${selected.id}`}>Open the request</Link>
+                </Button>
+              )}
+            </header>
+
+            <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+              {view === "team"
+                ? teamState ?? <Timeline messages={teamMessages} emptyText={teamEmpty} />
+                : selected
+                  ? <Timeline messages={selected.messages} emptyText={threadEmpty} />
+                  : null}
+            </div>
+
+            {view === "team" && !teamLoading && !teamFailed && (
+              <Composer docked value={draft} onChange={setDraft} onSend={sendTeam} sending={sending} placeholder="Message your team" />
+            )}
+            {view === "requests" && selected && (
+              <Composer
+                docked
+                value={draft}
+                onChange={setDraft}
+                onSend={sendRequest}
+                sending={sending}
+                placeholder="Message your team about this request"
+              />
+            )}
+          </section>
         </div>
       </div>
     );
   }
 
+  /* ---------- Phone and tablet: one conversation at a time ---------- */
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Messages</h1>
-        <p className="text-muted-foreground text-sm">
-          Chat with your team or about specific requests
-        </p>
-      </div>
+    <div className="px-4 pt-5">
+      {view === "requests" && selected ? (
+        <button
+          type="button"
+          onClick={() => setSelectedId(null)}
+          className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-[15px] text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <ChevronLeft className="size-4" aria-hidden="true" />
+          All requests
+        </button>
+      ) : null}
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "team" | "requests")}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="team" className="gap-2">
-            <Users className="h-4 w-4" />
-            Team Chat
-          </TabsTrigger>
-          <TabsTrigger value="requests" className="gap-2">
-            <FileText className="h-4 w-4" />
-            Request Comments
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Team Chat Tab */}
-        <TabsContent value="team" className="mt-0">
-          <Card className="h-[calc(100vh-16rem)]">
-            {teamLoading ? (
-              <CardContent className="h-full flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </CardContent>
-            ) : !teamConversation ? (
-              <CardContent className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-semibold text-lg mb-1">Start a conversation</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm mb-4">
-                    Send a message to start chatting with the team
-                  </p>
-                  <div className="max-w-md mx-auto">
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleSendTeamMessage();
-                      }}
-                      className="flex gap-3"
-                    >
-                      <Input
-                        placeholder="Type a message..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="submit"
-                        disabled={!newMessage.trim() || sending}
-                        style={{ backgroundColor: branding.primaryColor }}
-                      >
-                        {sending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </form>
-                  </div>
-                </div>
-              </CardContent>
-            ) : (
-              <div className="flex flex-col h-full">
-                {/* Header */}
-                <CardHeader className="pb-3 border-b shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: `${branding.primaryColor}15` }}
-                    >
-                      <Users className="h-5 w-5" style={{ color: branding.primaryColor }} />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{teamConversation.teamName}</CardTitle>
-                      <p className="text-xs text-muted-foreground">
-                        {teamConversation.participants.length} team member{teamConversation.participants.length !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {/* Messages */}
-                <CardContent className="flex-1 overflow-y-auto py-4">
-                  {teamMessages.length === 0 ? (
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                        <p className="font-medium mb-1">No messages yet</p>
-                        <p className="text-sm text-muted-foreground">
-                          Send a message to start the conversation
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {teamMessages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            "flex gap-3",
-                            message.isFromCreator && "flex-row-reverse"
-                          )}
-                        >
-                          <Avatar
-                            size="sm"
-                            user={{
-                              name: message.isFromCreator
-                                ? creator?.name || "You"
-                                : message.sender?.name || "Team",
-                              image: message.isFromCreator
-                                ? creator?.image
-                                : message.sender?.avatar,
-                            }}
-                          />
-                          <div
-                            className={cn(
-                              "flex-1 max-w-[75%]",
-                              message.isFromCreator && "text-right"
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                "inline-block rounded-2xl px-4 py-2.5",
-                                message.isFromCreator
-                                  ? "rounded-tr-none text-white"
-                                  : "bg-muted rounded-tl-none"
-                              )}
-                              style={
-                                message.isFromCreator
-                                  ? { backgroundColor: branding.primaryColor }
-                                  : undefined
-                              }
-                            >
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-
-                              {/* Forwarded content */}
-                              {message.forwardedContent && message.forwardedContent.length > 0 && (
-                                <div className="mt-2 space-y-2">
-                                  {message.forwardedContent.map((item, idx) => (
-                                    <div
-                                      key={idx}
-                                      className={cn(
-                                        "flex items-center gap-2 p-2 rounded-lg text-sm",
-                                        message.isFromCreator
-                                          ? "bg-white/10"
-                                          : "bg-background"
-                                      )}
-                                    >
-                                      {item.type === "upload" && item.data && (
-                                        <>
-                                          {item.data.thumbnailUrl ? (
-                                            <img
-                                              src={item.data.thumbnailUrl}
-                                              alt=""
-                                              className="w-10 h-10 rounded object-cover"
-                                            />
-                                          ) : (
-                                            <ImageIcon className="w-5 h-5" />
-                                          )}
-                                          <span className="truncate">{item.data.originalName}</span>
-                                          <ExternalLink className="w-3 h-3 shrink-0" />
-                                        </>
-                                      )}
-                                      {item.type === "request" && item.data && (
-                                        <>
-                                          <FileText className="w-5 h-5" />
-                                          <span className="truncate">{item.data.title}</span>
-                                          <Badge variant="secondary" className="text-[10px]">
-                                            {item.data.status}
-                                          </Badge>
-                                        </>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                              {format(new Date(message.createdAt), "MMM d, h:mm a")}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  )}
-                </CardContent>
-
-                {/* Message Input */}
-                <div className="p-4 border-t shrink-0">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleSendTeamMessage();
-                    }}
-                    className="flex gap-3"
-                  >
-                    <Input
-                      placeholder="Type a message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="submit"
-                      disabled={!newMessage.trim() || sending}
-                      style={{ backgroundColor: branding.primaryColor }}
-                    >
-                      {sending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </form>
-                </div>
-              </div>
-            )}
-          </Card>
-        </TabsContent>
-
-        {/* Request Comments Tab */}
-        <TabsContent value="requests" className="mt-0">
-          <div className="grid md:grid-cols-3 gap-6 h-[calc(100vh-16rem)]">
-            {/* Thread List */}
-            <Card className={cn(
-              "md:col-span-1 flex flex-col",
-              selectedThread && "hidden md:flex"
-            )}>
-              <CardHeader className="pb-3 shrink-0">
-                <CardTitle className="text-base hidden md:block">Request Comments</CardTitle>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search requests..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-9"
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto p-0">
-                {filteredThreads.length === 0 ? (
-                  <div className="text-center py-12 px-4">
-                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                    <p className="font-medium mb-1">No conversations</p>
-                    <p className="text-sm text-muted-foreground">
-                      Comments from your requests will appear here
-                    </p>
-                  </div>
-                ) : (
-                  <div className="divide-y">
-                    {filteredThreads.map((thread) => (
-                      <button
-                        key={thread.id}
-                        onClick={() => setSelectedThread(thread)}
-                        className={cn(
-                          "w-full text-left p-4 hover:bg-muted/50 transition-colors",
-                          selectedThread?.id === thread.id && "bg-muted"
-                        )}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: `${branding.primaryColor}15` }}
-                          >
-                            <FileText
-                              className="h-5 w-5"
-                              style={{ color: branding.primaryColor }}
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2 mb-0.5">
-                              <p className="font-medium text-sm truncate">
-                                {thread.title}
-                              </p>
-                              {thread.lastMessage && (
-                                <span className="text-[10px] text-muted-foreground shrink-0">
-                                  {formatDistanceToNow(new Date(thread.lastMessage.createdAt), {
-                                    addSuffix: false,
-                                  })}
-                                </span>
-                              )}
-                            </div>
-                            <Badge
-                              variant="secondary"
-                              className={cn("text-[10px] mb-1", getStatusColor(thread.status))}
-                            >
-                              {thread.status.replace("_", " ")}
-                            </Badge>
-                            {thread.lastMessage && (
-                              <p className="text-xs text-muted-foreground line-clamp-1">
-                                {thread.lastMessage.isAgency ? "Agency: " : "You: "}
-                                {thread.lastMessage.content}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+      {view === "requests" && selected ? (
+        <>
+          <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em]">{selected.title}</h1>
+          <p className="mt-1 text-[15px] text-ink-2">
+            {STATUS_WORD[selected.status] || "Open"} ·{" "}
+            <Link href={`/creator/requests/${selected.id}`} className="text-ink underline underline-offset-[3px]">
+              Open the request
+            </Link>
+          </p>
+        </>
+      ) : (
+        <>
+          <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em]">Messages</h1>
+          <p className="mt-1 text-[15px] leading-normal text-ink-2">
+            {view === "team" ? teamLede : "Notes on each request, between you and your team."}
+          </p>
+          <div className="mt-4 inline-flex rounded-[var(--tw-r-ctl)] bg-well p-1" role="group" aria-label="Conversations">
+            {(
+              [
+                ["team", "Your team"],
+                ["requests", "About a request"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={view === key}
+                onClick={() => {
+                  setView(key);
+                  setSelectedId(null);
+                }}
+                className={cn(
+                  "min-h-11 rounded-md px-3.5 text-[14px] font-medium transition-colors md:min-h-9",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  view === key ? "!bg-tile-hi text-ink" : "text-ink-2 hover:text-ink"
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Chat Area */}
-            <Card className={cn(
-              "md:col-span-2 flex flex-col",
-              !selectedThread && "hidden md:flex"
-            )}>
-              {selectedThread ? (
-                <>
-                  {/* Chat Header */}
-                  <CardHeader className="pb-3 border-b shrink-0">
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="md:hidden h-8 w-8"
-                        onClick={() => setSelectedThread(null)}
-                      >
-                        <ArrowRight className="h-4 w-4 rotate-180" />
-                      </Button>
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base truncate">
-                          {selectedThread.title}
-                        </CardTitle>
-                        <Badge
-                          variant="secondary"
-                          className={cn("text-xs mt-1", getStatusColor(selectedThread.status))}
-                        >
-                          {selectedThread.status.replace("_", " ")}
-                        </Badge>
-                      </div>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/creator/requests/${selectedThread.id}`}>
-                          View Request
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardHeader>
-
-                  {/* Messages */}
-                  <CardContent className="flex-1 overflow-y-auto py-4">
-                    {selectedThread.messages.length === 0 ? (
-                      <div className="h-full flex items-center justify-center">
-                        <div className="text-center">
-                          <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                          <p className="font-medium mb-1">No comments yet</p>
-                          <p className="text-sm text-muted-foreground">
-                            Send a comment to start the conversation
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {selectedThread.messages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={cn(
-                              "flex gap-3",
-                              !message.isAgency && "flex-row-reverse"
-                            )}
-                          >
-                            <Avatar
-                              size="sm"
-                              user={{
-                                name: message.isAgency
-                                  ? message.user?.name || "Agency"
-                                  : creator?.name || "You",
-                                image: message.isAgency
-                                  ? message.user?.image
-                                  : creator?.image,
-                              }}
-                            />
-                            <div
-                              className={cn(
-                                "flex-1 max-w-[75%]",
-                                !message.isAgency && "text-right"
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  "inline-block rounded-2xl px-4 py-2.5",
-                                  message.isAgency
-                                    ? "bg-muted rounded-tl-none"
-                                    : "rounded-tr-none text-white"
-                                )}
-                                style={
-                                  !message.isAgency
-                                    ? { backgroundColor: branding.primaryColor }
-                                    : undefined
-                                }
-                              >
-                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                              </div>
-                              <p className="text-[10px] text-muted-foreground mt-1">
-                                {format(new Date(message.createdAt), "MMM d, h:mm a")}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                        <div ref={messagesEndRef} />
-                      </div>
-                    )}
-                  </CardContent>
-
-                  {/* Message Input */}
-                  <div className="p-4 border-t shrink-0">
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleSendRequestMessage();
-                      }}
-                      className="flex gap-3"
-                    >
-                      <Input
-                        placeholder="Type a comment..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="submit"
-                        disabled={!newMessage.trim() || sending}
-                        style={{ backgroundColor: branding.primaryColor }}
-                      >
-                        {sending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </form>
-                  </div>
-                </>
-              ) : (
-                <CardContent className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="font-semibold text-lg mb-1">Select a request</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm">
-                      Choose a request from the list to view and send comments
-                    </p>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
+              >
+                {label}
+              </button>
+            ))}
           </div>
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
+
+      {view === "team" &&
+        (teamState ?? (
+          <>
+            <Timeline messages={teamMessages} emptyText={teamEmpty} />
+            <Composer value={draft} onChange={setDraft} onSend={sendTeam} sending={sending} placeholder="Message your team" />
+          </>
+        ))}
+
+      {view === "requests" && !selected && (
+        <section aria-label="Requests" className="mt-5">
+          {threadsLoading ? (
+            <div className="space-y-2" role="status" aria-label="Loading requests">
+              <Skeleton className="h-[72px] w-full" />
+              <Skeleton className="h-[72px] w-full" />
+            </div>
+          ) : threads.length === 0 ? (
+            <p className="text-[15px] leading-normal text-ink-2">
+              No open requests. When your team sends one, you can write about it here.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {threads.map((t) => {
+                const last = t.messages.at(-1);
+                return (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(t.id)}
+                      className="flex w-full items-center gap-3 rounded-[10px] bg-tile p-4 text-left transition-colors hover:bg-tile-hi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[16px] font-semibold">{t.title}</span>
+                        <span className="mt-0.5 block truncate text-[14px] text-ink-2">
+                          {last
+                            ? `${senderName(last)}: ${last.content}`
+                            : `${STATUS_WORD[t.status] || "Open"} · no messages yet`}
+                        </span>
+                      </span>
+                      {last && <span className="shrink-0 text-[13px] text-ink-2">{formatDay(last.createdAt)}</span>}
+                      <ChevronRight className="size-4 shrink-0 text-icon" aria-hidden="true" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {view === "requests" && selected && (
+        <>
+          <Timeline messages={selected.messages} emptyText={threadEmpty} />
+          <Composer
+            value={draft}
+            onChange={setDraft}
+            onSend={sendRequest}
+            sending={sending}
+            placeholder="Message your team about this request"
+          />
+        </>
+      )}
     </div>
+  );
+}
+
+/** A row in the desktop conversation list */
+function ConversationItem({
+  current,
+  onClick,
+  icon,
+  title,
+  preview,
+  when,
+}: {
+  current: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  preview: string;
+  when?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={current ? "true" : undefined}
+      className={cn(
+        "flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors",
+        "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+        current ? "bg-tile-hi text-ink" : "hover:bg-tile-hi"
+      )}
+    >
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</span>
+          {when && <span className="shrink-0 text-[12px] text-ink-2">{when}</span>}
+        </span>
+        <span className="mt-0.5 block truncate text-[13px] text-ink-2">{preview}</span>
+      </span>
+    </button>
   );
 }

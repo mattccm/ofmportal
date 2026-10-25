@@ -168,7 +168,7 @@ function StarRating({
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((star) => (
-        <button
+        <button aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
           key={star}
           type="button"
           disabled={disabled}
@@ -185,7 +185,7 @@ function StarRating({
               iconSize,
               "transition-colors",
               (hoverRating || rating) >= star
-                ? "fill-amber-400 text-amber-400"
+                ? "fill-ink text-ink"
                 : "text-muted-foreground/30"
             )}
           />
@@ -475,19 +475,19 @@ export function UploadReviewPanel({
               </TabsTrigger>
               <TabsTrigger
                 value="versions"
-                className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium data-[state=active]:border-indigo-500 data-[state=active]:text-foreground"
+                className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium data-[state=active]:border-ctl data-[state=active]:text-foreground"
               >
                 <GitCompare className="h-4 w-4 mr-1.5" />
                 Versions
               </TabsTrigger>
               <TabsTrigger
                 value="notes"
-                className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium data-[state=active]:border-amber-500 data-[state=active]:text-foreground"
+                className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium data-[state=active]:border-ink data-[state=active]:text-foreground"
               >
                 <StickyNote className="h-4 w-4 mr-1.5" />
                 Notes
                 {notes.length > 0 && (
-                  <span className="ml-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 text-xs">
+                  <span className="ml-1.5 rounded-full bg-raised text-ink px-1.5 py-0.5 text-xs">
                     {notes.length}
                   </span>
                 )}
@@ -624,7 +624,7 @@ export function UploadReviewPanel({
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
+                    <Button aria-label="View creator context"
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
@@ -757,20 +757,20 @@ export function UploadReviewPanel({
                         className={cn(
                           "relative z-10 mt-1.5 h-6 w-6 rounded-full border-2 bg-background flex items-center justify-center",
                           event.action.includes("approved")
-                            ? "border-emerald-500"
+                            ? "border-approved"
                             : event.action.includes("rejected")
-                            ? "border-red-500"
+                            ? "border-late/30"
                             : event.action.includes("version")
-                            ? "border-indigo-500"
+                            ? "border-ctl"
                             : "border-muted-foreground"
                         )}
                       >
                         {event.action.includes("approved") ? (
-                          <Check className="h-3 w-3 text-emerald-500" />
+                          <Check className="h-3 w-3 text-approved" />
                         ) : event.action.includes("rejected") ? (
-                          <X className="h-3 w-3 text-red-500" />
+                          <X className="h-3 w-3 text-late" />
                         ) : event.action.includes("version") ? (
-                          <GitCompare className="h-3 w-3 text-indigo-500" />
+                          <GitCompare className="h-3 w-3 text-foreground" />
                         ) : (
                           <Clock className="h-3 w-3 text-muted-foreground" />
                         )}

@@ -177,8 +177,8 @@ export function QuickBundleApply({
           className={cn(
             "h-8 w-8 shrink-0 rounded-lg flex items-center justify-center",
             bundle.isOnboardingBundle
-              ? "bg-violet-500/10 text-violet-500"
-              : "bg-blue-500/10 text-blue-500"
+              ? "bg-tile-hi text-foreground"
+              : "bg-tile-hi text-ink-2"
           )}
         >
           {isCurrentlyApplying ? (
@@ -202,7 +202,7 @@ export function QuickBundleApply({
               {bundle.templateCount} template{bundle.templateCount !== 1 ? "s" : ""}
             </span>
             {bundle.autoTrigger === "on_creator_create" && (
-              <span className="flex items-center gap-1 text-amber-500">
+              <span className="flex items-center gap-1 text-ink-2">
                 <Zap className="h-3 w-3" />
                 Auto
               </span>
@@ -224,7 +224,7 @@ export function QuickBundleApply({
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
-              <Button
+              <Button aria-label="Apply Bundle"
                 variant={variant}
                 size={size}
                 className={cn(
@@ -274,7 +274,7 @@ export function QuickBundleApply({
             <>
               <div className="px-2 py-2 mx-2 mb-2 rounded-lg bg-muted/50">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <CheckCircle className="h-3 w-3 text-emerald-500" />
+                  <CheckCircle className="h-3 w-3 text-success" />
                   <span>
                     Last applied: <strong>{lastApplied.bundleName}</strong>
                   </span>

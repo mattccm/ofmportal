@@ -9,8 +9,8 @@ export default function CreatorNotFound() {
     <ErrorShell
       eyebrow="404"
       title="Page not found"
-      message="This page doesn't exist or has been moved."
-      primaryAction={{ label: "Go to my dashboard", href: "/creator/dashboard", icon: Home }}
+      message="This page doesn't exist. Your requests are all on your home screen."
+      primaryAction={{ label: "Go to your requests", href: "/creator/dashboard", icon: Home }}
       secondaryAction={{
         label: "Go back",
         icon: ArrowLeft,

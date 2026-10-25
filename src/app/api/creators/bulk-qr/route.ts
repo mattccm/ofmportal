@@ -49,7 +49,7 @@ export async function GET() {
         const qrDataUrl = await QRCode.toDataURL(inviteUrl, {
           width: 300,
           margin: 2,
-          color: { dark: "#1a1a2e", light: "#ffffff" },
+          color: { dark: "#0e0f12", light: "#ffffff" },
         });
 
         return {

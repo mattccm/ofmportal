@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { formatMentionsForDisplay } from "@/lib/mention-parser";
+import { cleanGroupName, staffIdsInAgency } from "@/lib/conversation-access";
+import { excludePseudoUsers } from "@/lib/staff";
 
 // GET /api/inbox - List conversations for current user
 export async function GET(request: NextRequest) {
@@ -58,7 +61,8 @@ export async function GET(request: NextRequest) {
         },
         messages: {
           orderBy: { createdAt: "desc" },
-          take: 1,
+          // Enough recent messages to count what this user has not read yet
+          take: 30,
           select: {
             id: true,
             content: true,
@@ -66,6 +70,7 @@ export async function GET(request: NextRequest) {
             senderId: true,
             creatorId: true,
             readBy: true,
+            sender: { select: { name: true } },
           },
         },
       },
@@ -86,6 +91,13 @@ export async function GET(request: NextRequest) {
           lastMessage.senderId !== userId &&
           !readBy.some((r) => r.userId === userId);
       }
+
+      // Unread count: recent messages from others that this user has not read
+      const unreadCount = conv.messages.filter((m) => {
+        if (m.senderId === userId) return false;
+        const rb = (m.readBy as Array<{ userId: string } | string>) || [];
+        return !rb.some((x) => (typeof x === "string" ? x : x?.userId) === userId);
+      }).length;
 
       // Get other participants for display name
       const otherParticipants = conv.participants.filter(
@@ -113,16 +125,24 @@ export async function GET(request: NextRequest) {
         creator: conv.creator,
         request: conv.request,
         participants: otherParticipants.map((p) => p.user),
+        // Everyone in a team group (including the caller), for the member initials
+        members:
+          conv.type === "GROUP"
+            ? conv.participants.map((p) => ({ id: p.user.id, name: p.user.name }))
+            : undefined,
         lastMessage: lastMessage
           ? {
               id: lastMessage.id,
-              content: lastMessage.content.substring(0, 100),
+              content: formatMentionsForDisplay(lastMessage.content).substring(0, 100),
+              senderName: lastMessage.sender?.name ?? null,
               createdAt: lastMessage.createdAt,
               isFromCreator: !!lastMessage.creatorId,
+              isMine: lastMessage.senderId === userId,
             }
           : null,
         lastMessageAt: conv.lastMessageAt,
         hasUnread,
+        unreadCount,
       };
     });
 
@@ -208,10 +228,51 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Team threads: every other participant must be real staff of this agency
+    // (creator pseudo-users and other agencies' users are refused, not dropped)
+    let groupName: string | null = null;
+    let requested: string[] = [];
+    if (type === "DIRECT" || type === "GROUP") {
+      requested = Array.isArray(participantIds)
+        ? Array.from(new Set((participantIds as unknown[]).filter((id): id is string => typeof id === "string" && id !== userId)))
+        : [];
+      const valid = await staffIdsInAgency(requested, agencyId);
+      if (valid.length !== requested.length) {
+        return NextResponse.json(
+          { error: "Only people on your team can be added" },
+          { status: 400 }
+        );
+      }
+      if (type === "GROUP") {
+        groupName = cleanGroupName(name);
+        if (!groupName) {
+          return NextResponse.json({ error: "Give the group a name" }, { status: 400 });
+        }
+        if (requested.length < 2) {
+          return NextResponse.json(
+            { error: "Pick at least two team members for a group" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Deduplicate participants and always include the current user
-    const participantUserIds = Array.from(
-      new Set<string>([userId, ...((participantIds as string[]) || [])])
-    );
+    // (creator threads are one creator to the whole team; their participants are staff only)
+    const participantUserIds =
+      type === "CREATOR"
+        ? Array.from(
+            new Set<string>([
+              userId,
+              ...(
+                await db.user.findMany({
+                  where: { AND: [{ agencyId }, excludePseudoUsers] },
+                  select: { id: true },
+                })
+              ).map((u) => u.id),
+            ])
+          )
+        : [userId, ...requested];
 
     // For DIRECT conversations, reuse an existing thread between the two users
     if (type === "DIRECT") {
@@ -246,7 +307,9 @@ export async function POST(request: NextRequest) {
     const conversation = await db.conversation.create({
       data: {
         type,
-        name: type === "GROUP" ? name : null,
+        name: type === "GROUP" ? groupName : null,
+        // A new group sorts to the top of everyone's inbox until it has messages
+        lastMessageAt: type === "GROUP" ? new Date() : undefined,
         creatorId: type === "CREATOR" ? creatorId : null,
         agencyId,
         participants: {

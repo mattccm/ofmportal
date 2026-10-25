@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Avatar,
   AvatarGroup,
@@ -155,8 +154,8 @@ export function WatchersPanel({
       <div className="flex items-center gap-2">
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger>
-              <Button
+            <TooltipTrigger asChild>
+              <Button aria-label={isWatching ? "Unwatch request" : "Watch request"}
                 variant={isWatching ? "default" : "outline"}
                 size="icon-sm"
                 onClick={toggleSelfWatch}
@@ -181,7 +180,7 @@ export function WatchersPanel({
         {watchers.length > 0 && (
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger asChild>
                 <div className="flex items-center">
                   <AvatarGroup className="cursor-default">
                     {watchers.slice(0, 3).map((watcher) => (
@@ -218,114 +217,47 @@ export function WatchersPanel({
     );
   }
 
-  // Full panel view (for request detail page)
+  // Full panel view (for request detail page): a plain row group that sits
+  // inside the request rail's secondary tile, with no card of its own
   return (
     <>
-      <Card className="card-elevated">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <Eye className="h-4 w-4 text-muted-foreground" />
-              Watchers
-              {watchers.length > 0 && (
-                <span className="ml-1 text-sm text-muted-foreground font-normal">
-                  ({watchers.length})
-                </span>
-              )}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={isWatching ? "secondary" : "outline"}
-                size="sm"
-                onClick={toggleSelfWatch}
-                disabled={loading}
-                className="h-8"
-              >
-                {loading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                ) : isWatching ? (
-                  <EyeOff className="h-3.5 w-3.5 mr-1.5" />
-                ) : (
-                  <Eye className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                {isWatching ? "Unwatch" : "Watch"}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-[14px] font-semibold text-ink">
+            Watchers <span className="font-normal text-ink-2">{watchers.length}</span>
+          </h3>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={toggleSelfWatch} disabled={loading}>
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+              {isWatching ? "Stop watching" : "Watch"}
+            </Button>
+            {canManageWatchers && (
+              <Button variant="ghost" size="sm" onClick={() => setAddDialogOpen(true)}>
+                <UserPlus className="h-3.5 w-3.5" />
+                Add
               </Button>
-              {canManageWatchers && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAddDialogOpen(true)}
-                  className="h-8"
-                >
-                  <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-                  Add
-                </Button>
-              )}
-            </div>
+            )}
           </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {watchers.length === 0 ? (
-            <div className="text-center py-6">
-              <div className="mx-auto h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                <EyeOff className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <p className="text-sm text-muted-foreground mb-2">
-                No one is watching this request yet
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggleSelfWatch}
-                disabled={loading}
-              >
-                {loading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                ) : (
-                  <Eye className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                Start watching
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {/* Avatar stack preview */}
-              <div className="flex items-center justify-between pb-2 border-b border-border/50">
-                <AvatarGroup>
-                  {watchers.slice(0, 5).map((watcher) => (
-                    <Avatar
-                      key={watcher.id}
-                      user={watcher.user}
-                      size="sm"
-                      ring="white"
-                    />
-                  ))}
-                  {watchers.length > 5 && (
-                    <AvatarGroupCount count={watchers.length - 5} size="sm" />
-                  )}
-                </AvatarGroup>
-                <span className="text-xs text-muted-foreground">
-                  {watchers.length} watching
-                </span>
-              </div>
-
-              {/* Watcher list */}
-              <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                {watchers.map((watcher) => (
-                  <WatcherListItem
-                    key={watcher.id}
-                    watcher={watcher}
-                    isCurrentUser={watcher.userId === currentUserId}
-                    canRemove={canManageWatchers || watcher.userId === currentUserId}
-                    onRemove={() => removeWatcher(watcher.id, watcher.user.name)}
-                    loading={loading}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+        {watchers.length === 0 ? (
+          <p className="text-[14px] text-ink-2">
+            No one is watching. Watchers hear about new uploads, comments and status changes.
+          </p>
+        ) : (
+          <div className="max-h-[200px] space-y-0.5 overflow-y-auto">
+            {watchers.map((watcher) => (
+              <WatcherListItem
+                key={watcher.id}
+                watcher={watcher}
+                isCurrentUser={watcher.userId === currentUserId}
+                canRemove={canManageWatchers || watcher.userId === currentUserId}
+                onRemove={() => removeWatcher(watcher.id, watcher.user.name)}
+                loading={loading}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <AddWatcherDialog
         open={addDialogOpen}
@@ -363,7 +295,7 @@ function WatcherListItem({
   ].filter(Boolean);
 
   return (
-    <div className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-muted/50 group transition-colors">
+    <div className="flex items-center justify-between py-1.5 px-2 -mx-2 rounded-[8px] hover:bg-tile-hi group transition-colors">
       <div className="flex items-center gap-3 min-w-0">
         <Avatar user={watcher.user} size="sm" />
         <div className="min-w-0 flex-1">
@@ -397,10 +329,10 @@ function WatcherListItem({
       {canRemove && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
+            <Button aria-label={`Watcher options for ${watcher.user.name}`}
               variant="ghost"
               size="icon"
-              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
               disabled={loading}
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -480,8 +412,8 @@ export function WatchButton({
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger>
-          <Button
+        <TooltipTrigger asChild>
+          <Button aria-label={isWatching ? "Unwatch request" : "Watch request"}
             variant={isWatching ? "secondary" : "outline"}
             size={size === "sm" ? "icon-sm" : "icon"}
             onClick={toggleWatch}

@@ -293,7 +293,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           />
           {isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground shrink-0" />}
           {query && !isLoading && (
-            <button
+            <button aria-label="Clear search"
               onClick={() => setQuery("")}
               className="p-1 hover:bg-accent rounded-md transition-colors"
             >
@@ -317,7 +317,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
                   isActive
-                    ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-md"
+                    ? " bg-raised-hi text-white shadow-md"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent"
                 )}
               >
@@ -339,7 +339,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Quick Actions */}
               <div className="px-4 py-2">
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                  <Sparkles className="h-3.5 w-3.5 text-foreground" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Quick Actions
                   </span>
@@ -353,14 +353,14 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all",
                         selectedIndex === index
-                          ? "bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border border-indigo-500/20"
+                          ? " bg-tile-hi border border-ctl"
                           : "hover:bg-accent"
                       )}
                     >
                       <div className={cn(
                         "flex h-9 w-9 items-center justify-center rounded-lg transition-all",
                         selectedIndex === index
-                          ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-md"
+                          ? " bg-raised-hi text-white shadow-md"
                           : "bg-muted text-muted-foreground"
                       )}>
                         {action.icon}
@@ -452,14 +452,14 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all",
                         selectedIndex === index
-                          ? "bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border border-indigo-500/20"
+                          ? " bg-tile-hi border border-ctl"
                           : "hover:bg-accent"
                       )}
                     >
                       <div className={cn(
                         "flex h-9 w-9 items-center justify-center rounded-lg shrink-0 transition-all",
                         selectedIndex === index
-                          ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-md"
+                          ? " bg-raised-hi text-white shadow-md"
                           : "bg-muted text-muted-foreground"
                       )}>
                         {getResultIcon(result.type)}
@@ -473,11 +473,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                             }}
                           />
                           <span className={cn(
-                            "text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded shrink-0",
+                            "text-[12px] font-semibold uppercase px-1.5 py-0.5 rounded shrink-0",
                             {
                               "bg-blue-500/10 text-blue-600": result.type === "creator",
-                              "bg-green-500/10 text-green-600": result.type === "request",
-                              "bg-purple-500/10 text-purple-600": result.type === "upload",
+                              "bg-success/10 text-success": result.type === "request",
+                              "bg-tile-hi text-foreground": result.type === "upload",
                               "bg-orange-500/10 text-orange-600": result.type === "template",
                               "bg-pink-500/10 text-pink-600": result.type === "message",
                             }
@@ -504,22 +504,22 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/30">
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[10px]">
+              <kbd className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[12px]">
                 <ArrowRight className="h-2.5 w-2.5 inline -rotate-90" />
               </kbd>
-              <kbd className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[10px]">
+              <kbd className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[12px]">
                 <ArrowRight className="h-2.5 w-2.5 inline rotate-90" />
               </kbd>
               <span className="ml-1">Navigate</span>
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[10px]">
+              <kbd className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[12px]">
                 Enter
               </kbd>
               <span className="ml-1">Select</span>
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[10px]">
+              <kbd className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[12px]">
                 Esc
               </kbd>
               <span className="ml-1">Close</span>
@@ -547,7 +547,7 @@ export function SearchTrigger({ onClick, className }: { onClick: () => void; cla
     >
       <Search className="h-4 w-4" />
       <span className="text-sm flex-1 text-left">Search...</span>
-      <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted border border-border font-mono text-[10px]">
+      <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted border border-border font-mono text-[12px]">
         <Command className="h-2.5 w-2.5" />K
       </kbd>
     </button>

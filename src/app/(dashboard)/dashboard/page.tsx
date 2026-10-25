@@ -1,50 +1,22 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { DashboardClient } from "./dashboard-client";
-import type { WidgetConfig } from "@/components/dashboard/widget-grid";
+import { getOverviewData } from "./_overview/get-overview";
 
-// Default widget layout
-const DEFAULT_LAYOUT: WidgetConfig[] = [
-  { id: "quick-stats-1", type: "quick-stats", title: "Quick Stats", size: "large", order: 0, visible: true },
-  { id: "upcoming-deadlines-1", type: "upcoming-deadlines", title: "Upcoming Deadlines", size: "small", order: 1, visible: true },
-  { id: "pending-requests-1", type: "pending-requests", title: "Pending Requests", size: "medium", order: 2, visible: true },
-  { id: "top-creators-1", type: "top-creators", title: "Top Performers", size: "small", order: 3, visible: true },
-  { id: "recent-uploads-1", type: "recent-uploads", title: "Recent Uploads", size: "medium", order: 4, visible: true },
-  { id: "reminder-summary-1", type: "reminder-summary", title: "Reminders", size: "medium", order: 5, visible: true },
-];
+// Generic on purpose: a request title never reaches the browser tab
+export const metadata = { title: "Overview" };
 
-async function getUserLayout(userId: string): Promise<WidgetConfig[]> {
-  try {
-    const user = await db.user.findUnique({
-      where: { id: userId },
-      select: { preferences: true },
-    });
-
-    const preferences = (user?.preferences as Record<string, unknown>) || {};
-    const savedLayout = preferences.dashboardLayout as WidgetConfig[] | undefined;
-
-    if (savedLayout && Array.isArray(savedLayout) && savedLayout.length > 0) {
-      return savedLayout;
-    }
-  } catch (error) {
-    console.error("Error fetching user layout:", error);
-  }
-
-  return DEFAULT_LAYOUT;
-}
+const CAN_REMIND = ["OWNER", "ADMIN", "MANAGER"];
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !session.user.agencyId) {
     redirect("/login");
   }
 
-  const userId = session.user.id;
-  const userName = session.user.name?.split(" ")[0] || "there";
-  const layout = await getUserLayout(userId);
+  const data = await getOverviewData(session.user.agencyId, session.user.id);
 
-  return <DashboardClient userName={userName} initialLayout={layout} />;
+  return <DashboardClient data={data} canRemind={CAN_REMIND.includes(session.user.role)} />;
 }

@@ -391,7 +391,7 @@ export function OperationTemplates({
 
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon-sm">
+                            <Button aria-label={`More actions for ${template.name}`} variant="ghost" size="icon-sm">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>

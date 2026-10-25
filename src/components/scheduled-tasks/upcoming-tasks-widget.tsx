@@ -98,7 +98,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ tasks, onDateClick }) => {
       case "archive_request":
         return "bg-gray-500";
       case "create_bundle":
-        return "bg-purple-500";
+        return "bg-raised-hi";
       default:
         return "bg-gray-400";
     }
@@ -141,7 +141,7 @@ const MiniCalendar: React.FC<MiniCalendarProps> = ({ tasks, onDateClick }) => {
                 />
               ))}
               {dayTasks.length > 3 && (
-                <span className="text-[8px] text-muted-foreground">
+                <span className="text-[12px] text-muted-foreground">
                   +{dayTasks.length - 3}
                 </span>
               )}
@@ -181,7 +181,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onRunNow, onView }) => {
       case "archive_request":
         return "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400";
       case "create_bundle":
-        return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
+        return "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground";
       default:
         return "bg-gray-100 text-gray-600";
     }
@@ -218,7 +218,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onRunNow, onView }) => {
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button aria-label={`More actions for ${task.name}`} variant="ghost" size="icon" className="h-8 w-8">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>

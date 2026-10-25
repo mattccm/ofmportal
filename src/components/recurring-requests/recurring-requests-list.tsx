@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import {
   Repeat,
   Plus,
@@ -12,13 +12,10 @@ import {
   Trash2,
   MoreHorizontal,
   Clock,
-  Users,
   FileText,
-  CalendarDays,
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Zap,
   RefreshCw,
   History,
 } from "lucide-react";
@@ -26,10 +23,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -63,6 +56,12 @@ import {
   type RequestSettings,
 } from "@/types/recurring-requests";
 import { RecurringRequestModal } from "./recurring-request-modal";
+import { formatStamp } from "@/components/title-wall/time";
+
+type RecurringRow = RecurringRequest & {
+  templateIds?: string[];
+  templates?: { id: string; name: string; description?: string | null }[];
+};
 
 // TYPES
 
@@ -95,27 +94,18 @@ interface RecurringRequestsListProps {
 function StatusBadge({ isActive, nextRunAt }: { isActive: boolean; nextRunAt?: Date | null }) {
   if (!isActive) {
     return (
-      <Badge variant="outline" className="bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
-        <Pause className="h-3 w-3 mr-1" />
+      <Badge variant="outline">
+        <Pause aria-hidden="true" />
         Paused
       </Badge>
     );
   }
 
   if (!nextRunAt) {
-    return (
-      <Badge variant="outline" className="bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
-        Completed
-      </Badge>
-    );
+    return <Badge variant="outline">Finished</Badge>;
   }
 
-  return (
-    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-      <Play className="h-3 w-3 mr-1" />
-      Active
-    </Badge>
-  );
+  return <Badge>Running</Badge>;
 }
 
 // FREQUENCY BADGE
@@ -132,7 +122,7 @@ function FrequencyBadge({ frequency, dayOfWeek, dayOfMonth }: {
   }
 
   if ((frequency === "MONTHLY" || frequency === "QUARTERLY") && dayOfMonth !== null && dayOfMonth !== undefined) {
-    label += ` (Day ${dayOfMonth})`;
+    label += ` (day ${dayOfMonth})`;
   }
 
   return (
@@ -186,11 +176,11 @@ function ExecutionHistoryDialog({
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <History className="h-5 w-5 text-primary" />
-            Execution History
+            <History className="h-5 w-5 text-ink" />
+            Run history
           </DialogTitle>
           <DialogDescription>
-            Recent executions for &quot;{recurringRequest.name}&quot;
+            The last ten runs of {recurringRequest.name}
           </DialogDescription>
         </DialogHeader>
 
@@ -204,71 +194,56 @@ function ExecutionHistoryDialog({
           ) : executions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No execution history yet</p>
-              <p className="text-sm">This recurring request hasn&apos;t run yet</p>
+              <p>No runs yet</p>
+              <p className="text-sm">It runs for the first time on its start date.</p>
             </div>
           ) : (
-            executions.map((execution) => (
-              <div
-                key={execution.id}
-                className={cn(
-                  "flex items-center justify-between p-4 rounded-lg border",
-                  execution.status === "COMPLETED" && "bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800",
-                  execution.status === "PARTIAL" && "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800",
-                  execution.status === "FAILED" && "bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800",
-                  execution.status === "PENDING" && "bg-muted/50"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "h-10 w-10 rounded-lg flex items-center justify-center",
-                      execution.status === "COMPLETED" && "bg-green-100 dark:bg-green-900/30",
-                      execution.status === "PARTIAL" && "bg-amber-100 dark:bg-amber-900/30",
-                      execution.status === "FAILED" && "bg-red-100 dark:bg-red-900/30",
-                      execution.status === "PENDING" && "bg-muted"
-                    )}
-                  >
+            <ul className="space-y-1.5">
+              {executions.map((execution) => (
+                <li
+                  key={execution.id}
+                  className="flex items-center justify-between gap-4 rounded-[var(--tw-r-ctl)] bg-tile px-4 py-3"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
                     {execution.status === "COMPLETED" && (
-                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <CheckCircle2 className="size-5 shrink-0 text-icon" aria-hidden="true" />
                     )}
                     {execution.status === "PARTIAL" && (
-                      <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      <AlertCircle className="size-5 shrink-0 text-late" aria-hidden="true" />
                     )}
                     {execution.status === "FAILED" && (
-                      <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      <XCircle className="size-5 shrink-0 text-late" aria-hidden="true" />
                     )}
-                    {execution.status === "PENDING" && (
-                      <Clock className="h-5 w-5 text-muted-foreground" />
+                    {(execution.status === "PENDING" || execution.status === "SKIPPED") && (
+                      <Clock className="size-5 shrink-0 text-icon" aria-hidden="true" />
                     )}
                     {execution.status === "RUNNING" && (
-                      <RefreshCw className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                      <RefreshCw className="size-5 shrink-0 animate-spin text-icon motion-reduce:animate-none" aria-hidden="true" />
                     )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium tabular-nums">
+                        {formatStamp(execution.scheduledFor)}
+                      </p>
+                      <p className="text-[13px] text-ink-2">
+                        {EXECUTION_STATUS_LABELS[execution.status]}
+                        {execution.executedAt && (
+                          <> · {formatDistanceToNow(new Date(execution.executedAt), { addSuffix: true })}</>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">
-                      {format(new Date(execution.scheduledFor), "MMM d, yyyy 'at' h:mm a")}
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-medium tabular-nums">
+                      {execution.successCount} {execution.successCount === 1 ? "request" : "requests"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {EXECUTION_STATUS_LABELS[execution.status]}
-                      {execution.executedAt && (
-                        <> - {formatDistanceToNow(new Date(execution.executedAt), { addSuffix: true })}</>
-                      )}
+                    <p className="text-[13px] text-ink-2 tabular-nums">
+                      {execution.creatorCount} {execution.creatorCount === 1 ? "creator" : "creators"}
+                      {execution.failedCount > 0 && <span className="text-late"> · {execution.failedCount} failed</span>}
                     </p>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">
-                    {execution.successCount}/{execution.creatorCount} created
-                  </p>
-                  {execution.failedCount > 0 && (
-                    <p className="text-xs text-red-600 dark:text-red-400">
-                      {execution.failedCount} failed
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </DialogContent>
@@ -286,7 +261,7 @@ function RecurringRequestCard({
   onDelete,
   onViewHistory,
 }: {
-  recurringRequest: RecurringRequest;
+  recurringRequest: RecurringRow;
   onEdit: () => void;
   onToggle: () => void;
   onRunNow: () => void;
@@ -300,142 +275,148 @@ function RecurringRequestCard({
     0
   ) || 0;
   const totalTargets = totalCreators + totalFromGroups;
+  const templates =
+    recurringRequest.templates && recurringRequest.templates.length > 0
+      ? recurringRequest.templates
+      : recurringRequest.template
+        ? [recurringRequest.template]
+        : [];
+  const perRun = templates.length * totalTargets;
 
   return (
-    <Card className={cn(
-      "transition-all hover:shadow-md",
-      !recurringRequest.isActive && "opacity-70"
-    )}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4 flex-1 min-w-0">
-            <div
-              className={cn(
-                "h-12 w-12 rounded-xl flex items-center justify-center shrink-0",
-                recurringRequest.isActive
-                  ? "bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/25"
-                  : "bg-muted"
-              )}
-            >
-              <Repeat
-                className={cn(
-                  "h-6 w-6",
-                  recurringRequest.isActive ? "text-white" : "text-muted-foreground"
-                )}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold truncate">{recurringRequest.name}</h3>
-                <StatusBadge
-                  isActive={recurringRequest.isActive}
-                  nextRunAt={recurringRequest.nextRunAt ? new Date(recurringRequest.nextRunAt) : null}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground line-clamp-1 mb-3">
-                {recurringRequest.description || `Creates "${settings.titleTemplate}" requests`}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <FrequencyBadge
-                  frequency={recurringRequest.frequency}
-                  dayOfWeek={recurringRequest.dayOfWeek}
-                  dayOfMonth={recurringRequest.dayOfMonth}
-                />
-                <Badge variant="outline" className="text-xs">
-                  <Users className="h-3 w-3 mr-1" />
-                  {totalTargets} creator{totalTargets !== 1 ? "s" : ""}
-                </Badge>
-                {recurringRequest.template && (
-                  <Badge variant="outline" className="text-xs">
-                    <FileText className="h-3 w-3 mr-1" />
-                    {recurringRequest.template.name}
-                  </Badge>
-                )}
-              </div>
-            </div>
+    <article
+      aria-labelledby={`rr-${recurringRequest.id}`}
+      className={cn(
+        "rounded-[var(--tw-r-tile)] p-4 transition-colors duration-200 sm:p-5",
+        recurringRequest.isActive ? "bg-tile" : "bg-tile-dim"
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h3 id={`rr-${recurringRequest.id}`} className="min-w-0 truncate text-[17px] font-semibold">
+              {recurringRequest.name}
+            </h3>
+            <StatusBadge
+              isActive={recurringRequest.isActive}
+              nextRunAt={recurringRequest.nextRunAt ? new Date(recurringRequest.nextRunAt) : null}
+            />
+          </div>
+          <p className="mt-1 line-clamp-1 text-sm text-ink-2">
+            {recurringRequest.description || `Titles read “${settings.titleTemplate}”`}
+          </p>
+
+          <div className="mt-3">
+            <p className="sr-only">Templates sent each run</p>
+            {templates.length === 0 ? (
+              <p className="text-sm text-late">Its template was deleted. Edit the schedule to pick another.</p>
+            ) : (
+              <ol className="flex flex-wrap gap-1.5" aria-label="Templates sent each run">
+                {templates.map((t) => (
+                  <li
+                    key={t.id}
+                    className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-[var(--tw-r-chip)] bg-tile-hi px-2.5 text-[13px] font-medium"
+                  >
+                    <FileText className="size-3.5 shrink-0 text-icon" aria-hidden="true" />
+                    <span className="truncate">{t.name}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
 
-          <div className="flex items-start gap-4 shrink-0">
-            <div className="text-right hidden sm:block">
-              {recurringRequest.nextRunAt ? (
-                <>
-                  <p className="text-xs text-muted-foreground">Next run</p>
-                  <p className="text-sm font-medium">
-                    {format(new Date(recurringRequest.nextRunAt), "MMM d")}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(recurringRequest.nextRunAt), "h:mm a")}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground">Runs completed</p>
-                  <p className="text-sm font-medium">{recurringRequest.runCount}</p>
-                </>
-              )}
-            </div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={onEdit}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onViewHistory}>
-                  <History className="h-4 w-4 mr-2" />
-                  View History
-                </DropdownMenuItem>
-                {recurringRequest.isActive && (
-                  <DropdownMenuItem onClick={onRunNow}>
-                    <Play className="h-4 w-4 mr-2" />
-                    Run Now
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onToggle}>
-                  {recurringRequest.isActive ? (
-                    <>
-                      <Pause className="h-4 w-4 mr-2" />
-                      Pause
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Resume
-                    </>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-2 tabular-nums">
+            <FrequencyBadge
+              frequency={recurringRequest.frequency}
+              dayOfWeek={recurringRequest.dayOfWeek}
+              dayOfMonth={recurringRequest.dayOfMonth}
+            />
+            <span>
+              {[
+                `${totalTargets} ${totalTargets === 1 ? "creator" : "creators"}`,
+                templates.length > 0 && totalTargets > 0
+                  ? `${perRun} ${perRun === 1 ? "request" : "requests"} a run`
+                  : null,
+                recurringRequest.lastRunAt
+                  ? `last ran ${formatDistanceToNow(new Date(recurringRequest.lastRunAt), { addSuffix: true })}, ${recurringRequest.runCount} ${recurringRequest.runCount === 1 ? "run" : "runs"} so far`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </p>
         </div>
 
-        {/* Last run info */}
-        {recurringRequest.lastRunAt && (
-          <div className="mt-4 pt-4 border-t flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              Last run: {formatDistanceToNow(new Date(recurringRequest.lastRunAt), { addSuffix: true })}
-            </span>
-            <span className="text-muted-foreground">
-              Total runs: {recurringRequest.runCount}
-            </span>
+        <div className="flex shrink-0 items-start gap-3">
+          <div className="hidden text-right sm:block">
+            {recurringRequest.nextRunAt && recurringRequest.isActive ? (
+              <>
+                <p className="text-[13px] text-ink-2">Next run</p>
+                <p className="text-sm font-medium tabular-nums">
+                  {formatStamp(recurringRequest.nextRunAt)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-[13px] text-ink-2">Runs so far</p>
+                <p className="text-sm font-medium tabular-nums">{recurringRequest.runCount}</p>
+              </>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button aria-label={`More for ${recurringRequest.name}`} variant="ghost" size="icon-sm">
+                <MoreHorizontal className="size-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={onEdit}>
+                <Edit className="size-4" aria-hidden="true" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onViewHistory}>
+                <History className="size-4" aria-hidden="true" />
+                Run history
+              </DropdownMenuItem>
+              {recurringRequest.isActive && (
+                <DropdownMenuItem onClick={onRunNow}>
+                  <Play className="size-4" aria-hidden="true" />
+                  Run now
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onToggle}>
+                {recurringRequest.isActive ? (
+                  <>
+                    <Pause className="size-4" aria-hidden="true" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="size-4" aria-hidden="true" />
+                    Resume
+                  </>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="text-late focus:text-late focus:bg-late/10"
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {recurringRequest.nextRunAt && recurringRequest.isActive && (
+        <p className="mt-3 text-[13px] text-ink-2 tabular-nums sm:hidden">
+          Next run {formatStamp(recurringRequest.nextRunAt)}
+        </p>
+      )}
+    </article>
   );
 }
 
@@ -446,7 +427,7 @@ export function RecurringRequestsList({
   creators,
   creatorGroups,
 }: RecurringRequestsListProps) {
-  const [recurringRequests, setRecurringRequests] = React.useState<RecurringRequest[]>([]);
+  const [recurringRequests, setRecurringRequests] = React.useState<RecurringRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "paused">("all");
@@ -454,7 +435,7 @@ export function RecurringRequestsList({
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [editingRequest, setEditingRequest] = React.useState<RecurringRequest | null>(null);
+  const [editingRequest, setEditingRequest] = React.useState<RecurringRow | null>(null);
   const [historyRequest, setHistoryRequest] = React.useState<RecurringRequest | null>(null);
 
   // Fetch recurring requests
@@ -483,7 +464,8 @@ export function RecurringRequestsList({
       const matchesSearch =
         !searchQuery ||
         rr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        rr.description?.toLowerCase().includes(searchQuery.toLowerCase());
+        rr.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        rr.templates?.some((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -498,7 +480,7 @@ export function RecurringRequestsList({
   }, [recurringRequests, searchQuery, statusFilter, frequencyFilter]);
 
   // Handlers
-  const handleEdit = (rr: RecurringRequest) => {
+  const handleEdit = (rr: RecurringRow) => {
     setEditingRequest(rr);
     setIsModalOpen(true);
   };
@@ -538,7 +520,7 @@ export function RecurringRequestsList({
 
       if (result.success) {
         toast.success(
-          `Created ${result.successCount} request${result.successCount !== 1 ? "s" : ""}`
+          `Sent ${result.successCount} request${result.successCount !== 1 ? "s" : ""} to ${result.creatorCount} creator${result.creatorCount !== 1 ? "s" : ""}`
         );
         fetchRecurringRequests();
       } else {
@@ -570,15 +552,10 @@ export function RecurringRequestsList({
     }
   };
 
-  const handleSaved = (saved: RecurringRequest) => {
-    if (editingRequest) {
-      setRecurringRequests((prev) =>
-        prev.map((r) => (r.id === saved.id ? saved : r))
-      );
-    } else {
-      setRecurringRequests((prev) => [saved, ...prev]);
-    }
+  const handleSaved = () => {
+    // Refetch so the card shows its resolved templates and creators
     setEditingRequest(null);
+    fetchRecurringRequests();
   };
 
   const handleCloseModal = () => {
@@ -599,16 +576,15 @@ export function RecurringRequestsList({
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Repeat className="h-4 w-4" />
-            <span>Automated Scheduling</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Recurring Requests</h1>
-          <p className="text-muted-foreground mt-1">
-            Automatically send content requests to creators on a schedule
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] sm:text-[26px]">Recurring requests</h1>
+          <p className="mt-1 max-w-[70ch] text-[15px]">
+            {recurringRequests.length === 0
+              ? "A recurring request sends one or more templates on a schedule, say a content set and a story set on the 1st, so you never have to remember."
+              : `${activeCount} of ${recurringRequests.length} ${recurringRequests.length === 1 ? "schedule is" : "schedules are"} running. ${
+                  upcomingThisWeek ? `${upcomingThisWeek} ${upcomingThisWeek === 1 ? "goes" : "go"} out this week` : "Nothing goes out this week"
+                }; ${totalRuns} ${totalRuns === 1 ? "run" : "runs"} so far.`}
           </p>
         </div>
         <Button
@@ -616,75 +592,19 @@ export function RecurringRequestsList({
             setEditingRequest(null);
             setIsModalOpen(true);
           }}
-          className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
         >
           <Plus className="h-4 w-4 mr-2" />
-          New Recurring Request
+          New schedule
         </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Repeat className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{recurringRequests.length}</p>
-                <p className="text-sm text-muted-foreground">Total Schedules</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                <Play className="h-6 w-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{activeCount}</p>
-                <p className="text-sm text-muted-foreground">Active</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <CalendarDays className="h-6 w-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{upcomingThisWeek}</p>
-                <p className="text-sm text-muted-foreground">This Week</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <Zap className="h-6 w-6 text-violet-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalRuns}</p>
-                <p className="text-sm text-muted-foreground">Total Runs</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </header>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1 sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-icon" aria-hidden="true" />
           <Input
-            placeholder="Search recurring requests..."
+            aria-label="Find a schedule"
+            placeholder="Find a schedule"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -694,12 +614,12 @@ export function RecurringRequestsList({
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
         >
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full sm:w-[190px]" aria-label="Status">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="all">Running and paused</SelectItem>
+            <SelectItem value="active">Running</SelectItem>
             <SelectItem value="paused">Paused</SelectItem>
           </SelectContent>
         </Select>
@@ -707,11 +627,11 @@ export function RecurringRequestsList({
           value={frequencyFilter}
           onValueChange={(v) => setFrequencyFilter(v as typeof frequencyFilter)}
         >
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[170px]" aria-label="Frequency">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Frequencies</SelectItem>
+            <SelectItem value="all">Any frequency</SelectItem>
             {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
@@ -729,33 +649,33 @@ export function RecurringRequestsList({
           ))}
         </div>
       ) : filteredRequests.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-              <Repeat className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold">No recurring requests</h3>
-            <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
-              {searchQuery || statusFilter !== "all" || frequencyFilter !== "all"
-                ? "No recurring requests match your filters"
-                : "Create your first recurring request to automatically send content requests to creators on a schedule"}
-            </p>
-            {!searchQuery && statusFilter === "all" && frequencyFilter === "all" && (
-              <Button
-                onClick={() => {
-                  setEditingRequest(null);
-                  setIsModalOpen(true);
-                }}
-                className="mt-6"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Recurring Request
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <div className="rounded-[var(--tw-r-tile)] bg-tile-dim px-6 py-8">
+          <h3 className="text-[17px] font-semibold">
+            {searchQuery || statusFilter !== "all" || frequencyFilter !== "all"
+              ? "No schedule matches"
+              : "No schedules yet"}
+          </h3>
+          <p className="mt-1 max-w-[60ch] text-sm text-ink-2">
+            {searchQuery || statusFilter !== "all" || frequencyFilter !== "all"
+              ? "Clear the search or the filters to see every schedule."
+              : "Pick the templates, the creators and how often. Each run sends a fresh request per template with its own due date, and you can pause it at any time."}
+          </p>
+          {!searchQuery && statusFilter === "all" && frequencyFilter === "all" && (
+            <Button
+              onClick={() => {
+                setEditingRequest(null);
+                setIsModalOpen(true);
+              }}
+              variant="outline"
+              className="mt-4"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Make a schedule
+            </Button>
+          )}
+        </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredRequests.map((rr) => (
             <RecurringRequestCard
               key={rr.id}

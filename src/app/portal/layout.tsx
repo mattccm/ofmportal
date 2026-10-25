@@ -1,46 +1,12 @@
 "use client";
 
-import { BrandingProvider, useBranding } from "@/components/providers/branding-provider";
+import { BrandingProvider } from "@/components/providers/branding-provider";
 
-// Inner layout component that uses branding
-function PortalLayoutInner({ children }: { children: React.ReactNode }) {
-  const { branding } = useBranding();
-
-  // Generate CSS variables for branding colors
-  const brandingStyle = {
-    "--brand-primary": branding.primaryColor,
-    "--brand-secondary": branding.secondaryColor,
-    "--brand-accent": branding.accentColor,
-  } as React.CSSProperties;
-
-  return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5"
-      style={brandingStyle}
-    >
-      {/* Subtle decorative background elements using brand colors */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-3xl opacity-20"
-          style={{ backgroundColor: branding.primaryColor }}
-        />
-        <div
-          className="absolute top-1/2 -left-40 w-96 h-96 rounded-full blur-3xl opacity-15"
-          style={{ backgroundColor: branding.secondaryColor }}
-        />
-        <div
-          className="absolute -bottom-40 right-1/3 w-72 h-72 rounded-full blur-3xl opacity-20"
-          style={{ backgroundColor: branding.accentColor }}
-        />
-      </div>
-
-      {/* Main content */}
-      <div className="relative z-10">{children}</div>
-    </div>
-  );
-}
-
-// Main layout wrapper with provider
+/**
+ * /portal hosts the creator's sign-in, invite setup and onboarding (the live
+ * creator shell is /creator). It sits on the plain Title Wall ground; the
+ * pages themselves centre their own column.
+ */
 export default function PortalLayout({
   children,
 }: {
@@ -48,7 +14,7 @@ export default function PortalLayout({
 }) {
   return (
     <BrandingProvider>
-      <PortalLayoutInner>{children}</PortalLayoutInner>
+      <div className="min-h-screen bg-background text-foreground">{children}</div>
     </BrandingProvider>
   );
 }

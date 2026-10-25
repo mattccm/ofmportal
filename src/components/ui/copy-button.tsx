@@ -75,7 +75,7 @@ export function CopyButton({
 
   const DefaultCopyIcon = copyIcon ?? <Copy className={iconSize} />;
   const DefaultSuccessIcon = successIcon ?? (
-    <Check className={cn(iconSize, "text-emerald-500")} />
+    <Check className={cn(iconSize, "text-success")} />
   );
 
   const buttonContent = (
@@ -91,7 +91,7 @@ export function CopyButton({
         </span>
       )}
       {label && (
-        <span className={cn(showIcon && "ml-2", copied && "text-emerald-500")}>
+        <span className={cn(showIcon && "ml-2", copied && "text-success")}>
           {copied ? "Copied!" : label}
         </span>
       )}
@@ -105,7 +105,7 @@ export function CopyButton({
       size={label && !showIcon ? "sm" : size}
       className={cn(
         "relative transition-all duration-200",
-        copied && "text-emerald-500",
+        copied && "text-success",
         className
       )}
       onClick={handleCopy}
@@ -128,7 +128,7 @@ export function CopyButton({
         side="top"
         className={cn(
           "transition-all duration-200",
-          copied && "bg-emerald-500 text-white border-emerald-500"
+          copied && "bg-success text-ground border-success"
         )}
       >
         {copied ? copiedTooltipText : tooltipText}

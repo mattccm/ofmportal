@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createConversation, getConversations, getOrCreateDirectConversation } from "@/lib/chat";
 import { ConversationType } from "@prisma/client";
+import { staffIdsInAgency } from "@/lib/conversation-access";
 
 /**
  * GET /api/conversations
@@ -59,6 +60,22 @@ export async function POST(request: NextRequest) {
     if (!["DIRECT", "GROUP", "REQUEST_THREAD"].includes(type)) {
       return NextResponse.json(
         { error: "Invalid conversation type" },
+        { status: 400 }
+      );
+    }
+
+    // Everyone in a team thread must be real staff of the caller's agency
+    // (no creator pseudo-users, no other agency's users)
+    if (!session.user.agencyId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const requestedIds = Array.from(
+      new Set(participantIds.filter((id: unknown): id is string => typeof id === "string" && !!id))
+    );
+    const validIds = await staffIdsInAgency(requestedIds, session.user.agencyId);
+    if (validIds.length !== requestedIds.length || requestedIds.length !== participantIds.length) {
+      return NextResponse.json(
+        { error: "Only people on your team can be added" },
         { status: 400 }
       );
     }

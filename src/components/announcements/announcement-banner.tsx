@@ -65,23 +65,23 @@ const typeConfig: Record<
   },
   SUCCESS: {
     icon: CheckCircle,
-    bgClass: "bg-emerald-50/80 dark:bg-emerald-950/30",
-    borderClass: "border-emerald-200/60 dark:border-emerald-800/40",
-    textClass: "text-emerald-900 dark:text-emerald-100",
-    iconClass: "text-emerald-500",
+    bgClass: "bg-success/80",
+    borderClass: "border-success/60",
+    textClass: "text-success",
+    iconClass: "text-success",
     buttonClass:
-      "bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-600",
+      "bg-success hover:bg-success/85 text-ground dark:hover:bg-success/85",
   },
   PROMO: {
     icon: Sparkles,
     bgClass:
-      "bg-gradient-to-r from-violet-50/80 via-purple-50/80 to-fuchsia-50/80 dark:from-violet-950/40 dark:via-purple-950/40 dark:to-fuchsia-950/40",
+      " bg-tile-hi dark:bg-tile-hi ",
     borderClass:
-      "border-violet-200/60 dark:border-violet-800/40 border-l-4 border-l-violet-500",
-    textClass: "text-violet-900 dark:text-violet-100",
-    iconClass: "text-violet-500",
+      "border-line dark:border-line",
+    textClass: "text-foreground dark:text-foreground",
+    iconClass: "text-foreground",
     buttonClass:
-      "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white",
+      " bg-raised-hi hover:bg-raised-hi text-white",
   },
 };
 
@@ -134,7 +134,7 @@ export function AnnouncementBanner({
             className={cn(
               "shrink-0 mt-0.5 md:mt-0 p-1.5 rounded-full",
               announcement.type === "PROMO"
-                ? "bg-violet-100 dark:bg-violet-900/50"
+                ? "bg-tile-hi dark:bg-tile-hi"
                 : ""
             )}
           >

@@ -75,8 +75,8 @@ const typeConfig: Record<FeedbackType, { label: string; icon: React.ReactNode; c
 const statusConfig: Record<FeedbackStatus, { label: string; color: string; bgColor: string }> = {
   NEW: {
     label: "New",
-    color: "text-violet-600 dark:text-violet-400",
-    bgColor: "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/50",
+    color: "text-foreground dark:text-foreground",
+    bgColor: "bg-tile-hi dark:bg-tile-hi border-line dark:border-line",
   },
   REVIEWED: {
     label: "Reviewed",
@@ -85,8 +85,8 @@ const statusConfig: Record<FeedbackStatus, { label: string; color: string; bgCol
   },
   IMPLEMENTED: {
     label: "Implemented",
-    color: "text-emerald-600 dark:text-emerald-400",
-    bgColor: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50",
+    color: "text-success",
+    bgColor: "bg-success/10 border-success/30",
   },
 };
 
@@ -226,14 +226,14 @@ export default function FeedbackHistoryPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/settings">
-            <Button variant="ghost" size="icon" className="shrink-0">
+          <Button variant="ghost" size="icon" className="shrink-0" asChild>
+            <Link href="/dashboard/settings" aria-label="Back to settings">
               <ChevronLeft className="h-5 w-5" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-              <MessageSquare className="h-6 w-6 text-violet-500" />
+            <div className="h-12 w-12 rounded-xl bg-tile-hi flex items-center justify-center">
+              <MessageSquare className="h-6 w-6 text-foreground" />
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Feedback Management</h1>
@@ -252,8 +252,8 @@ export default function FeedbackHistoryPage() {
         <Card className="card-elevated">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center">
-                <MessageSquare className="h-5 w-5 text-violet-500" />
+              <div className="h-10 w-10 rounded-lg bg-tile-hi dark:bg-tile-hi flex items-center justify-center">
+                <MessageSquare className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{total}</p>
@@ -265,8 +265,8 @@ export default function FeedbackHistoryPage() {
         <Card className="card-elevated">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-violet-500" />
+              <div className="h-10 w-10 rounded-lg bg-tile-hi dark:bg-tile-hi flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.new}</p>
@@ -291,8 +291,8 @@ export default function FeedbackHistoryPage() {
         <Card className="card-elevated">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-emerald-500" />
+              <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-success" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.implemented}</p>
@@ -319,7 +319,7 @@ export default function FeedbackHistoryPage() {
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger aria-label="Filter by type" className="w-[160px]">
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
@@ -337,7 +337,7 @@ export default function FeedbackHistoryPage() {
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger aria-label="Filter by status" className="w-[160px]">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -356,7 +356,7 @@ export default function FeedbackHistoryPage() {
       {isLoading ? (
         <Card className="card-elevated">
           <CardContent className="p-12 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-foreground" />
           </CardContent>
         </Card>
       ) : error ? (
@@ -410,8 +410,8 @@ export default function FeedbackHistoryPage() {
 
                       {/* Admin Reply */}
                       {item.adminReply && (
-                        <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800/50">
-                          <div className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400 mb-1">
+                        <div className="p-3 rounded-lg bg-tile-hi dark:bg-tile-hi border border-line dark:border-line">
+                          <div className="flex items-center gap-2 text-sm text-foreground dark:text-foreground mb-1">
                             <Reply className="h-4 w-4" />
                             <span className="font-medium">Admin Reply</span>
                             {item.repliedBy && (
@@ -437,7 +437,7 @@ export default function FeedbackHistoryPage() {
                             href={item.pageUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 hover:text-violet-500 transition-colors"
+                            className="flex items-center gap-1 hover:text-foreground transition-colors"
                           >
                             <Globe className="h-3.5 w-3.5" />
                             Page URL
@@ -496,7 +496,7 @@ export default function FeedbackHistoryPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Reply className="h-5 w-5 text-violet-500" />
+              <Reply className="h-5 w-5 text-foreground" />
               Respond to Feedback
             </DialogTitle>
             <DialogDescription>
@@ -527,7 +527,7 @@ export default function FeedbackHistoryPage() {
                   value={newStatus || selectedFeedback.status}
                   onValueChange={(value) => setNewStatus(value as FeedbackStatus)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Update Status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -567,7 +567,7 @@ export default function FeedbackHistoryPage() {
             <Button
               onClick={handleUpdateFeedback}
               disabled={isUpdating}
-              className="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+              className="flex-1 bg-raised-hi text-ink hover:bg-raised-hi"
             >
               {isUpdating ? (
                 <>

@@ -87,11 +87,11 @@ function getFileIcon(mimeType: string) {
 function getStatusIcon(status: string) {
   switch (status) {
     case "APPROVED":
-      return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />;
+      return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
     case "REJECTED":
-      return <XCircle className="h-3.5 w-3.5 text-red-500" />;
+      return <XCircle className="h-3.5 w-3.5 text-late" />;
     default:
-      return <Clock className="h-3.5 w-3.5 text-amber-500" />;
+      return <Clock className="h-3.5 w-3.5 text-icon" />;
   }
 }
 
@@ -352,8 +352,8 @@ export function BulkDownloadDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="rounded-full bg-indigo-100 dark:bg-indigo-900/30 p-1.5">
-              <Download className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <div className="rounded-full bg-tile-hi p-1.5">
+              <Download className="h-4 w-4 text-foreground dark:text-foreground" />
             </div>
             Bulk Download
           </DialogTitle>
@@ -373,7 +373,7 @@ export function BulkDownloadDialog({
                 value={downloadFormat}
                 onValueChange={(value: DownloadFormat) => setDownloadFormat(value)}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger aria-label="Download Format" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -407,7 +407,7 @@ export function BulkDownloadDialog({
                   value={folderOrganization}
                   onValueChange={(value: FolderOrganization) => setFolderOrganization(value)}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger aria-label="Organize By" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -444,7 +444,7 @@ export function BulkDownloadDialog({
             <div className="space-y-2">
               <Label className="text-sm font-medium">Metadata</Label>
               <div className="flex items-center gap-3 h-10 px-3 py-2 rounded-md border bg-background">
-                <Checkbox
+                <Checkbox aria-label="Include CSV"
                   id="include-metadata"
                   checked={includeMetadata}
                   onCheckedChange={(checked) => setIncludeMetadata(!!checked)}
@@ -463,7 +463,7 @@ export function BulkDownloadDialog({
           {/* Filter Controls */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Checkbox
+              <Checkbox aria-label="Select all"
                 checked={allSelected}
                 indeterminate={someSelected}
                 onCheckedChange={(checked) => {
@@ -504,7 +504,7 @@ export function BulkDownloadDialog({
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <Select value={filterCreator} onValueChange={setFilterCreator}>
-                  <SelectTrigger className="w-[160px] h-9">
+                  <SelectTrigger aria-label="Filter by creator" className="w-[160px] h-9">
                     <SelectValue placeholder="All Creators" />
                   </SelectTrigger>
                   <SelectContent>
@@ -520,7 +520,7 @@ export function BulkDownloadDialog({
 
               {/* Status Filter */}
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[140px] h-9">
+                <SelectTrigger aria-label="Filter by status" className="w-[140px] h-9">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -533,7 +533,7 @@ export function BulkDownloadDialog({
 
               {/* Request Filter */}
               <Select value={filterRequest} onValueChange={setFilterRequest}>
-                <SelectTrigger className="w-[180px] h-9">
+                <SelectTrigger aria-label="Filter by request" className="w-[180px] h-9">
                   <SelectValue placeholder="All Requests" />
                 </SelectTrigger>
                 <SelectContent>
@@ -595,11 +595,11 @@ export function BulkDownloadDialog({
                       key={upload.id}
                       className={cn(
                         "flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors cursor-pointer",
-                        isSelected && "bg-indigo-50/50 dark:bg-indigo-950/20"
+                        isSelected && "bg-tile-hi dark:bg-tile-hi"
                       )}
                       onClick={() => handleSelectUpload(upload.id, !isSelected)}
                     >
-                      <Checkbox
+                      <Checkbox aria-label={`Select ${upload.originalName}`}
                         checked={isSelected}
                         onCheckedChange={(checked) => handleSelectUpload(upload.id, !!checked)}
                         onClick={(e) => e.stopPropagation()}
@@ -641,16 +641,16 @@ export function BulkDownloadDialog({
 
           {/* Download Progress */}
           {isDownloading && (
-            <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800">
+            <div className="p-4 bg-tile-hi rounded-lg border border-line dark:border-line">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                <span className="text-sm font-medium text-foreground dark:text-foreground">
                   {downloadStatus}
                 </span>
-                <span className="text-sm text-indigo-600 dark:text-indigo-400">
+                <span className="text-sm text-foreground dark:text-foreground">
                   {Math.round(downloadProgress)}%
                 </span>
               </div>
-              <Progress value={downloadProgress} />
+              <Progress aria-label="Download progress" value={downloadProgress} />
             </div>
           )}
         </div>
@@ -664,7 +664,7 @@ export function BulkDownloadDialog({
             Cancel
           </Button>
           <Button
-            className="gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+            className="gap-1.5 bg-raised-hi text-ink hover:bg-raised-hi "
             onClick={handleDownload}
             disabled={isDownloading || selectedUploads.length === 0}
           >

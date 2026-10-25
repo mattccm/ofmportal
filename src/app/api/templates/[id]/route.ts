@@ -188,7 +188,7 @@ export async function PATCH(
       });
       if (!category) {
         return NextResponse.json(
-          { error: "Category not found" },
+          { error: "Group not found" },
           { status: 404 }
         );
       }

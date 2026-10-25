@@ -20,8 +20,10 @@ export interface UseKeyboardShortcutsOptions {
   context?: string;
 }
 
-// Keys that should be allowed even in input fields
-const ALLOWED_IN_INPUT = new Set(["escape", "?", "ctrl+/", "cmd+/"]);
+// Keys that should be allowed even in input fields. "?" is not one of them:
+// it is a character people type (a question in a message or comment), and
+// Ctrl+/ already opens the shortcuts help from inside a field.
+const ALLOWED_IN_INPUT = new Set(["escape", "ctrl+/", "cmd+/"]);
 
 // Check if the event target is an input element where we should ignore shortcuts
 function isInputElement(target: EventTarget | null): boolean {

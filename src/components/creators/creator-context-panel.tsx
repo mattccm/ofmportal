@@ -115,7 +115,7 @@ function ResponseTimeIndicator({ avgResponseTimeHours }: { avgResponseTimeHours:
 
   const statusConfig = {
     fast: {
-      color: "bg-emerald-500",
+      color: "bg-success",
       label: "Fast responder",
       description: "Usually responds within 12 hours",
     },
@@ -156,7 +156,7 @@ function ResponseTimeIndicator({ avgResponseTimeHours }: { avgResponseTimeHours:
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     PENDING: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
-    ACCEPTED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+    ACCEPTED: "bg-success/10 text-success border-success/30",
     EXPIRED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
   };
 
@@ -189,7 +189,7 @@ function RequestStatusBadge({ status, isOverdue }: { status: string; isOverdue: 
     DRAFT: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
     PENDING: "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     IN_PROGRESS: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    SUBMITTED: "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+    SUBMITTED: "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground",
     UNDER_REVIEW: "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
     NEEDS_REVISION: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   };
@@ -204,7 +204,7 @@ function RequestStatusBadge({ status, isOverdue }: { status: string; isOverdue: 
 function UploadStatusIndicator({ status }: { status: string }) {
   switch (status) {
     case "APPROVED":
-      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      return <CheckCircle2 className="h-4 w-4 text-success" />;
     case "REJECTED":
       return <XCircle className="h-4 w-4 text-red-500" />;
     case "PENDING":
@@ -215,7 +215,7 @@ function UploadStatusIndicator({ status }: { status: string }) {
 
 function FileTypeIcon({ fileType }: { fileType: string }) {
   if (fileType.startsWith("image/")) {
-    return <ImageIcon className="h-4 w-4 text-violet-500" />;
+    return <ImageIcon className="h-4 w-4 text-foreground" />;
   }
   if (fileType.startsWith("video/")) {
     return <Video className="h-4 w-4 text-blue-500" />;
@@ -225,10 +225,10 @@ function FileTypeIcon({ fileType }: { fileType: string }) {
 
 function ActivityIcon({ icon, color }: { icon: string; color: string }) {
   const colorClasses: Record<string, string> = {
-    green: "text-green-500",
+    green: "text-success",
     red: "text-red-500",
     blue: "text-blue-500",
-    violet: "text-violet-500",
+    violet: "text-foreground",
     amber: "text-amber-500",
     gray: "text-gray-500",
   };
@@ -392,7 +392,7 @@ function PanelHeader({
         <div className="flex items-center gap-1 flex-shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
+              <Button aria-label={isFullScreen ? "Exit full screen" : "Full screen"}
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
@@ -417,14 +417,14 @@ function PanelHeader({
                 className="h-8 w-8"
                 asChild
               >
-                <Link href={`/dashboard/creators/${data.id}`}>
+                <Link aria-label="View full profile" href={`/dashboard/creators/${data.id}`}>
                   <ExternalLink className="h-4 w-4" />
                 </Link>
               </Button>
             </TooltipTrigger>
             <TooltipContent>View full profile</TooltipContent>
           </Tooltip>
-          <Button
+          <Button aria-label="Close"
             variant="ghost"
             size="icon"
             className="h-8 w-8"
@@ -602,7 +602,7 @@ function RecentUploadsSection({
                       <UploadStatusIndicator status={upload.status} />
                     </div>
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-[10px] text-white truncate">
+                      <p className="text-[12px] text-white truncate">
                         {upload.originalName}
                       </p>
                     </div>
@@ -663,7 +663,7 @@ function PerformanceStatsSection({
             {stats.avgResponseTimeHours > 0 && (
               <div className={cn(
                 "w-2 h-2 rounded-full",
-                stats.avgResponseTimeHours < 12 ? "bg-emerald-500" :
+                stats.avgResponseTimeHours < 12 ? "bg-success" :
                 stats.avgResponseTimeHours < 48 ? "bg-amber-500" : "bg-red-500"
               )} />
             )}
@@ -879,7 +879,7 @@ function NotesSection({
                       <div className="flex gap-1">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
+                            <Button aria-label={note.isPinned ? "Unpin note" : "Pin note"}
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
@@ -896,7 +896,7 @@ function NotesSection({
                             {note.isPinned ? "Unpin note" : "Pin note"}
                           </TooltipContent>
                         </Tooltip>
-                        <Button
+                        <Button aria-label="Edit note"
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6"
@@ -904,7 +904,7 @@ function NotesSection({
                         >
                           <Edit3 className="h-3 w-3" />
                         </Button>
-                        <Button
+                        <Button aria-label="Delete note"
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-destructive hover:text-destructive"

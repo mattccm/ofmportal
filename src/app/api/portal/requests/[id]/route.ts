@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
-import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
+import {
+  validateCreatorSession,
+  CREATOR_HIDDEN_STATUSES,
+  CREATOR_FINISHED_STATUSES,
+  staffFirstName,
+  isCreatorPseudoEmail,
+} from "@/lib/portal-auth";
 import {
   getViewPresignedUrl,
   useLocalStorage,
@@ -31,6 +37,15 @@ export async function GET(
     });
 
     if (!request) {
+      // A finished request (approved, cancelled, archived) is gone from the
+      // portal. Say so, without any of its content, so an old link lands calmly.
+      const finished = await db.contentRequest.findFirst({
+        where: { id, creatorId: creator.id, status: { in: CREATOR_FINISHED_STATUSES } },
+        select: { id: true },
+      });
+      if (finished) {
+        return NextResponse.json({ error: "This request is finished", finished: true }, { status: 410 });
+      }
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
@@ -102,6 +117,8 @@ export async function GET(
           thumbnailUrl: true,
           thumbnailKey: true,
           fieldId: true,
+          reviewNote: true,
+          createdAt: true,
         },
       }),
       db.upload.count({
@@ -157,6 +174,9 @@ export async function GET(
           storageKey: upload.storageKey,
           thumbnailUrl: thumbnailUrl || previewUrl,
           fieldId: upload.fieldId,
+          // CCM's note on a file it sent back, so the creator sees why
+          reviewNote: upload.status === "REJECTED" ? upload.reviewNote : null,
+          createdAt: upload.createdAt.toISOString(),
         };
       })
     );
@@ -206,16 +226,19 @@ export async function GET(
         // Invalid JSON, not a creator comment
       }
 
+      // A creator's own comment (marker, or a hidden .internal pseudo-user)
+      // shows as "You"; staff show by first name only, never an email
+      const mine = isCreatorComment || isCreatorPseudoEmail(comment.user?.email);
       return {
         id: comment.id,
         content: comment.message,
         createdAt: comment.createdAt.toISOString(),
         fieldId: comment.fieldId,
-        isAgency: !isCreatorComment,
-        user: isCreatorComment
+        isAgency: !mine,
+        user: mine
           ? { name: creatorInfo?.name || creator.name }
           : comment.user
-            ? { name: comment.user.name, image: comment.user.avatar }
+            ? { name: staffFirstName(comment.user.name), image: comment.user.avatar }
             : undefined,
       };
     });

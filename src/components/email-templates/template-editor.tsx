@@ -388,14 +388,14 @@ export function TemplateEditor({
                     <code className="text-sm font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">
                       {`{{${variable.key}}}`}
                     </code>
-                    <Button
+                    <Button aria-label={`Copy {{${variable.key}}}`}
                       variant="ghost"
                       size="icon-sm"
                       onClick={() => copyVariable(variable.key)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                     >
                       {copiedVariable === variable.key ? (
-                        <Check className="h-3 w-3 text-green-500" />
+                        <Check className="h-3 w-3 text-success" />
                       ) : (
                         <Copy className="h-3 w-3" />
                       )}
@@ -404,7 +404,7 @@ export function TemplateEditor({
                   <p className="text-xs text-muted-foreground mt-1.5">
                     {variable.description}
                   </p>
-                  <p className="text-xs text-muted-foreground/70 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Example: <span className="font-medium">{variable.example}</span>
                   </p>
                   <div className="flex gap-1 mt-2">

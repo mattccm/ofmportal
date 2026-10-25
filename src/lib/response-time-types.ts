@@ -152,7 +152,7 @@ export function formatSLAStatus(status: SLAStatus): string {
 export function getSLAStatusColor(status: SLAStatus["status"]): string {
   switch (status) {
     case "met":
-      return "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400";
+      return "text-success bg-success/10";
     case "at_risk":
       return "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400";
     case "breached":

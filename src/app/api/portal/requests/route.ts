@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
+import { isRequestOverdue } from "@/lib/request-status";
+import {
+  computeCreatorFieldStates,
+  type CreatorFieldDef,
+  type CreatorFieldSubmission,
+} from "@/lib/creator-field-states";
 
 interface RequestField {
   id: string;
@@ -87,9 +93,20 @@ export async function GET(req: NextRequest) {
         request.estimatedMinutes ??
         (fileFields.length > 0 ? fileFields.length * 15 : 15);
 
+      // Per-field state for the creator home's field strip (same rule as the
+      // request page): approved / changes / ready / waiting / overdue
+      const fieldStates = computeCreatorFieldStates({
+        fields: request.fields as unknown as CreatorFieldDef[],
+        fieldSubmissions: request.fieldSubmissions as unknown as Record<string, CreatorFieldSubmission> | null,
+        uploads,
+        requestStatus: request.status,
+        overdue: isRequestOverdue(request),
+      });
+
       return {
         ...request,
         completion: { totalSlots, uploadedSlots, approvedSlots },
+        fieldStates,
         unreadFeedbackCount,
         estimatedMinutes,
       };

@@ -4,11 +4,11 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { FileText, ChevronRight, Clock, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { StatePill, requestStatusState } from "@/components/title-wall";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
 import { useWidgetData } from "../widget-data-provider";
-import { cn } from "@/lib/utils";
 
 // TYPES
 
@@ -28,16 +28,13 @@ interface PendingRequest {
 
 // STATUS CONFIG
 
-function getStatusConfig(status: string) {
-  const configs: Record<string, { class: string; label: string }> = {
-    PENDING: { class: "badge-warning", label: "Pending" },
-    IN_PROGRESS: { class: "badge-info", label: "In Progress" },
-    SUBMITTED: { class: "badge-purple", label: "Submitted" },
-    UNDER_REVIEW: { class: "badge-info", label: "Under Review" },
-    NEEDS_REVISION: { class: "badge-error", label: "Needs Revision" },
-  };
-  return configs[status] || { class: "bg-muted text-muted-foreground", label: status };
-}
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: "Pending",
+  IN_PROGRESS: "In progress",
+  SUBMITTED: "Submitted",
+  UNDER_REVIEW: "Under review",
+  NEEDS_REVISION: "Needs changes",
+};
 
 // COMPONENT
 
@@ -77,7 +74,6 @@ export function PendingRequestsWidget({ config, size }: WidgetProps) {
       ) : (
         <div className="space-y-1">
           {requests.slice(0, displayCount).map((request) => {
-            const statusConfig = getStatusConfig(request.status);
             const isOverdue = request.dueDate && new Date(request.dueDate) < new Date();
 
             return (
@@ -96,16 +92,20 @@ export function PendingRequestsWidget({ config, size }: WidgetProps) {
                       {request.title}
                     </p>
                     {isOverdue && (
-                      <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      <AlertTriangle className="h-3.5 w-3.5 text-late shrink-0" aria-label="Overdue" />
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
                     {request.creator.name} · {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
                   </p>
                 </div>
-                <Badge variant="outline" className={cn("text-[10px] shrink-0", statusConfig.class)}>
-                  {statusConfig.label}
-                </Badge>
+                {requestStatusState(request.status) ? (
+                  <StatePill state={requestStatusState(request.status)!} className="shrink-0">
+                    {STATUS_LABEL[request.status] ?? request.status}
+                  </StatePill>
+                ) : (
+                  <Badge variant="draft" className="shrink-0">{STATUS_LABEL[request.status] ?? request.status}</Badge>
+                )}
               </Link>
             );
           })}

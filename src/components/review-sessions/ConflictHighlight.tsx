@@ -161,7 +161,7 @@ export function ConflictHighlight({
           {/* Approve */}
           {approveVoters.length > 0 && (
             <div className="bg-white/50 rounded p-2">
-              <div className="flex items-center gap-1 text-green-600 mb-1">
+              <div className="flex items-center gap-1 text-success mb-1">
                 <ThumbsUp className="h-3.5 w-3.5" />
                 <span className="text-xs font-medium">Approve ({approveVoters.length})</span>
               </div>

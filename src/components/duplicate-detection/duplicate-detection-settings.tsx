@@ -154,8 +154,8 @@ export function DuplicateDetectionSettingsForm({
       <Card className={cn(
         "transition-all duration-300",
         settings.enabled
-          ? "border-green-200/50 bg-gradient-to-r from-green-50/50 to-emerald-50/50 dark:from-green-950/20 dark:to-emerald-950/20 dark:border-green-800/30"
-          : "border-red-200/50 bg-gradient-to-r from-red-50/50 to-orange-50/50 dark:from-red-950/20 dark:to-orange-950/20 dark:border-red-800/30"
+          ? "border-success/50 bg-success/50 dark:bg-success/20 "
+          : "border-red-200/50 bg-red-50/50 dark:bg-red-950/20 dark:border-red-800/30"
       )}>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
@@ -163,11 +163,11 @@ export function DuplicateDetectionSettingsForm({
               <div className={cn(
                 "h-12 w-12 rounded-xl flex items-center justify-center transition-colors",
                 settings.enabled
-                  ? "bg-green-500/10"
+                  ? "bg-success/10"
                   : "bg-red-500/10"
               )}>
                 {settings.enabled ? (
-                  <ShieldCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  <ShieldCheck className="h-6 w-6 text-success" />
                 ) : (
                   <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400" />
                 )}
@@ -183,7 +183,7 @@ export function DuplicateDetectionSettingsForm({
                 </p>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Duplicate Detection"
               checked={settings.enabled}
               onCheckedChange={(checked) => updateSetting("enabled", checked)}
             />
@@ -195,7 +195,7 @@ export function DuplicateDetectionSettingsForm({
       <Card className="card-elevated">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Fingerprint className="h-5 w-5 text-indigo-500" />
+            <Fingerprint className="h-5 w-5 text-foreground" />
             Detection Methods
           </CardTitle>
           <CardDescription>
@@ -206,8 +206,8 @@ export function DuplicateDetectionSettingsForm({
           {/* Hash Check */}
           <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                <Hash className="h-5 w-5 text-violet-500" />
+              <div className="h-10 w-10 rounded-lg bg-tile-hi flex items-center justify-center">
+                <Hash className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <p className="font-medium">Content Hash Check</p>
@@ -216,7 +216,7 @@ export function DuplicateDetectionSettingsForm({
                 </p>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Content Hash Check"
               checked={settings.enableHashCheck}
               onCheckedChange={(checked) => updateSetting("enableHashCheck", checked)}
             />
@@ -225,8 +225,8 @@ export function DuplicateDetectionSettingsForm({
           {/* Perceptual Hash */}
           <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                <Image className="h-5 w-5 text-indigo-500" />
+              <div className="h-10 w-10 rounded-lg bg-tile-hi flex items-center justify-center">
+                <Image className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <p className="font-medium">Perceptual Hash (Images)</p>
@@ -235,7 +235,7 @@ export function DuplicateDetectionSettingsForm({
                 </p>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Perceptual Hash (Images)"
               checked={settings.enablePerceptualHash}
               onCheckedChange={(checked) => updateSetting("enablePerceptualHash", checked)}
             />
@@ -254,7 +254,7 @@ export function DuplicateDetectionSettingsForm({
                 </p>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Video Frame Analysis"
               checked={settings.enableVideoFrameHash}
               onCheckedChange={(checked) => updateSetting("enableVideoFrameHash", checked)}
             />
@@ -273,7 +273,7 @@ export function DuplicateDetectionSettingsForm({
                 </p>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Metadata Analysis"
               checked={settings.enableMetadataCheck}
               onCheckedChange={(checked) => updateSetting("enableMetadataCheck", checked)}
             />
@@ -306,7 +306,7 @@ export function DuplicateDetectionSettingsForm({
                 </p>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Block Exact Duplicates"
               checked={settings.blockExactDuplicates}
               onCheckedChange={(checked) => updateSetting("blockExactDuplicates", checked)}
             />
@@ -325,7 +325,7 @@ export function DuplicateDetectionSettingsForm({
                 </p>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Block Near Duplicates"
               checked={settings.blockNearDuplicates}
               onCheckedChange={(checked) => updateSetting("blockNearDuplicates", checked)}
             />
@@ -344,7 +344,7 @@ export function DuplicateDetectionSettingsForm({
                 </p>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Warn on Similar Content"
               checked={settings.warnSimilarContent}
               onCheckedChange={(checked) => updateSetting("warnSimilarContent", checked)}
             />
@@ -356,7 +356,7 @@ export function DuplicateDetectionSettingsForm({
       <Card className="card-elevated">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sliders className="h-5 w-5 text-violet-500" />
+            <Sliders className="h-5 w-5 text-foreground" />
             Sensitivity Thresholds
           </CardTitle>
           <CardDescription>
@@ -368,11 +368,12 @@ export function DuplicateDetectionSettingsForm({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-base">Overall Similarity Threshold</Label>
-              <span className="text-lg font-mono font-bold text-indigo-600 dark:text-indigo-400">
+              <span className="text-lg font-mono font-bold text-foreground dark:text-foreground">
                 {settings.similarityThreshold}%
               </span>
             </div>
             <Slider
+              aria-label="Overall Similarity Threshold"
               value={[settings.similarityThreshold]}
               onValueChange={(value) => updateSetting("similarityThreshold", value[0])}
               min={50}
@@ -390,11 +391,12 @@ export function DuplicateDetectionSettingsForm({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-base">Perceptual Hash Threshold</Label>
-              <span className="text-lg font-mono font-bold text-violet-600 dark:text-violet-400">
+              <span className="text-lg font-mono font-bold text-foreground dark:text-foreground">
                 {settings.perceptualThreshold}%
               </span>
             </div>
             <Slider
+              aria-label="Perceptual Hash Threshold"
               value={[settings.perceptualThreshold]}
               onValueChange={(value) => updateSetting("perceptualThreshold", value[0])}
               min={50}
@@ -417,6 +419,7 @@ export function DuplicateDetectionSettingsForm({
               </span>
             </div>
             <Slider
+              aria-label="Video Sample Frames"
               value={[settings.videoSampleFrames]}
               onValueChange={(value) => updateSetting("videoSampleFrames", value[0])}
               min={1}
@@ -436,7 +439,7 @@ export function DuplicateDetectionSettingsForm({
       <Card className="card-elevated">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-emerald-500" />
+            <Settings className="h-5 w-5 text-success" />
             Check Scope
           </CardTitle>
           <CardDescription>
@@ -451,7 +454,7 @@ export function DuplicateDetectionSettingsForm({
                 updateSetting("checkScope", value as DuplicateDetectionSettings["checkScope"])
               }
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Check Scope" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -506,7 +509,7 @@ export function DuplicateDetectionSettingsForm({
           </div>
         )}
         {success && (
-          <div className="flex items-center gap-2 text-green-600">
+          <div className="flex items-center gap-2 text-success">
             <CheckCircle2 className="h-4 w-4" />
             <span className="text-sm">Settings saved</span>
           </div>
@@ -515,7 +518,7 @@ export function DuplicateDetectionSettingsForm({
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-raised-hi text-ink hover:bg-raised-hi"
           >
             {isSaving ? (
               <>

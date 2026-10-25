@@ -61,7 +61,7 @@ export function ChatSidebar({
       {/* Header */}
       <div className="flex-shrink-0 border-b border-border/50 p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
+          <h2 className="text-lg font-semibold text-foreground">
             Messages
           </h2>
           <Button
@@ -174,7 +174,7 @@ function ConversationItem({
       className={cn(
         "w-full flex items-start gap-3 p-3 mx-2 rounded-lg text-left transition-all duration-200",
         "hover:bg-accent/50",
-        isSelected && "bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20"
+        isSelected && " bg-primary/10 border border-primary/20"
       )}
     >
       {/* Avatar with online indicator */}
@@ -250,7 +250,7 @@ function ConversationItem({
           {unreadCount > 0 && (
             <Badge
               variant="default"
-              className="h-5 min-w-5 px-1.5 flex-shrink-0 bg-gradient-to-r from-primary to-violet-500 text-white border-0"
+              className="h-5 min-w-5 px-1.5 flex-shrink-0 bg-primary text-white border-0"
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>

@@ -108,18 +108,18 @@ const getActionBadgeStyles = (action: string): { bg: string; text: string; borde
   // Create actions - green/emerald
   if (actionLower.includes("create") || actionLower.includes("add") || actionLower.includes("register")) {
     return {
-      bg: "bg-emerald-50 dark:bg-emerald-950/30",
-      text: "text-emerald-700 dark:text-emerald-400",
-      border: "border-emerald-200 dark:border-emerald-800/50",
+      bg: "bg-success/10",
+      text: "text-success",
+      border: "border-success/30",
     };
   }
 
   // Update actions - blue/indigo
   if (actionLower.includes("update") || actionLower.includes("edit") || actionLower.includes("modify")) {
     return {
-      bg: "bg-indigo-50 dark:bg-indigo-950/30",
-      text: "text-indigo-700 dark:text-indigo-400",
-      border: "border-indigo-200 dark:border-indigo-800/50",
+      bg: "bg-tile-hi dark:bg-tile-hi",
+      text: "text-foreground dark:text-foreground",
+      border: "border-line dark:border-line",
     };
   }
 
@@ -135,9 +135,9 @@ const getActionBadgeStyles = (action: string): { bg: string; text: string; borde
   // Approve/Success actions - green
   if (actionLower.includes("approve") || actionLower.includes("accept") || actionLower.includes("complete")) {
     return {
-      bg: "bg-green-50 dark:bg-green-950/30",
-      text: "text-green-700 dark:text-green-400",
-      border: "border-green-200 dark:border-green-800/50",
+      bg: "bg-success/10",
+      text: "text-success",
+      border: "border-success/30",
     };
   }
 
@@ -153,9 +153,9 @@ const getActionBadgeStyles = (action: string): { bg: string; text: string; borde
   // Login/Auth actions - violet
   if (actionLower.includes("login") || actionLower.includes("logout") || actionLower.includes("auth")) {
     return {
-      bg: "bg-violet-50 dark:bg-violet-950/30",
-      text: "text-violet-700 dark:text-violet-400",
-      border: "border-violet-200 dark:border-violet-800/50",
+      bg: "bg-tile-hi dark:bg-tile-hi",
+      text: "text-foreground dark:text-foreground",
+      border: "border-line dark:border-line",
     };
   }
 
@@ -180,9 +180,9 @@ const getActionBadgeStyles = (action: string): { bg: string; text: string; borde
   // Download/Export actions - purple
   if (actionLower.includes("download") || actionLower.includes("export")) {
     return {
-      bg: "bg-purple-50 dark:bg-purple-950/30",
-      text: "text-purple-700 dark:text-purple-400",
-      border: "border-purple-200 dark:border-purple-800/50",
+      bg: "bg-tile-hi dark:bg-tile-hi",
+      text: "text-foreground dark:text-foreground",
+      border: "border-line dark:border-line",
     };
   }
 
@@ -273,7 +273,7 @@ function ExpandedRowDetails({ log }: { log: AuditLog }) {
         {/* Technical Details */}
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Monitor className="h-4 w-4 text-indigo-500" />
+            <Monitor className="h-4 w-4 text-foreground" />
             Technical Details
           </h4>
 
@@ -323,7 +323,7 @@ function ExpandedRowDetails({ log }: { log: AuditLog }) {
         {/* Metadata */}
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Activity className="h-4 w-4 text-violet-500" />
+            <Activity className="h-4 w-4 text-foreground" />
             Action Details
           </h4>
 
@@ -425,9 +425,9 @@ export function AuditLogTable({
       return <ArrowUpDown className="h-4 w-4 text-muted-foreground/50" />;
     }
     return currentSort.sortOrder === "asc" ? (
-      <ChevronUp className="h-4 w-4 text-indigo-500" />
+      <ChevronUp className="h-4 w-4 text-foreground" />
     ) : (
-      <ChevronDown className="h-4 w-4 text-indigo-500" />
+      <ChevronDown className="h-4 w-4 text-foreground" />
     );
   };
 
@@ -452,7 +452,7 @@ export function AuditLogTable({
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
               "gap-2",
-              hasActiveFilters && "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+              hasActiveFilters && "border-ctl text-foreground dark:text-foreground"
             )}
           >
             <Filter className="h-4 w-4" />
@@ -464,13 +464,13 @@ export function AuditLogTable({
             )}
           </Button>
 
-          <Button variant="outline" onClick={onRefresh} disabled={isLoading} className="gap-2">
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+          <Button variant="outline" onClick={onRefresh} disabled={isLoading} className="gap-2" aria-label="Refresh">
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
 
-          <Button variant="outline" onClick={onExport} disabled={isLoading} className="gap-2">
-            <Download className="h-4 w-4" />
+          <Button variant="outline" onClick={onExport} disabled={isLoading} className="gap-2" aria-label="Export CSV">
+            <Download className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">Export CSV</span>
           </Button>
         </div>
@@ -492,7 +492,7 @@ export function AuditLogTable({
                   setLocalFilters({ ...localFilters, userId: value === "all" ? "" : value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="User">
                   <SelectValue placeholder="All users" />
                 </SelectTrigger>
                 <SelectContent>
@@ -518,7 +518,7 @@ export function AuditLogTable({
                   setLocalFilters({ ...localFilters, action: value === "all" ? "" : value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Action Type">
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
                 <SelectContent>
@@ -544,7 +544,7 @@ export function AuditLogTable({
                   setLocalFilters({ ...localFilters, entityType: value === "all" ? "" : value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Entity Type">
                   <SelectValue placeholder="All entities" />
                 </SelectTrigger>
                 <SelectContent>
@@ -586,7 +586,7 @@ export function AuditLogTable({
               <X className="h-4 w-4" />
               Clear
             </Button>
-            <Button onClick={handleApplyFilters} className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+            <Button onClick={handleApplyFilters} className="gap-2 bg-raised-hi hover:bg-raised-hi text-ink">
               Apply Filters
             </Button>
           </div>
@@ -595,7 +595,13 @@ export function AuditLogTable({
 
       {/* Table */}
       <div className="rounded-lg border bg-card overflow-hidden">
-        <div ref={parentRef} className="overflow-auto max-h-[600px]">
+        <div
+          ref={parentRef}
+          tabIndex={0}
+          role="region"
+          aria-label="Audit log entries"
+          className="overflow-auto max-h-[600px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+        >
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
@@ -648,7 +654,7 @@ export function AuditLogTable({
                       <Activity className="h-8 w-8" />
                       <p>No audit logs found</p>
                       {hasActiveFilters && (
-                        <Button variant="link" onClick={handleClearFilters} className="text-indigo-600">
+                        <Button variant="link" onClick={handleClearFilters} className="text-foreground">
                           Clear filters
                         </Button>
                       )}
@@ -771,7 +777,7 @@ export function AuditLogTable({
                     disabled={isLoading}
                     className={cn(
                       "w-9",
-                      pagination.page === pageNum && "bg-indigo-600 hover:bg-indigo-700"
+                      pagination.page === pageNum && "bg-raised-hi hover:bg-raised-hi text-ink"
                     )}
                   >
                     {pageNum}

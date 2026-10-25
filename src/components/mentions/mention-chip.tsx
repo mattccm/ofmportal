@@ -154,7 +154,7 @@ function MentionHoverCard({ user, username, isLoading }: MentionHoverCardProps) 
               size="lg"
             />
             {user.isOnline && (
-              <span className="absolute bottom-0 right-0 h-3 w-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-800" />
+              <span className="absolute bottom-0 right-0 h-3 w-3 bg-success rounded-full border-2 border-white dark:border-gray-800" />
             )}
           </div>
           <div className="flex-1 min-w-0">

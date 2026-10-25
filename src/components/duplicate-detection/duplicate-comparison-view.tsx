@@ -149,7 +149,7 @@ function FilePreview({
         "flex-1 rounded-xl border-2 overflow-hidden",
         label === "attempted"
           ? "border-orange-200 dark:border-orange-800/50"
-          : "border-indigo-200 dark:border-indigo-800/50"
+          : "border-line dark:border-line"
       )}
     >
       {/* Header */}
@@ -158,25 +158,25 @@ function FilePreview({
           "px-4 py-3 border-b",
           label === "attempted"
             ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800/50"
-            : "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800/50"
+            : "bg-tile-hi dark:bg-tile-hi border-line dark:border-line"
         )}
       >
         <div className="flex items-center gap-2">
           <div
             className={cn(
               "h-8 w-8 rounded-lg flex items-center justify-center",
-              label === "attempted" ? "bg-orange-500/10" : "bg-indigo-500/10"
+              label === "attempted" ? "bg-orange-500/10" : "bg-tile-hi"
             )}
           >
             {label === "attempted" ? (
               <AlertTriangle
                 className={cn(
                   "h-4 w-4",
-                  label === "attempted" ? "text-orange-500" : "text-indigo-500"
+                  label === "attempted" ? "text-orange-500" : "text-foreground"
                 )}
               />
             ) : (
-              <CheckCircle2 className="h-4 w-4 text-indigo-500" />
+              <CheckCircle2 className="h-4 w-4 text-foreground" />
             )}
           </div>
           <div>
@@ -185,7 +185,7 @@ function FilePreview({
                 "text-sm font-semibold",
                 label === "attempted"
                   ? "text-orange-700 dark:text-orange-400"
-                  : "text-indigo-700 dark:text-indigo-400"
+                  : "text-foreground dark:text-foreground"
               )}
             >
               {label === "attempted" ? "Attempted Upload" : "Original File"}
@@ -317,7 +317,7 @@ function SimilarityIndicator({
 
       {/* Progress Bar */}
       <div className="w-24">
-        <Progress
+        <Progress aria-label="Similarity"
           value={similarity}
           className={cn(
             "h-2",
@@ -349,7 +349,7 @@ function MatchDetails({
   return (
     <div className="border rounded-lg p-4 bg-muted/20">
       <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-        <Fingerprint className="h-4 w-4 text-violet-500" />
+        <Fingerprint className="h-4 w-4 text-foreground" />
         Detection Methods
       </h4>
       <div className="flex flex-wrap gap-2">
@@ -360,7 +360,7 @@ function MatchDetails({
             className={cn(
               "gap-1.5",
               matched
-                ? "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400"
+                ? "bg-success/10 text-success dark:bg-success/50"
                 : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
             )}
           >

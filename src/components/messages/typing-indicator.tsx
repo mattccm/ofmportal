@@ -36,7 +36,7 @@ export function TypingDots({ className, size = "md", color = "default" }: Typing
         <span
           key={i}
           className={cn(
-            "rounded-full animate-bounce",
+            "rounded-full animate-pulse motion-reduce:animate-none",
             sizeClasses[size],
             colorClasses[color]
           )}
@@ -273,7 +273,7 @@ export function TypingIndicator({
               />
             ))}
             {hiddenCount > 0 && (
-              <div className="flex items-center justify-center h-6 w-6 rounded-full bg-muted text-[10px] text-muted-foreground ring-2 ring-background">
+              <div className="flex items-center justify-center h-6 w-6 rounded-full bg-muted text-[12px] text-muted-foreground ring-2 ring-background">
                 +{hiddenCount}
               </div>
             )}
@@ -432,7 +432,7 @@ export function ConversationTypingBadge({
     >
       <TypingDots size="sm" color="primary" />
       {typingUsers.length > 1 && (
-        <span className="text-[10px] text-primary font-medium">
+        <span className="text-[12px] text-primary font-medium">
           {typingUsers.length}
         </span>
       )}
@@ -463,7 +463,7 @@ export function AnimatedTypingDots({
 
   const animations = {
     bounce: {
-      className: "animate-bounce",
+      className: "animate-pulse motion-reduce:animate-none",
       delays: [0, 150, 300],
       duration: "600ms",
     },

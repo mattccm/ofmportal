@@ -127,7 +127,7 @@ export interface RepliesResponse {
 export const TIMESTAMP_TYPE_COLORS: Record<VideoTimestamp["type"], string> = {
   feedback: "#3b82f6", // blue
   issue: "#ef4444",    // red
-  praise: "#22c55e",   // green
+  praise: "#ec4899",   // pink (green means Approved only)
   note: "#a855f7",     // purple
 };
 

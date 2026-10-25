@@ -79,7 +79,7 @@ export function ResponseTimeChart({
             <span className="text-muted-foreground">First Response</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-emerald-500" />
+            <div className="w-3 h-3 rounded-full bg-success" />
             <span className="text-muted-foreground">Completion</span>
           </div>
         </div>
@@ -117,14 +117,14 @@ export function ResponseTimeChart({
                     />
                     {/* Completion Bar */}
                     <div
-                      className="w-2 bg-emerald-500 rounded-t transition-all duration-300 hover:bg-emerald-400"
+                      className="w-2 bg-success rounded-t transition-all duration-300 hover:bg-success/85"
                       style={{ height: `${completionHeight}%` }}
                       title={`Completion: ${formatResponseTime(point.avgCompletionHours)}`}
                     />
                   </div>
 
                   {/* X-axis label */}
-                  <span className="text-[10px] text-muted-foreground rotate-45 origin-left whitespace-nowrap">
+                  <span className="text-[12px] text-muted-foreground rotate-45 origin-left whitespace-nowrap">
                     {new Date(point.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                 </div>
@@ -161,7 +161,7 @@ export function ResponseTimeChart({
               </div>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">Avg SLA Compliance</p>
-                <p className="text-lg font-semibold text-emerald-600">
+                <p className="text-lg font-semibold text-success">
                   {Math.round(
                     dataWithValues.filter((t) => t.slaCompliance > 0)
                       .reduce((sum, t) => sum + t.slaCompliance, 0) /
@@ -238,7 +238,7 @@ export function ResponseTimeByCreatorChart({
                     </span>
                     <Badge
                       variant={isGood ? "default" : isWarning ? "secondary" : "destructive"}
-                      className="text-[10px] px-1.5"
+                      className="text-[12px] px-1.5"
                     >
                       {creator.firstResponseSLACompliance}%
                     </Badge>
@@ -248,7 +248,7 @@ export function ResponseTimeByCreatorChart({
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
-                      isGood ? "bg-emerald-500" : isWarning ? "bg-yellow-500" : "bg-red-500"
+                      isGood ? "bg-success" : isWarning ? "bg-yellow-500" : "bg-red-500"
                     )}
                     style={{ width: `${barWidth}%` }}
                   />
@@ -294,16 +294,16 @@ export function ResponseTimeByTypeChart({
   // Generate consistent colors based on hash of type name
   const getTypeColor = (type: string): string => {
     const colors = [
-      "bg-violet-500",
+      "bg-raised-hi",
       "bg-blue-500",
       "bg-pink-500",
       "bg-orange-500",
-      "bg-emerald-500",
+      "bg-success",
       "bg-cyan-500",
       "bg-amber-500",
       "bg-rose-500",
-      "bg-indigo-500",
-      "bg-teal-500",
+      "bg-raised-hi",
+      "bg-success",
     ];
     let hash = 0;
     for (let i = 0; i < type.length; i++) {
@@ -405,7 +405,7 @@ export function SLAComplianceChart({
                 strokeWidth="3"
                 strokeDasharray={`${metDash} 97.5`}
                 strokeDashoffset="0"
-                className="text-green-500"
+                className="text-success"
               />
             )}
           </svg>
@@ -438,7 +438,7 @@ export function SLAComplianceChart({
         {/* Legend */}
         <div className="flex justify-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+            <div className="w-2.5 h-2.5 rounded-full bg-success" />
             <span className="text-muted-foreground">Met</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -455,10 +455,10 @@ export function SLAComplianceChart({
         <div className="mt-6 pt-4 border-t grid grid-cols-3 gap-4">
           <div className="text-center">
             <div className="flex items-center justify-center gap-1.5 mb-1">
-              <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+              <CheckCircle className="h-3.5 w-3.5 text-success" />
               <span className="text-sm font-medium">Met</span>
             </div>
-            <p className="text-2xl font-bold text-green-600">{data.metSLA}</p>
+            <p className="text-2xl font-bold text-success">{data.metSLA}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1.5 mb-1">
@@ -489,7 +489,7 @@ export function SLAComplianceChart({
                       <div
                         className={cn(
                           "h-full rounded-full",
-                          p.compliance >= 80 ? "bg-green-500" : p.compliance >= 50 ? "bg-yellow-500" : "bg-red-500"
+                          p.compliance >= 80 ? "bg-success" : p.compliance >= 50 ? "bg-yellow-500" : "bg-red-500"
                         )}
                         style={{ width: `${p.compliance}%` }}
                       />
@@ -524,7 +524,7 @@ const TrendIcon = ({ value, inverse = false }: { value: number | null; inverse?:
         value === 0
           ? "text-muted-foreground"
           : isPositive
-          ? "text-emerald-600"
+          ? "text-success"
           : "text-red-600"
       )}
     >
@@ -569,10 +569,10 @@ export function ResponseTimeMetricsCard({
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+          <div className="p-3 rounded-lg bg-success/10 border border-success/20">
             <p className="text-xs text-muted-foreground mb-1">Avg Completion</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="text-xl font-bold text-success">
                 {formatResponseTime(metrics.avgCompletionHours)}
               </span>
               <TrendIcon
@@ -582,10 +582,10 @@ export function ResponseTimeMetricsCard({
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
+          <div className="p-3 rounded-lg bg-tile-hi border border-ctl">
             <p className="text-xs text-muted-foreground mb-1">First Response SLA</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold text-violet-600 dark:text-violet-400">
+              <span className="text-xl font-bold text-foreground dark:text-foreground">
                 {metrics.firstResponseSLACompliance}%
               </span>
             </div>

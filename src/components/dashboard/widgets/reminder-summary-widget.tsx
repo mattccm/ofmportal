@@ -132,16 +132,16 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
               </div>
               <div>
                 <p className="text-lg font-bold">{summaryData.pending}</p>
-                <p className="text-[10px] text-muted-foreground">Scheduled</p>
+                <p className="text-[12px] text-muted-foreground">Scheduled</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                <CheckCircle className="h-4 w-4 text-emerald-600" />
+              <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 text-success" />
               </div>
               <div>
                 <p className="text-lg font-bold">{summaryData.sentToday}</p>
-                <p className="text-[10px] text-muted-foreground">Sent today</p>
+                <p className="text-[12px] text-muted-foreground">Sent today</p>
               </div>
             </div>
             {summaryData.failed > 0 && (
@@ -151,7 +151,7 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
                 </div>
                 <div>
                   <p className="text-lg font-bold text-red-600">{summaryData.failed}</p>
-                  <p className="text-[10px] text-muted-foreground">Failed</p>
+                  <p className="text-[12px] text-muted-foreground">Failed</p>
                 </div>
               </div>
             )}
@@ -196,12 +196,12 @@ export function ReminderSummaryWidget({ config, size }: WidgetProps) {
                     </div>
 
                     {/* Type Badge */}
-                    <Badge variant="outline" className={cn("text-[10px] shrink-0", typeConfig.text)}>
+                    <Badge variant="outline" className={cn("text-[12px] shrink-0", typeConfig.text)}>
                       {typeConfig.label}
                     </Badge>
 
                     {/* Send Now Button */}
-                    <Button
+                    <Button aria-label="Send reminder now"
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 shrink-0"

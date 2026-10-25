@@ -99,7 +99,7 @@ function SectionErrorCard({
 }) {
   return (
     <Card
-      className={`border-rose-200/50 dark:border-rose-800/30 bg-gradient-to-br from-rose-50/50 to-orange-50/30 dark:from-rose-950/20 dark:to-orange-950/10 ${className}`}
+      className={`border-rose-200/50 dark:border-rose-800/30 bg-rose-50/50 dark:bg-rose-950/20 ${className}`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3">

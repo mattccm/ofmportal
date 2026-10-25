@@ -5,7 +5,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,14 +22,11 @@ import {
   Music,
   File,
   Download,
-  Eye,
+  Maximize2,
   Check,
   X,
   Star,
   Loader2,
-  Play,
-  Calendar,
-  HardDrive,
   AlertTriangle,
   Trash2,
 } from "lucide-react";
@@ -39,6 +35,7 @@ import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
+import { DiscreetPreview } from "@/components/title-wall";
 import { TagList } from "@/components/tags/tag-badge";
 
 export interface UploadTag {
@@ -84,7 +81,12 @@ interface UploadReviewCardProps {
   onFavoriteToggle?: (isFavorited: boolean) => void;
   onDelete?: () => void;
   viewMode?: "grid" | "list";
+  /** Page-level "Show previews". Each preview can also be peeked or toggled on its own. */
+  revealed?: boolean;
 }
+
+// Keeps a hidden preview a reveal button while its signed link loads
+const HIDDEN_SRC = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 function getFileIcon(mimeType: string) {
   if (mimeType.startsWith("image/")) return <ImageIcon className="h-5 w-5" />;
@@ -97,21 +99,15 @@ function getStatusBadge(status: string) {
   switch (status) {
     case "PENDING":
       return (
-        <Badge variant="outline" className="badge-warning border">
-          Pending Review
-        </Badge>
+        <Badge variant="ready">Ready to review</Badge>
       );
     case "APPROVED":
       return (
-        <Badge variant="outline" className="badge-success border">
-          Approved
-        </Badge>
+        <Badge variant="approved">Approved</Badge>
       );
     case "REJECTED":
       return (
-        <Badge variant="outline" className="badge-error border">
-          Rejected
-        </Badge>
+        <Badge variant="changes">Needs changes</Badge>
       );
     default:
       return null;
@@ -138,18 +134,20 @@ function StarRating({
           disabled={disabled}
           className={cn(
             "p-0.5 transition-all duration-150",
-            disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:scale-110"
+            disabled ? "cursor-default" : "cursor-pointer"
           )}
           onMouseEnter={() => !disabled && setHoverRating(star)}
           onMouseLeave={() => !disabled && setHoverRating(0)}
           onClick={() => !disabled && onRatingChange(star)}
+          aria-label={`${star} of 5`}
+          tabIndex={disabled ? -1 : undefined}
         >
           <Star
             className={cn(
-              "h-5 w-5 transition-colors",
+              "h-4 w-4 transition-colors",
               (hoverRating || rating) >= star
-                ? "fill-amber-400 text-amber-400"
-                : "text-muted-foreground/30"
+                ? "fill-ink text-ink"
+                : "text-ctl"
             )}
           />
         </button>
@@ -167,6 +165,7 @@ export function UploadReviewCard({
   onFavoriteToggle,
   onDelete,
   viewMode = "grid",
+  revealed,
 }: UploadReviewCardProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
@@ -230,7 +229,7 @@ export function UploadReviewCard({
       });
       setPreviewOpen(true);
     } catch {
-      toast.error("Failed to load preview");
+      toast.error("The preview didn't load. Try again or download the file.");
     } finally {
       setLoadingPreview(false);
     }
@@ -270,7 +269,7 @@ export function UploadReviewCard({
       setApproveDialogOpen(false);
       onReviewComplete?.();
     } catch {
-      toast.error("Failed to approve upload");
+      toast.error("Couldn't approve. Try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -278,7 +277,7 @@ export function UploadReviewCard({
 
   const handleReject = async () => {
     if (!rejectReason.trim()) {
-      toast.error("Please provide a rejection reason");
+      toast.error("Say what needs to change before sending it back");
       return;
     }
 
@@ -297,11 +296,11 @@ export function UploadReviewCard({
 
       if (!response.ok) throw new Error("Failed to reject upload");
 
-      toast.success("Upload rejected");
+      toast.success("Sent back to the creator");
       setRejectDialogOpen(false);
       onReviewComplete?.();
     } catch {
-      toast.error("Failed to reject upload");
+      toast.error("Couldn't send it back. Try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -334,184 +333,103 @@ export function UploadReviewCard({
   if (viewMode === "grid") {
     return (
       <>
-        <Card className="group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-          {/* Selection Checkbox */}
+        <div
+          className="group relative overflow-hidden rounded-[10px] bg-tile transition-colors duration-150 hover:bg-tile-hi data-[selected]:bg-tile-hi"
+          data-selected={isSelected || undefined}
+        >
+          {/* Hidden until revealed: no image is requested before that */}
+          <DiscreetPreview
+            src={thumbnailUrl ?? (isImage || isVideo ? HIDDEN_SRC : null)}
+            label={upload.originalName}
+            kind={isVideo ? "video" : isImage ? "photo" : "text"}
+            caption={isVideo ? "Video" : isImage ? "Photo" : isAudio ? "Audio" : "File"}
+            revealed={revealed}
+            aspect="4 / 3"
+            className="w-full rounded-none"
+          />
+
           {isPending && onSelect && (
-            <div className="absolute left-3 top-3 z-10">
+            <div className="absolute left-2.5 top-2.5 z-10 rounded-[4px] bg-ground/80 p-1">
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={(checked) => onSelect(upload.id, !!checked)}
-                className="bg-white/90 backdrop-blur-sm"
+                aria-label={`Select ${upload.originalName}`}
               />
             </div>
           )}
 
-          {/* Status Badge */}
-          <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
-            {getStatusBadge(upload.status)}
-          </div>
-
-          {/* Large Preview Area */}
-          <div
-            className="relative aspect-square bg-muted/30 cursor-pointer overflow-hidden"
-            onClick={handlePreview}
-          >
-            {thumbnailUrl && !thumbnailError ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={thumbnailUrl}
-                alt={upload.originalName}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                onError={() => setThumbnailError(true)}
-              />
-            ) : thumbnailLoading ? (
-              <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-muted-foreground">
-                <div className="rounded-xl bg-muted/50 p-4">
-                  {getFileIcon(upload.fileType)}
-                </div>
-                {isVideo && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="rounded-full bg-black/50 p-3 text-white backdrop-blur-sm">
-                      <Play className="h-8 w-8" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Hover overlay */}
-            <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-1.5"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePreview();
-                }}
-                disabled={loadingPreview}
-              >
-                {loadingPreview ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-                View
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-1.5"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDownload();
-                }}
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <CardContent className="space-y-3 p-4">
-            {/* File Info */}
-            <div>
-              <h4 className="font-medium truncate text-sm" title={upload.originalName}>
+          <div className="space-y-2 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="min-w-0 truncate text-[14px] font-medium text-ink" title={upload.originalName}>
                 {upload.originalName}
               </h4>
-              <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <HardDrive className="h-3 w-3" />
-                  {formatFileSize(fileSize)}
-                </span>
-                <span className="text-muted-foreground/50">|</span>
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {upload.uploadedAt
-                    ? format(new Date(upload.uploadedAt), "MMM d")
-                    : "Uploading"}
-                </span>
-              </div>
+              {getStatusBadge(upload.status)}
             </div>
-
-            {/* Tags */}
-            {upload.tags && upload.tags.length > 0 && (
-              <div className="pt-2 border-t">
-                <TagList tags={upload.tags} size="sm" maxVisible={3} />
-              </div>
-            )}
-
-            {/* Creator & Request Info */}
-            <div className="flex items-center gap-2 pt-2 border-t">
-              <Avatar user={upload.creator} size="xs" />
-              <div className="flex-1 min-w-0">
-                <span className="text-xs text-muted-foreground truncate block">
-                  {upload.creator.name}
-                </span>
-                {upload.request?.title && (
+            <p className="text-[13px] text-ink-2">
+              {formatFileSize(fileSize)} · {upload.uploadedAt ? format(new Date(upload.uploadedAt), "EEE d MMM") : "Uploading"}
+            </p>
+            <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-2">
+              <span className="shrink-0 text-ink">{upload.creator.name}</span>
+              {upload.request?.title && (
+                <>
+                  <span aria-hidden="true">·</span>
                   <Link
                     href={`/dashboard/requests/${upload.request.id}`}
-                    className="text-xs text-primary/70 hover:text-primary hover:underline truncate block"
-                    onClick={(e) => e.stopPropagation()}
+                    className="truncate underline-offset-[3px] hover:text-ink hover:underline"
                   >
                     {upload.request.title}
                   </Link>
-                )}
-              </div>
-            </div>
-
-            {/* Rating (if reviewed) */}
-            {upload.rating && (
-              <div className="flex items-center gap-1 pt-2 border-t">
+                </>
+              )}
+            </p>
+            {upload.tags && upload.tags.length > 0 && <TagList tags={upload.tags} size="sm" maxVisible={3} />}
+            {upload.rating ? (
+              <div className="flex items-center gap-1">
                 <StarRating rating={upload.rating} onRatingChange={() => {}} disabled />
-                <span className="text-xs text-muted-foreground ml-1">
-                  {upload.rating}/5
-                </span>
+                <span className="text-[13px] text-ink-2">{upload.rating} of 5</span>
               </div>
-            )}
+            ) : null}
 
-            {/* Action Buttons for Pending */}
-            {isPending && (
-              <div className="flex gap-2 pt-2 border-t">
+            <div className="flex items-center gap-1 pt-1">
+              {isPending && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setApproveDialogOpen(true)}>
+                    <Check className="size-4" />
+                    Approve
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setRejectDialogOpen(true)}>
+                    Send back
+                  </Button>
+                </>
+              )}
+              <span className="ml-auto flex">
                 <Button
-                  size="sm"
-                  className="flex-1 gap-1.5 btn-gradient"
-                  onClick={() => setApproveDialogOpen(true)}
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={handlePreview}
+                  disabled={loadingPreview}
+                  aria-label={`Open ${upload.originalName} in full view`}
+                  title="Full view"
                 >
-                  <Check className="h-4 w-4" />
-                  Approve
+                  {loadingPreview ? <Loader2 className="size-4 animate-spin" /> : <Maximize2 className="size-4" />}
+                </Button>
+                <Button size="icon-sm" variant="ghost" onClick={handleDownload} aria-label={`Download ${upload.originalName}`} title="Download">
+                  <Download className="size-4" />
                 </Button>
                 <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
-                  onClick={() => setRejectDialogOpen(true)}
+                  size="icon-sm"
+                  variant="ghost"
+                  className="hover:text-late"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  aria-label={`Delete ${upload.originalName}`}
+                  title="Delete"
                 >
-                  <X className="h-4 w-4" />
-                  Reject
+                  <Trash2 className="size-4" />
                 </Button>
-              </div>
-            )}
-
-          </CardContent>
-
-          {/* Delete Button - Small icon in corner */}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute bottom-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteDialogOpen(true);
-            }}
-            title="Delete upload"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </Card>
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* Enhanced Preview Modal */}
         {previewFile && (
@@ -529,10 +447,10 @@ export function UploadReviewCard({
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <div className="rounded-full bg-emerald-100 p-1.5">
-                  <Check className="h-4 w-4 text-emerald-600" />
+                <div className="rounded-full bg-approved/10 p-1.5">
+                  <Check className="h-4 w-4 text-approved" />
                 </div>
-                Approve Upload
+                Approve this file
               </DialogTitle>
               <DialogDescription>
                 Rate and add notes for this upload before approving.
@@ -580,7 +498,7 @@ export function UploadReviewCard({
                 Cancel
               </Button>
               <Button
-                className="gap-1.5 btn-gradient"
+                className="gap-1.5"
                 onClick={handleApprove}
                 disabled={isSubmitting}
               >
@@ -589,7 +507,7 @@ export function UploadReviewCard({
                 ) : (
                   <Check className="h-4 w-4" />
                 )}
-                Approve Upload
+                Approve this file
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -600,10 +518,10 @@ export function UploadReviewCard({
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <div className="rounded-full bg-red-100 p-1.5">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                <div className="rounded-full bg-late/15 p-1.5">
+                  <AlertTriangle className="h-4 w-4 text-late" />
                 </div>
-                Reject Upload
+                Send this file back
               </DialogTitle>
               <DialogDescription>
                 Please provide feedback to help the creator understand what needs to be changed.
@@ -664,7 +582,7 @@ export function UploadReviewCard({
                 ) : (
                   <X className="h-4 w-4" />
                 )}
-                Reject Upload
+                Send this file back
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -675,8 +593,8 @@ export function UploadReviewCard({
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <div className="rounded-full bg-red-100 p-1.5">
-                  <Trash2 className="h-4 w-4 text-red-600" />
+                <div className="rounded-full bg-late/15 p-1.5">
+                  <Trash2 className="h-4 w-4 text-late" />
                 </div>
                 Delete Upload Permanently
               </DialogTitle>
@@ -732,46 +650,25 @@ export function UploadReviewCard({
   return (
     <>
       <div
-        className={cn(
-          "flex items-center gap-4 p-4 rounded-xl border transition-all duration-200",
-          "hover:bg-muted/30 hover:shadow-sm",
-          isSelected && "bg-primary/5 border-primary/30"
-        )}
+        data-selected={isSelected || undefined}
+        className="flex items-center gap-3 rounded-[10px] bg-tile p-3 transition-colors duration-150 hover:bg-tile-hi data-[selected]:bg-tile-hi"
       >
-        {/* Selection Checkbox */}
         {isPending && onSelect && (
           <Checkbox
             checked={isSelected}
             onCheckedChange={(checked) => onSelect(upload.id, !!checked)}
+            aria-label={`Select ${upload.originalName}`}
           />
         )}
 
-        {/* Thumbnail */}
-        <div
-          className="shrink-0 relative h-16 w-16 rounded-lg bg-muted/50 overflow-hidden cursor-pointer group"
-          onClick={handlePreview}
-        >
-          {thumbnailUrl && !thumbnailError ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={thumbnailUrl}
-              alt={upload.originalName}
-              className="h-full w-full object-cover"
-              onError={() => setThumbnailError(true)}
-            />
-          ) : thumbnailLoading ? (
-            <div className="flex h-full w-full items-center justify-center">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-              {getFileIcon(upload.fileType)}
-            </div>
-          )}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Eye className="h-5 w-5 text-white" />
-          </div>
-        </div>
+        <DiscreetPreview
+          src={thumbnailUrl ?? (isImage || isVideo ? HIDDEN_SRC : null)}
+          label={upload.originalName}
+          kind={isVideo ? "video" : isImage ? "photo" : "text"}
+          revealed={revealed}
+          aspect="1 / 1"
+          className="w-16 shrink-0"
+        />
 
         {/* File Info */}
         <div className="flex-1 min-w-0">
@@ -781,22 +678,18 @@ export function UploadReviewCard({
             </h4>
             {getStatusBadge(upload.status)}
           </div>
-          <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <HardDrive className="h-3 w-3" />
-              {formatFileSize(fileSize)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
+          <div className="mt-1 flex items-center gap-2 text-[13px] text-ink-2">
+            <span>{formatFileSize(fileSize)}</span>
+            <span aria-hidden="true">·</span>
+            <span>
               {upload.uploadedAt
-                ? format(new Date(upload.uploadedAt), "MMM d, h:mm a")
+                ? format(new Date(upload.uploadedAt), "EEE d MMM, HH:mm")
                 : "Uploading"}
             </span>
             {upload.request?.title && (
               <Link
                 href={`/dashboard/requests/${upload.request.id}`}
-                className="text-primary/70 hover:text-primary hover:underline truncate max-w-[200px]"
-                onClick={(e) => e.stopPropagation()}
+                className="max-w-[220px] truncate underline-offset-[3px] hover:text-ink hover:underline"
               >
                 {upload.request.title}
               </Link>
@@ -835,12 +728,13 @@ export function UploadReviewCard({
             size="icon"
             onClick={handlePreview}
             disabled={loadingPreview}
-            title="Preview"
+            title="Full view"
+            aria-label={`Open ${upload.originalName} in full view`}
           >
             {loadingPreview ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Eye className="h-4 w-4" />
+              <Maximize2 className="h-4 w-4" />
             )}
           </Button>
           <Button
@@ -848,6 +742,7 @@ export function UploadReviewCard({
             size="icon"
             onClick={handleDownload}
             title="Download"
+            aria-label={`Download ${upload.originalName}`}
           >
             <Download className="h-4 w-4" />
           </Button>
@@ -857,18 +752,18 @@ export function UploadReviewCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
                 onClick={() => setApproveDialogOpen(true)}
                 title="Approve"
+                aria-label={`Approve ${upload.originalName}`}
               >
                 <Check className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-red-600 hover:bg-red-50 hover:text-red-700"
                 onClick={() => setRejectDialogOpen(true)}
-                title="Reject"
+                title="Send back"
+                aria-label={`Send ${upload.originalName} back`}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -877,9 +772,10 @@ export function UploadReviewCard({
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10"
+            className="hover:text-late"
             onClick={() => setDeleteDialogOpen(true)}
             title="Delete"
+            aria-label={`Delete ${upload.originalName}`}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -901,10 +797,10 @@ export function UploadReviewCard({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="rounded-full bg-emerald-100 p-1.5">
-                <Check className="h-4 w-4 text-emerald-600" />
+              <div className="rounded-full bg-approved/10 p-1.5">
+                <Check className="h-4 w-4 text-approved" />
               </div>
-              Approve Upload
+              Approve this file
             </DialogTitle>
             <DialogDescription>
               Rate and add notes for this upload before approving.
@@ -945,7 +841,7 @@ export function UploadReviewCard({
               Cancel
             </Button>
             <Button
-              className="gap-1.5 btn-gradient"
+              className="gap-1.5"
               onClick={handleApprove}
               disabled={isSubmitting}
             >
@@ -954,7 +850,7 @@ export function UploadReviewCard({
               ) : (
                 <Check className="h-4 w-4" />
               )}
-              Approve Upload
+              Approve this file
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -964,10 +860,10 @@ export function UploadReviewCard({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="rounded-full bg-red-100 p-1.5">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
+              <div className="rounded-full bg-late/15 p-1.5">
+                <AlertTriangle className="h-4 w-4 text-late" />
               </div>
-              Reject Upload
+              Send this file back
             </DialogTitle>
             <DialogDescription>
               Please provide feedback to help the creator understand what needs to be changed.
@@ -1021,7 +917,7 @@ export function UploadReviewCard({
               ) : (
                 <X className="h-4 w-4" />
               )}
-              Reject Upload
+              Send this file back
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1032,8 +928,8 @@ export function UploadReviewCard({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="rounded-full bg-red-100 p-1.5">
-                <Trash2 className="h-4 w-4 text-red-600" />
+              <div className="rounded-full bg-late/15 p-1.5">
+                <Trash2 className="h-4 w-4 text-late" />
               </div>
               Delete Upload Permanently
             </DialogTitle>

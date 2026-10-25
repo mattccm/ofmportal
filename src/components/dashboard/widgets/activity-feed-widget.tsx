@@ -58,21 +58,21 @@ function getActivityIcon(type: string) {
 function getActivityColor(type: string) {
   switch (type) {
     case "upload":
-      return "from-emerald-500 to-teal-500 text-white";
+      return "bg-ready text-ground";
     case "status_change":
-      return "from-blue-500 to-cyan-500 text-white";
+      return "bg-blue-500 text-white";
     case "creator_signup":
-      return "from-violet-500 to-purple-500 text-white";
+      return "bg-raised-hi text-white";
     case "comment":
-      return "from-amber-500 to-orange-500 text-white";
+      return "bg-amber-500 text-white";
     case "message":
-      return "from-pink-500 to-rose-500 text-white";
+      return "bg-pink-500 text-white";
     case "approval":
-      return "from-emerald-500 to-green-500 text-white";
+      return "bg-approved text-ground";
     case "rejection":
-      return "from-red-500 to-rose-500 text-white";
+      return "bg-red-500 text-white";
     default:
-      return "from-gray-500 to-slate-500 text-white";
+      return "bg-gray-500 text-white";
   }
 }
 
@@ -95,7 +95,7 @@ export function ActivityFeedWidget({ config, size }: WidgetProps) {
       onRetry={refresh}
       actions={
         <div className="flex items-center gap-1">
-          <Button
+          <Button aria-label="Refresh activity"
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
@@ -140,7 +140,7 @@ export function ActivityFeedWidget({ config, size }: WidgetProps) {
                 />
                 <div
                   className={cn(
-                    "absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center ring-2 ring-background bg-gradient-to-br",
+                    "absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center ring-2 ring-background ",
                     getActivityColor(activity.type)
                   )}
                 >
@@ -154,7 +154,7 @@ export function ActivityFeedWidget({ config, size }: WidgetProps) {
                   {activity.title}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">{activity.description}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="text-[12px] text-muted-foreground mt-1">
                   {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                 </p>
               </div>

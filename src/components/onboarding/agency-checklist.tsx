@@ -91,7 +91,7 @@ function Confetti({ show }: { show: boolean }) {
               i % 4 === 0 && "bg-yellow-400",
               i % 4 === 1 && "bg-pink-400",
               i % 4 === 2 && "bg-blue-400",
-              i % 4 === 3 && "bg-green-400"
+              i % 4 === 3 && "bg-success"
             )}
             style={{
               transform: `rotate(${piece.rotation}deg)`,
@@ -113,19 +113,19 @@ function TaskItem({ task, isCompleted, isAutoDetected, onComplete }: TaskItemPro
       className={cn(
         "group flex items-start gap-3 p-3 rounded-lg transition-all duration-200",
         isCompleted
-          ? "bg-emerald-50/50 dark:bg-emerald-900/10"
+          ? "bg-success/50 dark:bg-success/10"
           : "hover:bg-muted/50"
       )}
     >
       <div className="flex-shrink-0 pt-0.5">
-        <Checkbox
+        <Checkbox aria-label={task.label}
           checked={isCompleted}
           onCheckedChange={() => !isCompleted && onComplete(task.id)}
           disabled={isCompleted}
           className={cn(
             "transition-all duration-200",
             isCompleted &&
-              "data-checked:bg-emerald-500 data-checked:border-emerald-500"
+              "data-checked:bg-success data-checked:border-success"
           )}
         />
       </div>
@@ -136,7 +136,7 @@ function TaskItem({ task, isCompleted, isAutoDetected, onComplete }: TaskItemPro
             className={cn(
               "flex items-center justify-center w-6 h-6 rounded-md transition-colors",
               isCompleted
-                ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                ? "bg-success/10 text-success"
                 : "bg-muted text-muted-foreground"
             )}
           >
@@ -146,14 +146,14 @@ function TaskItem({ task, isCompleted, isAutoDetected, onComplete }: TaskItemPro
             className={cn(
               "text-sm font-medium transition-colors",
               isCompleted
-                ? "text-emerald-700 dark:text-emerald-400 line-through decoration-emerald-400/50"
+                ? "text-success line-through decoration-success/50"
                 : "text-foreground"
             )}
           >
             {task.label}
           </span>
           {isAutoDetected && isCompleted && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[12px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
               Auto-detected
             </span>
           )}
@@ -161,7 +161,7 @@ function TaskItem({ task, isCompleted, isAutoDetected, onComplete }: TaskItemPro
         <p
           className={cn(
             "text-xs mt-0.5 ml-8",
-            isCompleted ? "text-emerald-600/70 dark:text-emerald-400/70" : "text-muted-foreground"
+            isCompleted ? "text-success/70" : "text-muted-foreground"
           )}
         >
           {task.description}
@@ -189,7 +189,7 @@ function TaskItem({ task, isCompleted, isAutoDetected, onComplete }: TaskItemPro
             asChild
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
           >
-            <Link href={task.helpHref} target="_blank">
+            <Link aria-label={`Help: ${task.label} (opens in a new tab)`} href={task.helpHref} target="_blank">
               <ExternalLink className="w-3 h-3" />
             </Link>
           </Button>
@@ -205,13 +205,13 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="text-center py-6 px-4">
       <div className="relative inline-flex items-center justify-center mb-4">
-        <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-emerald-400 to-primary rounded-full blur-xl opacity-50 animate-pulse" />
-        <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+        <div className="absolute inset-0 bg-yellow-400 rounded-full blur-xl opacity-50 animate-pulse" />
+        <div className="relative h-16 w-16 rounded-full bg-success flex items-center justify-center shadow-lg shadow-success/30">
           <PartyPopper className="h-8 w-8 text-white" />
         </div>
       </div>
 
-      <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
+      <h3 className="text-xl font-bold text-foreground mb-2">
         Congratulations!
       </h3>
       <p className="text-sm text-muted-foreground mb-4 max-w-xs mx-auto">
@@ -230,7 +230,7 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
         <Button
           size="sm"
           asChild
-          className="h-9 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0"
+          className="h-9 bg-success hover:bg-success text-white border-0"
         >
           <Link href="/dashboard/requests/new">
             <Rocket className="mr-2 h-4 w-4" />
@@ -393,7 +393,7 @@ export function AgencyChecklist({
       className={cn(
         "relative overflow-hidden transition-all duration-300",
         isComplete &&
-          "border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50/50 to-teal-50/50 dark:from-emerald-900/10 dark:to-teal-900/10",
+          "border-success/30 bg-success/50 dark:bg-success/10 ",
         className
       )}
     >
@@ -403,11 +403,11 @@ export function AgencyChecklist({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             {isComplete ? (
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-sm">
+              <div className="h-8 w-8 rounded-lg bg-success flex items-center justify-center shadow-sm">
                 <CheckCircle2 className="h-5 w-5 text-white" />
               </div>
             ) : (
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-sm">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
             )}
@@ -424,7 +424,7 @@ export function AgencyChecklist({
           </div>
 
           <div className="flex items-center gap-1">
-            <Button
+            <Button aria-label={isExpanded ? "Collapse checklist" : "Expand checklist"} aria-expanded={isExpanded}
               variant="ghost"
               size="icon-sm"
               onClick={() => setIsExpanded(!isExpanded)}
@@ -437,7 +437,7 @@ export function AgencyChecklist({
               )}
             </Button>
             {isComplete && (
-              <Button
+              <Button aria-label="Dismiss checklist"
                 variant="ghost"
                 size="icon-sm"
                 onClick={handleDismiss}
@@ -456,7 +456,7 @@ export function AgencyChecklist({
             className={cn(
               "[&_[data-slot=progress-indicator]]:transition-all [&_[data-slot=progress-indicator]]:duration-500",
               isComplete &&
-                "[&_[data-slot=progress-indicator]]:bg-gradient-to-r [&_[data-slot=progress-indicator]]:from-emerald-400 [&_[data-slot=progress-indicator]]:to-teal-500"
+                " [&_[data-slot=progress-indicator]]:bg-success "
             )}
           >
             <ProgressLabel className="sr-only">Progress</ProgressLabel>

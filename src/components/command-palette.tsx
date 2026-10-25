@@ -202,7 +202,7 @@ export function CommandPalette({
               onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent px-3 py-4 text-sm outline-none placeholder:text-muted-foreground"
             />
-            <button
+            <button type="button" aria-label="Close"
               onClick={onClose}
               className="rounded p-1.5 hover:bg-muted transition-colors"
             >
@@ -286,7 +286,7 @@ export function CommandPalette({
                                       <React.Fragment key={i}>
                                         <kbd
                                           className={cn(
-                                            "inline-flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-[10px] font-medium",
+                                            "inline-flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-[12px] font-medium",
                                             isSelected
                                               ? "bg-primary-foreground/20 text-primary-foreground"
                                               : "bg-muted text-muted-foreground"
@@ -297,7 +297,7 @@ export function CommandPalette({
                                         {i < arr.length - 1 && (
                                           <span
                                             className={cn(
-                                              "text-[10px]",
+                                              "text-[12px]",
                                               isSelected
                                                 ? "text-primary-foreground/50"
                                                 : "text-muted-foreground/50"

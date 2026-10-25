@@ -127,7 +127,7 @@ const StatusBadge: React.FC<{ status: ScheduledTaskStatus }> = ({ status }) => {
   const colorMap: Record<ScheduledTaskStatus, string> = {
     pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
     processing: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    completed: "bg-success/10 text-success",
     failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
     cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
   };
@@ -200,7 +200,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       case "archive_request":
         return "bg-gray-500";
       case "create_bundle":
-        return "bg-purple-500";
+        return "bg-raised-hi";
       default:
         return "bg-gray-400";
     }
@@ -210,7 +210,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     <div className="bg-card border rounded-xl p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <Button
+        <Button aria-label="Previous month"
           variant="outline"
           size="icon"
           onClick={() => onMonthChange(subMonths(currentMonth, 1))}
@@ -220,7 +220,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         <h2 className="text-lg font-semibold">
           {format(currentMonth, "MMMM yyyy")}
         </h2>
-        <Button
+        <Button aria-label="Next month"
           variant="outline"
           size="icon"
           onClick={() => onMonthChange(addMonths(currentMonth, 1))}
@@ -314,7 +314,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           <span>Archive</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <div className="w-3 h-3 rounded bg-purple-500" />
+          <div className="w-3 h-3 rounded bg-raised-hi" />
           <span>Bundle</span>
         </div>
       </div>
@@ -390,7 +390,7 @@ const ListView: React.FC<ListViewProps> = ({
                     task.type === "create_request" && "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
                     task.type === "send_reminder" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
                     task.type === "archive_request" && "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400",
-                    task.type === "create_bundle" && "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                    task.type === "create_bundle" && "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground"
                   )}
                 >
                   <TaskTypeIcon type={task.type} className="h-5 w-5" />
@@ -431,7 +431,7 @@ const ListView: React.FC<ListViewProps> = ({
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon">
+                  <Button aria-label={`More actions for ${task.name}`} variant="ghost" size="icon">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -540,7 +540,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Task Details</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button aria-label="Close" variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -554,7 +554,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
                 task.type === "create_request" && "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
                 task.type === "send_reminder" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
                 task.type === "archive_request" && "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400",
-                task.type === "create_bundle" && "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                task.type === "create_bundle" && "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground"
               )}
             >
               <TaskTypeIcon type={task.type} className="h-6 w-6" />
@@ -712,11 +712,11 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
           {task.results && (
             <div>
               <h4 className="text-sm font-medium mb-2">Results</h4>
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 space-y-2 text-sm">
+              <div className="bg-success/10 rounded-lg p-4 space-y-2 text-sm">
                 {task.results.createdRequestIds && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Requests Created</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">
+                    <span className="font-medium text-success">
                       {task.results.createdRequestIds.length}
                     </span>
                   </div>
@@ -724,7 +724,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
                 {task.results.sentReminderCount !== undefined && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Reminders Sent</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">
+                    <span className="font-medium text-success">
                       {task.results.sentReminderCount}
                     </span>
                   </div>
@@ -732,7 +732,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
                 {task.results.archivedCount !== undefined && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Items Archived</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">
+                    <span className="font-medium text-success">
                       {task.results.archivedCount}
                     </span>
                   </div>
@@ -988,8 +988,8 @@ export function ScheduledTaskManager({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                <CheckCircle2 className="h-6 w-6 text-green-500" />
+              <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-success" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.completed}</p>
@@ -1029,7 +1029,7 @@ export function ScheduledTaskManager({
             value={statusFilter}
             onValueChange={(v) => setStatusFilter(v as ScheduledTaskStatus | "all")}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger aria-label="Filter by status" className="w-32">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -1045,7 +1045,7 @@ export function ScheduledTaskManager({
             value={typeFilter}
             onValueChange={(v) => setTypeFilter(v as ScheduledTaskType | "all")}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger aria-label="Filter by type" className="w-40">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
@@ -1059,14 +1059,14 @@ export function ScheduledTaskManager({
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center border rounded-lg p-1">
-            <Button
+            <Button aria-label="Calendar view" aria-pressed={viewMode === "calendar"}
               variant={viewMode === "calendar" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setViewMode("calendar")}
             >
               <Grid3X3 className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label="List view" aria-pressed={viewMode === "list"}
               variant={viewMode === "list" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setViewMode("list")}

@@ -96,11 +96,11 @@ function getMediaTypeIcon(type: MediaType) {
 function getMediaTypeColor(type: MediaType) {
   switch (type) {
     case "image":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+      return "bg-success/10 text-success";
     case "video":
       return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
     case "audio":
-      return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
+      return "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground";
     case "document":
       return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
   }
@@ -111,7 +111,7 @@ function getStatusBadge(status: MediaStatus) {
     case "pending":
       return <Badge variant="outline" className="text-yellow-600">Pending</Badge>;
     case "approved":
-      return <Badge variant="outline" className="text-green-600">Approved</Badge>;
+      return <Badge variant="outline" className="text-success">Approved</Badge>;
     case "archived":
       return <Badge variant="outline" className="text-gray-500">Archived</Badge>;
   }
@@ -160,7 +160,7 @@ function MediaItemCard({
             onSelect(item, !isSelected);
           }}
         >
-          <Checkbox checked={isSelected} />
+          <Checkbox aria-label={`Select ${item.title || item.originalName}`} checked={isSelected} />
         </div>
 
         {/* Thumbnail */}
@@ -218,7 +218,7 @@ function MediaItemCard({
         {/* Actions */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon-sm">
+            <Button aria-label={`More actions for ${item.title || item.originalName}`} variant="ghost" size="icon-sm">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -277,7 +277,7 @@ function MediaItemCard({
         }}
       >
         <div className="bg-white dark:bg-gray-900 rounded-md shadow p-0.5">
-          <Checkbox checked={isSelected} />
+          <Checkbox aria-label={`Select ${item.title || item.originalName}`} checked={isSelected} />
         </div>
       </div>
 
@@ -328,7 +328,7 @@ function MediaItemCard({
           "opacity-0 group-hover:opacity-100 transition-opacity"
         )}
       >
-        <Button
+        <Button aria-label={`Preview ${item.title || item.originalName}`}
           size="icon"
           variant="secondary"
           className="h-10 w-10"
@@ -339,7 +339,7 @@ function MediaItemCard({
         >
           <Eye className="h-5 w-5" />
         </Button>
-        <Button
+        <Button aria-label={`Download ${item.title || item.originalName}`}
           size="icon"
           variant="secondary"
           className="h-10 w-10"
@@ -681,10 +681,10 @@ export function MediaLibraryView({
                     if (e.key === "Escape") setIsCreatingFolder(false);
                   }}
                 />
-                <Button size="icon-sm" variant="ghost" onClick={handleCreateFolder}>
+                <Button aria-label="Create folder" size="icon-sm" variant="ghost" onClick={handleCreateFolder}>
                   <Check className="h-4 w-4" />
                 </Button>
-                <Button
+                <Button aria-label="Cancel new folder"
                   size="icon-sm"
                   variant="ghost"
                   onClick={() => setIsCreatingFolder(false)}
@@ -755,14 +755,14 @@ export function MediaLibraryView({
 
             {/* View toggle */}
             <div className="flex items-center border rounded-lg p-1">
-              <Button
+              <Button aria-label="Grid view"
                 variant={viewMode === "grid" ? "secondary" : "ghost"}
                 size="icon-sm"
                 onClick={() => setViewMode("grid")}
               >
                 <Grid3X3 className="h-4 w-4" />
               </Button>
-              <Button
+              <Button aria-label="List view"
                 variant={viewMode === "list" ? "secondary" : "ghost"}
                 size="icon-sm"
                 onClick={() => setViewMode("list")}
@@ -782,7 +782,7 @@ export function MediaLibraryView({
                 setFilters((f) => ({ ...f, sortBy, sortOrder }));
               }}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Sort by" className="w-[180px]">
                 <SortAsc className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -807,7 +807,7 @@ export function MediaLibraryView({
             </Button>
 
             {/* Refresh */}
-            <Button variant="outline" size="icon" onClick={() => fetchItems()}>
+            <Button aria-label="Refresh media" variant="outline" size="icon" onClick={() => fetchItems()}>
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
             </Button>
 
@@ -827,7 +827,7 @@ export function MediaLibraryView({
           {/* Selection bar */}
           {selectedItems.size > 0 && (
             <div className="flex items-center gap-3 bg-muted rounded-lg px-4 py-2">
-              <Checkbox
+              <Checkbox aria-label="Select all media"
                 checked={selectedItems.size === items.length}
                 onCheckedChange={handleSelectAll}
               />
@@ -856,7 +856,7 @@ export function MediaLibraryView({
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </Button>
-              <Button
+              <Button aria-label="Clear selection"
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedItems(new Set())}
@@ -878,7 +878,7 @@ export function MediaLibraryView({
                   }))
                 }
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger aria-label="Status" className="w-[140px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>

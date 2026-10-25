@@ -337,7 +337,7 @@ export function EditCreatorProfileModal({
                     variant="outline"
                     className={cn(
                       creator.inviteStatus === "ACCEPTED"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        ? "bg-success/10 text-success border-success/30"
                         : creator.inviteStatus === "PENDING"
                         ? "bg-amber-50 text-amber-700 border-amber-200"
                         : "bg-gray-50 text-gray-600 border-gray-200"
@@ -511,7 +511,7 @@ export function EditCreatorProfileModal({
                     className={cn(
                       "ml-2",
                       creator.inviteStatus === "ACCEPTED"
-                        ? "bg-emerald-50 text-emerald-700"
+                        ? "bg-success/10 text-success"
                         : "bg-amber-50 text-amber-700"
                     )}
                   >

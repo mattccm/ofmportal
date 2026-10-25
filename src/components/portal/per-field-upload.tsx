@@ -3,32 +3,26 @@
 import * as React from "react";
 import { FileDropzone } from "@/components/uploads/file-dropzone";
 import { UploadQueue } from "@/components/uploads/upload-queue";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { BRAND } from "@/lib/brand";
 import {
-  Upload,
   Check,
-  ImageIcon,
-  Video,
-  FileAudio,
-  File,
-  X,
-  Play,
-  Eye,
+  Maximize2,
+  Trash2,
   Send,
   Loader2,
-  MessageCircle,
-  Clock,
+  Undo2,
+  Play,
+  FileText,
+  Music,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import type { QueuedFile } from "@/hooks/use-file-upload";
 import type { TemplateField } from "@/lib/template-types";
+import type { CreatorFieldState } from "@/lib/creator-field-states";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
+import { DiscreetPreview, FieldCell, StateWord, formatDay } from "@/components/title-wall";
 
 interface SectionComment {
   id: string;
@@ -49,23 +43,29 @@ interface UploadedFile {
   thumbnailUrl?: string;
   storageKey?: string;
   status?: string;
+  reviewNote?: string | null;
+  createdAt?: string;
 }
 
-interface FileField {
+export interface CreatorField {
   id: string;
   label: string;
-  type: "file";
+  /** "file" fields take uploads; "text" fields take a written answer */
+  type: "file" | "text";
   required?: boolean;
   acceptedFileTypes?: string[];
   maxFiles?: number;
   minFiles?: number;
+  /** How many were asked for, when the template says */
+  quantity?: number;
   maxFileSize?: number;
   helpText?: string;
   richContent?: TemplateField["richContent"];
-  // Enforcement flags
   enforceFileTypes?: boolean;
   enforceMaxFileSize?: boolean;
   enforceFileCount?: boolean;
+  /** text fields: the saved answer */
+  value?: string;
 }
 
 interface FieldSubmission {
@@ -76,7 +76,11 @@ interface FieldSubmission {
 }
 
 interface PerFieldUploadProps {
-  fields: FileField[];
+  fields: CreatorField[];
+  /** Each field's state, computed by the page (src/lib/creator-field-states) */
+  states: Record<string, CreatorFieldState>;
+  /** Ready fields the creator has not sent in yet (src/lib/creator-field-states) */
+  unsent?: Record<string, boolean | undefined>;
   uploads: UploadedFile[];
   queue: QueuedFile[];
   fieldSubmissions?: Record<string, FieldSubmission>;
@@ -92,22 +96,18 @@ interface PerFieldUploadProps {
   onFieldSubmit?: (fieldId: string) => Promise<void>;
   onFieldRedact?: (fieldId: string) => Promise<void>;
   onDeleteUpload?: (uploadId: string) => Promise<void>;
+  /** Saves a text field's answer */
+  onSaveText?: (fieldId: string, value: string) => Promise<void>;
   isUploading: boolean;
-  primaryColor?: string;
   className?: string;
   canUpload?: boolean;
+  /** Page-level "Show previews": when true every preview is revealed */
+  previewsRevealed?: boolean;
   comments?: SectionComment[];
-  creatorName?: string;
-  creatorImage?: string;
   onReplyToField?: (fieldId: string, content: string) => Promise<void>;
 }
 
-function getFileTypeIcon(fileType: string, className = "h-5 w-5") {
-  if (fileType.startsWith("image/")) return <ImageIcon className={className} />;
-  if (fileType.startsWith("video/")) return <Video className={className} />;
-  if (fileType.startsWith("audio/")) return <FileAudio className={className} />;
-  return <File className={className} />;
-}
+const FIRST_FILES = 6;
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -117,136 +117,214 @@ function formatFileSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-// Individual upload preview card
-function UploadPreviewCard({
+function kindWords(accepted?: string[]) {
+  const a = accepted && accepted.length > 0 ? accepted : ["*/*"];
+  const any = a.includes("*/*");
+  const img = any || a.some((t) => t.startsWith("image"));
+  const vid = any || a.some((t) => t.startsWith("video"));
+  if (img && vid) return { noun: "photos or videos", one: "file", add: "Add photos or videos" };
+  if (img) return { noun: "photos", one: "photo", add: "Add photos" };
+  if (vid) return { noun: "videos", one: "video", add: "Add videos" };
+  return { noun: "files", one: "file", add: "Add files" };
+}
+
+/** "Photos · 20 asked for · up to 25" */
+function specLine(field: CreatorField) {
+  const k = kindWords(field.acceptedFileTypes);
+  const parts = [k.noun.charAt(0).toUpperCase() + k.noun.slice(1)];
+  if (field.quantity && field.quantity > 0) parts.push(`${field.quantity} asked for`);
+  else if (field.minFiles && field.minFiles > 1) parts.push(`at least ${field.minFiles}`);
+  if (field.maxFiles && field.maxFiles > 1) parts.push(`up to ${field.maxFiles}`);
+  if (field.enforceMaxFileSize && field.maxFileSize) parts.push(`${formatFileSize(field.maxFileSize)} each at most`);
+  return parts.join(" · ");
+}
+
+/** One uploaded file: a discreet preview (no image is loaded until revealed), its name, open and delete */
+function UploadTile({
   upload,
+  revealed,
+  onOpen,
   onDelete,
-  onPreview,
-  primaryColor,
 }: {
   upload: UploadedFile;
+  revealed?: boolean;
+  onOpen?: () => void;
   onDelete?: () => void;
-  onPreview?: () => void;
-  primaryColor?: string;
 }) {
   const isImage = upload.fileType.startsWith("image/");
   const isVideo = upload.fileType.startsWith("video/");
-  const isRejected = upload.status === "REJECTED";
-  const isApprovedFile = upload.status === "APPROVED";
-  const [imageError, setImageError] = React.useState(false);
-
-  // Use thumbnailUrl from API (already resolved to public URL or presigned)
-  const previewUrl = upload.thumbnailUrl || null;
+  const rejected = upload.status === "REJECTED";
+  const approved = upload.status === "APPROVED";
+  const name = upload.originalName;
+  const [confirming, setConfirming] = React.useState(false);
 
   return (
-    <div
-      className={cn(
-        "group relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 transition-all duration-200 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600",
-        isRejected && "ring-2 ring-red-500/60 border-red-300"
+    <li className="min-w-0">
+      {isImage || (isVideo && upload.thumbnailUrl) ? (
+        <DiscreetPreview
+          src={upload.thumbnailUrl || null}
+          label={name}
+          kind={isVideo ? "video" : "photo"}
+          caption={isVideo ? "Video" : undefined}
+          revealed={revealed ? true : undefined}
+        />
+      ) : (
+        <span className="tw-preview cursor-default" style={{ aspectRatio: "1 / 1" }} aria-hidden="true">
+          {isVideo ? <Play className="size-5" /> : upload.fileType.startsWith("audio/") ? <Music className="size-5" /> : <FileText className="size-5" />}
+        </span>
       )}
-    >
-      {/* Preview area */}
-      <div className="aspect-square relative">
-        {isImage && previewUrl && !imageError ? (
-          <img
-            src={previewUrl}
-            alt={upload.originalName}
-            className="w-full h-full object-cover"
-            onError={() => setImageError(true)}
-          />
-        ) : isVideo && previewUrl && !imageError ? (
-          <div className="w-full h-full relative">
-            <img
-              src={previewUrl}
-              alt={upload.originalName}
-              className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <div
-                className="h-12 w-12 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: primaryColor || BRAND.primaryColor }}
-              >
-                <Play className="h-5 w-5 text-white ml-0.5" />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4">
-            <div
-              className="h-14 w-14 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${primaryColor || BRAND.primaryColor}20` }}
-            >
-              {getFileTypeIcon(upload.fileType, "h-7 w-7")}
-            </div>
-            <p className="text-xs text-center text-muted-foreground line-clamp-2 px-2">
-              {upload.originalName}
-            </p>
-          </div>
-        )}
-
-        {/* Hover overlay: always visible on touch devices; on hover devices it
-            is not clickable until shown, so a tap can't hit a hidden button */}
-        <div className="absolute inset-0 bg-black/50 transition-opacity flex items-center justify-center gap-2 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-focus-within:pointer-events-auto">
-          {onPreview && (
-            <button
+      <p className="mt-1.5 truncate text-[13px] font-medium" title={name}>
+        {name}
+      </p>
+      {rejected || approved ? (
+        <StateWord state={rejected ? "changes" : "approved"} audience="creator" className="flex font-normal" />
+      ) : (
+        <p className="text-[13px] text-ink-2">{formatFileSize(upload.fileSize)}</p>
+      )}
+      {confirming ? (
+        <div className="mt-1 flex gap-1">
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="h-11 flex-1 px-2 md:h-9"
+            onClick={() => {
+              setConfirming(false);
+              onDelete?.();
+            }}
+          >
+            Delete
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="h-11 px-2 md:h-9" onClick={() => setConfirming(false)}>
+            Keep
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-1 flex">
+          {onOpen && (
+            <Button
               type="button"
-              aria-label="Preview file"
-              onClick={onPreview}
-              className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+              variant="ghost"
+              size="icon"
+              className="size-11 text-icon hover:text-ink md:size-9"
+              aria-label={`Open ${name}`}
+              onClick={onOpen}
             >
-              <Eye className="h-5 w-5" />
-            </button>
+              <Maximize2 className="size-4" />
+            </Button>
           )}
           {onDelete && (
-            <button
+            <Button
               type="button"
-              aria-label="Delete file"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (window.confirm(`Delete "${upload.originalName}"? This cannot be undone.`)) onDelete();
-              }}
-              className="h-10 w-10 rounded-full bg-red-500/80 backdrop-blur-sm flex items-center justify-center text-white hover:bg-red-500 transition-colors"
+              variant="ghost"
+              size="icon"
+              className="size-11 text-icon hover:text-late md:size-9"
+              aria-label={`Delete ${name}`}
+              onClick={() => setConfirming(true)}
             >
-              <X className="h-5 w-5" />
-            </button>
+              <Trash2 className="size-4" />
+            </Button>
           )}
         </div>
+      )}
+    </li>
+  );
+}
 
-        {/* Review status indicator */}
-        <div className="absolute top-2 right-2">
-          {isRejected ? (
-            <div className="h-6 w-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg">
-              <X className="h-3.5 w-3.5 text-white" />
+function FieldHeader({
+  field,
+  state,
+  unsent,
+  spec,
+}: {
+  field: CreatorField;
+  state: CreatorFieldState;
+  /** Ready but not sent in yet: "Not sent yet" instead of "Waiting for review" */
+  unsent?: boolean;
+  spec: string;
+}) {
+  return (
+    <header className="flex items-start gap-3">
+      <FieldCell state={state} name={field.label} audience="creator" unsent={unsent} className="mt-[5px]" />
+      <div className="min-w-0 flex-1">
+        <h3 className="text-[17px] font-semibold leading-[1.4] tracking-[-0.01em]">
+          {field.label}
+          {!field.required && <span className="ml-2 text-[13px] font-normal text-ink-2">Optional</span>}
+        </h3>
+        <p className="mt-0.5 text-[14px] leading-normal text-ink-2">{spec}</p>
+      </div>
+      <StateWord state={state} unsent={unsent} audience="creator" className="pt-0.5" />
+    </header>
+  );
+}
+
+function FeedbackThread({
+  comments,
+  onReply,
+}: {
+  comments: SectionComment[];
+  onReply?: (content: string) => Promise<void>;
+}) {
+  const [reply, setReply] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const id = React.useId();
+
+  const send = async () => {
+    if (!onReply || !reply.trim()) return;
+    setSending(true);
+    try {
+      await onReply(reply.trim());
+      setReply("");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded-[var(--tw-r-ctl)] bg-well p-3">
+      <p className="text-[13px] font-medium text-ink-2">Notes about this field</p>
+      <ol className="mt-2 space-y-2.5">
+        {comments.map((c) => (
+          <li key={c.id} className={cn("flex", !c.isAgency && "justify-end")}>
+            <div className={cn("max-w-[85%] rounded-[10px] px-3 py-2", c.isAgency ? "bg-tile" : "bg-tile-hi")}>
+              <p className="whitespace-pre-wrap break-words text-[15px] leading-normal">{c.content}</p>
+              <p className="mt-0.5 text-[12px] text-ink-2">
+                {c.isAgency ? c.user?.name || "Your team" : "You"} · {formatDay(c.createdAt)}
+              </p>
             </div>
-          ) : isApprovedFile ? (
-            <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
-              <Check className="h-3.5 w-3.5 text-white" />
-            </div>
-          ) : (
-            <div className="h-6 w-6 rounded-full bg-slate-400 flex items-center justify-center shadow-lg">
-              <Clock className="h-3.5 w-3.5 text-white" />
-            </div>
-          )}
+          </li>
+        ))}
+      </ol>
+      {onReply && (
+        <div className="mt-3 flex items-end gap-2">
+          <label htmlFor={id} className="sr-only">
+            Reply about this field
+          </label>
+          <Textarea
+            id={id}
+            rows={1}
+            placeholder="Write a reply"
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            className="min-h-11 resize-none"
+          />
+          <Button type="button" variant="outline" className="h-11 shrink-0" onClick={send} disabled={!reply.trim() || sending}>
+            {sending ? <Loader2 className="animate-spin" /> : <Send />}
+            Reply
+          </Button>
         </div>
-      </div>
-
-      {/* File info */}
-      <div className="p-3 border-t border-slate-200 dark:border-slate-700">
-        <p className="text-sm font-medium truncate">{upload.originalName}</p>
-        <p className="text-xs text-muted-foreground">{formatFileSize(upload.fileSize)}</p>
-        {isRejected && <p className="text-xs font-medium text-red-600">Rejected – please replace</p>}
-      </div>
+      )}
     </div>
   );
 }
 
-// Single field upload section
-function FieldUploadSection({
+function FileFieldCard({
   field,
+  state,
+  unsent,
   uploads,
   queue,
-  fieldSubmission,
+  submission,
   onFilesSelected,
   onPause,
   onResume,
@@ -260,17 +338,17 @@ function FieldUploadSection({
   onFieldRedact,
   onDeleteUpload,
   isUploading,
-  primaryColor,
-  canUpload = true,
+  canUpload,
+  previewsRevealed,
   comments,
-  creatorName,
-  creatorImage,
   onReply,
 }: {
-  field: FileField;
+  field: CreatorField;
+  state: CreatorFieldState;
+  unsent?: boolean;
   uploads: UploadedFile[];
   queue: QueuedFile[];
-  fieldSubmission?: FieldSubmission;
+  submission?: FieldSubmission;
   onFilesSelected: (files: FileList | File[]) => void;
   onPause: (fileId: string) => void;
   onResume: (fileId: string) => void;
@@ -284,260 +362,149 @@ function FieldUploadSection({
   onFieldRedact?: () => Promise<void>;
   onDeleteUpload?: (uploadId: string) => Promise<void>;
   isUploading: boolean;
-  primaryColor?: string;
-  canUpload?: boolean;
+  canUpload: boolean;
+  previewsRevealed?: boolean;
   comments: SectionComment[];
-  creatorName?: string;
-  creatorImage?: string;
   onReply?: (content: string) => Promise<void>;
 }) {
   const [submitting, setSubmitting] = React.useState(false);
   const [redacting, setRedacting] = React.useState(false);
-  const [reply, setReply] = React.useState("");
-  const [replying, setReplying] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [previewIndex, setPreviewIndex] = React.useState(0);
+  const [showAll, setShowAll] = React.useState(false);
+  // The whole field accepts dropped files on a desktop
+  const cardRef = React.useRef<HTMLElement>(null);
   // Signed URLs for the real files (thumbnails can't play videos/documents)
   const [fullUrls, setFullUrls] = React.useState<Record<string, string>>({});
+
   const uploadCount = uploads.length;
   const hasMinFiles = field.minFiles ? uploadCount >= field.minFiles : uploadCount > 0;
-  // Check if there are any pending/uploading items (not just any items in queue)
-  const hasActiveQueueItems = queue.some(q => q.status === "pending" || q.status === "uploading" || q.status === "paused");
+  const hasActiveQueueItems = queue.some((q) => q.status === "pending" || q.status === "uploading" || q.status === "paused");
   const hasUploads = uploadCount > 0 && !hasActiveQueueItems;
 
-  // Determine field state based on submission status
-  const submissionStatus = fieldSubmission?.status || "PENDING";
+  const submissionStatus = submission?.status || "PENDING";
   const isSubmitted = submissionStatus === "SUBMITTED";
   const isApproved = submissionStatus === "APPROVED";
-  const needsRevision = submissionStatus === "NEEDS_REVISION";
-  // Only allow submit if canUpload is true (request is in an editable state) AND field isn't already submitted/approved
   const canSubmitField = canUpload && hasUploads && hasMinFiles && !isSubmitted && !isApproved;
-  // Matches the redact API: only a SUBMITTED field awaiting review can be redacted
+  // Matches the redact API: only a SUBMITTED field awaiting review can be taken back
   const canRedactField = canUpload && isSubmitted;
   const canDeleteUploads = canUpload && !isSubmitted && !isApproved;
   const canUploadMore = canUpload && !isSubmitted && !isApproved;
 
-  // Convert uploads to preview files
-  const previewFiles: PreviewFile[] = uploads.map(upload => ({
-    id: upload.id,
-    url: fullUrls[upload.id] || (upload.fileType.startsWith("image/") ? upload.thumbnailUrl || "" : ""),
-    fileName: upload.fileName,
-    originalName: upload.originalName,
-    fileType: upload.fileType,
-    fileSize: upload.fileSize,
+  const words = kindWords(field.acceptedFileTypes);
+  const rejected = uploads.filter((u) => u.status === "REJECTED");
+  const changesNote = submission?.status === "NEEDS_REVISION" ? submission.feedback : undefined;
+  const buttonLabel =
+    state === "changes" ? "Upload a new take" : uploadCount > 0 ? `Add more ${words.noun}` : words.add;
+
+  const previewFiles: PreviewFile[] = uploads.map((u) => ({
+    id: u.id,
+    url: fullUrls[u.id] || (u.fileType.startsWith("image/") ? u.thumbnailUrl || "" : ""),
+    fileName: u.fileName,
+    originalName: u.originalName,
+    fileType: u.fileType,
+    fileSize: u.fileSize,
   }));
 
   const handlePreview = async (uploadId: string) => {
-    const index = uploads.findIndex(u => u.id === uploadId);
+    const index = uploads.findIndex((u) => u.id === uploadId);
     if (index === -1) return;
     setPreviewIndex(index);
     setPreviewOpen(true);
 
-    // Fetch real file URLs for every upload (the modal pages between them)
-    const token = (() => { try { return localStorage.getItem("creatorToken") || ""; } catch { return ""; } })();
-    const missing = uploads.filter(u => !fullUrls[u.id]);
-    if (missing.length === 0) return;
-    const results = await Promise.all(missing.map(async u => {
+    // Fetch signed URLs for the real files (the modal pages between them)
+    const token = (() => {
       try {
-        const r = await fetch(`/api/portal/uploads/${u.id}`, { headers: { "x-creator-token": token } });
-        if (!r.ok) return null;
-        const d = await r.json();
-        return d.url ? ([u.id, d.url as string] as const) : null;
+        return localStorage.getItem("creatorToken") || "";
       } catch {
-        return null;
+        return "";
       }
-    }));
-    setFullUrls(prev => ({
+    })();
+    const missing = uploads.filter((u) => !fullUrls[u.id]);
+    if (missing.length === 0) return;
+    const results = await Promise.all(
+      missing.map(async (u) => {
+        try {
+          const r = await fetch(`/api/portal/uploads/${u.id}`, { headers: { "x-creator-token": token } });
+          if (!r.ok) return null;
+          const d = await r.json();
+          return d.url ? ([u.id, d.url as string] as const) : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+    setFullUrls((prev) => ({
       ...prev,
       ...Object.fromEntries(results.filter((r): r is readonly [string, string] => r !== null)),
     }));
   };
 
-  const handleSubmit = async () => {
-    if (!onFieldSubmit) return;
-    setSubmitting(true);
+  const run = async (fn: (() => Promise<void>) | undefined, set: (v: boolean) => void) => {
+    if (!fn) return;
+    set(true);
     try {
-      await onFieldSubmit();
+      await fn();
     } finally {
-      setSubmitting(false);
+      set(false);
     }
   };
 
-  const handleRedact = async () => {
-    if (!onFieldRedact) return;
-    setRedacting(true);
-    try {
-      await onFieldRedact();
-    } finally {
-      setRedacting(false);
-    }
-  };
-
-  const handleReply = async () => {
-    if (!onReply || !reply.trim()) return;
-    setReplying(true);
-    try {
-      await onReply(reply.trim());
-      setReply("");
-    } finally {
-      setReplying(false);
-    }
-  };
-
-  // Get icon and color based on status
-  const getStatusIcon = () => {
-    if (isApproved) return <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
-    if (isSubmitted) return <Send className="h-5 w-5 text-primary" />;
-    if (needsRevision) return <X className="h-5 w-5 text-red-600 dark:text-red-400" />;
-    if (hasUploads) return <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
-    return <Upload className="h-5 w-5" style={{ color: primaryColor }} />;
-  };
-
-  const getStatusBgClass = () => {
-    if (isApproved) return "bg-emerald-100 dark:bg-emerald-900/30";
-    if (isSubmitted) return "bg-primary/10";
-    if (needsRevision) return "bg-red-100 dark:bg-red-900/30";
-    if (hasUploads) return "bg-emerald-100 dark:bg-emerald-900/30";
-    return "bg-slate-100 dark:bg-slate-800";
-  };
+  const visible = showAll ? uploads : uploads.slice(0, FIRST_FILES);
 
   return (
-    <div className="space-y-4">
-      {/* Field header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div
-            className={cn(
-              "h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-              getStatusBgClass()
-            )}
-            style={!hasUploads && !isSubmitted && !isApproved && !needsRevision ? { backgroundColor: `${primaryColor || BRAND.primaryColor}15` } : undefined}
-          >
-            {getStatusIcon()}
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              {field.label}
-              {field.required && (
-                <span className="text-red-500 text-sm">*</span>
-              )}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {field.helpText || "Drag and drop or click to upload"}
-              {field.enforceFileCount && field.minFiles && field.minFiles > 1 && (
-                <span className="ml-1">(min {field.minFiles})</span>
-              )}
-              {field.enforceFileCount && field.maxFiles && (
-                <span className="ml-1">(max {field.maxFiles})</span>
-              )}
+    <article
+      ref={cardRef}
+      id={`field-${field.id}`}
+      className={cn(
+        "scroll-mt-20 rounded-[var(--tw-r-tile)] bg-tile p-4 transition-colors duration-200 lg:scroll-mt-6 lg:p-5",
+        "data-[dragging=true]:bg-tile-hi data-[dragging=true]:outline-2 data-[dragging=true]:outline-offset-2 data-[dragging=true]:outline-dashed data-[dragging=true]:outline-acc"
+      )}
+      aria-label={field.label}
+    >
+      <FieldHeader field={field} state={state} unsent={unsent ?? !isSubmitted} spec={specLine(field)} />
+
+      {field.helpText && <p className="mt-3 text-[15px] leading-normal">{field.helpText}</p>}
+
+      {(changesNote || rejected.length > 0) && state === "changes" && (
+        <div className="mt-3 rounded-[var(--tw-r-ctl)] bg-well p-3">
+          <StateWord state="changes" audience="creator" className="flex" />
+          {changesNote && <p className="mt-1 text-[15px] leading-normal">{changesNote}</p>}
+          {rejected.map((u) => (
+            <p key={u.id} className="mt-1.5 text-[14px] leading-normal text-ink-2">
+              <span className="text-ink">{u.originalName}</span>
+              {u.createdAt ? `, sent ${formatDay(u.createdAt)}` : ""}
+              {u.reviewNote ? `: ${u.reviewNote}` : ""}
             </p>
-          </div>
-        </div>
-
-        {/* Status badge & action buttons */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Feedback indicator */}
-          {comments.length > 0 && (
-            <Badge variant="secondary" className="gap-1 text-xs">
-              <MessageCircle className="h-3 w-3" />
-              {comments.length} feedback
-            </Badge>
-          )}
-          {/* Status badges */}
-          {isApproved && (
-            <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs">
-              <Check className="h-3 w-3 mr-1" />
-              Approved
-            </Badge>
-          )}
-          {isSubmitted && (
-            <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs">
-              <Send className="h-3 w-3 mr-1" />
-              Submitted
-            </Badge>
-          )}
-          {needsRevision && (
-            <Badge variant="destructive" className="text-xs">
-              Needs Revision
-            </Badge>
-          )}
-          {!isSubmitted && !isApproved && !needsRevision && uploadCount > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {uploadCount} file{uploadCount !== 1 ? "s" : ""}
-            </Badge>
-          )}
-
-          {/* Submit button */}
-          {onFieldSubmit && canSubmitField && (
-            <Button
-              size="sm"
-              onClick={handleSubmit}
-              disabled={submitting || isUploading}
-              style={{ backgroundColor: primaryColor }}
-              className="gap-1.5"
-            >
-              {submitting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
-              Submit
-            </Button>
-          )}
-
-          {/* Redact button */}
-          {onFieldRedact && canRedactField && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRedact}
-              disabled={redacting}
-              className="gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-50"
-            >
-              {redacting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <X className="h-3.5 w-3.5" />
-              )}
-              Redact
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Revision feedback */}
-      {needsRevision && fieldSubmission?.feedback && (
-        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-          <p className="text-sm text-red-700 dark:text-red-300">
-            <span className="font-medium">Feedback:</span> {fieldSubmission.feedback}
-          </p>
+          ))}
         </div>
       )}
 
-      {/* Field instructions/examples */}
       {field.richContent && (
-        <FieldExamplesDisplay
-          richContent={field.richContent}
-          fieldLabel={field.label}
-        />
+        <FieldExamplesDisplay richContent={field.richContent} fieldLabel={field.label} className="mt-3" />
       )}
 
-      {/* Upload dropzone */}
       {canUploadMore && (
         <FileDropzone
+          className="mt-4"
+          variant="button"
+          buttonLabel={buttonLabel}
+          buttonTone="outline"
+          hideLocationNote
           onFilesSelected={onFilesSelected}
           acceptedTypes={field.acceptedFileTypes}
           maxFileSize={field.enforceMaxFileSize ? field.maxFileSize : undefined}
           maxFiles={field.maxFiles}
-          compact={uploads.length > 0}
           showMaxFileSize={!!field.enforceMaxFileSize}
+          dropTargetRef={cardRef}
+          dropHint={`or drop ${words.noun} on this field`}
         />
       )}
 
-      {/* Upload queue - only show if there are active (non-completed) items */}
       {hasActiveQueueItems && (
         <UploadQueue
-          queue={queue.filter(q => q.status !== "completed")}
+          className="mt-3"
+          queue={queue.filter((q) => q.status !== "completed")}
           onPause={onPause}
           onResume={onResume}
           onRetry={onRetry}
@@ -555,122 +522,145 @@ function FieldUploadSection({
         />
       )}
 
-      {/* Uploaded files grid */}
-      {uploads.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {uploads.map(upload => (
-            <UploadPreviewCard
-              key={upload.id}
-              upload={upload}
-              primaryColor={primaryColor}
-              onPreview={() => handlePreview(upload.id)}
-              onDelete={canDeleteUploads && onDeleteUpload ? () => onDeleteUpload(upload.id) : undefined}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Submitted state message */}
-      {isSubmitted && (
-        <p className="text-sm text-muted-foreground text-center py-2">
-          Waiting for review. You can redact your submission if you need to make changes.
-        </p>
-      )}
-
-      {/* Section feedback thread + reply */}
-      {comments.length > 0 && (
-        <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" style={{ color: primaryColor }} />
-            <p className="text-sm font-semibold">Feedback</p>
-          </div>
-          <div className="space-y-3">
-            {comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className={cn("flex gap-3", !comment.isAgency && "flex-row-reverse")}
-                  >
-                    <Avatar
-                      size="sm"
-                      user={{
-                        name: comment.isAgency
-                          ? comment.user?.name || "Agency"
-                          : creatorName || "You",
-                        image: comment.isAgency ? comment.user?.image : creatorImage,
-                      }}
-                    />
-                    <div
-                      className={cn(
-                        "flex-1 min-w-0 max-w-[80%]",
-                        !comment.isAgency && "text-right"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "inline-block rounded-2xl px-4 py-2",
-                          comment.isAgency
-                            ? "bg-muted rounded-tl-none"
-                            : "rounded-tr-none text-white"
-                        )}
-                        style={
-                          !comment.isAgency ? { backgroundColor: primaryColor } : undefined
-                        }
-                      >
-                        <p className="text-sm whitespace-pre-wrap break-words">
-                          {comment.content}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {comment.isAgency ? `${comment.user?.name || "Agency"} · ` : ""}
-                        {formatDistanceToNow(new Date(comment.createdAt), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-            ))}
-          </div>
-          {onReply && (
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Reply to this feedback..."
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                className="min-h-[44px] resize-none"
+      {uploadCount > 0 && (
+        <>
+          <p className="mt-4 text-[14px] text-ink-2">
+            {uploadCount === 1 ? `1 ${words.one} uploaded` : `${uploadCount} files uploaded`}
+          </p>
+          <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 xl:grid-cols-4" aria-label={`${field.label}: uploaded files`}>
+            {visible.map((u) => (
+              <UploadTile
+                key={u.id}
+                upload={u}
+                revealed={previewsRevealed}
+                onOpen={() => handlePreview(u.id)}
+                onDelete={canDeleteUploads && onDeleteUpload ? () => onDeleteUpload(u.id) : undefined}
               />
-              <Button
-                onClick={handleReply}
-                disabled={!reply.trim() || replying}
-                className="shrink-0"
-                style={{ backgroundColor: primaryColor }}
-              >
-                {replying ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+            ))}
+          </ul>
+          {uploads.length > FIRST_FILES && (
+            <Button type="button" variant="ghost" className="mt-2 h-11 px-2 md:h-9" onClick={() => setShowAll(!showAll)}>
+              {showAll ? "Show fewer" : `Show all ${uploads.length} files`}
+            </Button>
+          )}
+        </>
+      )}
+
+      {(onFieldSubmit && canSubmitField) || (onFieldRedact && canRedactField) || isSubmitted ? (
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+          {onFieldSubmit && canSubmitField && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 md:h-9"
+              onClick={() => run(onFieldSubmit, setSubmitting)}
+              disabled={submitting || isUploading}
+            >
+              {submitting ? <Loader2 className="animate-spin" /> : <Send />}
+              Submit
+              <span className="sr-only"> {field.label}</span>
+            </Button>
+          )}
+          {isSubmitted && <p className="text-[14px] text-ink-2">Submitted for review.</p>}
+          {onFieldRedact && canRedactField && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 md:h-9"
+              onClick={() => run(onFieldRedact, setRedacting)}
+              disabled={redacting}
+            >
+              {redacting ? <Loader2 className="animate-spin" /> : <Undo2 />}
+              Take it back to change it
+            </Button>
           )}
         </div>
-      )}
+      ) : null}
 
-      {/* Preview Modal */}
-      <FilePreviewModal
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        files={previewFiles}
-        initialIndex={previewIndex}
-      />
-    </div>
+      {comments.length > 0 && <FeedbackThread comments={comments} onReply={onReply} />}
+
+      <FilePreviewModal open={previewOpen} onOpenChange={setPreviewOpen} files={previewFiles} initialIndex={previewIndex} />
+    </article>
+  );
+}
+
+function TextFieldCard({
+  field,
+  state,
+  unsent,
+  canEdit,
+  onSave,
+}: {
+  field: CreatorField;
+  state: CreatorFieldState;
+  unsent?: boolean;
+  canEdit: boolean;
+  onSave?: (value: string) => Promise<void>;
+}) {
+  const saved = field.value ?? "";
+  const [draft, setDraft] = React.useState(saved);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const id = React.useId();
+  // Keep in step when the page reloads the request
+  React.useEffect(() => setDraft(saved), [saved]);
+  const dirty = draft !== saved;
+  const name = field.label.toLowerCase();
+
+  const save = async () => {
+    if (!onSave) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(draft);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Your answer didn't save. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <article id={`field-${field.id}`} className="scroll-mt-20 rounded-[var(--tw-r-tile)] bg-tile p-4 lg:scroll-mt-6 lg:p-5" aria-label={field.label}>
+      <FieldHeader field={field} state={state} unsent={unsent} spec="Written answer" />
+      {canEdit ? (
+        <>
+          <label htmlFor={id} className="mt-3 block text-[15px] leading-normal">
+            {field.helpText || `Write your ${name} here.`}
+          </label>
+          <Textarea
+            id={id}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={4}
+            className="mt-2"
+            aria-invalid={error ? true : undefined}
+          />
+          {error && <p className="mt-1.5 text-[14px] text-late">{error}</p>}
+          <div className="mt-3 flex items-center gap-3">
+            <Button type="button" variant="outline" className="h-11 md:h-9" onClick={save} disabled={!dirty || saving}>
+              {saving ? <Loader2 className="animate-spin" /> : <Check />}
+              Save {name}
+            </Button>
+            {!dirty && saved.trim() && <span className="text-[14px] text-ink-2">Saved</span>}
+          </div>
+        </>
+      ) : (
+        <p className="mt-3 whitespace-pre-wrap text-[15px] leading-normal">
+          {saved.trim() ? saved : <span className="text-ink-2">No answer written.</span>}
+        </p>
+      )}
+    </article>
   );
 }
 
 export function PerFieldUpload({
   fields,
+  states,
   uploads,
   queue,
   fieldSubmissions,
+  unsent,
   onFilesSelected,
   onPause,
   onResume,
@@ -683,41 +673,40 @@ export function PerFieldUpload({
   onFieldSubmit,
   onFieldRedact,
   onDeleteUpload,
+  onSaveText,
   isUploading,
-  primaryColor = BRAND.primaryColor,
   className,
   canUpload = true,
+  previewsRevealed,
   comments = [],
-  creatorName,
-  creatorImage,
   onReplyToField,
 }: PerFieldUploadProps) {
-  // Group uploads and queue items by fieldId
-  const getFieldUploads = (fieldId: string) =>
-    uploads.filter(u => u.fieldId === fieldId);
-
-  const getFieldQueue = (fieldId: string) =>
-    queue.filter(q => q.fieldId === fieldId);
-
-  const getFieldComments = (fieldId: string) =>
-    comments.filter(c => c.fieldId === fieldId);
-
-  // Get unassigned uploads (legacy uploads without fieldId)
-  const unassignedUploads = uploads.filter(u => !u.fieldId || !fields.some(f => f.id === u.fieldId));
-  const unassignedQueue = queue.filter(q => !q.fieldId || !fields.some(f => f.id === q.fieldId));
+  const fileFieldIds = new Set(fields.filter((f) => f.type === "file").map((f) => f.id));
+  // Legacy uploads without a (known) field
+  const unassignedUploads = uploads.filter((u) => !u.fieldId || !fileFieldIds.has(u.fieldId));
+  const unassignedQueue = queue.filter((q) => !q.fieldId || !fileFieldIds.has(q.fieldId));
 
   return (
-    <div className={cn("space-y-8", className)}>
-      {fields.map((field, index) => (
-        <div key={field.id}>
-          {index > 0 && (
-            <div className="border-t border-slate-200 dark:border-slate-700 mb-8" />
-          )}
-          <FieldUploadSection
+    <div className={cn("space-y-3", className)}>
+      {fields.map((field) =>
+        field.type === "text" ? (
+          <TextFieldCard
+            key={field.id}
             field={field}
-            uploads={getFieldUploads(field.id)}
-            queue={getFieldQueue(field.id)}
-            fieldSubmission={fieldSubmissions?.[field.id]}
+            state={states[field.id] ?? "waiting"}
+            unsent={unsent?.[field.id]}
+            canEdit={canUpload && !!onSaveText}
+            onSave={onSaveText ? (v) => onSaveText(field.id, v) : undefined}
+          />
+        ) : (
+          <FileFieldCard
+            key={field.id}
+            field={field}
+            state={states[field.id] ?? "waiting"}
+            unsent={unsent?.[field.id]}
+            uploads={uploads.filter((u) => u.fieldId === field.id)}
+            queue={queue.filter((q) => q.fieldId === field.id)}
+            submission={fieldSubmissions?.[field.id]}
             onFilesSelected={(files) => onFilesSelected(files, field.id)}
             onPause={onPause}
             onResume={onResume}
@@ -731,74 +720,51 @@ export function PerFieldUpload({
             onFieldRedact={onFieldRedact ? () => onFieldRedact(field.id) : undefined}
             onDeleteUpload={onDeleteUpload}
             isUploading={isUploading}
-            primaryColor={primaryColor}
             canUpload={canUpload}
-            comments={getFieldComments(field.id)}
-            creatorName={creatorName}
-            creatorImage={creatorImage}
-            onReply={
-              onReplyToField ? (content) => onReplyToField(field.id, content) : undefined
-            }
+            previewsRevealed={previewsRevealed}
+            comments={comments.filter((c) => c.fieldId === field.id)}
+            onReply={onReplyToField ? (content) => onReplyToField(field.id, content) : undefined}
           />
-        </div>
-      ))}
+        )
+      )}
 
-      {/* Legacy/unassigned uploads - only show if there are some */}
       {(unassignedUploads.length > 0 || unassignedQueue.length > 0) && (
-        <>
-          {fields.length > 0 && (
-            <div className="border-t border-slate-200 dark:border-slate-700" />
+        <article className="rounded-[var(--tw-r-tile)] bg-tile p-4" aria-label="Other uploads">
+          <h3 className="text-[17px] font-semibold leading-[1.4] tracking-[-0.01em]">Other uploads</h3>
+          <p className="mt-0.5 text-[14px] text-ink-2">Files sent for this request without a field</p>
+          {unassignedQueue.length > 0 && (
+            <UploadQueue
+              className="mt-3"
+              queue={unassignedQueue}
+              onPause={onPause}
+              onResume={onResume}
+              onRetry={onRetry}
+              onCancel={onCancel}
+              onRemove={onRemove}
+              onClearCompleted={onClearCompleted}
+              onPauseAll={onPauseAll}
+              onResumeAll={onResumeAll}
+              totalProgress={0}
+              totalSize={0}
+              uploadedSize={0}
+              isUploading={isUploading}
+              collapsible={false}
+              maxVisibleItems={5}
+            />
           )}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="h-11 w-11 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${primaryColor}15` }}
-              >
-                <Upload className="h-5 w-5" style={{ color: primaryColor }} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Other Uploads</h3>
-                <p className="text-sm text-muted-foreground">
-                  Additional files for this request
-                </p>
-              </div>
-            </div>
-
-            {unassignedQueue.length > 0 && (
-              <UploadQueue
-                queue={unassignedQueue}
-                onPause={onPause}
-                onResume={onResume}
-                onRetry={onRetry}
-                onCancel={onCancel}
-                onRemove={onRemove}
-                onClearCompleted={onClearCompleted}
-                onPauseAll={onPauseAll}
-                onResumeAll={onResumeAll}
-                totalProgress={0}
-                totalSize={0}
-                uploadedSize={0}
-                isUploading={isUploading}
-                collapsible={false}
-                maxVisibleItems={5}
-              />
-            )}
-
-            {unassignedUploads.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {unassignedUploads.map(upload => (
-                  <UploadPreviewCard
-                    key={upload.id}
-                    upload={upload}
-                    primaryColor={primaryColor}
-                    onDelete={onDeleteUpload ? () => onDeleteUpload(upload.id) : undefined}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </>
+          {unassignedUploads.length > 0 && (
+            <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 xl:grid-cols-4">
+              {unassignedUploads.map((u) => (
+                <UploadTile
+                  key={u.id}
+                  upload={u}
+                  revealed={previewsRevealed}
+                  onDelete={canUpload && onDeleteUpload ? () => onDeleteUpload(u.id) : undefined}
+                />
+              ))}
+            </ul>
+          )}
+        </article>
       )}
     </div>
   );

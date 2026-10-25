@@ -87,7 +87,7 @@ export function ActivityPageClient({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-raised-hi flex items-center justify-center">
               <Activity className="h-5 w-5 text-white" />
             </div>
             Activity Log
@@ -127,8 +127,8 @@ export function ActivityPageClient({
                 <p className="text-3xl font-bold text-foreground mt-1">{stats.today}</p>
                 <p className="text-xs text-muted-foreground mt-1">activities recorded</p>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-emerald-600" />
+              <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <Clock className="h-6 w-6 text-success" />
               </div>
             </div>
           </CardContent>
@@ -142,7 +142,7 @@ export function ActivityPageClient({
                 <p className="text-3xl font-bold text-foreground mt-1">{stats.thisWeek}</p>
                 <p className="text-xs text-muted-foreground mt-1">activities recorded</p>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-blue-600" />
               </div>
             </div>
@@ -159,8 +159,8 @@ export function ActivityPageClient({
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">all-time activities</p>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-violet-600" />
+              <div className="h-12 w-12 rounded-xl bg-tile-hi flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-foreground" />
               </div>
             </div>
           </CardContent>
@@ -170,8 +170,8 @@ export function ActivityPageClient({
       {/* Activity Type Quick Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground mr-2">Quick filters:</span>
-        <Badge variant="outline" className="cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-900/20">
-          <div className="h-2 w-2 rounded-full bg-violet-500 mr-1.5" />
+        <Badge variant="outline" className="cursor-pointer hover:bg-tile-hi dark:hover:bg-tile-hi">
+          <div className="h-2 w-2 rounded-full bg-raised-hi mr-1.5" />
           Uploads
         </Badge>
         <Badge variant="outline" className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20">
@@ -186,8 +186,8 @@ export function ActivityPageClient({
           <div className="h-2 w-2 rounded-full bg-orange-500 mr-1.5" />
           Reminders
         </Badge>
-        <Badge variant="outline" className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5" />
+        <Badge variant="outline" className="cursor-pointer hover:bg-success/10 dark:hover:bg-success/20">
+          <div className="h-2 w-2 rounded-full bg-success mr-1.5" />
           Status Changes
         </Badge>
       </div>

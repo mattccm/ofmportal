@@ -97,15 +97,15 @@ export function FieldReviewControls({
     <div className="space-y-3">
       {/* Rejection reason attached to this specific section */}
       {needsRevision && submission?.feedback && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
-          <p className="text-sm text-red-700 dark:text-red-300">
+        <div className="rounded-lg border border-late/30 bg-late/10 p-3 dark:bg-late/10">
+          <p className="text-sm text-late dark:text-late">
             <span className="font-medium">Changes requested:</span>{" "}
             {submission.feedback}
           </p>
         </div>
       )}
       {isApproved && (
-        <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
+        <div className="flex items-center gap-1.5 text-sm text-approved">
           <CheckCircle2 className="h-4 w-4" />
           Section approved
         </div>
@@ -116,7 +116,7 @@ export function FieldReviewControls({
           <Button
             size="sm"
             variant="outline"
-            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+            className="border-approved/30 text-approved hover:bg-approved/10 dark:hover:bg-approved/20"
             disabled={!!action || isApproved}
             onClick={() => submitReview("approve")}
           >
@@ -130,7 +130,7 @@ export function FieldReviewControls({
           <Button
             size="sm"
             variant="outline"
-            className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+            className="border-late/30 text-late hover:bg-late/10 dark:border-late/30 dark:hover:bg-late/10"
             disabled={!!action}
             onClick={() => {
               setReason(submission?.feedback ?? "");

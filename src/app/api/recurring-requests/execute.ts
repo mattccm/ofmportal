@@ -10,6 +10,7 @@ import {
   formatTitleTemplate,
   type RequestSettings,
 } from "@/types/recurring-requests";
+import { resolveTemplateIds } from "./template-ids";
 
 // Template fields may be stored as a JSON string; always return an array
 function parseTemplateFields(raw: unknown): unknown[] {
@@ -30,8 +31,27 @@ export interface ExecuteRecurringRequestResult {
 }
 
 /**
- * Run a recurring request once: create a request per target creator, notify
- * them, record the execution and advance nextRunAt. Shared by the manual
+ * Title for one request of a run. `{template}` is replaced with the template's
+ * name; when a run sends several templates and the title pattern doesn't say
+ * which, the template name is appended so each request reads differently.
+ */
+export function recurringRequestTitle(
+  titleTemplate: string,
+  templateName: string,
+  templateCount: number,
+  date: Date,
+  creatorName: string
+): string {
+  const pattern = titleTemplate?.trim() ? titleTemplate : "{template}";
+  const hasToken = pattern.includes("{template}");
+  const base = formatTitleTemplate(pattern.replace(/{template}/g, templateName), date, creatorName);
+  return !hasToken && templateCount > 1 ? `${base} · ${templateName}` : base;
+}
+
+/**
+ * Run a recurring request once: create one request per template per target
+ * creator, notify each creator once for the run, record the execution and
+ * advance nextRunAt. Shared by the manual
  * "Run now" route and the recurring-requests cron.
  *
  * `actorUserId` is the user to attribute the activity log to (the session user
@@ -56,15 +76,21 @@ export async function executeRecurringRequest(
     return { status: 404, body: { error: "Recurring request not found" } };
   }
 
-  // Get template
-  const template = await db.requestTemplate.findFirst({
+  // Get templates, in the schedule's order. A template deleted since the
+  // schedule was saved is skipped; the run fails only when none is left.
+  const templateIds = resolveTemplateIds(recurringRequest);
+  const templateRows = await db.requestTemplate.findMany({
     where: {
-      id: recurringRequest.templateId,
+      id: { in: templateIds },
       agencyId,
     },
   });
+  const templateById = new Map(templateRows.map((t) => [t.id, t]));
+  const templates = templateIds
+    .map((tid) => templateById.get(tid))
+    .filter((t): t is NonNullable<typeof t> => !!t);
 
-  if (!template) {
+  if (templates.length === 0) {
     return { status: 404, body: { error: "Template not found" } };
   }
 
@@ -122,83 +148,100 @@ export async function executeRecurringRequest(
 
   const requestSettings = recurringRequest.requestSettings as unknown as RequestSettings;
   const now = new Date();
-  const dueDate = addDays(now, requestSettings.dueInDays || 7);
   const createdRequestIds: string[] = [];
   let successCount = 0;
   let failedCount = 0;
   const errors: string[] = [];
 
-  // Create requests for each creator
+  // One request per template per creator. Every request of a run shares the
+  // schedule's due date (dueInDays), falling back to each template's own
+  // default when the schedule has none.
   for (const creator of creators) {
-    try {
-      // Format title with variables
-      const title = formatTitleTemplate(
-        requestSettings.titleTemplate,
-        now,
-        creator.name
-      );
+    const created: { id: string; title: string; dueDate: Date }[] = [];
 
-      // Create the request
-      const request = await db.contentRequest.create({
-        data: {
-          agencyId,
-          creatorId: creator.id,
-          templateId: template.id,
-          title,
-          description: requestSettings.description || template.description || null,
-          dueDate,
-          urgency: requestSettings.urgency || "NORMAL",
-          status: "PENDING",
-          requirements: {},
-          fields: parseTemplateFields(template.fields) as Prisma.InputJsonValue,
-        },
-      });
-
-      createdRequestIds.push(request.id);
-      successCount++;
-
-      // Schedule auto-reminders like a normal new request
+    for (const template of templates) {
       try {
-        await scheduleRemindersForRequest(request.id);
+        const title = recurringRequestTitle(
+          requestSettings.titleTemplate,
+          template.name,
+          templates.length,
+          now,
+          creator.name
+        );
+        const dueDate = addDays(now, requestSettings.dueInDays || template.defaultDueDays || 7);
+
+        const request = await db.contentRequest.create({
+          data: {
+            agencyId,
+            creatorId: creator.id,
+            templateId: template.id,
+            title,
+            description: requestSettings.description || template.description || null,
+            dueDate,
+            urgency: requestSettings.urgency || template.defaultUrgency || "NORMAL",
+            status: "PENDING",
+            requirements: {},
+            fields: parseTemplateFields(template.fields) as Prisma.InputJsonValue,
+          },
+        });
+
+        createdRequestIds.push(request.id);
+        created.push({ id: request.id, title, dueDate });
+        successCount++;
+
+        // Schedule auto-reminders like a normal new request
+        try {
+          await scheduleRemindersForRequest(request.id);
+        } catch (error) {
+          console.error("Failed to schedule auto-reminders:", error);
+        }
       } catch (error) {
-        console.error("Failed to schedule auto-reminders:", error);
+        failedCount++;
+        errors.push(`Failed to create ${template.name} for ${creator.name}: ${error}`);
+        console.error(`Failed to create request for creator ${creator.id} (template ${template.id}):`, error);
+      }
+    }
+
+    // Notify once per creator for the whole run, if enabled. Creators have no
+    // User row, so this is email/SMS. Failures are logged and never count
+    // against the created requests. With several requests the link opens the
+    // creator's request list rather than one request.
+    if (requestSettings.autoSendNotification && created.length > 0) {
+      const portalLink =
+        created.length === 1
+          ? `${getAppUrl()}/creator/requests/${created[0].id}`
+          : `${getAppUrl()}/creator/requests`;
+      const firstDue = created.reduce((d, r) => (r.dueDate < d ? r.dueDate : d), created[0].dueDate);
+      const requestTitle =
+        created.length === 1
+          ? created[0].title
+          : `${created.length} requests: ${created.map((r) => r.title).join(", ")}`;
+      try {
+        await sendContentRequestEmail({
+          to: creator.email,
+          creatorName: creator.name,
+          agencyName,
+          requestTitle,
+          dueDate: format(firstDue, "MMMM d, yyyy"),
+          portalLink,
+          agencyId,
+          requestCount: created.length,
+        });
+      } catch (error) {
+        console.error("Failed to send recurring request email:", error);
       }
 
-      // Send notification if enabled
-      // Creators have no User row, so notify them by email/SMS. Failures are
-      // logged and never count against the created request.
-      if (requestSettings.autoSendNotification) {
-        const portalLink = `${getAppUrl()}/creator/requests/${request.id}`;
+      if (creator.phone && (creator.preferredContact === "SMS" || creator.preferredContact === "BOTH")) {
         try {
-          await sendContentRequestEmail({
-            to: creator.email,
+          await sendContentRequestSms({
+            to: creator.phone,
             creatorName: creator.name,
-            agencyName,
-            requestTitle: title,
-            dueDate: format(dueDate, "MMMM d, yyyy"),
             portalLink,
           });
         } catch (error) {
-          console.error("Failed to send recurring request email:", error);
-        }
-
-        if (creator.phone && (creator.preferredContact === "SMS" || creator.preferredContact === "BOTH")) {
-          try {
-            await sendContentRequestSms({
-              to: creator.phone,
-              creatorName: creator.name,
-              requestTitle: title,
-              portalLink,
-            });
-          } catch (error) {
-            console.error("Failed to send recurring request SMS:", error);
-          }
+          console.error("Failed to send recurring request SMS:", error);
         }
       }
-    } catch (error) {
-      failedCount++;
-      errors.push(`Failed to create request for ${creator.name}: ${error}`);
-      console.error(`Failed to create request for creator ${creator.id}:`, error);
     }
   }
 
@@ -248,6 +291,7 @@ export async function executeRecurringRequest(
       metadata: {
         name: recurringRequest.name,
         creatorCount: creators.length,
+        templateIds: templates.map((t) => t.id),
         successCount,
         failedCount,
         requestIds: createdRequestIds,

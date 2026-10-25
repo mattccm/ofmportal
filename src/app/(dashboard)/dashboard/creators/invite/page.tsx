@@ -72,7 +72,7 @@ export default function InviteCreatorPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-green-600">Creator Invited!</CardTitle>
+            <CardTitle className="text-success">Creator Invited!</CardTitle>
             <CardDescription>
               An invitation email has been sent to {formData.email}. You can also share
               this link directly:
@@ -87,7 +87,7 @@ export default function InviteCreatorPage() {
                 onCopySuccess={() => toast.success("Link copied to clipboard!")}
               />
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-ink-2">
               This link will expire in 7 days. The creator can use it to set up their
               portal access and start uploading content.
             </p>
@@ -133,13 +133,13 @@ export default function InviteCreatorPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/creators">
+          <Link href="/dashboard/creators" aria-label="Back to creators">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Invite Creator</h1>
-          <p className="mt-1 text-gray-500">
+          <h1 className="text-3xl font-bold text-ink">Invite Creator</h1>
+          <p className="mt-1 text-ink-2">
             Add a new creator to your agency
           </p>
         </div>
@@ -196,7 +196,7 @@ export default function InviteCreatorPage() {
                   onChange={handleChange}
                   disabled={loading}
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-2">
                   Required for SMS reminders
                 </p>
               </div>
@@ -208,7 +208,7 @@ export default function InviteCreatorPage() {
                     setFormData({ ...formData, preferredContact: value })
                   }
                 >
-                  <SelectTrigger disabled={loading}>
+                  <SelectTrigger id="preferredContact" disabled={loading}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

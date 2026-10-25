@@ -509,7 +509,7 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
       },
     },
     isSystem: true,
-    color: "#059669",
+    color: "#d3d7de",
   },
   {
     id: "editor",

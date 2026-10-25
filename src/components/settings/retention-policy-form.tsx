@@ -191,7 +191,7 @@ export function RetentionPolicyForm({
                 </CardDescription>
               </div>
             </div>
-            <Switch
+            <Switch aria-label="Retention Policy"
               checked={policy.enabled}
               onCheckedChange={(checked) => handlePolicyUpdate({ enabled: checked })}
             />
@@ -220,7 +220,7 @@ export function RetentionPolicyForm({
                     handlePolicyUpdate({ retentionDays: parseInt(value) })
                   }
                 >
-                  <SelectTrigger className="flex-1">
+                  <SelectTrigger aria-label="Auto-cleanup period" className="flex-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -247,7 +247,7 @@ export function RetentionPolicyForm({
                   handlePolicyUpdate({ action: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Action to perform">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -278,7 +278,7 @@ export function RetentionPolicyForm({
             <Label>Apply to request status</Label>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Checkbox
+                <Checkbox aria-label="Completed requests (approved)"
                   id="apply-completed"
                   checked={policy.applyTo.completedRequests}
                   onCheckedChange={(checked) =>
@@ -290,7 +290,7 @@ export function RetentionPolicyForm({
                 </Label>
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox
+                <Checkbox aria-label="Cancelled requests"
                   id="apply-cancelled"
                   checked={policy.applyTo.cancelledRequests}
                   onCheckedChange={(checked) =>
@@ -302,7 +302,7 @@ export function RetentionPolicyForm({
                 </Label>
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox
+                <Checkbox aria-label="Already archived requests"
                   id="apply-archived"
                   checked={policy.applyTo.archivedRequests}
                   onCheckedChange={(checked) =>
@@ -562,7 +562,7 @@ export function RetentionPolicyForm({
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer"
                     onClick={() => handleExclusionToggle("creators", creator.id)}
                   >
-                    <Checkbox checked={policy.excludeCreators.includes(creator.id)} />
+                    <Checkbox aria-label={`Exclude ${creator.name}`} checked={policy.excludeCreators.includes(creator.id)} />
                     <div>
                       <p className="font-medium">{creator.name}</p>
                       <p className="text-sm text-muted-foreground">{creator.email}</p>
@@ -579,7 +579,7 @@ export function RetentionPolicyForm({
                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer"
                   onClick={() => handleExclusionToggle("templates", template.id)}
                 >
-                  <Checkbox checked={policy.excludeTemplates.includes(template.id)} />
+                  <Checkbox aria-label={`Exclude ${template.name}`} checked={policy.excludeTemplates.includes(template.id)} />
                   <p className="font-medium">{template.name}</p>
                 </div>
               ))

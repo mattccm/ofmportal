@@ -276,7 +276,7 @@ export function SessionTemplateSelector({
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="flex-shrink-0">
+                          <Button aria-label={`More actions for ${template.name}`} variant="ghost" size="icon" className="flex-shrink-0">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>

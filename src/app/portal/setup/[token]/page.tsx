@@ -34,8 +34,7 @@ const passwordRequirements = [
   { label: "One number", test: (p: string) => /[0-9]/.test(p) },
 ];
 
-const inputClass =
-  "h-12 rounded-xl border-border bg-background px-4 transition-all focus:ring-2 focus:ring-primary/20";
+const inputClass = "h-12 text-base";
 
 /**
  * Stores a creator session exactly like the login page does for creators
@@ -74,20 +73,18 @@ async function signInCreator(session: CreatorSessionPayload): Promise<string> {
 
 function BrandHeader({ title, subtitle }: { title: string; subtitle?: React.ReactNode }) {
   return (
-    <div className="space-y-4 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-        <Image
-          src={BRAND.logoPath}
-          alt={BRAND.name}
-          width={40}
-          height={40}
-          className="h-10 w-10 object-contain dark:invert"
-          priority
-        />
-      </div>
+    <div className="space-y-5">
+      <Image
+        src={BRAND.logoPath}
+        alt={BRAND.name}
+        width={40}
+        height={40}
+        className="size-10 object-contain invert"
+        priority
+      />
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-        {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
+        <h1 className="text-[30px] font-extrabold leading-[1.05] tracking-[-0.03em] text-balance text-ink">{title}</h1>
+        {subtitle && <p className="text-[15px] leading-normal text-ink-2">{subtitle}</p>}
       </div>
     </div>
   );
@@ -104,11 +101,10 @@ function SetupFrame({ children }: { children: React.ReactNode }) {
       }}
     >
       <div className="w-full max-w-md space-y-6">
-        <div className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-lg">
-          <div className="h-1.5 w-full bg-primary" aria-hidden="true" />
-          <div className="space-y-6 p-6 sm:p-8">{children}</div>
+        <div className="rounded-[var(--tw-r-tile)] bg-tile">
+          <div className="space-y-6 p-5 sm:p-8">{children}</div>
         </div>
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-[13px] text-ink-2">
           &copy; {new Date().getFullYear()} {BRAND.legalName}
         </p>
       </div>
@@ -147,7 +143,7 @@ export default function PortalSetupPage({
 
         setCreator(data);
       } catch {
-        setError("Failed to verify invite");
+        setError("We couldn't check this invite. Check your connection and reload the page.");
       } finally {
         setLoading(false);
       }
@@ -160,13 +156,13 @@ export default function PortalSetupPage({
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error("The two passwords don't match. Type them again.");
       return;
     }
 
     const failedReqs = passwordRequirements.filter((req) => !req.test(formData.password));
     if (failedReqs.length > 0) {
-      toast.error("Password does not meet all requirements");
+      toast.error("Your password needs everything in the list under it.");
       return;
     }
 
@@ -211,8 +207,8 @@ export default function PortalSetupPage({
     return (
       <SetupFrame>
         <div className="flex flex-col items-center gap-3 py-8 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Checking your invite...</p>
+          <Loader2 className="size-8 animate-spin text-icon motion-reduce:animate-none" aria-hidden="true" />
+          <p className="text-[15px] text-ink-2">Checking your invite…</p>
         </div>
       </SetupFrame>
     );
@@ -222,12 +218,12 @@ export default function PortalSetupPage({
     return (
       <SetupFrame>
         <BrandHeader title="This invite can't be used" />
-        <div className="flex gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="flex gap-3 rounded-[var(--tw-r-ctl)] bg-well p-3.5">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-late" aria-hidden="true" />
+          <p className="text-[15px] text-ink">{error}</p>
         </div>
-        <p className="text-center text-sm text-muted-foreground">
-          Please contact your agency to request a new invite link.
+        <p className="text-[15px] leading-normal text-ink-2">
+          Ask CCM to send you a new invite link. Links stop working once they&apos;re used or after they expire.
         </p>
       </SetupFrame>
     );
@@ -239,7 +235,7 @@ export default function PortalSetupPage({
         title={`Set up your ${BRAND.name} account`}
         subtitle={
           <>
-            Hi {creator?.name}! Create a password to start sharing content with{" "}
+            Hi {creator?.name}. Create a password to start sharing content with{" "}
             <strong className="text-foreground">{creator?.agencyName}</strong>.
           </>
         }
@@ -257,7 +253,7 @@ export default function PortalSetupPage({
             value={creator?.email || ""}
             readOnly
             disabled
-            className={`${inputClass} bg-muted`}
+            className={inputClass}
           />
         </div>
 
@@ -282,7 +278,7 @@ export default function PortalSetupPage({
               return (
                 <li
                   key={req.label}
-                  className={`flex items-center text-sm ${met ? "text-primary" : "text-muted-foreground"}`}
+                  className={`flex items-center text-sm ${met ? "text-ink" : "text-ink-2"}`}
                 >
                   {met ? (
                     <Check className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -314,7 +310,7 @@ export default function PortalSetupPage({
           {formData.confirmPassword && (
             <div
               className={`flex items-center text-sm ${
-                formData.password === formData.confirmPassword ? "text-primary" : "text-destructive"
+                formData.password === formData.confirmPassword ? "text-ink" : "text-late"
               }`}
             >
               {formData.password === formData.confirmPassword ? (
@@ -335,10 +331,10 @@ export default function PortalSetupPage({
         <Button
           type="submit"
           disabled={submitting}
-          className="h-12 w-full rounded-xl text-base font-semibold"
+          className="h-12 w-full text-base font-semibold"
         >
           {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {submitting ? "Setting up..." : "Create account and sign in"}
+          {submitting ? "Setting up…" : "Create account and sign in"}
         </Button>
       </form>
     </SetupFrame>

@@ -192,7 +192,7 @@ export function PopoverContent({
         "absolute z-50",
         sideClasses[side],
         (side === "top" || side === "bottom") && alignmentClasses[align],
-        "w-72 rounded-md border bg-popover p-0 text-popover-foreground shadow-md outline-none",
+        "w-72 rounded-lg border border-ctl/60 bg-popover p-0 text-popover-foreground shadow-lg outline-none",
         "animate-in fade-in-0 zoom-in-95",
         className
       )}

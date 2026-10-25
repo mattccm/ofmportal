@@ -57,8 +57,8 @@ export function VotingPanel({
       type: "APPROVE" as ReviewVoteType,
       label: "Approve",
       icon: ThumbsUp,
-      activeColor: "bg-green-500 hover:bg-green-600 text-white",
-      hoverColor: "hover:bg-green-100 hover:text-green-700 hover:border-green-300",
+      activeColor: "bg-ink hover:bg-ink/85 text-ground",
+      hoverColor: "hover:bg-tile-hi hover:text-ink hover:border-ctl-hi",
     },
     {
       type: "REJECT" as ReviewVoteType,
@@ -87,7 +87,7 @@ export function VotingPanel({
     if (!voteSummary?.majority) return null;
     switch (voteSummary.majority) {
       case "APPROVE":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-approved" />;
       case "REJECT":
         return <XCircle className="h-4 w-4 text-red-500" />;
       case "DISCUSS":
@@ -218,14 +218,14 @@ export function VotingPanel({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-1">
-                  <ThumbsUp className="h-3 w-3 text-green-500" />
+                  <ThumbsUp className="h-3 w-3 text-approved" />
                   Approve
                 </span>
                 <span className="font-medium">{voteSummary.approve}</span>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-green-500 transition-all"
+                  className="h-full bg-approved transition-all"
                   style={{
                     width: `${
                       voteSummary.total > 0

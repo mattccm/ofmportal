@@ -15,10 +15,11 @@ import {
   Music,
   X,
   Check,
-  AlertCircle,
   RefreshCw,
   CloudUpload,
   Sparkles,
+  RotateCcw,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize, ALLOWED_TYPES, MAX_FILE_SIZE, buildAcceptAttribute } from "@/lib/file-utils";
@@ -182,7 +183,7 @@ export function UploadZone({
         {/* Animated background for drag state */}
         <div
           className={cn(
-            "absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 opacity-0 transition-opacity duration-300",
+            "absolute inset-0 bg-primary/10 opacity-0 transition-opacity duration-300",
             isDragging && "opacity-100"
           )}
         />
@@ -218,8 +219,8 @@ export function UploadZone({
           <div className="flex items-center justify-center gap-6 mb-6">
             {showImages && (
               <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                  <ImageIcon className="h-5 w-5 text-emerald-500" />
+                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+                  <ImageIcon className="h-5 w-5 text-success" />
                 </div>
                 <span className="text-xs font-medium">Images</span>
               </div>
@@ -282,7 +283,7 @@ export function UploadZone({
                 </span>
               )}
               {completedUploads.length > 0 && (
-                <span className="text-emerald-600 font-medium">
+                <span className="text-success font-medium">
                   {completedUploads.length} complete
                 </span>
               )}
@@ -330,7 +331,7 @@ function UploadFileItem({
     <div
       className={cn(
         "flex items-center gap-3 p-3 rounded-xl border transition-all",
-        file.status === "completed" && "bg-emerald-50/50 border-emerald-200 dark:bg-emerald-900/10",
+        file.status === "completed" && "bg-success/50 border-success/30 dark:bg-success/10",
         file.status === "error" && "bg-red-50/50 border-red-200 dark:bg-red-900/10",
         file.status === "uploading" && "bg-blue-50/50 border-blue-200 dark:bg-blue-900/10",
         file.status === "pending" && "bg-muted/50 border-border"
@@ -340,7 +341,7 @@ function UploadFileItem({
       <div
         className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-          file.status === "completed" && "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30",
+          file.status === "completed" && "bg-success/10 text-success",
           file.status === "error" && "bg-red-100 text-red-600 dark:bg-red-900/30",
           file.status === "uploading" && "bg-blue-100 text-blue-600 dark:bg-blue-900/30",
           file.status === "pending" && "bg-muted text-muted-foreground"
@@ -380,9 +381,9 @@ function UploadFileItem({
         {/* Progress bar */}
         {file.status === "uploading" && (
           <div className="mt-2">
-            <Progress value={file.progress}>
+            <Progress aria-label={`Uploading ${file.file.name}`} value={file.progress}>
               <ProgressTrack className="h-1.5">
-                <ProgressIndicator className="bg-gradient-to-r from-primary/70 to-primary" />
+                <ProgressIndicator className=" bg-primary/70 " />
               </ProgressTrack>
             </Progress>
           </div>
@@ -392,15 +393,15 @@ function UploadFileItem({
       {/* Status/Actions */}
       <div className="shrink-0">
         {file.status === "completed" && (
-          <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-            <Check className="h-4 w-4 text-emerald-600" />
+          <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center">
+            <Check className="h-4 w-4 text-success" />
           </div>
         )}
 
         {file.status === "error" && (
           <div className="flex items-center gap-1">
             {onRetry && (
-              <Button
+              <Button aria-label={`Retry ${file.file.name}`}
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
@@ -410,7 +411,7 @@ function UploadFileItem({
               </Button>
             )}
             {onRemove && (
-              <Button
+              <Button aria-label={`Remove ${file.file.name}`}
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-100"
@@ -423,7 +424,7 @@ function UploadFileItem({
         )}
 
         {isActive && onCancel && (
-          <Button
+          <Button aria-label={`Cancel upload of ${file.file.name}`}
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
@@ -487,8 +488,8 @@ export function UploadedFilesGrid({
           onClick={() => onFileClick?.(file)}
           className={cn(
             "group relative aspect-square rounded-xl border bg-muted/30 overflow-hidden cursor-pointer hover:shadow-md transition-all",
-            file.status === "APPROVED" && "ring-2 ring-emerald-500/30",
-            file.status === "REJECTED" && "ring-2 ring-red-500/30"
+            file.status === "APPROVED" && "ring-2 ring-approved/30",
+            file.status === "REJECTED" && "ring-2 ring-changes/40"
           )}
         >
           {/* Thumbnail or icon */}
@@ -520,18 +521,18 @@ export function UploadedFilesGrid({
           {/* Status badge */}
           <div className="absolute top-2 right-2">
             {file.status === "APPROVED" && (
-              <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
-                <Check className="h-3.5 w-3.5 text-white" />
+              <div className="w-6 h-6 rounded-full bg-approved flex items-center justify-center shadow-sm">
+                <Check className="h-3.5 w-3.5 text-ground" />
               </div>
             )}
             {file.status === "REJECTED" && (
-              <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-sm">
-                <X className="h-3.5 w-3.5 text-white" />
+              <div className="w-6 h-6 rounded-full bg-changes flex items-center justify-center shadow-sm">
+                <RotateCcw className="h-3.5 w-3.5 text-ground" />
               </div>
             )}
             {file.status === "PENDING" && (
-              <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center shadow-sm">
-                <AlertCircle className="h-3.5 w-3.5 text-white" />
+              <div className="w-6 h-6 rounded-full bg-ready flex items-center justify-center shadow-sm">
+                <Clock className="h-3.5 w-3.5 text-ground" />
               </div>
             )}
           </div>

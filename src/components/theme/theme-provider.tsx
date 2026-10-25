@@ -1,12 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState, createContext, useContext, useCallback, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useSyncExternalStore } from "react";
 
+/**
+ * CCM Portal has one theme: the dark Title Wall world. The root layout renders
+ * <html class="dark">, and this provider keeps it there. The context API is kept
+ * (theme, resolvedTheme, setTheme, toggle) so existing callers keep compiling;
+ * every value resolves to "dark" and the setters do nothing.
+ */
 export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
-
-const THEME_STORAGE_KEY = "theme-preference";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -17,194 +21,65 @@ interface ThemeContextValue {
   systemTheme: ResolvedTheme;
 }
 
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
-
-// Helper to get system preference
-function getSystemTheme(): ResolvedTheme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-// Helper to get stored theme
-function getStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
-  try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === "light" || stored === "dark" || stored === "system") {
-      return stored;
-    }
-  } catch {
-    // localStorage might be blocked
-  }
-  return "system";
-}
-
-// Helper to resolve theme
-function resolveTheme(theme: Theme): ResolvedTheme {
-  if (theme === "system") {
-    return getSystemTheme();
-  }
-  return theme;
-}
-
+const noop = () => {};
 const emptySubscribe = () => () => {};
 
-// Script to inject into head for SSR flash prevention
-const themeScript = `
-(function() {
-  try {
-    var theme = localStorage.getItem('${THEME_STORAGE_KEY}') || 'system';
-    var resolved = theme;
-    if (theme === 'system') {
-      resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    if (resolved === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  } catch (e) {}
-})();
-`;
+const PINNED: ThemeContextValue = {
+  theme: "dark",
+  resolvedTheme: "dark",
+  setTheme: noop,
+  toggle: noop,
+  mounted: false,
+  systemTheme: "dark",
+};
 
+const ThemeContext = createContext<ThemeContextValue>(PINNED);
+
+/** Kept for callers that still render it; the class is already server-rendered. */
 export function ThemeScript() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{ __html: themeScript }}
-      suppressHydrationWarning
-    />
-  );
+  return null;
 }
 
 interface ThemeProviderProps {
   children: React.ReactNode;
+  /** Ignored: the theme is pinned to dark. Kept for API compatibility. */
   defaultTheme?: Theme;
   storageKey?: string;
   attribute?: string;
   enableSystem?: boolean;
   disableTransitionOnChange?: boolean;
+  forcedTheme?: Theme;
 }
 
-export function ThemeProvider({
-  children,
-  defaultTheme = "system",
-  enableSystem = true,
-  disableTransitionOnChange = false,
-}: ThemeProviderProps) {
+export function ThemeProvider({ children }: ThemeProviderProps) {
   const mounted = useSyncExternalStore(
     emptySubscribe,
     () => true,
     () => false
   );
-  const [theme, setThemeState] = useState<Theme>(() =>
-    typeof window === "undefined" ? defaultTheme : getStoredTheme()
-  );
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
-    typeof window === "undefined" ? resolveTheme(defaultTheme) : resolveTheme(getStoredTheme())
-  );
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
 
-  const applyTheme = useCallback(
-    (resolved: ResolvedTheme, skipTransition: boolean = false) => {
-      if (typeof document === "undefined") return;
-
-      const root = document.documentElement;
-
-      // Add transition class for smooth color changes (unless disabled)
-      if (!skipTransition) {
-        root.classList.add("theme-transitioning");
-      }
-
-      if (resolved === "dark") {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-      }
-
-      // Remove transition class after animation completes
-      if (!skipTransition) {
-        setTimeout(() => {
-          root.classList.remove("theme-transitioning");
-        }, 300);
-      }
-    },
-    []
-  );
-
-  // Apply initial theme on mount
+  // Keep the class pinned even if an old script or extension removes it, and
+  // forget any light preference saved by earlier versions.
   useEffect(() => {
-    applyTheme(resolveTheme(getStoredTheme()), disableTransitionOnChange);
-  }, [disableTransitionOnChange, applyTheme]);
-
-  // Watch system preference changes
-  useEffect(() => {
-    if (!enableSystem) return;
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      const newSystemTheme = e.matches ? "dark" : "light";
-      setSystemTheme(newSystemTheme);
-
-      if (theme === "system") {
-        setResolvedTheme(newSystemTheme);
-        applyTheme(newSystemTheme, disableTransitionOnChange);
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme, enableSystem, disableTransitionOnChange, applyTheme]);
-
-  const setTheme = useCallback(
-    (newTheme: Theme) => {
-      setThemeState(newTheme);
-
-      // Persist to localStorage
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-      } catch {
-        // localStorage might be blocked
-      }
-
-      // Resolve and apply
-      const resolved = resolveTheme(newTheme);
-      setResolvedTheme(resolved);
-      applyTheme(resolved, disableTransitionOnChange);
-    },
-    [applyTheme, disableTransitionOnChange]
-  );
-
-  const toggle = useCallback(() => {
-    const newTheme = resolvedTheme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-  }, [resolvedTheme, setTheme]);
-
-  const value: ThemeContextValue = {
-    theme,
-    resolvedTheme,
-    setTheme,
-    toggle,
-    mounted,
-    systemTheme,
-  };
+    const root = document.documentElement;
+    root.classList.add("dark");
+    root.style.colorScheme = "dark";
+    try {
+      localStorage.removeItem("theme-preference");
+    } catch {
+      // storage may be blocked
+    }
+  }, []);
 
   return (
-    <ThemeContext.Provider value={value}>
+    <ThemeContext.Provider value={{ ...PINNED, mounted }}>
       {children}
     </ThemeContext.Provider>
   );
 }
 
 export function useTheme(): ThemeContextValue {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
+  return useContext(ThemeContext);
 }
 
-// Export types for external use
 export type { ThemeContextValue };

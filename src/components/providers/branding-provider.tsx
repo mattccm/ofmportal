@@ -3,6 +3,22 @@
 import * as React from "react";
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { DEFAULT_BRANDING, hexToHsl, type BrandingSettings } from "@/lib/branding";
+import { BRAND } from "@/lib/brand";
+
+/**
+ * The portal has one pinned palette (the Title Wall). Colours saved in older
+ * agency settings (the retired green) must not leak into creator pages, so the
+ * three colour slots always come from BRAND; logos and copy still come from
+ * the agency's settings.
+ */
+function pinPalette(b: BrandingSettings): BrandingSettings {
+  return {
+    ...b,
+    primaryColor: BRAND.primaryColor,
+    secondaryColor: BRAND.secondaryColor,
+    accentColor: BRAND.accentColor,
+  };
+}
 
 interface BrandingContextType {
   branding: BrandingSettings;
@@ -56,7 +72,7 @@ export function BrandingProvider({ children, creatorId }: BrandingProviderProps)
 
         if (response.ok) {
           const data = await response.json();
-          setBranding(data.branding);
+          setBranding(pinPalette(data.branding));
           setAgencyName(data.agencyName || "");
           return;
         }
@@ -74,7 +90,7 @@ export function BrandingProvider({ children, creatorId }: BrandingProviderProps)
 
         if (response.ok) {
           const data = await response.json();
-          setBranding(data.branding);
+          setBranding(pinPalette(data.branding));
           setAgencyName(data.agencyName || "");
           return;
         }

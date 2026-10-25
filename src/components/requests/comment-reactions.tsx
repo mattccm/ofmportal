@@ -136,8 +136,8 @@ function ReactionBadge({
         className={cn(
           "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-colors cursor-pointer",
           hasReacted
-            ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            ? "bg-raised-hi text-ink ring-1 ring-ctl-hi hover:bg-raised"
+            : "bg-raised text-ink-2 hover:bg-raised-hi hover:text-ink"
         )}
       >
         <span>{emoji}</span>
@@ -184,11 +184,11 @@ export function CommentReactions({
       {/* Add Reaction Button */}
       <Popover open={isPickerOpen} onOpenChange={setIsPickerOpen}>
         <PopoverTrigger asChild>
-          <Button
+          <Button aria-label="Add reaction"
             variant="ghost"
             size="sm"
             className={cn(
-              "h-7 px-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300",
+              "h-7 px-2 text-ink-2 hover:text-ink-2 dark:hover:text-ink-2",
               !hasAnyReactions && "opacity-0 group-hover:opacity-100 transition-opacity"
             )}
           >
@@ -302,7 +302,7 @@ export function ReactionSummary({
 
   return (
     <Tooltip>
-      <TooltipTrigger className="inline-flex items-center gap-0.5 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full cursor-default">
+      <TooltipTrigger className="inline-flex items-center gap-0.5 px-2 py-1 bg-tile-hi rounded-full cursor-default">
         {displayedReactions.map(([emoji]) => (
           <span key={emoji} className="text-sm">
             {emoji}

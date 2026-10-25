@@ -697,7 +697,7 @@ export function AnnotationCanvas({
           {/* Color Picker */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button aria-label="Annotation colour" variant="ghost" size="icon" className="h-8 w-8">
                 <div
                   className="h-5 w-5 rounded-full border-2 border-white shadow"
                   style={{ backgroundColor: color }}
@@ -723,7 +723,7 @@ export function AnnotationCanvas({
           {/* Stroke Width */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1">
+              <Button aria-label="Stroke width" variant="ghost" size="sm" className="h-8 gap-1">
                 <div
                   className="rounded-full bg-foreground"
                   style={{ width: strokeWidth * 2, height: strokeWidth * 2 }}
@@ -733,7 +733,7 @@ export function AnnotationCanvas({
             <PopoverContent className="w-48">
               <div className="space-y-2">
                 <div className="text-sm font-medium">Stroke Width: {strokeWidth}px</div>
-                <Slider
+                <Slider aria-label="Stroke width"
                   value={[strokeWidth]}
                   onValueChange={([v]) => setStrokeWidth(v)}
                   min={1}
@@ -748,7 +748,7 @@ export function AnnotationCanvas({
 
           {/* Actions */}
           <div className="flex items-center gap-1">
-            <Button
+            <Button aria-label="Undo"
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -757,7 +757,7 @@ export function AnnotationCanvas({
             >
               <Undo2 className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label="Redo"
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -766,7 +766,7 @@ export function AnnotationCanvas({
             >
               <Redo2 className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label={showAnnotations ? "Hide annotations" : "Show annotations"}
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -778,7 +778,7 @@ export function AnnotationCanvas({
                 <EyeOff className="h-4 w-4" />
               )}
             </Button>
-            <Button
+            <Button aria-label="Clear annotations"
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -787,7 +787,7 @@ export function AnnotationCanvas({
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label="Export annotations"
               variant="ghost"
               size="icon"
               className="h-8 w-8"

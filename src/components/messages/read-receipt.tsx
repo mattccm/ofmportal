@@ -199,7 +199,7 @@ export function SeenByIndicator({
           <Badge
             key={reader.userId}
             variant="secondary"
-            className="text-[10px] px-1.5 py-0"
+            className="text-[12px] px-1.5 py-0"
           >
             {reader.userName}
           </Badge>
@@ -274,7 +274,7 @@ export function SeenByIndicator({
           )}
         </AvatarGroup>
         {showTimestamp && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[12px] text-muted-foreground">
             Seen {formatDistanceToNow(new Date(latestRead.readAt), { addSuffix: true })}
           </span>
         )}
@@ -300,7 +300,7 @@ export function LastSeenIndicator({
 }: LastSeenIndicatorProps) {
   if (isOnline) {
     return (
-      <span className={cn("text-xs text-emerald-500 font-medium", className)}>
+      <span className={cn("text-xs text-ink-2 font-medium", className)}>
         Online
       </span>
     );
@@ -405,7 +405,7 @@ export function RequestViewedIndicator({
       <Badge
         variant="secondary"
         className={cn(
-          "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 cursor-default",
+          "bg-tile-hi text-ink-2 border-0 cursor-default",
           className
         )}
       >

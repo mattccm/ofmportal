@@ -18,8 +18,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   },
   SUBMITTED: {
     label: "Submitted",
-    color: "bg-violet-500",
-    bgColor: "bg-violet-500/10",
+    color: "bg-raised-hi",
+    bgColor: "bg-tile-hi",
   },
   UNDER_REVIEW: {
     label: "Under Review",
@@ -33,8 +33,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   },
   APPROVED: {
     label: "Approved",
-    color: "bg-emerald-500",
-    bgColor: "bg-emerald-500/10",
+    color: "bg-approved",
+    bgColor: "bg-approved/10",
   },
   CANCELLED: {
     label: "Cancelled",
@@ -262,8 +262,8 @@ export function WeeklyActivityChart({
   );
 
   const metrics = [
-    { key: "uploads", label: "Uploads", color: "bg-violet-500", hoverColor: "bg-violet-600" },
-    { key: "approvals", label: "Approvals", color: "bg-emerald-500", hoverColor: "bg-emerald-600" },
+    { key: "uploads", label: "Uploads", color: "bg-raised-hi", hoverColor: "bg-raised-hi" },
+    { key: "approvals", label: "Approvals", color: "bg-approved", hoverColor: "bg-approved" },
     { key: "requests", label: "Requests", color: "bg-blue-500", hoverColor: "bg-blue-600" },
   ] as const;
 
@@ -441,10 +441,10 @@ export function DonutChart({
           const colorMap: Record<string, string> = {
             "bg-amber-500": "#f59e0b",
             "bg-blue-500": "#3b82f6",
-            "bg-violet-500": "#8b5cf6",
+            "bg-raised-hi": "#8b5cf6",
             "bg-orange-500": "#f97316",
             "bg-red-500": "#ef4444",
-            "bg-emerald-500": "#10b981",
+            "bg-approved": "#6fd99b",
             "bg-gray-400": "#9ca3af",
           };
 

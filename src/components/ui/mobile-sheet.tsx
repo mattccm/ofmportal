@@ -137,7 +137,7 @@ export function MobileSheet({
         {/* Overlay */}
         <SheetPrimitive.Overlay
           className={cn(
-            "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
+            "fixed inset-0 z-50 bg-[rgb(8_9_11/0.74)]",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             "transition-all duration-300"
@@ -149,7 +149,7 @@ export function MobileSheet({
           ref={sheetRef}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50",
-            "bg-background rounded-t-3xl shadow-2xl",
+            "bg-tile text-foreground rounded-t-xl shadow-2xl",
             "focus:outline-none",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
@@ -176,9 +176,9 @@ export function MobileSheet({
             >
               <div
                 className={cn(
-                  "w-10 h-1 rounded-full bg-muted-foreground/30",
+                  "w-10 h-1 rounded-full bg-ctl-hi",
                   "transition-colors duration-200",
-                  isDragging && "bg-muted-foreground/50"
+                  isDragging && "bg-ink-2"
                 )}
               />
             </div>
@@ -202,13 +202,13 @@ export function MobileSheet({
               {showCloseButton && (
                 <SheetPrimitive.Close
                   className={cn(
-                    "h-10 w-10 flex items-center justify-center rounded-xl",
-                    "bg-muted hover:bg-muted/80 transition-colors",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/50",
+                    "h-11 w-11 flex items-center justify-center rounded-md",
+                    "hover:bg-tile-hi transition-colors",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                     "touch-manipulation active:scale-95"
                   )}
                 >
-                  <X className="h-5 w-5 text-muted-foreground" />
+                  <X className="h-5 w-5 text-icon" />
                   <span className="sr-only">Close</span>
                 </SheetPrimitive.Close>
               )}

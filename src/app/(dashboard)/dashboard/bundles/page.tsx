@@ -1,8 +1,8 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { Package, Sparkles } from "lucide-react";
 import { BundlesClient } from "./bundles-client";
 
 // DATA FETCHING
@@ -157,6 +157,8 @@ async function getBundleStats(agencyId: string) {
 
 // PAGE COMPONENT
 
+export const metadata: Metadata = { title: "Bundles" };
+
 export default async function BundlesPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.agencyId) {
@@ -183,60 +185,20 @@ export default async function BundlesPage() {
     stats = { totalBundles: 0, onboardingBundles: 0, autoTriggerBundles: 0 };
   }
 
-  return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Sparkles className="h-4 w-4" />
-            <span>Onboarding Tools</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Request Bundles
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Create pre-configured sets of templates to quickly onboard new creators
-          </p>
-        </div>
-      </div>
+  const plural = (n: number, w: string) => `${n} ${n === 1 ? w : `${w}s`}`;
+  const lede =
+    stats.totalBundles === 0
+      ? "A bundle sends several templates at once, for example everything a new creator needs in their first week."
+      : `${plural(stats.totalBundles, "bundle")}. ${stats.onboardingBundles} for onboarding${
+          stats.autoTriggerBundles ? `, ${stats.autoTriggerBundles} sent by themselves when a creator is added` : ""
+        }.`;
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Package className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.totalBundles}</p>
-              <p className="text-sm text-muted-foreground">Total Bundles</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <Package className="h-6 w-6 text-violet-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.onboardingBundles}</p>
-              <p className="text-sm text-muted-foreground">Onboarding Bundles</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <Package className="h-6 w-6 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.autoTriggerBundles}</p>
-              <p className="text-sm text-muted-foreground">Auto-Trigger Bundles</p>
-            </div>
-          </div>
-        </div>
-      </div>
+  return (
+    <div className="space-y-6">
+      <header className="min-w-0">
+        <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] sm:text-[26px]">Bundles</h1>
+        <p className="mt-1 max-w-[70ch] text-[15px]">{lede}</p>
+      </header>
 
       {/* Client Component for Bundle Management */}
       <BundlesClient

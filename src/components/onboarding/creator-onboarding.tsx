@@ -49,11 +49,11 @@ function HelperTip({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 p-4 rounded-lg bg-primary/5 border border-primary/10",
+        "flex items-start gap-3 p-4 rounded-lg bg-well",
         className
       )}
     >
-      <Lightbulb className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+      <Lightbulb className="w-5 h-5 text-icon flex-shrink-0 mt-0.5" />
       <p className="text-sm text-muted-foreground">{children}</p>
     </div>
   );
@@ -91,7 +91,7 @@ function ProfileSetupStep({
 
   return (
     <div className="space-y-6">
-      <div className="text-center p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/10">
+      <div className="text-center p-6 bg-well rounded-[10px]">
         <h3 className="text-xl font-semibold mb-2">
           Welcome to Your Creator Portal!
         </h3>
@@ -261,7 +261,7 @@ function UploadPreferencesStep({
         </div>
 
         <div className="flex items-center gap-3 p-4 rounded-lg border bg-card">
-          <Checkbox
+          <Checkbox aria-labelledby="auto-organize-label"
             id="auto-organize"
             checked={autoOrganize}
             onCheckedChange={(checked) => setAutoOrganize(checked as boolean)}
@@ -269,6 +269,7 @@ function UploadPreferencesStep({
           <div className="flex-1">
             <label
               htmlFor="auto-organize"
+                  id="auto-organize-label"
               className="text-sm font-medium cursor-pointer"
             >
               Auto-organize by date
@@ -282,7 +283,7 @@ function UploadPreferencesStep({
 
       <div className="p-4 bg-muted/50 rounded-lg">
         <p className="text-sm font-medium mb-2 flex items-center gap-2">
-          <Shield className="w-4 h-4 text-primary" />
+          <Shield className="w-4 h-4 text-icon" />
           Your content is secure
         </p>
         <p className="text-xs text-muted-foreground">
@@ -332,7 +333,7 @@ function NotificationPreferencesStep({
           <Label className="text-base">Notification Channels</Label>
           <div className="space-y-3">
             <div className="flex items-center gap-3 p-4 rounded-lg border bg-card">
-              <Checkbox
+              <Checkbox aria-labelledby="email-notif-label"
                 id="email-notif"
                 checked={emailNotifications}
                 onCheckedChange={(checked) =>
@@ -342,9 +343,10 @@ function NotificationPreferencesStep({
               <div className="flex-1">
                 <label
                   htmlFor="email-notif"
+                  id="email-notif-label"
                   className="text-sm font-medium cursor-pointer flex items-center gap-2"
                 >
-                  <Mail className="w-4 h-4 text-blue-500" />
+                  <Mail className="w-4 h-4 text-icon" />
                   Email Notifications
                 </label>
                 <p className="text-xs text-muted-foreground">
@@ -354,7 +356,7 @@ function NotificationPreferencesStep({
             </div>
 
             <div className="flex items-center gap-3 p-4 rounded-lg border bg-card">
-              <Checkbox
+              <Checkbox aria-labelledby="sms-notif-label"
                 id="sms-notif"
                 checked={smsNotifications}
                 onCheckedChange={(checked) =>
@@ -364,9 +366,10 @@ function NotificationPreferencesStep({
               <div className="flex-1">
                 <label
                   htmlFor="sms-notif"
+                  id="sms-notif-label"
                   className="text-sm font-medium cursor-pointer flex items-center gap-2"
                 >
-                  <Smartphone className="w-4 h-4 text-emerald-500" />
+                  <Smartphone className="w-4 h-4 text-success" />
                   SMS Notifications
                 </label>
                 <p className="text-xs text-muted-foreground">
@@ -381,7 +384,7 @@ function NotificationPreferencesStep({
           <Label className="text-base">What should we notify you about?</Label>
           <div className="space-y-3">
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-              <Checkbox
+              <Checkbox aria-labelledby="notify-approval-label"
                 id="notify-approval"
                 checked={notifyOnApproval}
                 onCheckedChange={(checked) =>
@@ -390,15 +393,16 @@ function NotificationPreferencesStep({
               />
               <label
                 htmlFor="notify-approval"
+                  id="notify-approval-label"
                 className="text-sm cursor-pointer flex items-center gap-2"
               >
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <CheckCircle2 className="w-4 h-4 text-success" />
                 Content approvals & rejections
               </label>
             </div>
 
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-              <Checkbox
+              <Checkbox aria-labelledby="notify-comment-label"
                 id="notify-comment"
                 checked={notifyOnComment}
                 onCheckedChange={(checked) =>
@@ -407,9 +411,10 @@ function NotificationPreferencesStep({
               />
               <label
                 htmlFor="notify-comment"
+                  id="notify-comment-label"
                 className="text-sm cursor-pointer flex items-center gap-2"
               >
-                <MessageSquare className="w-4 h-4 text-blue-500" />
+                <MessageSquare className="w-4 h-4 text-icon" />
                 New comments & feedback
               </label>
             </div>
@@ -453,7 +458,7 @@ function PortalTourStep() {
 
       <div className="space-y-4">
         <div className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-          <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+          <div className="w-12 h-12 rounded-lg bg-tile-hi flex items-center justify-center text-icon">
             <LayoutDashboard className="w-6 h-6" />
           </div>
           <div className="flex-1">
@@ -465,7 +470,7 @@ function PortalTourStep() {
         </div>
 
         <div className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-          <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+          <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center text-success">
             <Upload className="w-6 h-6" />
           </div>
           <div className="flex-1">
@@ -477,7 +482,7 @@ function PortalTourStep() {
         </div>
 
         <div className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <div className="w-12 h-12 rounded-lg bg-tile-hi flex items-center justify-center text-icon">
             <Eye className="w-6 h-6" />
           </div>
           <div className="flex-1">
@@ -489,7 +494,7 @@ function PortalTourStep() {
         </div>
 
         <div className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-          <div className="w-12 h-12 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
+          <div className="w-12 h-12 rounded-lg bg-tile-hi flex items-center justify-center text-icon">
             <MessageSquare className="w-6 h-6" />
           </div>
           <div className="flex-1">
@@ -501,7 +506,7 @@ function PortalTourStep() {
         </div>
       </div>
 
-      <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/10">
+      <div className="p-4 bg-well rounded-lg">
         <p className="text-sm font-medium mb-2">Ready to start?</p>
         <p className="text-sm text-muted-foreground">
           Click &quot;Complete&quot; to finish setup and start viewing your content requests!

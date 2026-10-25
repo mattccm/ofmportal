@@ -289,7 +289,7 @@ function LoginForm() {
     return (
       <div className="space-y-6">
         <div className="space-y-2 text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-ink-2" />
           <h1 className="text-xl font-bold tracking-tight text-foreground">
             {autoLoginInProgress ? "Signing you in..." : "Redirecting..."}
           </h1>
@@ -334,7 +334,7 @@ function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="h-12 rounded-xl border-border bg-background px-4 transition-all focus:ring-2 focus:ring-primary/20"
+              className="h-12 px-4 "
             />
           </div>
 
@@ -345,7 +345,7 @@ function LoginForm() {
               </Label>
               <Link
                 href="/forgot-password"
-                className="text-sm text-primary hover:text-primary/80 transition-colors"
+                className="text-sm text-ink-2 underline decoration-ctl-hi underline-offset-[3px] transition-colors hover:text-foreground hover:decoration-ink"
               >
                 Forgot password?
               </Link>
@@ -358,13 +358,13 @@ function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
-              className="h-12 rounded-xl border-border bg-background px-4 transition-all focus:ring-2 focus:ring-primary/20"
+              className="h-12 px-4 "
             />
           </div>
 
           {/* Stay Signed In - especially useful for PWA users */}
           <div className="flex items-center space-x-3">
-            <Checkbox
+            <Checkbox aria-label="Stay signed in"
               id="staySignedIn"
               checked={staySignedIn}
               onCheckedChange={(checked) => setStaySignedIn(checked === true)}
@@ -389,7 +389,7 @@ function LoginForm() {
           {requires2FA && (
             <div className="space-y-3 animate-fade-in">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" />
+                <ShieldCheck className="h-4 w-4 text-icon" />
                 <Label htmlFor="totpCode" className="text-sm font-medium">
                   Two-Factor Authentication
                 </Label>
@@ -405,7 +405,7 @@ function LoginForm() {
                 required
                 disabled={loading}
                 autoFocus
-                className="h-14 rounded-xl border-border bg-background px-4 text-center text-2xl font-semibold tracking-widest transition-all focus:ring-2 focus:ring-primary/20"
+                className="h-14 px-4 text-center text-2xl font-semibold tracking-[0.3em] tabular-nums"
               />
               <p className="text-xs text-muted-foreground text-center">
                 Enter the 6-digit code from your authenticator app, or a backup code
@@ -417,7 +417,7 @@ function LoginForm() {
         <Button
           type="submit"
           disabled={loading}
-          className="w-full h-12 rounded-xl btn-gradient text-base font-semibold"
+          className="w-full h-12 text-base"
         >
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -448,9 +448,9 @@ function LoginFormFallback() {
         <div className="h-5 w-64 bg-muted rounded-lg animate-shimmer" />
       </div>
       <div className="space-y-4">
-        <div className="h-12 w-full bg-muted rounded-xl animate-shimmer" />
-        <div className="h-12 w-full bg-muted rounded-xl animate-shimmer" />
-        <div className="h-12 w-full bg-muted rounded-xl animate-shimmer" />
+        <div className="h-12 w-full bg-tile-hi rounded-md animate-pulse" />
+        <div className="h-12 w-full bg-tile-hi rounded-md animate-pulse" />
+        <div className="h-12 w-full bg-tile-hi rounded-md animate-pulse" />
       </div>
     </div>
   );

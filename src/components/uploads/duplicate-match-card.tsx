@@ -134,18 +134,18 @@ export function DuplicateMatchCard({
     <Card
       className={cn(
         "overflow-hidden",
-        severity === "high" && "border-red-200",
-        severity === "medium" && "border-amber-200",
-        severity === "low" && "border-yellow-200",
+        severity === "high" && "border-late/30",
+        severity === "medium" && "border-changes/30",
+        severity === "low" && "border-changes/30",
         className
       )}
     >
       <CardHeader
         className={cn(
           "py-3 px-4",
-          severity === "high" && "bg-red-50",
-          severity === "medium" && "bg-amber-50",
-          severity === "low" && "bg-yellow-50"
+          severity === "high" && "bg-late/10",
+          severity === "medium" && "bg-changes/10",
+          severity === "low" && "bg-changes/10"
         )}
       >
         <div className="flex items-center justify-between">
@@ -153,9 +153,9 @@ export function DuplicateMatchCard({
             <Copy
               className={cn(
                 "h-5 w-5",
-                severity === "high" && "text-red-500",
-                severity === "medium" && "text-amber-500",
-                severity === "low" && "text-yellow-500"
+                severity === "high" && "text-late",
+                severity === "medium" && "text-changes",
+                severity === "low" && "text-changes"
               )}
             />
             <span className="font-medium">{formatMatchType(match.matchType)}</span>
@@ -163,9 +163,9 @@ export function DuplicateMatchCard({
           <Badge
             variant="secondary"
             className={cn(
-              severity === "high" && "bg-red-100 text-red-700",
-              severity === "medium" && "bg-amber-100 text-amber-700",
-              severity === "low" && "bg-yellow-100 text-yellow-700"
+              severity === "high" && "bg-late/10 text-late",
+              severity === "medium" && "bg-changes/10 text-changes",
+              severity === "low" && "bg-changes/10 text-changes"
             )}
           >
             {match.confidence}% confidence
@@ -325,7 +325,7 @@ export function DuplicateMatchCard({
               value={selectedReason}
               onValueChange={(val) => setSelectedReason(val as DuplicateOverrideReason)}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Why is this different content?">
                 <SelectValue placeholder="Select a reason..." />
               </SelectTrigger>
               <SelectContent>
@@ -389,7 +389,7 @@ export function DuplicateMatchCard({
               onClick={onAcknowledgeDuplicate}
               disabled={disabled}
               className={cn(
-                severity === "high" && "bg-red-600 hover:bg-red-700"
+                severity === "high" && "bg-late hover:bg-late"
               )}
             >
               <Check className="h-4 w-4 mr-1" />
@@ -423,8 +423,8 @@ function MatchIndicator({
       className={cn(
         "flex items-center gap-1.5 px-2 py-1 rounded text-xs",
         matched
-          ? "bg-red-100 text-red-700"
-          : "bg-gray-100 text-gray-500"
+          ? "bg-late/10 text-late"
+          : "bg-tile-hi text-ink-2"
       )}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -456,26 +456,26 @@ export function CompactMatchCard({
     <div
       className={cn(
         "flex items-center gap-3 p-3 rounded-lg border",
-        severity === "high" && "bg-red-50 border-red-200",
-        severity === "medium" && "bg-amber-50 border-amber-200",
-        severity === "low" && "bg-yellow-50 border-yellow-200",
+        severity === "high" && "bg-late/10 border-late/30",
+        severity === "medium" && "bg-changes/10 border-changes/30",
+        severity === "low" && "bg-changes/10 border-changes/30",
         className
       )}
     >
       <div
         className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-          severity === "high" && "bg-red-100",
-          severity === "medium" && "bg-amber-100",
-          severity === "low" && "bg-yellow-100"
+          severity === "high" && "bg-late/10",
+          severity === "medium" && "bg-changes/10",
+          severity === "low" && "bg-changes/10"
         )}
       >
         <Copy
           className={cn(
             "h-5 w-5",
-            severity === "high" && "text-red-600",
-            severity === "medium" && "text-amber-600",
-            severity === "low" && "text-yellow-600"
+            severity === "high" && "text-late",
+            severity === "medium" && "text-changes",
+            severity === "low" && "text-changes"
           )}
         />
       </div>
@@ -489,9 +489,9 @@ export function CompactMatchCard({
             variant="secondary"
             className={cn(
               "shrink-0 text-xs",
-              severity === "high" && "bg-red-100 text-red-700",
-              severity === "medium" && "bg-amber-100 text-amber-700",
-              severity === "low" && "bg-yellow-100 text-yellow-700"
+              severity === "high" && "bg-late/10 text-late",
+              severity === "medium" && "bg-changes/10 text-changes",
+              severity === "low" && "bg-changes/10 text-changes"
             )}
           >
             {match.confidence}%
@@ -509,7 +509,7 @@ export function CompactMatchCard({
       </div>
 
       {onView && (
-        <Button variant="ghost" size="sm" onClick={onView} className="shrink-0">
+        <Button aria-label="View original upload" variant="ghost" size="sm" onClick={onView} className="shrink-0">
           <ExternalLink className="h-4 w-4" />
         </Button>
       )}

@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { Bell, Clock, Settings, History, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { PageHead } from "@/components/creators/people-ui";
 import { RemindersClient } from "./reminders-client";
 
 // DATA FETCHING
@@ -156,70 +157,23 @@ export default async function RemindersPage() {
   }));
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Sparkles className="h-4 w-4" />
-            <span>Notification Center</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Reminders Management
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Configure reminder templates, view scheduled reminders, and manage notification settings
-          </p>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Settings className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.activeTemplates}</p>
-              <p className="text-sm text-muted-foreground">Active Templates</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <Clock className="h-6 w-6 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.pendingReminders}</p>
-              <p className="text-sm text-muted-foreground">Pending Reminders</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <Bell className="h-6 w-6 text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.sentReminders}</p>
-              <p className="text-sm text-muted-foreground">Sent Reminders</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <History className="h-6 w-6 text-red-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.failedReminders}</p>
-              <p className="text-sm text-muted-foreground">Failed Deliveries</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHead
+        title="Reminders"
+        lede={
+          <>
+            {stats.pendingReminders
+              ? `${stats.pendingReminders} ${stats.pendingReminders === 1 ? "reminder is" : "reminders are"} scheduled`
+              : "Nothing is scheduled"}
+            , {stats.sentReminders} sent
+            {stats.failedReminders ? `, ${stats.failedReminders} failed to deliver` : ", none failed"}. When they go out and how they read is set in{" "}
+            <Link href="/dashboard/settings/reminder-rules" className="underline decoration-ctl-hi underline-offset-[3px] hover:decoration-ink">
+              Reminder rules
+            </Link>
+            .
+          </>
+        }
+      />
 
       {/* Client Component with Tabs */}
       <RemindersClient

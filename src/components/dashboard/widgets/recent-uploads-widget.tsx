@@ -45,7 +45,7 @@ function getStatusConfig(status: string) {
     case "APPROVED":
       return {
         icon: <CheckCircle className="h-3.5 w-3.5" />,
-        class: "text-emerald-600 bg-emerald-50 border-emerald-200",
+        class: "text-approved bg-approved/10 border-approved/30",
         label: "Approved",
       };
     case "REJECTED":
@@ -84,7 +84,7 @@ export function RecentUploadsWidget({ config, size }: WidgetProps) {
   return (
     <WidgetCard
       title="Recent Uploads"
-      icon={<Upload className="h-5 w-5 text-emerald-500" />}
+      icon={<Upload className="h-5 w-5 text-icon" />}
       isLoading={isLoading}
       error={error}
       onRetry={refresh}
@@ -151,7 +151,7 @@ export function RecentUploadsWidget({ config, size }: WidgetProps) {
                 </div>
 
                 {/* Status */}
-                <Badge variant="outline" className={cn("text-[10px] shrink-0 gap-1", statusConfig.class)}>
+                <Badge variant="outline" className={cn("text-[12px] shrink-0 gap-1", statusConfig.class)}>
                   {statusConfig.icon}
                   {statusConfig.label}
                 </Badge>

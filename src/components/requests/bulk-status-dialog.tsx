@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { STATUS_TONE } from "@/components/editable";
 import {
   AlertCircle,
   CheckCircle2,
@@ -100,30 +101,20 @@ const STATUS_OPTIONS = [
   { value: "IN_PROGRESS", label: "In Progress", description: "Creator started uploading" },
   { value: "SUBMITTED", label: "Submitted", description: "Creator submitted content" },
   { value: "UNDER_REVIEW", label: "Under Review", description: "Agency reviewing content" },
-  { value: "NEEDS_REVISION", label: "Needs Revision", description: "Changes requested" },
+  { value: "NEEDS_REVISION", label: "Needs changes", description: "Sent back to the creator for changes" },
   { value: "APPROVED", label: "Approved", description: "All content approved" },
   { value: "ARCHIVED", label: "Archived", description: "Request archived" },
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "LOW", label: "Low", color: "bg-gray-100 text-gray-600" },
-  { value: "NORMAL", label: "Normal", color: "bg-blue-100 text-blue-600" },
-  { value: "HIGH", label: "High", color: "bg-orange-100 text-orange-600" },
-  { value: "URGENT", label: "Urgent", color: "bg-red-100 text-red-600" },
+  { value: "LOW", label: "Low", dot: "border border-ctl-hi" },
+  { value: "NORMAL", label: "Normal", dot: "bg-ink-2" },
+  { value: "HIGH", label: "High", dot: "bg-ink" },
+  { value: "URGENT", label: "Urgent", dot: "bg-late" },
 ];
 
 function getStatusBadgeClass(status: string) {
-  const classes: Record<string, string> = {
-    DRAFT: "bg-slate-100 text-slate-800 border-slate-200",
-    PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    IN_PROGRESS: "bg-blue-100 text-blue-800 border-blue-200",
-    SUBMITTED: "bg-purple-100 text-purple-800 border-purple-200",
-    UNDER_REVIEW: "bg-orange-100 text-orange-800 border-orange-200",
-    NEEDS_REVISION: "bg-red-100 text-red-800 border-red-200",
-    APPROVED: "bg-green-100 text-green-800 border-green-200",
-    ARCHIVED: "bg-gray-100 text-gray-600 border-gray-200",
-  };
-  return classes[status] || classes.PENDING;
+  return STATUS_TONE[status] ?? STATUS_TONE.PENDING;
 }
 
 function getActionConfig(actionType: BulkActionType) {
@@ -345,7 +336,7 @@ export function BulkStatusDialog({
                 <div className="space-y-2">
                   <Label>New Status</Label>
                   <Select value={selectedValue} onValueChange={setSelectedValue}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="New Status">
                       <SelectValue placeholder="Select new status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -368,7 +359,7 @@ export function BulkStatusDialog({
                 <div className="space-y-2">
                   <Label>New Priority</Label>
                   <Select value={selectedValue} onValueChange={setSelectedValue}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="New Priority">
                       <SelectValue placeholder="Select new priority" />
                     </SelectTrigger>
                     <SelectContent>
@@ -376,7 +367,7 @@ export function BulkStatusDialog({
                         <SelectItem key={option.value} value={option.value}>
                           <div className="flex items-center gap-2">
                             <span
-                              className={`inline-block w-2 h-2 rounded-full ${option.color.split(" ")[0]}`}
+                              className={`inline-block w-2 h-2 rounded-full ${option.dot}`}
                             />
                             <span>{option.label}</span>
                           </div>
@@ -391,7 +382,7 @@ export function BulkStatusDialog({
                 <div className="space-y-2">
                   <Label>Team Member</Label>
                   <Select value={selectedValue} onValueChange={setSelectedValue}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Team Member">
                       <SelectValue placeholder="Select team member" />
                     </SelectTrigger>
                     <SelectContent>
@@ -435,7 +426,7 @@ export function BulkStatusDialog({
                 <Label className="flex items-center justify-between">
                   <span>Affected Requests ({validRequests.length})</span>
                   {invalidRequests.length > 0 && (
-                    <span className="text-xs text-amber-600">
+                    <span className="text-xs text-late">
                       {invalidRequests.length} request(s) cannot be updated
                     </span>
                   )}
@@ -471,7 +462,7 @@ export function BulkStatusDialog({
                         {invalidRequests.map((request) => (
                           <div
                             key={request.id}
-                            className="flex items-center justify-between py-2 px-3 bg-amber-50 dark:bg-amber-950/20 rounded-md opacity-60"
+                            className="flex items-center justify-between py-2 px-3 bg-tile-hi rounded-md text-ink-2"
                           >
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm truncate">{request.title}</p>
@@ -509,11 +500,11 @@ export function BulkStatusDialog({
               {/* Summary */}
               <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
                 {failureCount === 0 ? (
-                  <CheckCircle2 className="h-8 w-8 text-green-500" />
+                  <CheckCircle2 className="h-8 w-8 text-success" />
                 ) : successCount === 0 ? (
-                  <XCircle className="h-8 w-8 text-red-500" />
+                  <XCircle className="h-8 w-8 text-late" />
                 ) : (
-                  <AlertCircle className="h-8 w-8 text-amber-500" />
+                  <AlertCircle className="h-8 w-8 text-changes" />
                 )}
                 <div>
                   <p className="font-semibold">
@@ -537,22 +528,22 @@ export function BulkStatusDialog({
                       key={result.requestId}
                       className={`flex items-center justify-between py-2 px-3 rounded-md ${
                         result.success
-                          ? "bg-green-50 dark:bg-green-950/20"
-                          : "bg-red-50 dark:bg-red-950/20"
+                          ? "bg-success/10"
+                          : "bg-late/10"
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         {result.success ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
                         ) : (
-                          <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                          <XCircle className="h-4 w-4 text-late flex-shrink-0" />
                         )}
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">
                             {result.requestTitle}
                           </p>
                           {result.error && (
-                            <p className="text-xs text-red-600 dark:text-red-400 truncate">
+                            <p className="text-xs text-late truncate">
                               {result.error}
                             </p>
                           )}

@@ -89,11 +89,11 @@ function getMediaTypeIcon(type: MediaType, className?: string) {
 function getMediaTypeColor(type: MediaType) {
   switch (type) {
     case "image":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+      return "bg-success/10 text-success";
     case "video":
       return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
     case "audio":
-      return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
+      return "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground";
     case "document":
       return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
   }
@@ -315,7 +315,7 @@ export function ImportFromUploads({
               value={filterType}
               onValueChange={(v) => setFilterType(v as MediaType | "all")}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger aria-label="Filter by type" className="w-[140px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
@@ -329,7 +329,7 @@ export function ImportFromUploads({
             </Select>
 
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox
+              <Checkbox aria-label="Show imported"
                 checked={showImported}
                 onCheckedChange={(c) => setShowImported(c === true)}
               />
@@ -380,7 +380,7 @@ export function ImportFromUploads({
                   {/* Select all */}
                   {availableUploads.length > 0 && (
                     <div className="flex items-center gap-2 p-2 border-b mb-2">
-                      <Checkbox
+                      <Checkbox aria-label="Select all uploads"
                         checked={
                           selectedIds.size === availableUploads.length &&
                           availableUploads.length > 0
@@ -418,9 +418,9 @@ export function ImportFromUploads({
                           {/* Checkbox */}
                           <div onClick={(e) => e.stopPropagation()}>
                             {upload.alreadyImported ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              <CheckCircle2 className="h-5 w-5 text-success" />
                             ) : (
-                              <Checkbox
+                              <Checkbox aria-label={`Select ${upload.originalName}`}
                                 checked={isSelected}
                                 onCheckedChange={() => toggleSelect(upload.id)}
                               />
@@ -488,7 +488,7 @@ export function ImportFromUploads({
                   value={selectedFolder || "none"}
                   onValueChange={(v) => setSelectedFolder(v === "none" ? null : v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Destination folder">
                     <Folder className="mr-2 h-4 w-4" />
                     <SelectValue placeholder="Select folder" />
                   </SelectTrigger>
@@ -518,7 +518,7 @@ export function ImportFromUploads({
                       }
                     }}
                   />
-                  <Button variant="outline" onClick={addTag}>
+                  <Button aria-label="Add tag" variant="outline" onClick={addTag}>
                     <Tag className="h-4 w-4" />
                   </Button>
                 </div>

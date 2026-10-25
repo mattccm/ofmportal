@@ -28,6 +28,7 @@ import {
 import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { Avatar } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import { DueDateField } from "@/components/requests/deadline-picker";
 import { format } from "date-fns";
 import { FieldEditor, RichContentEditor } from "@/components/templates/field-editor";
 import {
@@ -194,7 +195,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
 
   const handleCancel = () => {
     if (hasChanges) {
-      if (!confirm("You have unsaved changes. Are you sure you want to discard them?")) {
+      if (!confirm("Leave without saving? Your changes to this request will be lost.")) {
         return;
       }
     }
@@ -210,13 +211,13 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
     <div className="max-w-4xl mx-auto space-y-6 pb-24">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={handleCancel}>
+        <Button aria-label="Back" variant="ghost" size="icon" onClick={handleCancel}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">Edit Request</h1>
+          <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] sm:text-[26px]">Edit request</h1>
           <p className="text-sm text-muted-foreground">
-            Modify the request details and fields
+            Changes show on the creator&apos;s phone as soon as you save. They are not notified.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -226,21 +227,21 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
           <Button
             onClick={handleSave}
             disabled={isSaving || !hasChanges}
-            className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+            className="bg-raised-hi text-ink hover:bg-raised-hi"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            Save Changes
+            Save changes
           </Button>
         </div>
       </div>
 
       {/* Creator & Template Info */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/30 dark:bg-violet-950/10">
+        <Card className="border-line dark:border-line bg-tile-hi dark:bg-tile-hi">
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
               <Avatar
@@ -260,11 +261,11 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
           </CardContent>
         </Card>
         {request.template && (
-          <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/10">
+          <Card className="border-line dark:border-line bg-tile-hi dark:bg-tile-hi">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-foreground dark:text-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground">Template</p>
@@ -276,12 +277,12 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
         )}
       </div>
 
-      {/* Request Details */}
+      {/* Details */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Request Details
+            Details
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -300,6 +301,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
           <div className="space-y-2">
             <Label htmlFor="description">Description / Instructions</Label>
             <WysiwygEditor
+              aria-label="Description / Instructions"
               value={description}
               onChange={setDescription}
               placeholder="Add description or instructions for the creator..."
@@ -312,7 +314,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -328,18 +330,13 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="dueDate">Due Date</Label>
-              <Input
-                id="dueDate"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+            <div className="space-y-2 sm:col-span-3">
+              <p className="text-sm font-medium">Due</p>
+              <DueDateField id="dueDate" value={dueDate} onChange={setDueDate} />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="estimatedMinutes">Est. time (min)</Label>
+              <Label htmlFor="estimatedMinutes">Time it takes (minutes)</Label>
               <Input
                 id="estimatedMinutes"
                 type="number"
@@ -355,9 +352,9 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="urgency">Urgency</Label>
+              <Label htmlFor="urgency">Priority</Label>
               <Select value={urgency} onValueChange={setUrgency}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -377,7 +374,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Request Examples & References
+            Examples and references
           </CardTitle>
           <CardDescription>
             Add example images, videos, and reference links to help the creator understand what you need
@@ -387,7 +384,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
           <RichContentEditor
             richContent={requestRichContent}
             onChange={(rc) => setRequestRichContent(rc || {})}
-            title="Request Examples"
+            title="Examples"
             description="Add examples and references that apply to the entire request"
           />
         </CardContent>
@@ -400,7 +397,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Layers className="h-5 w-5" />
-                Request Fields
+                Fields
                 <Badge variant="secondary">{fields.length}</Badge>
               </CardTitle>
               <CardDescription>
@@ -442,17 +439,17 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
       {/* Sticky Save Bar */}
       <div className="fixed bottom-4 left-0 right-0 px-4 z-40">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-background/95 backdrop-blur-sm border rounded-xl shadow-lg p-4 flex items-center justify-between">
+          <div className="bg-raised rounded-[var(--tw-r-tile)] shadow-lg p-3 pl-4 flex flex-wrap gap-3 items-center justify-between">
             <div className="text-sm text-muted-foreground">
               {hasChanges ? (
                 <span className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  You have unsaved changes
+                  <AlertTriangle className="h-4 w-4 text-ink-2" />
+                  Not saved yet
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-emerald-500" />
-                  All changes saved
+                  <CheckCircle className="h-4 w-4 text-success" />
+                  Nothing to save
                 </span>
               )}
             </div>
@@ -463,14 +460,14 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
               <Button
                 onClick={handleSave}
                 disabled={isSaving || !hasChanges}
-                className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+                className="bg-raised-hi text-ink hover:bg-raised-hi"
               >
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <Save className="h-4 w-4 mr-2" />
                 )}
-                Save Changes
+                Save changes
               </Button>
             </div>
           </div>

@@ -156,8 +156,8 @@ export const NOTIFICATION_CATEGORIES: CategoryInfo[] = [
     title: "Content Requests",
     description: "New requests, status updates, and deadline changes",
     icon: "FileText",
-    iconColor: "text-violet-500",
-    iconBg: "bg-violet-500/10",
+    iconColor: "text-foreground",
+    iconBg: "bg-tile-hi",
   },
   {
     key: "reminders",
@@ -172,8 +172,8 @@ export const NOTIFICATION_CATEGORIES: CategoryInfo[] = [
     title: "Team Activity",
     description: "Team member actions, mentions, and collaboration updates",
     icon: "Users",
-    iconColor: "text-emerald-500",
-    iconBg: "bg-emerald-500/10",
+    iconColor: "text-success",
+    iconBg: "bg-success/10",
   },
   {
     key: "system",

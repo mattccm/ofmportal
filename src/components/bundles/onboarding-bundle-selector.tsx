@@ -125,7 +125,7 @@ export function OnboardingBundleSelector({
             </Tooltip>
           </TooltipProvider>
         </div>
-        <Switch
+        <Switch aria-label="Apply Onboarding Bundle"
           id="apply-bundle"
           checked={applyBundle}
           onCheckedChange={handleToggle}
@@ -155,8 +155,8 @@ export function OnboardingBundleSelector({
                     className={cn(
                       "w-full text-left p-4 rounded-xl border transition-all",
                       isSelected
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                        : "border-border hover:border-primary/50 hover:bg-muted/50",
+                        ? "border-ink bg-tile-hi ring-2 ring-ink/20"
+                        : "border-border hover:border-ink/50 hover:bg-muted/50",
                       disabled && "opacity-50 cursor-not-allowed"
                     )}
                   >
@@ -165,8 +165,8 @@ export function OnboardingBundleSelector({
                         className={cn(
                           "h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0",
                           isSelected
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-violet-500/10 text-violet-500"
+                            ? "bg-ink text-ground"
+                            : "bg-tile-hi text-foreground"
                         )}
                       >
                         <Package className="h-5 w-5" />
@@ -177,14 +177,14 @@ export function OnboardingBundleSelector({
                           {isAutoTrigger && (
                             <Badge
                               variant="secondary"
-                              className="text-xs bg-amber-500/10 text-amber-600 border-amber-200"
+                              className="text-xs bg-tile-hi text-ink-2 border-line"
                             >
                               <Zap className="h-3 w-3 mr-1" />
                               Default
                             </Badge>
                           )}
                           {isSelected && (
-                            <CheckCircle className="h-4 w-4 text-primary ml-auto" />
+                            <CheckCircle className="h-4 w-4 text-ink ml-auto" />
                           )}
                         </div>
                         {bundle.description && (
@@ -294,7 +294,7 @@ export function PostInviteBundleApply({
         <div className="flex items-center gap-3">
           {applying ? (
             <>
-              <Loader2 className="h-5 w-5 text-primary animate-spin" />
+              <Loader2 className="h-5 w-5 text-ink animate-spin" />
               <div>
                 <p className="font-medium">Applying onboarding bundle...</p>
                 <p className="text-sm text-muted-foreground">
@@ -304,9 +304,9 @@ export function PostInviteBundleApply({
             </>
           ) : applied ? (
             <>
-              <CheckCircle className="h-5 w-5 text-emerald-500" />
+              <CheckCircle className="h-5 w-5 text-success" />
               <div>
-                <p className="font-medium text-emerald-600">
+                <p className="font-medium text-success">
                   Onboarding bundle applied!
                 </p>
                 <p className="text-sm text-muted-foreground">
@@ -317,11 +317,11 @@ export function PostInviteBundleApply({
             </>
           ) : error ? (
             <>
-              <div className="h-5 w-5 rounded-full bg-red-500/10 flex items-center justify-center">
-                <span className="text-red-500 text-xs font-bold">!</span>
+              <div className="h-5 w-5 rounded-full bg-late/10 flex items-center justify-center">
+                <span className="text-late text-xs font-bold">!</span>
               </div>
               <div>
-                <p className="font-medium text-red-600">
+                <p className="font-medium text-late">
                   Failed to apply bundle
                 </p>
                 <p className="text-sm text-muted-foreground">{error}</p>

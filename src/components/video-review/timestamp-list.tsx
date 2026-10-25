@@ -103,9 +103,9 @@ function getTypeBadgeVariant(type: VideoTimestamp["type"]) {
     case "issue":
       return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
     case "praise":
-      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+      return "bg-success/10 text-success";
     case "note":
-      return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+      return "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground";
     default:
       return "";
   }
@@ -313,7 +313,7 @@ function TimestampItem({
                 className={cn(
                   "gap-1.5",
                   !timestamp.resolved &&
-                    "text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                    "text-success hover:text-success hover:bg-success/10 dark:hover:bg-success/20"
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -340,7 +340,7 @@ function TimestampItem({
               {canDelete && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm">
+                    <Button aria-label="Timestamp actions" variant="ghost" size="icon-sm">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -395,7 +395,7 @@ function TimestampItem({
                   }}
                 />
                 <div className="flex flex-col gap-1">
-                  <Button
+                  <Button aria-label="Send reply"
                     size="icon-sm"
                     onClick={handleSubmitReply}
                     disabled={!replyText.trim() || isSubmittingReply}
@@ -547,7 +547,7 @@ export function TimestampList({
               </Badge>
             )}
             {stats.resolved > 0 && (
-              <Badge variant="outline" className="gap-1 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              <Badge variant="outline" className="gap-1 bg-success/10 text-success">
                 <Check className="h-3 w-3" />
                 {stats.resolved} resolved
               </Badge>
@@ -584,14 +584,14 @@ export function TimestampList({
                 checked={filters.types.includes("praise")}
                 onCheckedChange={() => toggleType("praise")}
               >
-                <ThumbsUp className="h-4 w-4 mr-2 text-green-500" />
+                <ThumbsUp className="h-4 w-4 mr-2 text-success" />
                 Praise
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={filters.types.includes("note")}
                 onCheckedChange={() => toggleType("note")}
               >
-                <StickyNote className="h-4 w-4 mr-2 text-purple-500" />
+                <StickyNote className="h-4 w-4 mr-2 text-foreground" />
                 Notes
               </DropdownMenuCheckboxItem>
 
@@ -689,7 +689,7 @@ export function TimestampList({
       {isSelectionMode && selectedIds.size > 0 && (
         <div className="flex items-center justify-between p-3 bg-muted/50 border-b">
           <div className="flex items-center gap-2">
-            <Checkbox
+            <Checkbox aria-label="Select all timestamps"
               checked={selectedIds.size === filteredTimestamps.length}
               onCheckedChange={(checked) => {
                 if (checked) {
@@ -707,7 +707,7 @@ export function TimestampList({
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 text-green-600"
+              className="gap-1.5 text-success"
               onClick={() => handleBulkResolve(true)}
             >
               <Check className="h-4 w-4" />
@@ -745,7 +745,7 @@ export function TimestampList({
             filteredTimestamps.map((timestamp) => (
               <div key={timestamp.id} className="flex items-start gap-2">
                 {isSelectionMode && (
-                  <Checkbox
+                  <Checkbox aria-label={`Select timestamp: ${timestamp.comment}`}
                     checked={selectedIds.has(timestamp.id)}
                     onCheckedChange={() => toggleSelection(timestamp.id)}
                     className="mt-3.5"

@@ -127,7 +127,7 @@ function getStatusColor(status: CachedRequest['status']): string {
     case 'active':
       return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
     case 'completed':
-      return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      return 'bg-success/10 text-success border-success/20';
     case 'archived':
       return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
     default:
@@ -311,7 +311,7 @@ export function OfflineRequestViewer({
                   value={statusFilter}
                   onValueChange={(value) => setStatusFilter(value as StatusFilter)}
                 >
-                  <SelectTrigger className="w-[130px]">
+                  <SelectTrigger aria-label="Filter by status" className="w-[130px]">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -327,7 +327,7 @@ export function OfflineRequestViewer({
                   value={sortBy}
                   onValueChange={(value) => setSortBy(value as SortOption)}
                 >
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger aria-label="Sort by" className="w-[140px]">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
@@ -447,7 +447,7 @@ function RequestItem({ request, onView, onDelete }: RequestItemProps) {
           request.status === 'active'
             ? 'bg-blue-500/10 text-blue-500'
             : request.status === 'completed'
-            ? 'bg-emerald-500/10 text-emerald-500'
+            ? 'bg-success/10 text-success'
             : 'bg-gray-500/10 text-gray-500'
         )}
       >
@@ -486,7 +486,7 @@ function RequestItem({ request, onView, onDelete }: RequestItemProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
+        <Button aria-label={`View ${request.title}`} variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
           e.stopPropagation();
           onView();
         }}>
@@ -494,7 +494,7 @@ function RequestItem({ request, onView, onDelete }: RequestItemProps) {
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
+            <Button aria-label={`More actions for ${request.title}`}
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -543,7 +543,7 @@ function RequestDetails({ request }: RequestDetailsProps) {
           request.status === 'active'
             ? 'bg-blue-500/10'
             : request.status === 'completed'
-            ? 'bg-emerald-500/10'
+            ? 'bg-success/10'
             : 'bg-gray-500/10'
         )}
       >
@@ -554,7 +554,7 @@ function RequestDetails({ request }: RequestDetailsProps) {
             request.status === 'active'
               ? 'text-blue-500'
               : request.status === 'completed'
-              ? 'text-emerald-500'
+              ? 'text-success'
               : 'text-gray-500'
           )}
         />

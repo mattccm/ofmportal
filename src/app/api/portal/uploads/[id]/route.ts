@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { validateCreatorSession } from "@/lib/portal-auth";
+import { validateCreatorSession, CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import {
   getPublicFileUrl,
   getViewPresignedUrl,
@@ -29,6 +29,8 @@ export async function GET(
       where: {
         id,
         creatorId: creator.id,
+        // Finished requests drop out of the portal, content included
+        request: { status: { notIn: CREATOR_HIDDEN_STATUSES } },
       },
     });
 

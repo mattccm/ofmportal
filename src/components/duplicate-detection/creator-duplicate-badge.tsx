@@ -91,7 +91,7 @@ function getTrendConfig(trend: "increasing" | "stable" | "decreasing") {
     case "decreasing":
       return {
         icon: TrendingDown,
-        color: "text-green-500",
+        color: "text-success",
         label: "Decreasing",
       };
     case "stable":
@@ -371,7 +371,7 @@ export function CreatorDuplicateBadge({
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <button className={cn("cursor-pointer", className)}>
+          <button type="button" aria-label={variant === "compact" ? `${stats.totalAttempts} duplicate attempts` : undefined} className={cn("cursor-pointer", className)}>
             <BadgeContent stats={stats} variant={variant} />
           </button>
         </PopoverTrigger>

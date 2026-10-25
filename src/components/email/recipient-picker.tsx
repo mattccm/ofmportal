@@ -196,7 +196,7 @@ export function RecipientPicker({
           />
         </div>
         <Select value={filter} onValueChange={(v) => setFilter(v as CreatorFilter)}>
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger aria-label="Filter by status" className="w-full sm:w-[180px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -208,7 +208,7 @@ export function RecipientPicker({
           </SelectContent>
         </Select>
         {allTags.length > 0 && (
-          <Button
+          <Button aria-label="Filter by tag" aria-pressed={showFilters}
             variant="outline"
             size="icon"
             onClick={() => setShowFilters(!showFilters)}
@@ -260,7 +260,7 @@ export function RecipientPicker({
       {/* Select all checkbox */}
       <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-3">
         <div className="flex items-center gap-3">
-          <Checkbox
+          <Checkbox aria-label="Select all"
             checked={isAllSelected}
             indeterminate={isSomeSelected}
             onCheckedChange={toggleSelectAll}
@@ -320,12 +320,12 @@ export function RecipientPicker({
                 className="gap-1.5 pl-1"
               >
                 <Avatar className="h-5 w-5">
-                  <AvatarFallback className="text-[10px] bg-primary/20">
+                  <AvatarFallback className="text-[12px] bg-primary/20">
                     {creator.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <span className="max-w-[100px] truncate">{creator.name}</span>
-                <button
+                <button type="button" aria-label={`Remove ${creator.name}`}
                   onClick={() => toggleCreator(creator.id)}
                   className="ml-0.5 hover:text-destructive"
                 >
@@ -358,7 +358,7 @@ function CreatorRow({
   const getStatusIcon = () => {
     switch (creator.inviteStatus) {
       case "ACCEPTED":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-success" />;
       case "PENDING":
         return <Clock className="h-4 w-4 text-yellow-500" />;
       case "EXPIRED":
@@ -373,9 +373,9 @@ function CreatorRow({
         isSelected && "bg-primary/5"
       )}
     >
-      <Checkbox checked={isSelected} onCheckedChange={onToggle} />
+      <Checkbox aria-label={`Select ${creator.name}`} checked={isSelected} onCheckedChange={onToggle} />
       <Avatar className="h-9 w-9 flex-shrink-0">
-        <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white text-sm">
+        <AvatarFallback className=" bg-primary text-white text-sm">
           {creator.name.charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>

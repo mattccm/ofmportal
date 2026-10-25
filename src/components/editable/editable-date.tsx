@@ -51,7 +51,7 @@ export function EditableDate({
   disabled = false,
   size = "md",
   className,
-  displayFormat = "MMM d, yyyy",
+  displayFormat = "EEE d MMM yyyy",
   clearable = true,
   ariaLabel,
   minDate,

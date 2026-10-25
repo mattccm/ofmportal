@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +25,7 @@ import {
   Loader2,
   RotateCcw,
 } from "lucide-react";
-import { format } from "date-fns";
+import { formatStamp } from "@/components/title-wall/time";
 import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
@@ -54,6 +54,8 @@ interface UploadsListProps {
   requestId: string;
   fields?: FieldInfo[];
   onStatusChange?: (uploadId: string, newStatus: string) => void;
+  /** Finished requests: no approve, send back or undo */
+  readOnly?: boolean;
 }
 
 function getFileIcon(mimeType: string) {
@@ -63,79 +65,12 @@ function getFileIcon(mimeType: string) {
   return <File className="h-5 w-5" />;
 }
 
-// Thumbnail component that loads asynchronously
-function UploadThumbnail({ upload }: { upload: Upload }) {
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  const isImage = upload.fileType.startsWith("image/");
-  const isVideo = upload.fileType.startsWith("video/");
-  const showThumbnail = isImage || isVideo;
-
-  useEffect(() => {
-    if (!showThumbnail) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchThumbnail = async () => {
-      try {
-        const response = await fetch(`/api/uploads/${upload.id}/thumbnail`);
-        if (!response.ok) throw new Error("Failed to fetch thumbnail");
-        const data = await response.json();
-        setThumbnailUrl(data.url);
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchThumbnail();
-  }, [upload.id, showThumbnail]);
-
-  // Show icon for non-image/video files
-  if (!showThumbnail) {
-    return (
-      <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
-        {getFileIcon(upload.fileType)}
-      </div>
-    );
-  }
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse">
-        {isVideo ? <Video className="h-5 w-5 text-gray-400" /> : <ImageIcon className="h-5 w-5 text-gray-400" />}
-      </div>
-    );
-  }
-
-  // Error state or no thumbnail
-  if (error || !thumbnailUrl) {
-    return (
-      <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
-        {getFileIcon(upload.fileType)}
-      </div>
-    );
-  }
-
-  // Show thumbnail - using regular img tag for R2 public URLs (cross-origin)
+// A kind tile in place of a thumbnail: lists never load creator imagery.
+// Previews open on request (the full-view button) through signed links.
+function UploadKindTile({ upload }: { upload: Upload }) {
   return (
-    <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-      <img
-        src={thumbnailUrl}
-        alt={upload.originalName}
-        className="absolute inset-0 w-full h-full object-cover"
-        onError={() => setError(true)}
-      />
-      {isVideo && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-          <Video className="h-4 w-4 text-white" />
-        </div>
-      )}
+    <div className="flex size-11 shrink-0 items-center justify-center rounded-[8px] bg-well text-icon" aria-hidden="true">
+      {getFileIcon(upload.fileType)}
     </div>
   );
 }
@@ -143,17 +78,17 @@ function UploadThumbnail({ upload }: { upload: Upload }) {
 function getStatusBadge(status: string) {
   switch (status) {
     case "PENDING":
-      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Pending Review</Badge>;
+      return <Badge variant="ready">Ready to review</Badge>;
     case "APPROVED":
-      return <Badge variant="outline" className="bg-green-50 text-green-700">Approved</Badge>;
+      return <Badge variant="approved">Approved</Badge>;
     case "REJECTED":
-      return <Badge variant="outline" className="bg-red-50 text-red-700">Rejected</Badge>;
+      return <Badge variant="changes">Needs changes</Badge>;
     default:
       return null;
   }
 }
 
-export function UploadsList({ uploads, requestId, fields, onStatusChange }: UploadsListProps) {
+export function UploadsList({ uploads, requestId, fields, onStatusChange, readOnly = false }: UploadsListProps) {
   const [selectedUploads, setSelectedUploads] = useState<Set<string>>(new Set());
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -229,7 +164,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
         throw new Error("Failed to approve uploads");
       }
 
-      toast.success(`${uploadIds.length} upload(s) approved`);
+      toast.success(uploadIds.length === 1 ? "File approved" : `${uploadIds.length} files approved`);
       setSelectedUploads(new Set());
 
       // Update status locally via callback if provided, otherwise reload
@@ -239,7 +174,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
         window.location.reload();
       }
     } catch {
-      toast.error("Failed to approve uploads");
+      toast.error("Couldn't approve. Try again.");
     } finally {
       setProcessingAction(null);
     }
@@ -259,7 +194,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
         throw new Error("Failed to reject uploads");
       }
 
-      toast.success(`${uploadIds.length} upload(s) rejected`);
+      toast.success(uploadIds.length === 1 ? "File sent back" : `${uploadIds.length} files sent back`);
       setSelectedUploads(new Set());
       setRejectDialogOpen(false);
       setRejectReason("");
@@ -271,7 +206,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
         window.location.reload();
       }
     } catch {
-      toast.error("Failed to reject uploads");
+      toast.error("Couldn't send the files back. Try again.");
     } finally {
       setProcessingAction(null);
     }
@@ -290,7 +225,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
         throw new Error("Failed to reset upload");
       }
 
-      toast.success("Upload reset to pending");
+      toast.success("Decision undone; the file is waiting for review again");
 
       // Update status locally via callback if provided, otherwise reload
       if (onStatusChange) {
@@ -299,7 +234,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
         window.location.reload();
       }
     } catch {
-      toast.error("Failed to reset upload");
+      toast.error("Couldn't undo the decision. Try again.");
     } finally {
       setProcessingAction(null);
     }
@@ -334,7 +269,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
       setPreviewIndex(adjustedIndex >= 0 ? adjustedIndex : 0);
       setPreviewOpen(true);
     } catch {
-      toast.error("Failed to load preview");
+      toast.error("The preview didn't load. Try again or download the file.");
     }
   };
 
@@ -353,26 +288,23 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
 
   if (uploads.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <File className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No files uploaded yet</p>
-      </div>
+      <p className="rounded-[10px] bg-tile px-4 py-6 text-[14px] text-ink-2">No files uploaded yet.</p>
     );
   }
 
-  const pendingCount = uploads.filter((u) => u.status === "PENDING").length;
+  const pendingCount = readOnly ? 0 : uploads.filter((u) => u.status === "PENDING").length;
 
   return (
     <div className="space-y-4">
       {/* Bulk Actions */}
       {pendingCount > 0 && (
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 rounded-[10px] bg-tile px-3 py-2">
           <div className="flex items-center gap-3">
-            <Checkbox
+            <Checkbox aria-label="Select all"
               checked={selectedUploads.size === uploads.length}
               onCheckedChange={selectAll}
             />
-            <span className="text-sm text-gray-600">
+            <span className="text-[14px] text-ink-2">
               {selectedUploads.size > 0
                 ? `${selectedUploads.size} selected`
                 : "Select all"}
@@ -383,7 +315,6 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
               <Button
                 size="sm"
                 variant="outline"
-                className="text-green-600 border-green-200 hover:bg-green-50"
                 onClick={() => handleApprove(Array.from(selectedUploads))}
                 disabled={!!processingAction}
               >
@@ -392,17 +323,16 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
                 ) : (
                   <Check className="h-4 w-4 mr-1" />
                 )}
-                Approve
+                Approve selected
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
                 onClick={() => setRejectDialogOpen(true)}
                 disabled={!!processingAction}
               >
                 <X className="h-4 w-4 mr-1" />
-                Reject
+                Send back selected
               </Button>
             </div>
           )}
@@ -415,8 +345,8 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
           <div key={group.field?.id || "ungrouped"} className="space-y-2">
             {/* Field Section Header */}
             {(fields && fields.length > 0) && (
-              <div className="flex items-center gap-2 pb-2 border-b">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="flex items-center gap-2 pb-2 border-b border-line">
+                <h4 className="text-sm font-medium text-ink">
                   {group.field?.label || "Other Uploads"}
                 </h4>
                 <Badge variant="secondary" className="text-xs">
@@ -426,42 +356,44 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
             )}
 
             {/* Uploads in this group */}
-            <div className="space-y-2">
+            <div className="divide-y divide-line rounded-[10px] bg-tile">
               {group.uploads.map((upload) => (
                 <div
                   key={upload.id}
-                  className="flex items-center gap-4 p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 transition-colors duration-150 hover:bg-tile-hi"
                 >
-                  {upload.status === "PENDING" && (
+                  {upload.status === "PENDING" && !readOnly && (
                     <Checkbox
                       checked={selectedUploads.has(upload.id)}
                       onCheckedChange={() => toggleUpload(upload.id)}
+                      aria-label={`Select ${upload.originalName}`}
                     />
                   )}
 
-                  <UploadThumbnail upload={upload} />
+                  <UploadKindTile upload={upload} />
 
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{upload.originalName}</p>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="min-w-0 flex-1 basis-[160px]">
+                    <p className="truncate text-[14px] font-medium text-ink">{upload.originalName}</p>
+                    <div className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-2">
                       <span>{formatFileSize(Number(upload.fileSize))}</span>
                       <span>·</span>
                       <span>
                         {upload.uploadedAt
-                          ? format(upload.uploadedAt, "MMM d, h:mm a")
-                          : "Uploading..."}
+                          ? formatStamp(upload.uploadedAt)
+                          : "Uploading…"}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(upload.status)}
+                  <div className="ml-auto flex items-center gap-1">
+                    <span className="mr-1 hidden sm:inline-flex">{getStatusBadge(upload.status)}</span>
 
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handlePreview(upload, uploads.indexOf(upload))}
-                      title="Preview"
+                      title="Open full view"
+                      aria-label={`Open ${upload.originalName} in full view`}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -471,46 +403,47 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
                       size="icon"
                       onClick={() => handleDownload(upload)}
                       title="Download"
+                      aria-label={`Download ${upload.originalName}`}
                     >
                       <Download className="h-4 w-4" />
                     </Button>
 
-                    {upload.status === "PENDING" && (
+                    {upload.status === "PENDING" && !readOnly && (
                       <>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-green-600"
                           onClick={() => handleApprove([upload.id])}
                           disabled={!!processingAction}
-                          title="Approve"
+                          title="Approve this file"
+                          aria-label={`Approve ${upload.originalName}`}
                         >
                           <Check className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-red-600"
                           onClick={() => {
                             setSelectedUploads(new Set([upload.id]));
                             setRejectDialogOpen(true);
                           }}
                           disabled={!!processingAction}
-                          title="Reject"
+                          title="Send this file back"
+                          aria-label={`Send ${upload.originalName} back`}
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       </>
                     )}
 
-                    {(upload.status === "APPROVED" || upload.status === "REJECTED") && (
+                    {(upload.status === "APPROVED" || upload.status === "REJECTED") && !readOnly && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-orange-600"
                         onClick={() => handleReset(upload.id)}
                         disabled={!!processingAction}
-                        title="Reset to pending"
+                        title="Return this file to review"
+                        aria-label={`Return ${upload.originalName} to review`}
                       >
                         <RotateCcw className="h-4 w-4" />
                       </Button>
@@ -527,13 +460,13 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Upload(s)</DialogTitle>
+            <DialogTitle>Send {selectedUploads.size === 1 ? "this file" : `${selectedUploads.size} files`} back</DialogTitle>
             <DialogDescription>
-              Provide feedback for the creator about why the content needs revision.
+              Tell the creator what to change. They see this note with the file.
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            placeholder="Enter rejection reason..."
+            placeholder="What needs to change, and how"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             rows={4}
@@ -554,7 +487,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange }: Uplo
               {processingAction === "reject" && (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               )}
-              Reject
+              Send back
             </Button>
           </DialogFooter>
         </DialogContent>

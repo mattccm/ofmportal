@@ -103,7 +103,7 @@ export function FilterBuilder({
             value={filterGroup.logic}
             onValueChange={(value) => updateLogic(value as FilterLogic)}
           >
-            <SelectTrigger className="w-[100px] h-8">
+            <SelectTrigger aria-label="Match logic" className="w-[100px] h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -243,7 +243,7 @@ function FilterConditionRow({
     return (
       <div className="flex items-center gap-2 text-sm">
         {showLogicLabel && (
-          <Badge variant="secondary" className="text-[10px] px-1.5">
+          <Badge variant="secondary" className="text-[12px] px-1.5">
             {logic}
           </Badge>
         )}
@@ -251,7 +251,7 @@ function FilterConditionRow({
           {formatConditionForDisplay(condition, fieldDefinitions)}
         </span>
         {canRemove && (
-          <Button
+          <Button aria-label="Remove condition"
             type="button"
             variant="ghost"
             size="icon"
@@ -271,13 +271,13 @@ function FilterConditionRow({
         <div className="flex items-start gap-2">
           {/* Drag Handle (visual only for now) */}
           <div className="flex items-center pt-2">
-            <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+            <GripVertical aria-hidden="true" className="h-4 w-4 text-muted-foreground/50" />
           </div>
 
           {/* Logic Label */}
           <div className="w-14 flex items-center pt-2">
             {showLogicLabel ? (
-              <Badge variant="outline" className="text-[10px] px-1.5">
+              <Badge variant="outline" className="text-[12px] px-1.5">
                 {logic}
               </Badge>
             ) : (
@@ -289,7 +289,7 @@ function FilterConditionRow({
           <div className="flex-1 space-y-2">
             <div className="flex flex-wrap gap-2">
               <Select value={condition.field || ""} onValueChange={handleFieldChange}>
-                <SelectTrigger className="w-[160px] h-9">
+                <SelectTrigger aria-label="Field" className="w-[160px] h-9">
                   <SelectValue placeholder="Select field" />
                 </SelectTrigger>
                 <SelectContent>
@@ -307,7 +307,7 @@ function FilterConditionRow({
                 onValueChange={handleOperatorChange}
                 disabled={!condition.field}
               >
-                <SelectTrigger className="w-[160px] h-9">
+                <SelectTrigger aria-label="Operator" className="w-[160px] h-9">
                   <SelectValue placeholder="Select operator" />
                 </SelectTrigger>
                 <SelectContent>
@@ -334,7 +334,7 @@ function FilterConditionRow({
                         value={String(condition.value || "")}
                         onValueChange={handleValueChange}
                       >
-                        <SelectTrigger className="w-[160px] h-9">
+                        <SelectTrigger aria-label="Value" className="w-[160px] h-9">
                           <SelectValue placeholder="Select value" />
                         </SelectTrigger>
                         <SelectContent>
@@ -400,7 +400,7 @@ function FilterConditionRow({
 
           {/* Remove Button */}
           {canRemove && (
-            <Button
+            <Button aria-label="Remove condition"
               type="button"
               variant="ghost"
               size="icon"
@@ -555,7 +555,7 @@ export function FilterSummary({
         </Badge>
       ))}
       {onClear && (
-        <Button
+        <Button aria-label="Clear filters"
           type="button"
           variant="ghost"
           size="icon"

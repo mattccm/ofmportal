@@ -156,12 +156,12 @@ export function DryRunPreview({
               <div className="grid grid-cols-3 gap-4">
                 <Card className={cn(
                   "border-2",
-                  previewResult.canProceed ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20" : "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20"
+                  previewResult.canProceed ? "border-success/30 bg-success/10" : "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20"
                 )}>
                   <CardContent className="p-4 text-center">
                     <div className="flex items-center justify-center mb-2">
                       {previewResult.canProceed ? (
-                        <CheckCircle className="h-6 w-6 text-green-500" />
+                        <CheckCircle className="h-6 w-6 text-success" />
                       ) : (
                         <XCircle className="h-6 w-6 text-red-500" />
                       )}
@@ -232,7 +232,7 @@ export function DryRunPreview({
                         >
                           <CollapsibleTrigger asChild>
                             <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/50">
-                              <Button variant="ghost" size="icon-sm" className="h-6 w-6">
+                              <Button aria-label={expandedItems.has(item.id) ? `Collapse ${item.name}` : `Expand ${item.name}`} variant="ghost" size="icon-sm" className="h-6 w-6">
                                 {expandedItems.has(item.id) ? (
                                   <ChevronDown className="h-4 w-4" />
                                 ) : (

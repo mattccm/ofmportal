@@ -59,35 +59,35 @@ function getTypeStyles(type: SuggestionType): {
     case "fix_issue":
       return {
         border: "border-red-200 dark:border-red-800/50",
-        bg: "bg-gradient-to-br from-red-50/50 to-orange-50/30 dark:from-red-950/20 dark:to-orange-950/10",
-        iconBg: "bg-gradient-to-br from-red-500 to-orange-500",
+        bg: " bg-red-50/50 dark:bg-red-950/20 ",
+        iconBg: " bg-red-500 ",
         iconColor: "text-white",
         accentBorder: "border-l-red-500",
       };
     case "action_needed":
       return {
         border: "border-amber-200 dark:border-amber-800/50",
-        bg: "bg-gradient-to-br from-amber-50/50 to-yellow-50/30 dark:from-amber-950/20 dark:to-yellow-950/10",
-        iconBg: "bg-gradient-to-br from-amber-500 to-yellow-500",
+        bg: " bg-amber-50/50 dark:bg-amber-950/20 ",
+        iconBg: " bg-amber-500 ",
         iconColor: "text-white",
         accentBorder: "border-l-amber-500",
       };
     case "optimize_workflow":
       return {
         border: "border-blue-200 dark:border-blue-800/50",
-        bg: "bg-gradient-to-br from-blue-50/50 to-cyan-50/30 dark:from-blue-950/20 dark:to-cyan-950/10",
-        iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+        bg: " bg-blue-50/50 dark:bg-blue-950/20 ",
+        iconBg: " bg-blue-500 ",
         iconColor: "text-white",
         accentBorder: "border-l-blue-500",
       };
     case "try_feature":
     default:
       return {
-        border: "border-violet-200 dark:border-violet-800/50",
-        bg: "bg-gradient-to-br from-violet-50/50 to-purple-50/30 dark:from-violet-950/20 dark:to-purple-950/10",
-        iconBg: "bg-gradient-to-br from-violet-500 to-purple-500",
+        border: "border-line dark:border-line",
+        bg: " bg-tile-hi dark:bg-tile-hi ",
+        iconBg: " bg-raised-hi ",
         iconColor: "text-white",
-        accentBorder: "border-l-violet-500",
+        accentBorder: "border-l-ctl",
       };
   }
 }
@@ -216,7 +216,7 @@ export function SuggestionCard({
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden transition-all duration-200 border-l-4",
+        "group relative overflow-hidden transition-all duration-200 border",
         styles.border,
         styles.bg,
         styles.accentBorder,
@@ -243,11 +243,11 @@ export function SuggestionCard({
           <div className="flex-1 min-w-0">
             {/* Header with type label and badge */}
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">
                 {getTypeLabel(suggestion.type)}
               </span>
               {priorityBadge && (
-                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", priorityBadge.className)}>
+                <Badge variant="outline" className={cn("text-[12px] px-1.5 py-0", priorityBadge.className)}>
                   {priorityBadge.label}
                 </Badge>
               )}
@@ -364,7 +364,7 @@ export function InlineSuggestion({
       </Button>
 
       {suggestion.dismissible && onDismiss && (
-        <Button
+        <Button aria-label="Dismiss suggestion"
           variant="ghost"
           size="icon"
           onClick={handleDismiss}

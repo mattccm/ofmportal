@@ -116,7 +116,7 @@ const EMAIL_STYLES = `
 `;
 
 const HEADER_GRADIENT = `
-  background: linear-gradient(135deg, ${BRAND.primaryColor} 0%, ${BRAND.secondaryColor} 100%);
+  background: ${BRAND.groundColor};
   padding: 30px;
   border-radius: 10px 10px 0 0;
 `;
@@ -130,8 +130,8 @@ const CONTENT_BOX = `
 `;
 
 const BUTTON_STYLE = `
-  background: ${BRAND.primaryColor};
-  color: white;
+  background: ${BRAND.groundColor};
+  color: #ffffff;
   padding: 14px 28px;
   text-decoration: none;
   border-radius: 6px;
@@ -260,8 +260,8 @@ View and upload here: {{portal.link}}`.trim() + TEXT_FOOTER,
     ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
-    <div style="background: #f0fdf4; padding: 20px; border-radius: 10px; border-left: 4px solid #22c55e;">
-      <h2 style="margin: 0 0 20px 0; color: #16a34a;">New Content Uploaded</h2>
+    <div style="background: #f4f5f7; padding: 20px; border-radius: 10px; border: 1px solid #e3e5e9;">
+      <h2 style="margin: 0 0 20px 0; color: #0e0f12;">New Content Uploaded</h2>
       <p><strong>{{creator.name}}</strong> has uploaded {{upload.count}} file(s) for:</p>
       <div style="background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <h3 style="margin: 0 0 10px 0; color: #333;">{{request.title}}</h3>
@@ -295,8 +295,8 @@ Review the uploads here: {{dashboard.link}}`.trim() + TEXT_FOOTER,
     ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
-    <div style="background: #f0fdf4; padding: 20px; border-radius: 10px; border-left: 4px solid #22c55e;">
-      <h2 style="margin: 0 0 20px 0; color: #16a34a;">Content Approved!</h2>
+    <div style="background: #f4f5f7; padding: 20px; border-radius: 10px; border: 1px solid #e3e5e9;">
+      <h2 style="margin: 0 0 20px 0; color: #0e0f12;">Content Approved!</h2>
       <p>Hi {{creator.name}},</p>
       <p>Great news! Your content for <strong>"{{request.title}}"</strong> has been approved.</p>
       <p>Thank you for your submission!</p>
@@ -331,7 +331,7 @@ Thank you for your submission!
     ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
-    <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #ef4444;">
+    <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border: 1px solid #fecaca;">
       <h2 style="margin: 0 0 20px 0; color: #dc2626;">Content Not Approved</h2>
       <p>Hi {{creator.name}},</p>
       <p>We've reviewed your content for <strong>"{{request.title}}"</strong> and unfortunately it doesn't meet our requirements.</p>
@@ -373,7 +373,7 @@ Please upload new content here: {{portal.link}}`.trim() + TEXT_FOOTER,
     ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid ${BRAND.primaryColor};">
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e3e5e9;">
       <h2 style="margin: 0 0 20px 0; color: #333;">Content Reminder</h2>
       <p>Hi {{creator.name}},</p>
       <p>This is a friendly reminder that your content for <strong>"{{request.title}}"</strong> is due in <strong>{{days.remaining}} days</strong>.</p>
@@ -413,7 +413,7 @@ Upload your content here: {{portal.link}}`.trim() + TEXT_FOOTER,
     ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
-    <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
+    <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border: 1px solid #fde68a;">
       <h2 style="margin: 0 0 20px 0; color: #b45309;">Content Due Today!</h2>
       <p>Hi {{creator.name}},</p>
       <p>Your content for <strong>"{{request.title}}"</strong> is due <strong>today</strong>.</p>
@@ -449,7 +449,7 @@ Please upload your content as soon as possible: {{portal.link}}`.trim() + TEXT_F
     ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
-    <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #ef4444;">
+    <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border: 1px solid #fecaca;">
       <h2 style="margin: 0 0 20px 0; color: #dc2626;">Content Overdue</h2>
       <p>Hi {{creator.name}},</p>
       <p>Your content for <strong>"{{request.title}}"</strong> is <strong>{{days.overdue}} days overdue</strong>.</p>
@@ -536,7 +536,7 @@ If you didn't request a password reset, you can safely ignore this email.`.trim(
     ${COLOR_SCHEME_META}
   </head>
   <body style="${EMAIL_STYLES}">
-    <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
+    <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border: 1px solid #fde68a;">
       <h2 style="margin: 0 0 20px 0; color: #b45309;">Revision Requested</h2>
       <p>Hi {{creator.name}},</p>
       <p>We've reviewed your content for <strong>"{{request.title}}"</strong> and have some feedback:</p>

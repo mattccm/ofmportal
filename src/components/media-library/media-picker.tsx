@@ -78,11 +78,11 @@ function getMediaTypeIcon(type: MediaType, className?: string) {
 function getMediaTypeColor(type: MediaType) {
   switch (type) {
     case "image":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+      return "bg-success/10 text-success";
     case "video":
       return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
     case "audio":
-      return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
+      return "bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground";
     case "document":
       return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
   }
@@ -144,7 +144,7 @@ function MediaThumbnail({
 
       {/* Video duration */}
       {item.mediaType === "video" && item.duration && (
-        <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1 rounded">
+        <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[12px] px-1 rounded">
           {Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, "0")}
         </div>
       )}
@@ -378,7 +378,7 @@ export function MediaPicker({
               value={filterType}
               onValueChange={(v) => setFilterType(v as MediaType | "all")}
             >
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger aria-label="Filter by type" className="w-[130px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue />
               </SelectTrigger>
@@ -400,14 +400,14 @@ export function MediaPicker({
             </Select>
 
             <div className="flex items-center border rounded-lg p-0.5">
-              <Button
+              <Button aria-label="Grid view"
                 variant={viewMode === "grid" ? "secondary" : "ghost"}
                 size="icon-sm"
                 onClick={() => setViewMode("grid")}
               >
                 <Grid3X3 className="h-4 w-4" />
               </Button>
-              <Button
+              <Button aria-label="List view"
                 variant={viewMode === "list" ? "secondary" : "ghost"}
                 size="icon-sm"
                 onClick={() => setViewMode("list")}
@@ -602,7 +602,7 @@ export function MediaPicker({
                       onClick={() => toggleSelect(item)}
                       size="sm"
                     />
-                    <button
+                    <button aria-label={`Remove ${item.title || item.originalName} from selection`}
                       className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-white flex items-center justify-center"
                       onClick={(e) => {
                         e.stopPropagation();

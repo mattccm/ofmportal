@@ -66,7 +66,7 @@ function VoiceNotePlayer({
           : "bg-muted"
       }`}
     >
-      <button
+      <button aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
         onClick={handlePlayPause}
         className="h-8 w-8 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/30"
       >
@@ -209,7 +209,7 @@ export function SessionChat({
                     <span className="text-xs font-medium">
                       {isOwnMessage ? "You" : message.user.name}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[12px] text-muted-foreground">
                       {formatTime(message.createdAt)}
                     </span>
                   </div>
@@ -249,7 +249,7 @@ export function SessionChat({
             disabled={disabled || isSending}
             className="flex-1"
           />
-          <Button
+          <Button aria-label="Send message"
             size="icon"
             onClick={handleSend}
             disabled={disabled || isSending || !input.trim()}

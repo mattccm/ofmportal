@@ -248,7 +248,7 @@ export function AutoAdvanceTimer({
             {isPaused && hasConflict && (
               <Badge
                 variant="outline"
-                className="absolute -top-2 -right-2 h-4 px-1 text-[10px] border-amber-500 text-amber-600"
+                className="absolute -top-2 -right-2 h-5 px-1 text-[12px] border-amber-500 text-amber-600"
               >
                 Paused
               </Badge>
@@ -257,7 +257,7 @@ export function AutoAdvanceTimer({
 
           {/* Progress bar */}
           <div className="w-20 hidden sm:block">
-            <Progress
+            <Progress aria-label="Time until auto-advance"
               value={progressPercent}
               className={`h-1.5 ${isLowTime ? "[&>div]:bg-destructive" : ""}`}
             />
@@ -267,7 +267,7 @@ export function AutoAdvanceTimer({
           {isHost && (
             <div className="flex items-center gap-1">
               {isPaused ? (
-                <Button
+                <Button aria-label="Resume timer"
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
@@ -277,7 +277,7 @@ export function AutoAdvanceTimer({
                   <Play className="h-3.5 w-3.5" />
                 </Button>
               ) : (
-                <Button
+                <Button aria-label="Pause timer"
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
@@ -287,7 +287,7 @@ export function AutoAdvanceTimer({
                   <Pause className="h-3.5 w-3.5" />
                 </Button>
               )}
-              <Button
+              <Button aria-label="Reset timer"
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
@@ -313,7 +313,7 @@ export function AutoAdvanceTimer({
       {isHost && (
         <Popover open={showSettings} onOpenChange={setShowSettings}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Button aria-label="Auto-advance settings" variant="ghost" size="icon" className="h-7 w-7">
               <Settings className="h-3.5 w-3.5" />
             </Button>
           </PopoverTrigger>
@@ -328,7 +328,7 @@ export function AutoAdvanceTimer({
                 <Label htmlFor="auto-advance-enabled" className="text-sm">
                   Enable auto-advance
                 </Label>
-                <Switch
+                <Switch aria-label="Enable auto-advance"
                   id="auto-advance-enabled"
                   checked={localEnabled}
                   onCheckedChange={setLocalEnabled}
@@ -344,7 +344,7 @@ export function AutoAdvanceTimer({
                         {formatTime(localDuration)}
                       </span>
                     </div>
-                    <Slider
+                    <Slider aria-label="Timer duration"
                       value={[localDuration]}
                       onValueChange={(v) => setLocalDuration(v[0])}
                       min={15}

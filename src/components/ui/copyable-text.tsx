@@ -114,7 +114,7 @@ export function CopyableText({
       aria-label={copied ? copiedTooltipText : tooltipText ?? "Copy"}
     >
       {copied ? (
-        <Check className={cn(iconSize, "text-emerald-500")} />
+        <Check className={cn(iconSize, "text-success")} />
       ) : (
         <Copy className={cn(iconSize, "text-muted-foreground")} />
       )}
@@ -128,7 +128,7 @@ export function CopyableText({
         isTruncated && "truncate block",
         monospace && "font-mono",
         clickToCopy && "cursor-pointer",
-        copied && "text-emerald-600 dark:text-emerald-400",
+        copied && "text-success",
         textClassName
       )}
       style={isTruncated ? { maxWidth } : undefined}
@@ -175,7 +175,7 @@ export function CopyableText({
           side="top"
           className={cn(
             "max-w-sm break-all",
-            copied && "bg-emerald-500 text-white border-emerald-500"
+            copied && "bg-success text-ground border-success"
           )}
         >
           {copied ? copiedTooltipText : text}
@@ -192,7 +192,7 @@ export function CopyableText({
         <TooltipContent
           side="top"
           className={cn(
-            copied && "bg-emerald-500 text-white border-emerald-500"
+            copied && "bg-success text-ground border-success"
           )}
         >
           {copied ? copiedTooltipText : tooltipText}

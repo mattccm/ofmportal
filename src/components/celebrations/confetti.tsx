@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 
 interface ConfettiPiece {
   x: number;
@@ -37,27 +37,37 @@ interface ConfettiProps {
   zIndex?: number;
 }
 
-const DEFAULT_COLORS = [
-  "#FF6B6B", // coral red
-  "#4ECDC4", // teal
-  "#FFE66D", // yellow
-  "#95E1D3", // mint
-  "#F38181", // salmon
-  "#AA96DA", // lavender
-  "#FCBAD3", // pink
-  "#A8D8EA", // sky blue
+/**
+ * The Title Wall palette, read from the tokens when the canvas starts: the
+ * neutral confirm grey, ink and secondary ink, with a little of the accent and the
+ * ready blue. No green. The values after each var are fallbacks only.
+ */
+const TOKEN_COLORS: [string, string][] = [
+  ["--tw-confirm", "rgb(211 215 222)"],
+  ["--tw-ink", "rgb(236 238 242)"],
+  ["--tw-ink-2", "rgb(166 170 179)"],
+  ["--tw-confirm", "rgb(211 215 222)"],
+  ["--tw-acc", "rgb(255 210 63)"],
+  ["--tw-s-review", "rgb(110 168 255)"],
 ];
+
+function tokenColors(): string[] {
+  if (typeof window === "undefined") return TOKEN_COLORS.map(([, f]) => f);
+  const cs = getComputedStyle(document.documentElement);
+  return TOKEN_COLORS.map(([v, f]) => cs.getPropertyValue(v).trim() || f);
+}
 
 export function Confetti({
   active = true,
   count = 150,
   duration = 4000,
-  colors = DEFAULT_COLORS,
+  colors: colorsProp,
   gravity = 0.3,
   velocity = { min: 8, max: 15 },
   onComplete,
   zIndex = 9999,
 }: ConfettiProps) {
+  const colors = useMemo(() => colorsProp ?? tokenColors(), [colorsProp]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
   const piecesRef = useRef<ConfettiPiece[]>([]);

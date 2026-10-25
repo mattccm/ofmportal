@@ -106,8 +106,8 @@ const CATEGORY_CONFIG: Record<
   branding: {
     label: "Branding",
     icon: Palette,
-    color: "text-violet-600 dark:text-violet-400",
-    bgColor: "bg-violet-100 dark:bg-violet-950/50",
+    color: "text-foreground dark:text-foreground",
+    bgColor: "bg-tile-hi dark:bg-tile-hi",
   },
   stock: {
     label: "Stock Media",
@@ -240,7 +240,7 @@ function AddWhitelistDialog({ open, onOpenChange, onAdd }: AddWhitelistDialogPro
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-green-500" />
+            <ShieldCheck className="h-5 w-5 text-success" />
             Add to Whitelist
           </DialogTitle>
           <DialogDescription>
@@ -257,9 +257,9 @@ function AddWhitelistDialog({ open, onOpenChange, onAdd }: AddWhitelistDialogPro
               className={cn(
                 "border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer",
                 dragActive
-                  ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20"
+                  ? "border-ctl bg-tile-hi dark:bg-tile-hi"
                   : "border-muted-foreground/25 hover:border-muted-foreground/50",
-                formData.file && "border-green-500 bg-green-50 dark:bg-green-950/20"
+                formData.file && "border-success bg-success/10"
               )}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -277,16 +277,16 @@ function AddWhitelistDialog({ open, onOpenChange, onAdd }: AddWhitelistDialogPro
 
               {formData.file ? (
                 <div className="flex items-center justify-center gap-3">
-                  <CheckCircle2 className="h-8 w-8 text-green-500" />
+                  <CheckCircle2 className="h-8 w-8 text-success" />
                   <div className="text-left">
-                    <p className="font-medium text-green-700 dark:text-green-400">
+                    <p className="font-medium text-success">
                       {formData.file.name}
                     </p>
-                    <p className="text-sm text-green-600 dark:text-green-300">
+                    <p className="text-sm text-success">
                       {formatFileSize(formData.file.size)}
                     </p>
                   </div>
-                  <Button
+                  <Button aria-label="Remove file"
                     variant="ghost"
                     size="icon"
                     className="ml-2"
@@ -332,7 +332,7 @@ function AddWhitelistDialog({ open, onOpenChange, onAdd }: AddWhitelistDialogPro
                 setFormData({ ...formData, category: value as WhitelistCategory })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Category">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -376,7 +376,7 @@ function AddWhitelistDialog({ open, onOpenChange, onAdd }: AddWhitelistDialogPro
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-raised-hi text-ink hover:bg-raised-hi"
           >
             {isSubmitting ? (
               <>
@@ -445,7 +445,7 @@ function WhitelistItemCard({
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur-sm">
+              <Button aria-label={`More actions for ${item.name}`} variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur-sm">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -641,8 +641,8 @@ export function WhitelistManager({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                <ShieldCheck className="h-5 w-5 text-green-500" />
+              <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-success" />
               </div>
               <div>
                 <CardTitle>Whitelisted Content</CardTitle>
@@ -653,7 +653,7 @@ export function WhitelistManager({
             </div>
             <Button
               onClick={() => setAddDialogOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 gap-2"
+              className="bg-raised-hi text-ink hover:bg-raised-hi gap-2"
             >
               <Plus className="h-4 w-4" />
               Add to Whitelist
@@ -696,7 +696,7 @@ export function WhitelistManager({
               value={categoryFilter}
               onValueChange={(value) => setCategoryFilter(value as WhitelistCategory | "all")}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter by category" className="w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
@@ -731,7 +731,7 @@ export function WhitelistManager({
           {!searchQuery && categoryFilter === "all" && (
             <Button
               onClick={() => setAddDialogOpen(true)}
-              className="mt-4 bg-indigo-600 hover:bg-indigo-700 gap-2"
+              className="mt-4 bg-raised-hi text-ink hover:bg-raised-hi gap-2"
             >
               <Plus className="h-4 w-4" />
               Add First Item

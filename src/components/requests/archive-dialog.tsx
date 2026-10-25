@@ -168,7 +168,7 @@ export function ArchiveDialog({
           title: "Restore Requests",
           description: `Restore ${selectedRequests.length} request${selectedRequests.length !== 1 ? "s" : ""} from archive? They will be restored to their previous status.`,
           icon: RotateCcw,
-          iconClass: "text-blue-600",
+          iconClass: "text-icon",
           buttonText: "Restore",
           buttonVariant: "default" as const,
         };
@@ -177,7 +177,7 @@ export function ArchiveDialog({
           title: "Permanently Delete Requests",
           description: `This will permanently delete ${selectedRequests.length} request${selectedRequests.length !== 1 ? "s" : ""} and all associated data. This action cannot be undone.`,
           icon: Trash2,
-          iconClass: "text-red-600",
+          iconClass: "text-late",
           buttonText: "Delete Permanently",
           buttonVariant: "destructive" as const,
         };
@@ -194,7 +194,7 @@ export function ArchiveDialog({
           <div className="flex items-center gap-3">
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                mode === "delete" ? "bg-red-100 dark:bg-red-900/30" : "bg-muted"
+                mode === "delete" ? "bg-late/10 dark:bg-late/10" : "bg-muted"
               }`}
             >
               <Icon className={`h-5 w-5 ${config.iconClass}`} />
@@ -251,13 +251,13 @@ export function ArchiveDialog({
           {/* Permanent delete confirmation */}
           {mode === "delete" && (
             <div className="space-y-4">
-              <div className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-900/20">
-                <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+              <div className="flex items-start gap-3 rounded-md border border-late/30 bg-late/10 p-3 dark:bg-late/10">
+                <AlertTriangle className="h-5 w-5 flex-shrink-0 text-late dark:text-late" />
                 <div className="text-sm">
-                  <p className="font-medium text-red-800 dark:text-red-200">
+                  <p className="font-medium text-late dark:text-late">
                     Warning: This action is irreversible
                   </p>
-                  <p className="mt-1 text-red-700 dark:text-red-300">
+                  <p className="mt-1 text-late dark:text-late">
                     All uploads, comments, and associated data will be permanently
                     deleted. This cannot be undone.
                   </p>
@@ -265,7 +265,7 @@ export function ArchiveDialog({
               </div>
 
               <div className="flex items-center space-x-2">
-                <Checkbox
+                <Checkbox aria-label="I understand this action cannot be undone"
                   id="confirm-delete"
                   checked={confirmDelete}
                   onCheckedChange={(checked) =>

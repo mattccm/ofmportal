@@ -372,7 +372,7 @@ export default function EmailComposePage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard">
+            <Link href="/dashboard" aria-label="Back to dashboard">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -428,7 +428,7 @@ export default function EmailComposePage() {
             </CardHeader>
             <CardContent>
               <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Email Template">
                   <SelectValue placeholder="Select a template" />
                 </SelectTrigger>
                 <SelectContent>
@@ -469,7 +469,7 @@ export default function EmailComposePage() {
                   <Clock className="h-4 w-4" />
                   Schedule Send
                 </CardTitle>
-                <Switch
+                <Switch aria-label="Schedule Send"
                   checked={isScheduled}
                   onCheckedChange={setIsScheduled}
                 />
@@ -553,7 +553,7 @@ export default function EmailComposePage() {
                     setPreviewCreator(selectedCreators.find((c) => c.id === id) || null)
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Preview recipient">
                     <SelectValue placeholder="Select recipient to preview" />
                   </SelectTrigger>
                   <SelectContent>

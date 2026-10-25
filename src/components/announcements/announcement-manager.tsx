@@ -89,8 +89,8 @@ const defaultFormData: AnnouncementFormData = {
 const typeOptions: { value: AnnouncementType; label: string; icon: React.ElementType; color: string }[] = [
   { value: "INFO", label: "Information", icon: Info, color: "text-blue-500" },
   { value: "WARNING", label: "Warning", icon: AlertTriangle, color: "text-amber-500" },
-  { value: "SUCCESS", label: "Success", icon: CheckCircle, color: "text-emerald-500" },
-  { value: "PROMO", label: "Promotional", icon: Sparkles, color: "text-violet-500" },
+  { value: "SUCCESS", label: "Success", icon: CheckCircle, color: "text-success" },
+  { value: "PROMO", label: "Promotional", icon: Sparkles, color: "text-foreground" },
 ];
 
 const audienceOptions: { value: AnnouncementAudience; label: string; description: string }[] = [
@@ -294,7 +294,7 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
     if (end && end < now) {
       return <Badge variant="secondary">Expired</Badge>;
     }
-    return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Active</Badge>;
+    return <Badge className="bg-success/10 text-success">Active</Badge>;
   };
 
   const previewAnnouncement: Announcement = {
@@ -370,7 +370,7 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-medium truncate">{announcement.title}</h3>
                         {announcement.isPinned && (
-                          <Pin className="h-3.5 w-3.5 text-violet-500" />
+                          <Pin className="h-3.5 w-3.5 text-foreground" />
                         )}
                         {getStatusBadge(announcement)}
                       </div>
@@ -395,7 +395,7 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 shrink-0">
-                      <Button
+                      <Button aria-label={announcement.isPinned ? `Unpin ${announcement.title}` : `Pin ${announcement.title} to top`}
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => togglePinned(announcement.id, !announcement.isPinned)}
@@ -407,7 +407,7 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
                           <Pin className="h-4 w-4" />
                         )}
                       </Button>
-                      <Button
+                      <Button aria-label={announcement.isActive ? `Deactivate ${announcement.title}` : `Activate ${announcement.title}`}
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => toggleActive(announcement.id, !announcement.isActive)}
@@ -419,14 +419,14 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
                           <Eye className="h-4 w-4" />
                         )}
                       </Button>
-                      <Button
+                      <Button aria-label={`Edit ${announcement.title}`}
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => setEditingAnnouncement(announcement)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
+                      <Button aria-label={`Delete ${announcement.title}`}
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => setDeleteConfirmId(announcement.id)}
@@ -464,7 +464,7 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
                 <Eye className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Preview</span>
               </div>
-              <Switch checked={showPreview} onCheckedChange={setShowPreview} />
+              <Switch aria-label="Preview" checked={showPreview} onCheckedChange={setShowPreview} />
             </div>
 
             {/* Preview */}
@@ -556,7 +556,7 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
                   setFormData((prev) => ({ ...prev, targetAudience: value }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Target Audience">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -598,7 +598,7 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
             {/* Options */}
             <div className="flex items-center gap-6 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-2">
-                <Switch
+                <Switch aria-label="Active"
                   id="isActive"
                   checked={formData.isActive}
                   onCheckedChange={(checked) =>
@@ -610,7 +610,7 @@ export function AnnouncementManager({ initialAnnouncements = [] }: AnnouncementM
                 </Label>
               </div>
               <div className="flex items-center gap-2">
-                <Switch
+                <Switch aria-label="Pin to top"
                   id="isPinned"
                   checked={formData.isPinned}
                   onCheckedChange={(checked) =>

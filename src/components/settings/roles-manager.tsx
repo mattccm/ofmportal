@@ -212,7 +212,7 @@ function PermissionMatrixEditor({
                 </td>
                 {actions.map((action) => (
                   <td key={action} className="p-2 border text-center">
-                    <Checkbox
+                    <Checkbox aria-label={`${PERMISSION_ACTIONS[action].label} ${PERMISSION_RESOURCES[resource].label}`}
                       checked={matrix[resource][action]}
                       onCheckedChange={() => togglePermission(resource, action)}
                       disabled={disabled}
@@ -252,7 +252,7 @@ function CreatorVisibilitySettings({
           }
           disabled={disabled}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Creator Access Level">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -310,7 +310,7 @@ function CreatorVisibilitySettings({
           <div className="grid grid-cols-2 gap-2">
             {creatorGroups.map((group) => (
               <div key={group.id} className="flex items-center space-x-2">
-                <Checkbox
+                <Checkbox aria-label={group.name}
                   id={`group-${group.id}`}
                   checked={visibility.groupIds?.includes(group.id)}
                   onCheckedChange={(checked) => {
@@ -493,7 +493,7 @@ function DataFieldVisibilitySettings({
                       <tr key={key} className="hover:bg-muted/30">
                         <td className="py-2 px-3">{label}</td>
                         <td className="text-center py-2 px-3">
-                          <Checkbox
+                          <Checkbox aria-label={`View ${label}`}
                             checked={viewChecked}
                             onCheckedChange={(checked) =>
                               updateCreatorField(key, "view", checked === true)
@@ -503,7 +503,7 @@ function DataFieldVisibilitySettings({
                         </td>
                         <td className="text-center py-2 px-3">
                           {hasEdit ? (
-                            <Checkbox
+                            <Checkbox aria-label={`Edit ${label}`}
                               checked={editChecked}
                               onCheckedChange={(checked) =>
                                 updateCreatorField(key, "edit", checked === true)
@@ -546,7 +546,7 @@ function DataFieldVisibilitySettings({
                       <tr key={key} className="hover:bg-muted/30">
                         <td className="py-2 px-3">{label}</td>
                         <td className="text-center py-2 px-3">
-                          <Checkbox
+                          <Checkbox aria-label={`View ${label}`}
                             checked={viewChecked}
                             onCheckedChange={(checked) =>
                               updateRequestField(key, "view", checked === true)
@@ -556,7 +556,7 @@ function DataFieldVisibilitySettings({
                         </td>
                         <td className="text-center py-2 px-3">
                           {hasEdit ? (
-                            <Checkbox
+                            <Checkbox aria-label={`Edit ${label}`}
                               checked={editChecked}
                               onCheckedChange={(checked) =>
                                 updateRequestField(key, "edit", checked === true)
@@ -618,7 +618,7 @@ function TeamMemberVisibilitySettings({
                     Can view their own profile details
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="View Own Profile"
                   id="see-own-profile"
                   checked={visibility.canSeeOwnProfile ?? true}
                   onCheckedChange={(checked) =>
@@ -635,7 +635,7 @@ function TeamMemberVisibilitySettings({
                     Can edit their own profile information
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="Edit Own Profile"
                   id="edit-own-profile"
                   checked={visibility.canEditOwnProfile ?? false}
                   onCheckedChange={(checked) =>
@@ -660,7 +660,7 @@ function TeamMemberVisibilitySettings({
                     Can view the team member list
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="See Other Team Members"
                   id="see-other-members"
                   checked={visibility.canSeeOtherMembers}
                   onCheckedChange={(checked) =>
@@ -677,7 +677,7 @@ function TeamMemberVisibilitySettings({
                     Can view other members&apos; activity logs
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="See Member Activity"
                   id="see-member-activity"
                   checked={visibility.canSeeOtherMemberActivity}
                   onCheckedChange={(checked) =>
@@ -694,7 +694,7 @@ function TeamMemberVisibilitySettings({
                     Can view team member compensation
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="See Member Earnings"
                   id="see-member-earnings"
                   checked={visibility.canSeeMemberEarnings}
                   onCheckedChange={(checked) =>
@@ -723,7 +723,7 @@ function TeamMemberVisibilitySettings({
                     <Label htmlFor={`member-field-${key}`} className="text-sm">
                       {label}
                     </Label>
-                    <Checkbox
+                    <Checkbox aria-label={label}
                       id={`member-field-${key}`}
                       checked={visibility.memberFieldVisibility?.[key] ?? false}
                       onCheckedChange={(checked) =>
@@ -1344,7 +1344,7 @@ export function RolesManager({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
+                            <Button aria-label={`Duplicate ${role.name}`}
                               variant="outline"
                               size="sm"
                               onClick={() => onDuplicateRole(role.id)}
@@ -1359,7 +1359,7 @@ export function RolesManager({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
+                            <Button aria-label={`Delete ${role.name}`}
                               variant="outline"
                               size="sm"
                               className="text-destructive hover:text-destructive"

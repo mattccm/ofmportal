@@ -54,8 +54,8 @@ export function MentionsBell({ className }: MentionsBellProps) {
                 "absolute -top-0.5 -right-0.5",
                 "min-w-[18px] h-[18px] px-1",
                 "flex items-center justify-center",
-                "text-[10px] font-semibold text-white",
-                "bg-gradient-to-r from-blue-500 to-cyan-500",
+                "text-[12px] font-semibold text-white",
+                " bg-blue-500 ",
                 "rounded-full shadow-sm",
                 "animate-in zoom-in-50 duration-200"
               )}
@@ -70,7 +70,7 @@ export function MentionsBell({ className }: MentionsBellProps) {
               className={cn(
                 "absolute -top-0.5 -right-0.5",
                 "w-[18px] h-[18px]",
-                "bg-gradient-to-r from-blue-500 to-cyan-500",
+                " bg-blue-500 ",
                 "rounded-full",
                 "animate-ping opacity-75"
               )}
@@ -115,6 +115,7 @@ export function MentionsIndicator({
   return (
     <Link
       href="/dashboard/mentions"
+      aria-label={showText ? undefined : `${unreadCount} unread mention${unreadCount !== 1 ? "s" : ""}`}
       className={cn(
         "inline-flex items-center gap-1.5 px-2 py-1 rounded-full",
         "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",

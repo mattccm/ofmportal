@@ -112,7 +112,7 @@ export function TopCreatorsWidget({ config, size }: WidgetProps) {
                         {creator.uploadsThisMonth}
                       </span>
                       <span className="flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                        <CheckCircle className="h-3 w-3 text-success" />
                         {creator.approvalRate}%
                       </span>
                       <span className="flex items-center gap-1">
@@ -128,8 +128,8 @@ export function TopCreatorsWidget({ config, size }: WidgetProps) {
                 {/* Stats (compact for small) */}
                 {size === "small" && (
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-emerald-600">{creator.approvalRate}%</p>
-                    <p className="text-[10px] text-muted-foreground">{creator.uploadsThisMonth} uploads</p>
+                    <p className="text-sm font-semibold text-success">{creator.approvalRate}%</p>
+                    <p className="text-[12px] text-muted-foreground">{creator.uploadsThisMonth} uploads</p>
                   </div>
                 )}
               </Link>

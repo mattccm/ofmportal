@@ -174,7 +174,7 @@ export default function OfflinePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="/" aria-label="Back" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
                 <ArrowLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">Back</span>
               </Link>
@@ -187,15 +187,16 @@ export default function OfflinePage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowSettings(!showSettings)}
+                aria-label="Settings"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Settings</span>
               </Button>
-              <Link href="/">
-                <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" asChild>
+                <Link href="/" aria-label="Home">
                   <Home className="h-5 w-5" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -206,7 +207,7 @@ export default function OfflinePage() {
         <Card
           className={cn(
             'border-2',
-            isOffline ? 'border-amber-500/50' : 'border-emerald-500/50'
+            isOffline ? 'border-amber-500/50' : 'border-success/50'
           )}
         >
           <CardContent className="pt-6">
@@ -217,7 +218,7 @@ export default function OfflinePage() {
                     'flex h-14 w-14 items-center justify-center rounded-full',
                     isOffline
                       ? 'bg-amber-500/10 text-amber-500'
-                      : 'bg-emerald-500/10 text-emerald-500'
+                      : 'bg-success/10 text-success'
                   )}
                 >
                   {isOffline ? (
@@ -311,7 +312,7 @@ export default function OfflinePage() {
                     Automatically sync when connection returns
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="Auto Sync"
                   id="auto-sync"
                   checked={autoSync}
                   onCheckedChange={handleToggleAutoSync}
@@ -325,7 +326,7 @@ export default function OfflinePage() {
                     Show notifications when sync completes
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="Sync Notifications"
                   id="notify-sync"
                   checked={notifyOnSync}
                   onCheckedChange={handleToggleNotifications}
@@ -356,7 +357,7 @@ export default function OfflinePage() {
                         <RefreshCw className="h-4 w-4 animate-spin" />
                       ) : prunedCount !== null ? (
                         <>
-                          <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500" />
+                          <CheckCircle2 className="h-4 w-4 mr-2 text-success" />
                           Pruned {prunedCount}
                         </>
                       ) : (
@@ -398,7 +399,7 @@ export default function OfflinePage() {
                       className={cn(
                         'flex h-10 w-10 items-center justify-center rounded-lg flex-shrink-0',
                         capability.available
-                          ? 'bg-emerald-500/10 text-emerald-500'
+                          ? 'bg-success/10 text-success'
                           : 'bg-muted text-muted-foreground'
                       )}
                     >
@@ -413,7 +414,7 @@ export default function OfflinePage() {
                   </div>
                   {capability.available && (
                     <div className="absolute top-3 right-3">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      <CheckCircle2 className="h-4 w-4 text-success" />
                     </div>
                   )}
                 </CardContent>

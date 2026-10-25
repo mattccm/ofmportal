@@ -52,7 +52,7 @@ export async function POST(
     const allowedStatuses = ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"];
     if (!allowedStatuses.includes(request.status)) {
       return NextResponse.json(
-        { error: "Cannot submit fields in current request status" },
+        { error: "This request can't take a submission right now. Refresh the page and try again." },
         { status: 400 }
       );
     }
@@ -60,7 +60,7 @@ export async function POST(
     // Check there are uploads for this field
     if (request.uploads.length === 0) {
       return NextResponse.json(
-        { error: "No files uploaded for this field" },
+        { error: "Upload a file to this field before you submit it." },
         { status: 400 }
       );
     }
@@ -72,14 +72,14 @@ export async function POST(
     // Can only submit if PENDING or NEEDS_REVISION (for resubmission)
     if (existingSubmission?.status === "SUBMITTED") {
       return NextResponse.json(
-        { error: "Field is already submitted" },
+        { error: "This field is already submitted." },
         { status: 400 }
       );
     }
 
     if (existingSubmission?.status === "APPROVED") {
       return NextResponse.json(
-        { error: "Field is already approved" },
+        { error: "This field is already approved." },
         { status: 400 }
       );
     }

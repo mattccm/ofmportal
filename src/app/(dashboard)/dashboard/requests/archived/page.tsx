@@ -6,9 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -246,52 +243,43 @@ export default function ArchivedRequestsPage() {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-              <Link href="/dashboard/requests">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                Archived Requests
-              </h1>
-              <p className="mt-1 text-sm md:text-base text-muted-foreground">
-                View and manage archived content requests
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-muted-foreground">
-            <Archive className="mr-1.5 h-3.5 w-3.5" />
-            {pagination.total} archived
-          </Badge>
-        </div>
+      <div>
+        <Link
+          href="/dashboard/requests"
+          className="inline-flex items-center gap-1 text-[14px] text-ink-2 underline-offset-[3px] hover:text-ink hover:underline"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Requests
+        </Link>
+        <h1 className="mt-2 text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">Archived requests</h1>
+        <p className="mt-1 text-[15px] text-ink-2">
+          {pagination.total === 0
+            ? "Nothing archived. Archived requests leave every view and reminder until you restore them."
+            : `${pagination.total} archived. Restore one to put it back in Requests with its old status.`}
+        </p>
       </div>
 
       {/* Filters */}
-      <Card className="card-elevated">
-        <CardContent className="p-3 md:p-6">
-          <div className="flex flex-col gap-3 md:flex-row md:gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div>
+        <div>
+          <div className="flex flex-col gap-2 md:flex-row">
+            <div className="relative flex-1 md:max-w-[360px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-icon" aria-hidden="true" />
               <Input
-                placeholder="Search archived requests..."
-                className="pl-10 h-11 md:h-10"
+                placeholder="Search title or creator"
+                aria-label="Search archived requests"
+                className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <div className="flex gap-2">
               <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-                <SelectTrigger className="flex-1 md:w-[180px] h-11 md:h-10">
+                <SelectTrigger className="flex-1 md:w-[170px]" aria-label="Creator">
                   <SelectValue placeholder="Filter by creator" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Creators</SelectItem>
+                  <SelectItem value="all">All creators</SelectItem>
                   {creators.map((creator) => (
                     <SelectItem key={creator.id} value={creator.id}>
                       {creator.name}
@@ -304,20 +292,20 @@ export default function ArchivedRequestsPage() {
                   variant="ghost"
                   size="icon"
                   onClick={clearFilters}
-                  className="h-11 w-11 md:h-10 md:w-10"
+                  aria-label="Clear filters"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Bulk actions bar */}
       {selectedIds.size > 0 && (
-        <Card className="card-elevated border-primary">
-          <CardContent className="p-3 md:p-4">
+        <div className="sticky top-2 z-20 rounded-[10px] bg-raised shadow-lg" role="region" aria-label="Selected requests">
+          <div className="px-3 py-2">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm font-medium">
                 {selectedIds.size} request{selectedIds.size !== 1 ? "s" : ""} selected
@@ -337,67 +325,50 @@ export default function ArchivedRequestsPage() {
                   size="sm"
                   onClick={handleBulkDelete}
                   disabled={loading}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  className="hover:text-late"
                 >
                   <Trash2 className="mr-1.5 h-4 w-4" />
-                  Delete Permanently
+                  Delete permanently
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setSelectedIds(new Set())}
                 >
-                  Cancel
+                  Clear selection
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Loading State */}
       {loading && requests.length === 0 ? (
-        <Card className="card-elevated">
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="mt-4 text-sm text-muted-foreground">
-                Loading archived requests...
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-2 rounded-[10px] bg-tile p-6 text-[14px] text-ink-2" role="status">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          Loading archived requests
+        </div>
       ) : requests.length === 0 ? (
-        /* Empty State */
-        <Card className="card-elevated">
-          <CardContent className="py-12">
-            <div className="text-center">
-              <div className="mx-auto h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-                <Archive className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-base md:text-lg font-semibold text-foreground">
-                {hasActiveFilters ? "No matching archived requests" : "No archived requests"}
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-                {hasActiveFilters
-                  ? "Try adjusting your filters to find what you're looking for."
-                  : "Archived requests will appear here. Archive completed or old requests to keep your active list clean."}
-              </p>
-              {hasActiveFilters ? (
-                <Button onClick={clearFilters} variant="outline" className="mt-6 min-h-[44px]">
-                  Clear Filters
-                </Button>
-              ) : (
-                <Button asChild className="mt-6 min-h-[44px]">
-                  <Link href="/dashboard/requests">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Requests
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-start gap-3 rounded-[10px] bg-tile p-6">
+          <h2 className="text-[17px] font-semibold text-ink">
+            {hasActiveFilters ? "No archived request matches" : "Nothing archived yet"}
+          </h2>
+          <p className="max-w-[60ch] text-[14px] text-ink-2">
+            {hasActiveFilters
+              ? "Clear the search or creator filter to see every archived request."
+              : "Archive a finished or abandoned request from its menu in Requests. It stops counting in views and reminders, and you can restore it here at any time."}
+          </p>
+          {hasActiveFilters ? (
+            <Button onClick={clearFilters} variant="outline">
+              Clear filters
+            </Button>
+          ) : (
+            <Button asChild variant="outline">
+              <Link href="/dashboard/requests">Go to Requests</Link>
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           {/* Mobile Card View */}
@@ -411,16 +382,12 @@ export default function ArchivedRequestsPage() {
               return (
                 <Card
                   key={request.id}
-                  className={`card-elevated opacity-75 hover:opacity-100 transition-opacity ${
-                    isSelected ? "ring-2 ring-primary opacity-100" : ""
-                  }`}
+                  className={`${isSelected ? "bg-tile-hi" : ""}`}
                 >
-                  {/* Muted status bar for archived */}
-                  <div className="h-1 bg-gray-400" />
 
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <Checkbox
+                      <Checkbox aria-label={`Select ${request.title}`}
                         checked={isSelected}
                         onCheckedChange={() => toggleSelect(request.id)}
                         className="mt-1"
@@ -429,7 +396,7 @@ export default function ArchivedRequestsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-muted-foreground truncate">
+                            <h3 className="truncate font-semibold text-ink">
                               {request.title}
                             </h3>
                             <p className="text-sm text-muted-foreground truncate">
@@ -439,7 +406,7 @@ export default function ArchivedRequestsPage() {
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                              <Button aria-label={`More actions for ${request.title}`} variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -447,7 +414,7 @@ export default function ArchivedRequestsPage() {
                               <DropdownMenuItem asChild>
                                 <Link href={`/dashboard/requests/${request.id}`}>
                                   <FileText className="mr-2 h-4 w-4" />
-                                  View Details
+                                  Open request
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -457,24 +424,18 @@ export default function ArchivedRequestsPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleSingleDelete(request)}
-                                className="text-red-600"
+                                className="text-late focus:text-late"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Permanently
+                                Delete permanently
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <Badge
-                            variant="outline"
-                            className="bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-900/30 dark:text-gray-500 dark:border-gray-800 text-[10px]"
-                          >
-                            Archived
-                          </Badge>
                           {request.template && (
-                            <Badge variant="outline" className="text-[10px] opacity-60">
+                            <Badge variant="outline" className="text-[12px]">
                               {request.template.name}
                             </Badge>
                           )}
@@ -506,29 +467,23 @@ export default function ArchivedRequestsPage() {
           </div>
 
           {/* Desktop Table View */}
-          <Card className="card-elevated hidden md:block">
-            <CardHeader>
-              <CardTitle>Archived Requests</CardTitle>
-              <CardDescription>
-                {pagination.total} archived request{pagination.total !== 1 ? "s" : ""}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Card className="hidden md:block">
+            <CardContent className="pt-2">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
-                      <Checkbox
+                      <Checkbox aria-label="Select all"
                         checked={selectedIds.size === requests.length && requests.length > 0}
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
                     <TableHead>Request</TableHead>
                     <TableHead>Creator</TableHead>
-                    <TableHead>Due Date</TableHead>
+                    <TableHead>Due</TableHead>
                     <TableHead>Uploads</TableHead>
                     <TableHead>Archived</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[100px]"><span className="sr-only">Actions</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -538,12 +493,10 @@ export default function ArchivedRequestsPage() {
                     return (
                       <TableRow
                         key={request.id}
-                        className={`group opacity-75 hover:opacity-100 transition-opacity ${
-                          isSelected ? "bg-muted/50 opacity-100" : ""
-                        }`}
+                        className={`group ${isSelected ? "bg-tile-hi" : ""}`}
                       >
                         <TableCell>
-                          <Checkbox
+                          <Checkbox aria-label={`Select ${request.title}`}
                             checked={isSelected}
                             onCheckedChange={() => toggleSelect(request.id)}
                           />
@@ -552,19 +505,13 @@ export default function ArchivedRequestsPage() {
                           <div className="space-y-1">
                             <Link
                               href={`/dashboard/requests/${request.id}`}
-                              className="font-medium text-muted-foreground hover:text-foreground transition-colors"
+                              className="font-medium text-ink hover:underline"
                             >
                               {request.title}
                             </Link>
                             <div className="flex gap-2">
-                              <Badge
-                                variant="outline"
-                                className="bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-900/30 dark:text-gray-500 dark:border-gray-800 text-xs"
-                              >
-                                Archived
-                              </Badge>
                               {request.template && (
-                                <Badge variant="outline" className="text-xs opacity-60">
+                                <Badge variant="outline" className="text-xs">
                                   {request.template.name}
                                 </Badge>
                               )}
@@ -599,19 +546,20 @@ export default function ArchivedRequestsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => handleSingleRestore(request)}
                               title="Restore"
+                              aria-label={`Restore ${request.title}`}
                             >
                               <RotateCcw className="h-4 w-4" />
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Button aria-label={`More actions for ${request.title}`} variant="ghost" size="icon" className="h-8 w-8">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -619,7 +567,7 @@ export default function ArchivedRequestsPage() {
                                 <DropdownMenuItem asChild>
                                   <Link href={`/dashboard/requests/${request.id}`}>
                                     <FileText className="mr-2 h-4 w-4" />
-                                    View Details
+                                    Open request
                                   </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -629,10 +577,10 @@ export default function ArchivedRequestsPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => handleSingleDelete(request)}
-                                  className="text-red-600"
+                                  className="text-late focus:text-late"
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete Permanently
+                                  Delete permanently
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

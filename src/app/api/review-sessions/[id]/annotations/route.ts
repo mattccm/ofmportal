@@ -156,7 +156,7 @@ export async function POST(
       userId,
       type: body.type as SessionAnnotationType,
       data: body.data as AnnotationData,
-      color: body.color || "#ef4444",
+      color: body.color || "#ff6461",
       timestamp: body.timestamp,
       createdAt: new Date(),
     };

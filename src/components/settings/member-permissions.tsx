@@ -221,7 +221,7 @@ function PermissionOverrideEditor({
                           </Badge>
                         )}
                         {override === "grant" && (
-                          <Badge className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200">
+                          <Badge className="text-xs bg-success/10 text-success">
                             Granted
                           </Badge>
                         )}
@@ -236,12 +236,12 @@ function PermissionOverrideEditor({
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
+                              <Button aria-label={`Grant ${PERMISSION_ACTIONS[action].label} on ${PERMISSION_RESOURCES[resource].label}`}
                                 variant={effectiveState ? "default" : "outline"}
                                 size="sm"
                                 className={cn(
                                   "h-7 w-7 p-0",
-                                  effectiveState && "bg-green-600 hover:bg-green-700"
+                                  effectiveState && "bg-success hover:bg-success/85"
                                 )}
                                 onClick={() => {
                                   if (override === "grant") {
@@ -263,7 +263,7 @@ function PermissionOverrideEditor({
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
+                              <Button aria-label={`Revoke ${PERMISSION_ACTIONS[action].label} on ${PERMISSION_RESOURCES[resource].label}`}
                                 variant={!effectiveState ? "default" : "outline"}
                                 size="sm"
                                 className={cn(
@@ -381,7 +381,7 @@ function CreatorAssignment({
                   )}
                   onClick={() => toggleCreator(creator.id)}
                 >
-                  <Checkbox
+                  <Checkbox aria-label={`Assign ${creator.name}`}
                     checked={isAssigned}
                     onCheckedChange={() => toggleCreator(creator.id)}
                   />
@@ -468,7 +468,7 @@ function TemplateAssignment({
             onChange({ ...visibility, type: value, templateIds: value === "all" ? undefined : visibility.templateIds })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Visibility Mode">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -543,13 +543,13 @@ function TemplateAssignment({
                         "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
                         isSelected
                           ? visibility.type === "include"
-                            ? "bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-800"
+                            ? "bg-success/10 border border-success/30"
                             : "bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800"
                           : "hover:bg-muted/50"
                       )}
                       onClick={() => toggleTemplate(template.id)}
                     >
-                      <Checkbox
+                      <Checkbox aria-label={`Select ${template.name}`}
                         checked={isSelected}
                         onCheckedChange={() => toggleTemplate(template.id)}
                       />
@@ -563,7 +563,7 @@ function TemplateAssignment({
                       </div>
                       {isSelected && (
                         visibility.type === "include" ? (
-                          <Eye className="h-4 w-4 text-green-600" />
+                          <Eye className="h-4 w-4 text-success" />
                         ) : (
                           <EyeOff className="h-4 w-4 text-red-600" />
                         )
@@ -626,13 +626,13 @@ function CategoryAssignment({
           <FolderOpen className="h-4 w-4 text-muted-foreground" />
           <span className="font-medium">
             {allowedCategoryIds.length === 0
-              ? "All categories accessible"
-              : `${allowedCategoryIds.length} categor${allowedCategoryIds.length === 1 ? "y" : "ies"} selected`}
+              ? "All groups accessible"
+              : `${allowedCategoryIds.length} ${allowedCategoryIds.length === 1 ? "group" : "groups"} selected`}
           </span>
         </div>
         {allowedCategoryIds.length === 0 && (
           <p className="text-xs text-muted-foreground mt-1">
-            Leave empty to grant access to all categories and uncategorized templates
+            Leave empty to grant access to every group and to ungrouped templates
           </p>
         )}
       </div>
@@ -641,7 +641,7 @@ function CategoryAssignment({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search categories..."
+            placeholder="Search groups"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -659,7 +659,7 @@ function CategoryAssignment({
         <div className="p-2 space-y-1">
           {filteredCategories.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              No categories found
+              No groups found
             </div>
           ) : (
             filteredCategories.map((category) => {
@@ -676,7 +676,7 @@ function CategoryAssignment({
                   )}
                   onClick={() => toggleCategory(category.id)}
                 >
-                  <Checkbox
+                  <Checkbox aria-label={`Select ${category.name}`}
                     checked={isSelected}
                     onCheckedChange={() => toggleCategory(category.id)}
                   />
@@ -709,7 +709,7 @@ function CategoryAssignment({
         <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">
           <AlertTriangle className="h-4 w-4" />
           <span>
-            Member can only see templates in these categories plus uncategorized templates
+            Member can only see templates in these groups, plus ungrouped templates
           </span>
         </div>
       )}
@@ -753,7 +753,7 @@ function ActivityRestrictionsEditor({
             Set time-based or feature restrictions
           </p>
         </div>
-        <Switch
+        <Switch aria-label="Activity Restrictions"
           checked={enabled}
           onCheckedChange={setEnabled}
         />
@@ -788,7 +788,7 @@ function ActivityRestrictionsEditor({
                   }
                 }}
               >
-                <SelectTrigger className="w-24">
+                <SelectTrigger aria-label="Start" className="w-24">
                   <SelectValue placeholder="Start" />
                 </SelectTrigger>
                 <SelectContent>
@@ -822,7 +822,7 @@ function ActivityRestrictionsEditor({
                 }}
                 disabled={!localRestrictions.allowedHours?.start}
               >
-                <SelectTrigger className="w-24">
+                <SelectTrigger aria-label="End" className="w-24">
                   <SelectValue placeholder="End" />
                 </SelectTrigger>
                 <SelectContent>
@@ -876,7 +876,7 @@ function ActivityRestrictionsEditor({
                 <Label htmlFor="can-bulk-edit" className="text-sm font-normal">
                   Can perform bulk edits
                 </Label>
-                <Switch
+                <Switch aria-label="Can perform bulk edits"
                   id="can-bulk-edit"
                   checked={localRestrictions.canBulkEdit !== false}
                   onCheckedChange={(checked) =>
@@ -891,7 +891,7 @@ function ActivityRestrictionsEditor({
                 <Label htmlFor="can-export" className="text-sm font-normal">
                   Can export data
                 </Label>
-                <Switch
+                <Switch aria-label="Can export data"
                   id="can-export"
                   checked={localRestrictions.canExport !== false}
                   onCheckedChange={(checked) =>
@@ -906,7 +906,7 @@ function ActivityRestrictionsEditor({
                 <Label htmlFor="can-delete" className="text-sm font-normal">
                   Can delete items
                 </Label>
-                <Switch
+                <Switch aria-label="Can delete items"
                   id="can-delete"
                   checked={localRestrictions.canDelete !== false}
                   onCheckedChange={(checked) =>
@@ -1078,7 +1078,7 @@ export function MemberPermissions({
                 value={selectedRoleId}
                 onValueChange={setSelectedRoleId}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Assigned Role">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1202,10 +1202,10 @@ export function MemberPermissions({
               <div>
                 <Label className="flex items-center gap-2">
                   <Tag className="h-4 w-4" />
-                  Category Access
+                  Template group access
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Restrict access to templates in specific categories
+                  Limit which template groups this member can send
                 </p>
               </div>
 
@@ -1217,7 +1217,7 @@ export function MemberPermissions({
                 />
               ) : (
                 <div className="p-4 text-center text-sm text-muted-foreground bg-muted/50 rounded-lg">
-                  No categories available. Create categories in Settings to enable category-based access control.
+                  No template groups yet. Create groups in Templates to limit access by group.
                 </div>
               )}
             </div>
@@ -1447,7 +1447,7 @@ export function TeamMemberPermissionsList({
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
-                              Access limited to {member.allowedCategoryIds!.length} categor{member.allowedCategoryIds!.length === 1 ? "y" : "ies"}
+                              Access limited to {member.allowedCategoryIds!.length} {member.allowedCategoryIds!.length === 1 ? "group" : "groups"}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

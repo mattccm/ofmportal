@@ -2,12 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -15,32 +12,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Loader2,
-  Search,
-  FileText,
-  ArrowUpDown,
-  Grid3X3,
-  List,
-  ArrowRight,
-  Calendar,
-  MessageCircle,
-  RefreshCw,
-} from "lucide-react";
+import { Search, ArrowUpDown, LayoutGrid, List, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import { isRequestOverdue } from "@/lib/request-status";
-import { useBranding } from "@/components/providers/branding-provider";
-import { stripHtml } from "@/components/ui/html-content";
-import { RequestProgress } from "@/components/portal/request-progress";
+import { TitleCard, formatDay } from "@/components/title-wall";
+import type { CreatorFieldStateRow } from "@/lib/creator-field-states";
+import { ACTIONABLE, IN_REVIEW, creatorSummary, toStrip } from "@/components/portal/creator-words";
+import { RequestRow } from "@/components/portal/request-row";
 
-type RequestStatus =
-  | "PENDING"
-  | "IN_PROGRESS"
-  | "SUBMITTED"
-  | "UNDER_REVIEW"
-  | "NEEDS_REVISION"
-  | "APPROVED";
+const VIEW_MODES = [
+  ["list", List, "List"],
+  ["grid", LayoutGrid, "Covers"],
+] as const;
+
+// Approved, cancelled and archived requests never reach the creator
+type RequestStatus = "PENDING" | "IN_PROGRESS" | "SUBMITTED" | "UNDER_REVIEW" | "NEEDS_REVISION";
 
 interface Request {
   id: string;
@@ -50,6 +36,7 @@ interface Request {
   status: RequestStatus;
   urgency: string;
   createdAt: string;
+  submittedAt?: string | null;
   _count: {
     uploads: number;
     comments: number;
@@ -61,23 +48,26 @@ interface Request {
   };
   unreadFeedbackCount?: number;
   estimatedMinutes?: number | null;
+  fieldStates?: CreatorFieldStateRow[];
 }
 
-type FilterTab = "all" | "active" | "completed" | "overdue";
+type FilterTab = "all" | "active" | "review" | "overdue";
 type SortOption = "due_date" | "created_date" | "title" | "status";
 
 export default function CreatorRequestsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { branding } = useBranding();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [requests, setRequests] = useState<Request[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<FilterTab>(
-    (searchParams.get("filter") as FilterTab) || "all"
-  );
+  const [activeTab, setActiveTab] = useState<FilterTab>(() => {
+    const f = searchParams.get("filter");
+    // "completed" is the old name for what is now "In review"
+    if (f === "completed") return "review";
+    return f === "active" || f === "review" || f === "overdue" ? f : "all";
+  });
   const [sortBy, setSortBy] = useState<SortOption>("due_date");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
@@ -135,13 +125,8 @@ export default function CreatorRequestsPage() {
             r.status === "NEEDS_REVISION"
         );
         break;
-      case "completed":
-        filtered = filtered.filter(
-          (r) =>
-            r.status === "SUBMITTED" ||
-            r.status === "UNDER_REVIEW" ||
-            r.status === "APPROVED"
-        );
+      case "review":
+        filtered = filtered.filter((r) => IN_REVIEW.has(r.status));
         break;
       case "overdue":
         filtered = filtered.filter(
@@ -162,6 +147,8 @@ export default function CreatorRequestsPage() {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "due_date":
+          // what is still to do comes before what is already sent
+          if (ACTIONABLE.has(a.status) !== ACTIONABLE.has(b.status)) return ACTIONABLE.has(a.status) ? -1 : 1;
           if (!a.dueDate && !b.dueDate) return 0;
           if (!a.dueDate) return 1;
           if (!b.dueDate) return -1;
@@ -171,14 +158,7 @@ export default function CreatorRequestsPage() {
         case "title":
           return a.title.localeCompare(b.title);
         case "status":
-          const statusOrder = [
-            "NEEDS_REVISION",
-            "PENDING",
-            "IN_PROGRESS",
-            "SUBMITTED",
-            "UNDER_REVIEW",
-            "APPROVED",
-          ];
+          const statusOrder = ["NEEDS_REVISION", "PENDING", "IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW"];
           return statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
         default:
           return 0;
@@ -196,273 +176,158 @@ export default function CreatorRequestsPage() {
         r.status === "IN_PROGRESS" ||
         r.status === "NEEDS_REVISION"
     ).length;
-    const completed = requests.filter(
-      (r) =>
-        r.status === "SUBMITTED" ||
-        r.status === "UNDER_REVIEW" ||
-        r.status === "APPROVED"
-    ).length;
+    const review = requests.filter((r) => IN_REVIEW.has(r.status)).length;
     const overdue = requests.filter(
       (r) => isRequestOverdue(r)
     ).length;
 
-    return { all, active, completed, overdue };
+    return { all, active, review, overdue };
   }, [requests]);
-
-  const getStatusColor = (status: RequestStatus) => {
-    switch (status) {
-      case "PENDING":
-        return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-      case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "SUBMITTED":
-        return "bg-primary/10 text-primary";
-      case "UNDER_REVIEW":
-        return "bg-muted text-foreground";
-      case "NEEDS_REVISION":
-        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      case "APPROVED":
-        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-      default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400";
-    }
-  };
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2
-            className="h-10 w-10 animate-spin mx-auto"
-            style={{ color: branding.primaryColor }}
-          />
-          <p className="text-muted-foreground">Loading requests...</p>
-        </div>
+      <div className="px-4 pt-5 lg:px-6 lg:pt-10" role="status" aria-label="Loading your requests">
+        <Skeleton className="h-7 w-36" />
+        <Skeleton className="mt-4 h-11 w-full" />
+        <Skeleton className="mt-4 h-[88px] w-full" />
+        <Skeleton className="mt-2 h-[88px] w-full" />
+        <Skeleton className="mt-2 h-[88px] w-full" />
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-              <RefreshCw className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold text-lg mb-1">
-              Couldn&apos;t load your requests
-            </h3>
-            <p className="text-muted-foreground text-sm max-w-sm mx-auto mb-4">
-              Something went wrong while loading. Check your connection and try
-              again.
-            </p>
-            <Button onClick={retryFetch}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Try again
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="px-4 pt-5 lg:px-6 lg:pt-10">
+        <h1 className="text-[22px] font-semibold leading-tight lg:text-[26px]">Requests</h1>
+        <div className="mt-4 max-w-[560px] rounded-[10px] bg-tile p-4">
+          <p className="text-[15px]">Your requests didn&apos;t load. Check your connection, then try again.</p>
+          <Button variant="outline" className="mt-3 h-11" onClick={retryFetch}>
+            <RefreshCw aria-hidden="true" />
+            Try again
+          </Button>
+        </div>
       </div>
     );
   }
 
+  const tabs: Array<[FilterTab, string, number]> = [
+    ["all", "All", tabCounts.all],
+    ["active", "To do", tabCounts.active],
+    ["review", "In review", tabCounts.review],
+    ...(tabCounts.overdue > 0 ? ([["overdue", "Late", tabCounts.overdue]] as Array<[FilterTab, string, number]>) : []),
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold">All Requests</h1>
-        <p className="text-muted-foreground">
-          View and manage all your content requests
-        </p>
-      </div>
+    <div className="px-4 pt-5 lg:px-6 lg:pt-10">
+      <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] lg:text-[26px]">Requests</h1>
+      <p className="mt-1 text-[15px] leading-normal text-ink-2">
+        {tabCounts.all === 0
+          ? "Nothing yet. New requests appear here."
+          : `${tabCounts.active} to do${tabCounts.overdue ? `, ${tabCounts.overdue} late` : ""}. ${tabCounts.all} open in all.`}
+      </p>
 
-      {/* Filters and Search */}
-      <div className="space-y-4">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as FilterTab)}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <TabsList className="w-full sm:w-auto overflow-x-auto">
-              <TabsTrigger value="all" className="gap-2 flex-1 sm:flex-none">
-                All
-                <span className="text-xs bg-muted px-1.5 py-0.5 rounded-md hidden sm:inline">
-                  {tabCounts.all}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="active" className="gap-2 flex-1 sm:flex-none">
-                Active
-                <span className="text-xs bg-muted px-1.5 py-0.5 rounded-md hidden sm:inline">
-                  {tabCounts.active}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="completed" className="gap-2 flex-1 sm:flex-none">
-                Done
-                <span className="text-xs bg-muted px-1.5 py-0.5 rounded-md hidden sm:inline">
-                  {tabCounts.completed}
-                </span>
-              </TabsTrigger>
-              {tabCounts.overdue > 0 && (
-                <TabsTrigger value="overdue" className="gap-2 text-red-600 flex-1 sm:flex-none">
-                  Late
-                  <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md">
-                    {tabCounts.overdue}
-                  </span>
-                </TabsTrigger>
+      {/* From 1024px the filters, search, sort and display sit on one line */}
+      <div className="lg:mt-5 lg:flex lg:items-center lg:gap-3">
+        <div className="mt-4 flex flex-wrap rounded-[var(--tw-r-ctl)] bg-well p-1 lg:mt-0 lg:flex-none" role="group" aria-label="Show">
+          {tabs.map(([key, label, count]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={activeTab === key}
+              onClick={() => setActiveTab(key)}
+              className={cn(
+                "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[14px] font-medium transition-colors md:min-h-9",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                activeTab === key ? "!bg-tile-hi text-ink" : "text-ink-2 hover:text-ink"
               )}
-            </TabsList>
+            >
+              {label}
+              <span className={cn("tabular-nums", key === "overdue" ? "text-late" : "text-ink-2")}>{count}</span>
+            </button>
+          ))}
+        </div>
 
-            {/* View mode toggle - desktop only */}
-            <div className="hidden sm:flex items-center gap-1 bg-muted rounded-lg p-1">
-              <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Search and Sort */}
-          <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search requests..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10"
-              />
-            </div>
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-full sm:w-[180px] h-10">
-                <ArrowUpDown className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="due_date">Due Date</SelectItem>
-                <SelectItem value="created_date">Created Date</SelectItem>
-                <SelectItem value="title">Title</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Results */}
-          <TabsContent value={activeTab} className="mt-6">
-            {filteredRequests.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                    <FileText className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="font-semibold text-lg mb-1">No requests found</h3>
-                  <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                    {searchQuery
-                      ? "Try adjusting your search or filters."
-                      : "There are no requests in this category."}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div
+        <div className="mt-3 flex gap-2 lg:mt-0 lg:flex-1">
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Search requests</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-icon" aria-hidden="true" />
+            <Input placeholder="Search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+          </label>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+            <SelectTrigger className="w-[150px] shrink-0" aria-label="Sort requests">
+              <ArrowUpDown className="size-4 text-icon" aria-hidden="true" />
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="due_date">Due first</SelectItem>
+              <SelectItem value="created_date">Newest</SelectItem>
+              <SelectItem value="title">Title</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="hidden shrink-0 rounded-[var(--tw-r-ctl)] bg-well p-1 sm:flex" role="group" aria-label="Display">
+            {VIEW_MODES.map(([mode, Icon, label]) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={viewMode === mode}
+                aria-label={label}
+                title={label}
+                onClick={() => setViewMode(mode)}
                 className={cn(
-                  viewMode === "grid"
-                    ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-                    : "space-y-3"
+                  "grid size-9 place-items-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+                  viewMode === mode ? "!bg-tile-hi text-ink" : "text-icon hover:text-ink"
                 )}
               >
-                {filteredRequests.map((request) => (
-                  <Link key={request.id} href={`/creator/requests/${request.id}`}>
-                    <Card className="group hover:shadow-md transition-all cursor-pointer h-full">
-                      <CardContent className={cn(
-                        "py-4",
-                        viewMode === "grid" && "h-full flex flex-col"
-                      )}>
-                        <div className={cn(
-                          "flex gap-4",
-                          viewMode === "grid" ? "flex-col h-full" : "items-center"
-                        )}>
-                          <div className={cn(
-                            "flex-1 min-w-0",
-                            viewMode === "grid" && "flex flex-col flex-1"
-                          )}>
-                            <div className={cn(
-                              "flex items-center gap-2 mb-1",
-                              viewMode === "grid" && "flex-wrap"
-                            )}>
-                              <h3 className="font-medium truncate group-hover:text-primary transition-colors">
-                                {request.title}
-                              </h3>
-                              <Badge
-                                variant="secondary"
-                                className={cn("shrink-0 text-xs", getStatusColor(request.status))}
-                              >
-                                {request.status.replace("_", " ")}
-                              </Badge>
-                              {request.unreadFeedbackCount ? (
-                                <Badge
-                                  className="shrink-0 text-xs gap-1 border-0 text-white"
-                                  style={{ backgroundColor: branding.primaryColor }}
-                                >
-                                  <MessageCircle className="h-3 w-3" />
-                                  {request.unreadFeedbackCount} new
-                                </Badge>
-                              ) : null}
-                            </div>
-                            {request.description && (
-                              <p className={cn(
-                                "text-sm text-muted-foreground",
-                                viewMode === "grid" ? "line-clamp-2 flex-1" : "line-clamp-1"
-                              )}>
-                                {stripHtml(request.description)}
-                              </p>
-                            )}
-                            <div className={cn(
-                              viewMode === "grid" ? "mt-auto pt-3" : "mt-3"
-                            )}>
-                              {request.dueDate && (
-                                <div className="mb-2">
-                                  <span className={cn(
-                                    "inline-flex items-center gap-1 text-xs text-muted-foreground",
-                                    isRequestOverdue(request) &&
-                                    "text-red-500 font-medium"
-                                  )}>
-                                    <Calendar className="h-3 w-3" />
-                                    Due {format(new Date(request.dueDate), "MMM d")}
-                                  </span>
-                                </div>
-                              )}
-                              <RequestProgress
-                                completion={request.completion}
-                                estimatedMinutes={request.estimatedMinutes}
-                              />
-                            </div>
-                          </div>
-                          {viewMode === "list" && (
-                            <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                <Icon className="size-4" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      <section aria-label="Requests" className="mt-4 lg:mt-5">
+        {filteredRequests.length === 0 ? (
+          <div className="rounded-[10px] bg-tile p-4">
+            <p className="text-[15px] font-semibold">{searchQuery ? "No requests match that search" : "Nothing here"}</p>
+            <p className="mt-1 text-[14px] leading-normal text-ink-2">
+              {searchQuery
+                ? "Try fewer words, or search for part of the title."
+                : activeTab === "active"
+                  ? "You have nothing to upload right now. New requests appear here."
+                  : activeTab === "review"
+                    ? "Requests you submit wait here until they are reviewed. Approved requests leave your list."
+                    : "Nothing late. Requests past their due date show here."}
+            </p>
+          </div>
+        ) : viewMode === "grid" ? (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredRequests.map((r) => (
+              <li key={r.id}>
+                <TitleCard
+                  audience="creator"
+                  title={r.title}
+                  creator={`Sent ${formatDay(r.createdAt)}`}
+                  due={IN_REVIEW.has(r.status) ? undefined : r.dueDate}
+                  timeText={IN_REVIEW.has(r.status) ? (r.submittedAt ? `Submitted ${formatDay(r.submittedAt)}` : "In review") : undefined}
+                  fields={toStrip(r.fieldStates)}
+                  meta={creatorSummary(r.fieldStates)}
+                  href={`/creator/requests/${r.id}`}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="space-y-2">
+            {filteredRequests.map((r) => (
+              <li key={r.id}>
+                <RequestRow request={r} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

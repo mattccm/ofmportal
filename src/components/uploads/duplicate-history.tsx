@@ -195,7 +195,7 @@ export function DuplicateHistory({
         </CardHeader>
         <CardContent>
           <div className="text-center py-6 text-muted-foreground">
-            <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-changes" />
             <p>{error}</p>
             <Button
               variant="outline"
@@ -225,7 +225,7 @@ export function DuplicateHistory({
               value={timeFilter}
               onValueChange={(val) => setTimeFilter(val as TimeFilter)}
             >
-              <SelectTrigger className="w-28 h-8 text-xs">
+              <SelectTrigger aria-label="Time range" className="w-28 h-8 text-xs">
                 <Calendar className="h-3.5 w-3.5 mr-1" />
                 <SelectValue />
               </SelectTrigger>
@@ -240,7 +240,7 @@ export function DuplicateHistory({
               value={actionFilter}
               onValueChange={(val) => setActionFilter(val as ActionFilter)}
             >
-              <SelectTrigger className="w-28 h-8 text-xs">
+              <SelectTrigger aria-label="Filter by action" className="w-28 h-8 text-xs">
                 <Filter className="h-3.5 w-3.5 mr-1" />
                 <SelectValue />
               </SelectTrigger>
@@ -337,10 +337,10 @@ function StatBadge({
   color: "red" | "amber" | "blue" | "emerald";
 }) {
   const colorClasses = {
-    red: "bg-red-50 text-red-700 border-red-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
-    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    red: "bg-late/10 text-late border-late/30",
+    amber: "bg-changes/10 text-changes border-changes/30",
+    blue: "bg-tile-hi text-ink border-line",
+    emerald: "bg-success/10 text-success border-success/30",
   };
 
   return (
@@ -362,9 +362,9 @@ function StatBadge({
  */
 function PatternWarning({ pattern }: { pattern: DuplicatePattern }) {
   const severityColors = {
-    low: "border-yellow-200 bg-yellow-50 text-yellow-800",
-    medium: "border-amber-200 bg-amber-50 text-amber-800",
-    high: "border-red-200 bg-red-50 text-red-800",
+    low: "border-changes/30 bg-changes/10 text-changes",
+    medium: "border-changes/30 bg-changes/10 text-changes",
+    high: "border-late/30 bg-late/10 text-late",
   };
 
   const patternLabels = {
@@ -394,9 +394,9 @@ function PatternWarning({ pattern }: { pattern: DuplicatePattern }) {
         variant="secondary"
         className={cn(
           "shrink-0",
-          pattern.severity === "high" && "bg-red-200",
-          pattern.severity === "medium" && "bg-amber-200",
-          pattern.severity === "low" && "bg-yellow-200"
+          pattern.severity === "high" && "bg-late/10",
+          pattern.severity === "medium" && "bg-changes/20",
+          pattern.severity === "low" && "bg-changes/20"
         )}
       >
         {pattern.severity}
@@ -425,10 +425,10 @@ function HistoryEntry({
   };
 
   const actionColors = {
-    blocked: "text-red-600 bg-red-50 border-red-200",
-    warned: "text-amber-600 bg-amber-50 border-amber-200",
-    allowed: "text-emerald-600 bg-emerald-50 border-emerald-200",
-    overridden: "text-blue-600 bg-blue-50 border-blue-200",
+    blocked: "text-late bg-late/10 border-late/30",
+    warned: "text-changes bg-changes/10 border-changes/30",
+    allowed: "text-success bg-success/10 border-success/30",
+    overridden: "text-ink bg-tile-hi border-line",
   };
 
   const Icon = actionIcons[entry.action];
@@ -443,7 +443,7 @@ function HistoryEntry({
       >
         <CollapsibleTrigger asChild>
           <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-black/5 transition-colors">
-            <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-raised flex items-center justify-center shrink-0">
               <Icon className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
@@ -475,7 +475,7 @@ function HistoryEntry({
             <div className="text-xs space-y-1 pt-2">
               <p>
                 <span className="opacity-70">Upload ID:</span>{" "}
-                <code className="bg-white/50 px-1 rounded">
+                <code className="bg-raised px-1 rounded">
                   {entry.uploadId}
                 </code>
               </p>
@@ -526,13 +526,13 @@ export function CompactDuplicateHistory({
       {recentBlocked.map((entry) => (
         <div
           key={entry.id}
-          className="text-xs p-2 rounded bg-red-50 border border-red-100"
+          className="text-xs p-2 rounded bg-late/10 border border-late/30"
         >
           <div className="flex items-center justify-between">
-            <span className="text-red-700 font-medium">
+            <span className="text-late font-medium">
               {entry.matchConfidence}% match
             </span>
-            <span className="text-red-600 opacity-70">
+            <span className="text-late opacity-70">
               {format(new Date(entry.attemptedAt), "MMM d")}
             </span>
           </div>

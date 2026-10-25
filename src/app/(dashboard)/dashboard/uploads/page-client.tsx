@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,7 +21,6 @@ import {
   BulkDownloadDialog,
   type UploadForDownload,
 } from "@/components/uploads/bulk-download-dialog";
-import { UploadsSuggestions } from "@/components/suggestions/uploads-suggestions";
 import { TagFilter, BulkTagDialog } from "@/components/tags/tag-manager";
 import { TagBadge } from "@/components/tags/tag-badge";
 import { Tag, BulkTagAction } from "@/lib/tag-types";
@@ -39,16 +38,14 @@ import {
   Grid3X3,
   List,
   Calendar,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  FileStack,
-  ArrowUpDown,
+  Eye,
+  EyeOff,
   SlidersHorizontal,
   Tags,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { loadUploadsPage } from "./actions";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -115,6 +112,7 @@ export function UploadsPageClient({
   const [isProcessing, setIsProcessing] = useState(false);
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
+  const [showPreviews, setShowPreviews] = useState(false);
   const [bulkDownloadDialogOpen, setBulkDownloadDialogOpen] = useState(false);
 
   // Tag-related state
@@ -145,24 +143,18 @@ export function UploadsPageClient({
     const nextPage = currentPage + 1;
 
     try {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("page", nextPage.toString());
-      params.set("pageSize", pagination.pageSize.toString());
-
-      const response = await fetch(`/api/uploads?${params.toString()}`);
-      if (!response.ok) throw new Error("Failed to load more uploads");
-
-      const data = await response.json();
-      setUploads((prev) => [...prev, ...data.uploads]);
+      const params = Object.fromEntries(searchParams.entries());
+      const data = await loadUploadsPage({ ...params, page: String(nextPage) });
+      setUploads((prev) => [...prev, ...(data.uploads as UploadWithCreator[])]);
       setCurrentPage(nextPage);
-      setHasMore(nextPage < data.pagination.totalPages);
+      setHasMore(nextPage < data.totalPages);
     } catch (error) {
       console.error("Failed to load more uploads:", error);
-      toast.error("Failed to load more uploads");
+      toast.error("More uploads didn't load. Scroll again to retry.");
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMore, currentPage, searchParams, pagination.pageSize]);
+  }, [isLoadingMore, hasMore, currentPage, searchParams]);
 
   // Set up infinite scroll
   const { sentinelRef, isEndReached } = useInfiniteScroll({
@@ -288,11 +280,11 @@ export function UploadsPageClient({
       if (!response.ok) throw new Error("Failed to approve uploads");
 
       const data = await response.json();
-      toast.success(`Approved ${data.approved} upload(s)`);
+      toast.success(data.approved === 1 ? "1 file approved" : `${data.approved} files approved`);
       setSelectedIds(new Set());
       refreshData();
     } catch {
-      toast.error("Failed to approve uploads");
+      toast.error("Couldn't approve. Try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -317,11 +309,11 @@ export function UploadsPageClient({
       if (!response.ok) throw new Error("Failed to reject uploads");
 
       const data = await response.json();
-      toast.success(`${data.rejected} upload(s) rejected`);
+      toast.success(data.rejected === 1 ? "1 file sent back" : `${data.rejected} files sent back`);
       setSelectedIds(new Set());
       refreshData();
     } catch {
-      toast.error("Failed to reject uploads");
+      toast.error("Couldn't send the files back. Try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -447,119 +439,39 @@ export function UploadsPageClient({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Uploads</h1>
-          <p className="text-muted-foreground mt-1">
-            Review and manage all content uploads
+      {/* Title row: one sentence carries the counts */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">Uploads</h1>
+          <p className="mt-1 text-[15px] text-ink-2">
+            {stats.total === 0
+              ? "Nothing uploaded yet. Files arrive here as creators answer requests."
+              : `${stats.total} ${stats.total === 1 ? "upload" : "uploads"}: ${stats.pending} waiting for review, ${stats.approved} approved, ${stats.rejected} sent back.`}
           </p>
         </div>
+        <Button variant="outline" aria-pressed={showPreviews} onClick={() => setShowPreviews((v) => !v)}>
+          {showPreviews ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          {showPreviews ? "Hide previews" : "Show previews"}
+        </Button>
       </div>
 
-      {/* Smart Suggestions */}
-      <UploadsSuggestions
-        pendingUploads={stats.pending}
-        totalUploads={stats.total}
-      />
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            filters.status === "all" && "ring-2 ring-primary"
-          )}
-          onClick={() => handleFilterChange("status", "all")}
-        >
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-2">
-                <FileStack className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.total}</p>
-                <p className="text-xs text-muted-foreground">Total Uploads</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            filters.status === "pending" && "ring-2 ring-amber-500",
-            isPending && filters.status === "pending" && "opacity-70"
-          )}
-          onClick={() => handleFilterChange("status", "pending")}
-        >
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-2">
-                {isPending && filters.status === "pending" ? (
-                  <Loader2 className="h-5 w-5 text-amber-600 animate-spin" />
-                ) : (
-                  <Clock className="h-5 w-5 text-amber-600" />
-                )}
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.pending}</p>
-                <p className="text-xs text-muted-foreground">Pending Review</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            filters.status === "approved" && "ring-2 ring-emerald-500",
-            isPending && filters.status === "approved" && "opacity-70"
-          )}
-          onClick={() => handleFilterChange("status", "approved")}
-        >
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-100 dark:bg-emerald-900/30 p-2">
-                {isPending && filters.status === "approved" ? (
-                  <Loader2 className="h-5 w-5 text-emerald-600 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                )}
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.approved}</p>
-                <p className="text-xs text-muted-foreground">Approved</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            filters.status === "rejected" && "ring-2 ring-red-500",
-            isPending && filters.status === "rejected" && "opacity-70"
-          )}
-          onClick={() => handleFilterChange("status", "rejected")}
-        >
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-red-100 dark:bg-red-900/30 p-2">
-                {isPending && filters.status === "rejected" ? (
-                  <Loader2 className="h-5 w-5 text-red-600 animate-spin" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-red-600" />
-                )}
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.rejected}</p>
-                <p className="text-xs text-muted-foreground">Rejected</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Status views with their counts */}
+      <Tabs value={filters.status} onValueChange={(v) => handleFilterChange("status", v)}>
+        <TabsList aria-label="Upload status">
+          {([
+            ["pending", "Ready to review", stats.pending],
+            ["approved", "Approved", stats.approved],
+            ["rejected", "Needs changes", stats.rejected],
+            ["all", "All", stats.total],
+          ] as const).map(([value, label, count]) => (
+            <TabsTrigger key={value} value={value}>
+              {label}
+              <span className="tabular-nums text-ink">{count}</span>
+              {isPending && filters.status === value && <Loader2 className="size-3.5 animate-spin" aria-label="Loading" />}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* Advanced Saved Filters */}
       <SavedFilters
@@ -588,22 +500,6 @@ export function UploadsPageClient({
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Status Filter */}
-        <Select
-          value={filters.status}
-          onValueChange={(value) => handleFilterChange("status", value)}
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
-
         {/* Creator Filter */}
         <Select
           value={filters.creator || "all"}
@@ -611,11 +507,11 @@ export function UploadsPageClient({
             handleFilterChange("creator", value === "all" ? "" : value)
           }
         >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Creators" />
+          <SelectTrigger className="w-[160px]" aria-label="Creator">
+            <SelectValue placeholder="All creators" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Creators</SelectItem>
+            <SelectItem value="all">All creators</SelectItem>
             {creators.map((creator) => (
               <SelectItem key={creator.id} value={creator.id}>
                 {creator.name}
@@ -631,11 +527,11 @@ export function UploadsPageClient({
             handleFilterChange("templateId", value === "all" ? "" : value)
           }
         >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Request Types" />
+          <SelectTrigger className="w-[170px]" aria-label="Template">
+            <SelectValue placeholder="All templates" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Request Types</SelectItem>
+            <SelectItem value="all">All templates</SelectItem>
             {templates.map((template) => (
               <SelectItem key={template.id} value={template.id}>
                 {template.name}
@@ -653,17 +549,16 @@ export function UploadsPageClient({
             updateSearchParams({ sort, order });
           }}
         >
-          <SelectTrigger className="w-[180px]">
-            <ArrowUpDown className="h-4 w-4 mr-2" />
+          <SelectTrigger className="w-[170px]" aria-label="Sort">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="uploadedAt-desc">Newest First</SelectItem>
-            <SelectItem value="uploadedAt-asc">Oldest First</SelectItem>
-            <SelectItem value="originalName-asc">Name (A-Z)</SelectItem>
-            <SelectItem value="originalName-desc">Name (Z-A)</SelectItem>
-            <SelectItem value="fileSize-desc">Largest First</SelectItem>
-            <SelectItem value="fileSize-asc">Smallest First</SelectItem>
+            <SelectItem value="uploadedAt-desc">Newest first</SelectItem>
+            <SelectItem value="uploadedAt-asc">Oldest first</SelectItem>
+            <SelectItem value="originalName-asc">Name A to Z</SelectItem>
+            <SelectItem value="originalName-desc">Name Z to A</SelectItem>
+            <SelectItem value="fileSize-desc">Largest first</SelectItem>
+            <SelectItem value="fileSize-asc">Smallest first</SelectItem>
           </SelectContent>
         </Select>
 
@@ -675,7 +570,7 @@ export function UploadsPageClient({
           onClick={() => setShowFilters(!showFilters)}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          {showFilters ? "Hide Filters" : "More Filters"}
+          {showFilters ? "Fewer filters" : "More filters"}
         </Button>
 
         {/* Bulk Tag Button */}
@@ -687,41 +582,37 @@ export function UploadsPageClient({
             onClick={() => setBulkTagDialogOpen(true)}
           >
             <Tags className="h-4 w-4" />
-            Tag Selected ({selectedIds.size})
+            Tag selected ({selectedIds.size})
           </Button>
         )}
 
         <div className="flex-1" />
 
         {/* View Toggle */}
-        <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
-          <Button
-            size="sm"
-            variant={filters.view === "grid" ? "secondary" : "ghost"}
-            className="h-8 w-8 p-0"
-            onClick={() => handleViewChange("grid")}
-          >
-            <Grid3X3 className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant={filters.view === "list" ? "secondary" : "ghost"}
-            className="h-8 w-8 p-0"
-            onClick={() => handleViewChange("list")}
-          >
-            <List className="h-4 w-4" />
-          </Button>
+        <div className="flex rounded-[10px] bg-well p-[3px]" role="group" aria-label="Layout">
+          {(["grid", "list"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={filters.view === v}
+              onClick={() => handleViewChange(v)}
+              className="inline-flex h-[30px] items-center gap-1.5 rounded-[7px] px-3 text-[14px] font-medium text-ink-2 transition-colors duration-150 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring aria-pressed:bg-tile-hi aria-pressed:text-ink"
+            >
+              {v === "grid" ? <Grid3X3 className="size-4" aria-hidden="true" /> : <List className="size-4" aria-hidden="true" />}
+              {v === "grid" ? "Grid" : "List"}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Extended Filters */}
       {showFilters && (
-        <div className="flex flex-col gap-4 p-4 bg-muted/30 rounded-xl border animate-fade-in">
+        <div className="flex flex-col gap-4 rounded-[10px] bg-tile p-4">
           {/* Date Filters */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">From:</span>
+              <span className="text-sm text-ink-2">From</span>
               <Input
                 type="date"
                 value={filters.dateFrom}
@@ -730,7 +621,7 @@ export function UploadsPageClient({
               />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">To:</span>
+              <span className="text-sm text-ink-2">To</span>
               <Input
                 type="date"
                 value={filters.dateTo}
@@ -754,7 +645,7 @@ export function UploadsPageClient({
 
           {/* Tag Filter */}
           {availableTags.length > 0 && (
-            <div className="border-t pt-4">
+            <div className="border-t border-line pt-4">
               <TagFilter
                 tags={availableTags}
                 selectedTagIds={selectedTagIds}
@@ -799,10 +690,10 @@ export function UploadsPageClient({
       <div className="relative">
         {/* Loading overlay when filters are changing */}
         {isPending && (
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-lg min-h-[200px]">
-            <div className="flex items-center gap-3 bg-background/90 px-4 py-3 rounded-lg shadow-lg border">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm font-medium">Loading uploads...</span>
+          <div className="absolute inset-x-0 top-0 z-10 flex justify-center pt-6" role="status">
+            <div className="flex items-center gap-3 rounded-[8px] bg-raised px-4 py-3 shadow-lg">
+              <Loader2 className="size-4 animate-spin text-icon" />
+              <span className="text-sm font-medium text-ink">Loading uploads…</span>
             </div>
           </div>
         )}
@@ -831,6 +722,7 @@ export function UploadsPageClient({
                 onSelect={handleSelect}
                 onReviewComplete={refreshData}
                 viewMode="grid"
+                revealed={showPreviews}
               />
             ))}
           </div>
@@ -847,6 +739,7 @@ export function UploadsPageClient({
                 onSelect={handleSelect}
                 onReviewComplete={refreshData}
                 viewMode="list"
+                revealed={showPreviews}
               />
             ))}
           </div>
@@ -868,13 +761,13 @@ export function UploadsPageClient({
 
       {/* Upload Count */}
       {!isLoadingMore && !isEndReached && hasMore && (
-        <p className="text-center text-sm text-muted-foreground py-4">
+        <p className="py-4 text-center text-sm text-ink-2">
           Showing {filteredUploads.length} of {pagination.total} uploads
         </p>
       )}
 
       {/* Back to Top Button */}
-      <BackToTop threshold={400} variant="gradient" />
+      <BackToTop threshold={400} />
 
       {/* Bulk Download Dialog */}
       <BulkDownloadDialog

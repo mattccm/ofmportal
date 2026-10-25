@@ -111,7 +111,7 @@ export function QuickStatSkeleton({ className }: { className?: string }) {
       )}
     >
       {/* Left accent line */}
-      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-muted to-muted rounded-l-xl" />
+      <div className="absolute top-0 left-0 w-1 h-full bg-muted rounded-l-xl" />
       <div className="pl-3 space-y-2">
         <div className="flex items-center justify-between">
           <Skeleton variant="text" className="w-20 h-3" />

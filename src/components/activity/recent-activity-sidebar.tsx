@@ -140,7 +140,7 @@ function ActivityGroupSection({
           <ChevronRight className="h-3 w-3" />
         )}
         <span>{group.label}</span>
-        <Badge variant="secondary" className="ml-auto text-[10px] h-4 px-1.5">
+        <Badge variant="secondary" className="ml-auto text-[12px] h-5 px-1.5">
           {group.activities.length}
         </Badge>
       </button>
@@ -216,7 +216,7 @@ export function RecentActivitySidebar({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button
+            <Button aria-label="Refresh activity"
               variant="ghost"
               size="sm"
               onClick={refresh}
@@ -228,7 +228,7 @@ export function RecentActivitySidebar({
               />
             </Button>
             {onClose && (
-              <Button
+              <Button aria-label="Close activity"
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
@@ -323,14 +323,14 @@ export function RecentActivitySidebar({
           </div>
           <span className="text-sm font-semibold">{title}</span>
           {unreadCount > 0 && (
-            <Badge variant="default" className="text-[10px] h-5 px-1.5">
+            <Badge variant="default" className="text-[12px] h-5 px-1.5">
               {unreadCount}
             </Badge>
           )}
         </div>
 
         <div className="flex items-center gap-1">
-          <Button
+          <Button aria-label="Refresh activity"
             variant="ghost"
             size="sm"
             onClick={(e) => {
@@ -423,7 +423,7 @@ export function FloatingActivityButton({
   className,
 }: FloatingActivityButtonProps) {
   return (
-    <Button
+    <Button aria-label={unreadCount > 0 ? `Activity, ${unreadCount} new` : "Activity"}
       onClick={onClick}
       size="lg"
       className={cn(
@@ -440,7 +440,7 @@ export function FloatingActivityButton({
         <span
           className={cn(
             "absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center",
-            "rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground",
+            "rounded-full bg-destructive text-[12px] font-bold text-destructive-foreground",
             "ring-2 ring-background"
           )}
         >

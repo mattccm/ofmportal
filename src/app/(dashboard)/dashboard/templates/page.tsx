@@ -1,25 +1,26 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import Link from "next/link";
-import {
-  FileText,
-  Plus,
-  Sparkles,
-  Tag,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-
-
-
-import { TemplateField } from "@/lib/templates";
+import type { TemplateField } from "@/lib/template-types";
+import { fieldSpec } from "@/components/templates/template-spec";
 import { TemplatesClient } from "./templates-client";
+
+export const metadata: Metadata = { title: "Templates" };
 
 // DATA FETCHING
 
 async function getTemplates(agencyId: string) {
+  const usage = await db.contentRequest.groupBy({
+    by: ["templateId"],
+    where: { agencyId, templateId: { not: null } },
+    _max: { createdAt: true },
+  });
+  const lastUsed = new Map(usage.map((u) => [u.templateId, u._max.createdAt?.toISOString() ?? null]));
   const templates = await db.requestTemplate.findMany({
     where: { agencyId },
     include: {
@@ -56,22 +57,27 @@ async function getTemplates(agencyId: string) {
       description: t.description,
       categoryId: t.categoryId,
       category: t.category,
-      fieldCount: fields.length,
+      fieldCount: fields.reduce((n, f) => n + (f.quantity && f.quantity > 1 ? f.quantity : 1), 0),
+      fields: fields.slice(0, 7).map((f) => ({ label: f.label, spec: fieldSpec(f) })),
       usageCount: t._count.requests,
+      lastUsedAt: lastUsed.get(t.id) ?? null,
       isActive: t.isActive,
       updatedAt: t.updatedAt,
     };
   });
 }
 
+// Template groups are stored as TemplateCategory rows (one group per template)
 async function getCategories(agencyId: string) {
   const categories = await db.templateCategory.findMany({
     where: { agencyId },
     select: {
       id: true,
       name: true,
+      description: true,
       color: true,
       icon: true,
+      sortOrder: true,
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
@@ -92,12 +98,18 @@ async function getTemplateStats(agencyId: string) {
 
 // PAGE COMPONENT
 
-export default async function TemplatesPage() {
+export default async function TemplatesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ newGroup?: string }>;
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.agencyId) {
     redirect("/login");
   }
   const agencyId = session.user.agencyId;
+  const canManageGroups = ["OWNER", "ADMIN"].includes(session.user.role);
+  const { newGroup } = await searchParams;
 
   let templates: Awaited<ReturnType<typeof getTemplates>>;
   let stats: Awaited<ReturnType<typeof getTemplateStats>>;
@@ -115,80 +127,35 @@ export default async function TemplatesPage() {
     categories = [];
   }
 
+  const lede =
+    stats.totalTemplates === 0
+      ? "Templates are the requests you send often. Build one and it fills in the new-request form."
+      : `${stats.activeTemplates} of ${stats.totalTemplates} ${stats.totalTemplates === 1 ? "template is" : "templates are"} switched on${
+          categories.length ? `, in ${categories.length} ${categories.length === 1 ? "group" : "groups"}` : ""
+        }. ${stats.totalUsage} ${stats.totalUsage === 1 ? "request has" : "requests have"} gone out from them.`;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Sparkles className="h-4 w-4" />
-            <span>Template Builder</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Request Templates
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Create and manage reusable templates for content requests
-          </p>
+    <div>
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] sm:text-[26px]">Templates</h1>
+          <p className="mt-1 max-w-[70ch] text-[15px]">{lede}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/dashboard/settings/template-categories">
-              <Tag className="h-4 w-4 mr-2" />
-              Manage Categories
-            </Link>
-          </Button>
-          <Button
-            asChild
-            className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild>
             <Link href="/dashboard/templates/new">
-              <Plus className="h-4 w-4 mr-2" />
-              New Template
+              <Plus className="size-4" aria-hidden="true" />
+              New template
             </Link>
           </Button>
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <FileText className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.totalTemplates}</p>
-              <p className="text-sm text-muted-foreground">Total Templates</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <FileText className="h-6 w-6 text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.activeTemplates}</p>
-              <p className="text-sm text-muted-foreground">Active Templates</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <FileText className="h-6 w-6 text-violet-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.totalUsage}</p>
-              <p className="text-sm text-muted-foreground">Requests Using Templates</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Client-side filtering and list */}
-      <TemplatesClient initialTemplates={templates} categories={categories} />
+      </header>
+      <TemplatesClient
+        initialTemplates={templates}
+        initialGroups={categories}
+        canManageGroups={canManageGroups}
+        startCreating={newGroup === "1"}
+      />
     </div>
   );
 }

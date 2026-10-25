@@ -1,0 +1,10 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [
+      "design-mocks/**",
+      ".impeccable/mocks/decision/**"
+    ],
+    "ignoreValues": []
+  }
+}

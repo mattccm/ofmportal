@@ -31,17 +31,13 @@ import {
   CheckCircle,
   Loader2,
   Undo2,
-  Plus,
-  Layers,
-  Settings,
-  Tag,
   FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -205,7 +201,7 @@ function PreviewField({ field, value, onChange }: PreviewFieldProps) {
             value={(value as string) || ""}
             onValueChange={onChange}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label={field.label || "Select an option"}>
               <SelectValue placeholder={field.placeholder || "Select an option"} />
             </SelectTrigger>
             <SelectContent>
@@ -220,7 +216,7 @@ function PreviewField({ field, value, onChange }: PreviewFieldProps) {
       case "checkbox":
         return (
           <div className="flex items-center gap-2">
-            <Checkbox
+            <Checkbox aria-label={field.label || "Yes"}
               id={`preview-${field.id}`}
               checked={(value as boolean) || false}
               onCheckedChange={onChange}
@@ -559,12 +555,22 @@ export function TemplateBuilder({
       <div className="flex-1 min-w-0 space-y-4 lg:space-y-6 overflow-auto pb-6">
         {/* Header - Responsive layout for mobile */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-              {templateId ? "Edit Template" : "Create Template"}
+          <div className="min-w-0 space-y-1">
+            <h1
+              className={cn(
+                "line-clamp-2 font-extrabold leading-none tracking-[-0.035em] [overflow-wrap:anywhere]",
+                (name || "").length > 24 ? "text-[30px]" : "text-[38px] sm:text-[44px]",
+                !name.trim() && "text-ink-2"
+              )}
+            >
+              {name.trim() || (templateId ? "Untitled template" : "New template")}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Build a custom form template for content requests
+            <p className="text-[15px] text-ink">
+              {templateId
+                ? usageCount > 0
+                  ? `Used for ${usageCount} ${usageCount === 1 ? "request" : "requests"}. Changes apply to new requests only.`
+                  : "Not used yet. Changes apply the next time you send it."
+                : "The fields, due date and priority a request starts from."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -576,8 +582,8 @@ export function TemplateBuilder({
               />
             </div>
             {historyIndex >= 0 && (
-              <Button variant="ghost" size="sm" onClick={handleUndo}>
-                <Undo2 className="h-4 w-4 sm:mr-2" />
+              <Button variant="ghost" size="sm" onClick={handleUndo} aria-label="Undo">
+                <Undo2 className="h-4 w-4 sm:mr-2" aria-hidden="true" />
                 <span className="hidden sm:inline">Undo</span>
               </Button>
             )}
@@ -585,15 +591,16 @@ export function TemplateBuilder({
               variant="outline"
               size="sm"
               onClick={() => setIsPreviewMode(!isPreviewMode)}
+              aria-label={isPreviewMode ? "Edit" : "Preview"}
             >
               {isPreviewMode ? (
                 <>
-                  <EyeOff className="h-4 w-4 sm:mr-2" />
+                  <EyeOff className="h-4 w-4 sm:mr-2" aria-hidden="true" />
                   <span className="hidden sm:inline">Edit</span>
                 </>
               ) : (
                 <>
-                  <Eye className="h-4 w-4 sm:mr-2" />
+                  <Eye className="h-4 w-4 sm:mr-2" aria-hidden="true" />
                   <span className="hidden sm:inline">Preview</span>
                 </>
               )}
@@ -602,42 +609,27 @@ export function TemplateBuilder({
               size="sm"
               onClick={() => handleSave(false)}
               disabled={isSaving}
-              className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+              className=" bg-primary hover:bg-primary/90 "
+              aria-label={templateId ? "Save template" : "Save and switch on"}
             >
               {isSaving ? (
-                <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" aria-hidden="true" />
               ) : (
-                <CheckCircle className="h-4 w-4 sm:mr-2" />
+                <CheckCircle className="h-4 w-4 sm:mr-2" aria-hidden="true" />
               )}
-              <span className="hidden sm:inline">Publish</span>
+              <span className="hidden sm:inline">{templateId ? "Save template" : "Save and switch on"}</span>
             </Button>
           </div>
         </div>
 
-        {/* Usage Warning */}
-        {usageCount > 0 && (
-          <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            <div>
-              <p className="font-medium text-amber-800 dark:text-amber-200">
-                This template is in use
-              </p>
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                {usageCount} content request{usageCount > 1 ? "s" : ""} use this
-                template. Changes will only affect new requests.
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Validation Errors */}
         {validationErrors.length > 0 && (
-          <div className="space-y-2 p-4 rounded-xl border border-destructive/20 bg-destructive/5">
-            <p className="font-medium text-destructive flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Please fix the following errors:
+          <div role="alert" className="space-y-1 rounded-[var(--tw-r-ctl)] bg-tile px-4 py-3">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <AlertTriangle className="size-4 text-late" aria-hidden="true" />
+              Before it can be saved:
             </p>
-            <ul className="list-disc list-inside text-sm text-destructive space-y-1">
+            <ul className="list-none space-y-0.5 text-sm text-late">
               {validationErrors.map((error, index) => (
                 <li key={index}>{error.message}</li>
               ))}
@@ -648,26 +640,24 @@ export function TemplateBuilder({
         {/* Template Settings */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Template Settings
-            </CardTitle>
+            <CardTitle className="text-[17px]">Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">
-                Template Name <span className="text-destructive">*</span>
+                Name
               </Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Standard Photo Request"
+                placeholder="e.g. Monthly set"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description / Instructions</Label>
+              <Label htmlFor="description">Note to the creator</Label>
               <WysiwygEditor
+                aria-label="Note to the creator"
                 value={description}
                 onChange={setDescription}
                 placeholder="Add a description or instructions for creators. This appears at the top of the request form."
@@ -675,7 +665,7 @@ export function TemplateBuilder({
                 maxHeight="200px"
               />
               <p className="text-xs text-muted-foreground">
-                These instructions will be shown to creators at the top of the request form
+                Shown at the top of every request sent from this template. You can change it per request.
               </p>
             </div>
 
@@ -683,31 +673,28 @@ export function TemplateBuilder({
             <RichContentEditor
               richContent={richContent}
               onChange={setRichContent}
-              title="Template Examples & Reference Materials"
-              description="Add example images, videos, and reference links that apply to the entire request - not specific to any individual field."
+              title="Examples and references"
+              description="Example photos, a video or links for the whole request. Field-level examples live on each field."
             />
 
-            {/* Category Selection */}
+            {/* Group (stored as the template's category) */}
             {!categoriesLoading && (
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Tag className="h-4 w-4" />
-                  Category
-                </Label>
+                <Label>Group</Label>
                 {categories.length > 0 ? (
                   <>
                     <Select
                       value={categoryId || "uncategorized"}
                       onValueChange={(v) => setCategoryId(v === "uncategorized" ? null : v)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                      <SelectTrigger aria-label="Group">
+                        <SelectValue placeholder="Pick a group" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="uncategorized">
                           <div className="flex items-center gap-2">
                             <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                            Uncategorized
+                            Ungrouped
                           </div>
                         </SelectItem>
                         {categories.map((cat) => (
@@ -726,27 +713,27 @@ export function TemplateBuilder({
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Categorize templates to organize them and control team member access.{" "}
+                      Groups put templates on their own shelf and decide which team members can use them.{" "}
                       <Link
-                        href="/dashboard/settings/template-categories"
+                        href="/dashboard/templates"
                         target="_blank"
-                        className="text-primary underline-offset-2 hover:underline"
+                        className="text-ink underline"
                       >
-                        Manage categories
+                        Manage groups
                       </Link>
                     </p>
                   </>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    No categories yet.{" "}
+                    No groups yet.{" "}
                     <Link
-                      href="/dashboard/settings/template-categories"
+                      href="/dashboard/templates"
                       target="_blank"
-                      className="text-primary underline-offset-2 hover:underline"
+                      className="text-ink underline"
                     >
-                      Create a category
+                      Make a group
                     </Link>{" "}
-                    (e.g. Instagram, Reddit, OnlyFans) to organize your templates.
+                    on the Templates page, such as Socials or Monthly sets, to sort your templates onto shelves.
                   </p>
                 )}
               </div>
@@ -754,23 +741,25 @@ export function TemplateBuilder({
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label>Default Due Days</Label>
+                <Label htmlFor="due-days">Due after (days)</Label>
                 <Input
+                  id="due-days"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   value={defaultDueDays}
                   onChange={(e) => setDefaultDueDays(parseInt(e.target.value) || 7)}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Default Urgency</Label>
+                <Label>Priority</Label>
                 <Select
                   value={defaultUrgency}
                   onValueChange={(v) =>
                     setDefaultUrgency(v as typeof defaultUrgency)
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Priority">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -781,15 +770,18 @@ export function TemplateBuilder({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-3 pt-6">
-                <Checkbox
+              <div className="flex items-center justify-between gap-3 sm:pt-6">
+                <Label htmlFor="isActive" className="cursor-pointer flex-col items-start gap-0">
+                  Switched on
+                  <span className="block text-[13px] font-normal text-ink-2">
+                    {isActive ? "Shown on the new-request form" : "Hidden from the new-request form"}
+                  </span>
+                </Label>
+                <Switch aria-label="Switched on"
                   id="isActive"
                   checked={isActive}
-                  onCheckedChange={(checked) => setIsActive(checked as boolean)}
+                  onCheckedChange={(checked) => setIsActive(!!checked)}
                 />
-                <Label htmlFor="isActive" className="cursor-pointer">
-                  Active template
-                </Label>
               </div>
             </div>
           </CardContent>
@@ -798,10 +790,11 @@ export function TemplateBuilder({
         {/* Fields Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Layers className="h-5 w-5" />
-              Form Fields
-              <Badge variant="secondary">{fields.length}</Badge>
+            <h2 className="text-[17px] font-semibold">
+              Fields
+              <span className="ml-3 text-sm font-normal text-ink-2">
+                {fields.length ? `${fields.length} · drag to reorder` : "none yet"}
+              </span>
             </h2>
           </div>
 
@@ -809,7 +802,7 @@ export function TemplateBuilder({
             /* Preview Mode */
             <Card>
               <CardHeader className="border-b">
-                <CardTitle className="text-lg">{name || "Untitled Template"}</CardTitle>
+                <CardTitle className="text-[22px] font-bold">{name || "Untitled template"}</CardTitle>
                 {description && (
                   <HtmlContent
                     html={description}
@@ -848,16 +841,13 @@ export function TemplateBuilder({
             /* Edit Mode */
             <>
               {fields.length === 0 ? (
-                <div className="border-2 border-dashed rounded-xl p-12 text-center">
-                  <div className="h-16 w-16 mx-auto rounded-2xl bg-muted flex items-center justify-center mb-4">
-                    <Plus className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="font-semibold text-foreground">
-                    Start building your form
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
-                    Add fields from the sidebar to create your template. Drag to
-                    reorder fields.
+                <div className="rounded-[var(--tw-r-tile)] bg-tile-dim px-5 py-6">
+                  <h3 className="font-semibold">No fields yet</h3>
+                  <p className="mt-1 max-w-[56ch] text-sm text-ink-2">
+                    Each field is one thing the creator sends: a cover photo, a teaser clip, caption ideas.
+                    Add one from {""}
+                    <span className="lg:hidden">the list above</span>
+                    <span className="hidden lg:inline">the list on the right</span>.
                   </p>
                 </div>
               ) : (
@@ -914,12 +904,12 @@ export function TemplateBuilder({
 
         {/* Template Actions */}
         {templateId && (
-          <div className="flex items-center justify-between pt-6 border-t">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-6">
             <div className="flex items-center gap-2">
               {onDuplicate && (
                 <Button variant="outline" onClick={onDuplicate}>
                   <Copy className="h-4 w-4 mr-2" />
-                  Duplicate Template
+                  Make a copy
                 </Button>
               )}
             </div>
@@ -929,7 +919,7 @@ export function TemplateBuilder({
                 onClick={() => setShowDeleteConfirm(true)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Template
+                Delete template
               </Button>
             )}
           </div>
@@ -943,23 +933,10 @@ export function TemplateBuilder({
             <FieldTypePalette onAddField={handleAddField} />
 
             {/* Quick Tips - Hidden on mobile to save space */}
-            <Card className="hidden lg:block bg-gradient-to-br from-primary/5 to-violet-500/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Quick Tips</CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground space-y-2">
-                <p>
-                  Drag fields to reorder them
-                </p>
-                <p>
-                  Click the settings icon to expand field options
-                </p>
-                <p>
-                  Use conditional visibility to show/hide fields based on other
-                  answers
-                </p>
-              </CardContent>
-            </Card>
+            <div className="hidden space-y-1.5 px-1 text-[13px] text-ink-2 lg:block">
+              <p>Drag a field by its handle to move it; with the keyboard, focus the handle and press Space.</p>
+              <p>Open a field to set its examples, limits and when it shows.</p>
+            </div>
           </div>
         </div>
       )}
@@ -968,7 +945,7 @@ export function TemplateBuilder({
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Template</DialogTitle>
+            <DialogTitle>Delete {name || "this template"}?</DialogTitle>
             <DialogDescription>
               {usageCount > 0 ? (
                 <>
@@ -978,7 +955,7 @@ export function TemplateBuilder({
                   ones.
                 </>
               ) : (
-                "Are you sure you want to delete this template? This action cannot be undone."
+                "It goes for good. Requests already sent are not affected."
               )}
             </DialogDescription>
           </DialogHeader>
@@ -996,7 +973,7 @@ export function TemplateBuilder({
                 setShowDeleteConfirm(false);
               }}
             >
-              Delete Template
+              Delete template
             </Button>
           </DialogFooter>
         </DialogContent>

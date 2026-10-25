@@ -77,8 +77,9 @@ export function Calendar({
           size="icon"
           className="h-7 w-7"
           onClick={handlePreviousMonth}
+          aria-label="Previous month"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </Button>
         <span className="text-sm font-medium">
           {format(currentMonth, "MMMM yyyy")}
@@ -88,8 +89,9 @@ export function Calendar({
           size="icon"
           className="h-7 w-7"
           onClick={handleNextMonth}
+          aria-label="Next month"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 

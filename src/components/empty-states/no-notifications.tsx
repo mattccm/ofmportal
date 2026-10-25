@@ -72,7 +72,7 @@ export function NoNotifications({
         }}
       >
         {/* Celebratory element */}
-        <div className="flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm mt-2">
+        <div className="flex items-center justify-center gap-1.5 text-success text-sm mt-2">
           <Sparkles className="h-4 w-4" />
           <span>You&apos;re on top of things!</span>
         </div>

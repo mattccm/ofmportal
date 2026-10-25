@@ -184,7 +184,7 @@ export function CommunicationStatus({
                 className={cn(
                   "h-2.5 w-2.5 rounded-full ring-2 ring-background",
                   availability.available
-                    ? "bg-emerald-500"
+                    ? "bg-success"
                     : activeQuietPeriod
                     ? "bg-amber-500"
                     : "bg-gray-400"
@@ -255,14 +255,14 @@ export function CommunicationStatus({
                 className={cn(
                   "h-10 w-10 rounded-full flex items-center justify-center",
                   availability.available
-                    ? "bg-emerald-100 dark:bg-emerald-900/30"
+                    ? "bg-success/10"
                     : activeQuietPeriod
                     ? "bg-amber-100 dark:bg-amber-900/30"
                     : "bg-gray-100 dark:bg-gray-800"
                 )}
               >
                 {availability.available ? (
-                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                  <CheckCircle className="h-5 w-5 text-success" />
                 ) : activeQuietPeriod ? (
                   <Moon className="h-5 w-5 text-amber-600" />
                 ) : (
@@ -584,7 +584,7 @@ export function AvailabilityBadge({
                 "rounded-full ring-2 ring-background",
                 sizeClasses[size],
                 availability.available
-                  ? "bg-emerald-500"
+                  ? "bg-success"
                   : activeQuietPeriod
                   ? "bg-amber-500"
                   : "bg-gray-400"
@@ -595,7 +595,7 @@ export function AvailabilityBadge({
                 className={cn(
                   "text-xs font-medium",
                   availability.available
-                    ? "text-emerald-600"
+                    ? "text-success"
                     : activeQuietPeriod
                     ? "text-amber-600"
                     : "text-gray-500"

@@ -222,7 +222,7 @@ export function KeyboardShortcut({ keys, className }: KeyboardShortcutProps) {
               "inline-flex items-center justify-center",
               "min-w-[1.25rem] h-5 px-1",
               "bg-muted rounded border border-border",
-              "font-mono text-[10px]"
+              "font-mono text-[12px]"
             )}
           >
             {key}

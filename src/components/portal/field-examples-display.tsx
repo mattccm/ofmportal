@@ -141,9 +141,9 @@ function VideoThumbnail({ url, onClick }: { url: string; onClick: () => void }) 
   }, [url]);
 
   return (
-    <button
+    <button aria-label="Play video example"
       onClick={onClick}
-      className="group relative overflow-hidden rounded-lg border-2 border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
+      className="group relative overflow-hidden rounded-lg border border-ctl hover:border-ctl-hi transition-colors"
     >
       {thumbnailSrc ? (
         <img
@@ -152,8 +152,8 @@ function VideoThumbnail({ url, onClick }: { url: string; onClick: () => void }) 
           className="h-20 w-auto max-w-[140px] object-cover"
         />
       ) : (
-        <div className="h-20 w-[120px] bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-          <Play className="h-6 w-6 text-slate-500" />
+        <div className="h-20 w-[120px] bg-tile-hi flex items-center justify-center">
+          <Play className="h-6 w-6 text-icon" />
         </div>
       )}
       <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
@@ -275,30 +275,30 @@ export function FieldExamplesDisplay({
   // Card variant - more prominent display
   if (variant === "card") {
     return (
-      <div className={cn("rounded-xl border bg-slate-50/50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700", className)}>
+      <div className={cn("rounded-[var(--tw-r-ctl)] bg-well", className)}>
         {/* Header - clickable to expand/collapse */}
         {canToggleExamples ? (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-3 p-4 w-full text-left border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors"
+            className="flex items-center gap-3 p-4 w-full text-left border-b border-line hover:bg-tile-hi transition-colors"
           >
-            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-tile-hi flex items-center justify-center shrink-0">
               {expanded ? (
-                <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                <ChevronDown className="h-4 w-4 text-ink-2" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                <ChevronRight className="h-4 w-4 text-ink-2" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-medium text-slate-900 dark:text-slate-100">{examplesLabel}</h4>
+              <h4 className="font-medium text-ink">{examplesLabel}</h4>
               {!expanded && (
-                <p className="text-xs text-slate-600 dark:text-slate-400">Click to expand</p>
+                <p className="text-xs text-ink-2">Click to expand</p>
               )}
             </div>
           </button>
         ) : examplesLabel ? (
-          <div className="p-4 border-b border-slate-200/50 dark:border-slate-700/50">
-            <h4 className="font-medium text-slate-900 dark:text-slate-100">{examplesLabel}</h4>
+          <div className="p-4 border-b border-line">
+            <h4 className="font-medium text-ink">{examplesLabel}</h4>
           </div>
         ) : null}
 
@@ -315,7 +315,7 @@ export function FieldExamplesDisplay({
 
           {/* Example Text */}
           {richContent?.exampleText && (
-            <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 py-2 text-sm text-slate-700 dark:text-slate-300 italic bg-slate-100/50 dark:bg-slate-800/50 rounded-r-lg">
+            <blockquote className="rounded-md bg-tile px-3 py-2 text-sm text-ink">
               {richContent.exampleText}
             </blockquote>
           )}
@@ -323,13 +323,13 @@ export function FieldExamplesDisplay({
           {/* Example Images */}
           {allExampleImages.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">{examplesLabel}</p>
+              <p className="text-[13px] font-medium text-ink-2">{examplesLabel}</p>
               <div className="flex flex-wrap gap-3">
                 {allExampleImages.map((img, index) => (
                   <button
                     key={index}
                     onClick={() => handleImageClick(index)}
-                    className="group relative overflow-hidden rounded-lg border-2 border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
+                    className="group relative overflow-hidden rounded-lg border border-ctl hover:border-ctl-hi transition-colors"
                   >
                     <img
                       src={img.url}
@@ -340,10 +340,10 @@ export function FieldExamplesDisplay({
                       }}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                      <ImageIcon className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                      <ImageIcon className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     {img.caption && (
-                      <span className="absolute bottom-0 left-0 right-0 text-[10px] bg-black/60 text-white px-1.5 py-0.5 truncate">
+                      <span className="absolute bottom-0 left-0 right-0 text-[12px] bg-black/60 text-white px-1.5 py-0.5 truncate">
                         {img.caption}
                       </span>
                     )}
@@ -357,7 +357,7 @@ export function FieldExamplesDisplay({
           {richContent?.exampleVideoUrl && (
             <div className="space-y-2">
               {allExampleImages.length === 0 && (
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">Video</p>
+                <p className="text-[13px] font-medium text-ink-2">Video</p>
               )}
               <div className="flex flex-wrap gap-3">
                 <VideoThumbnail
@@ -371,7 +371,7 @@ export function FieldExamplesDisplay({
           {/* Reference Links */}
           {richContent?.referenceLinks && richContent.referenceLinks.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">Reference Links</p>
+              <p className="text-[13px] font-medium text-ink-2">Reference Links</p>
               <div className="flex flex-wrap gap-2">
                 {richContent.referenceLinks.map((link, index) => (
                   <a
@@ -379,7 +379,7 @@ export function FieldExamplesDisplay({
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-tile-hi text-ink text-sm hover:bg-raised-hi transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     {link.label || "View Link"}
@@ -417,7 +417,7 @@ export function FieldExamplesDisplay({
       {canToggleExamples ? (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="flex min-h-11 items-center gap-1.5 text-[14px] text-ink-2 hover:text-ink transition-colors"
         >
           {expanded ? (
             <ChevronDown className="h-3.5 w-3.5" />
@@ -445,7 +445,7 @@ export function FieldExamplesDisplay({
 
           {/* Example Text */}
           {richContent?.exampleText && (
-            <blockquote className="border-l-2 border-primary/30 pl-3 text-sm text-muted-foreground italic">
+            <blockquote className="rounded-md bg-well px-3 py-2 text-sm text-ink">
               {richContent.exampleText}
             </blockquote>
           )}
@@ -453,13 +453,13 @@ export function FieldExamplesDisplay({
           {/* Example Images */}
           {allExampleImages.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{examplesLabel}</p>
+              <p className="text-[13px] font-medium text-ink-2">{examplesLabel}</p>
               <div className="flex flex-wrap gap-2">
                 {allExampleImages.map((img, index) => (
                   <button
                     key={index}
                     onClick={() => handleImageClick(index)}
-                    className="group relative overflow-hidden rounded-lg border border-border/50 hover:border-primary/50 transition-colors"
+                    className="group relative overflow-hidden rounded-lg border border-ctl hover:border-ctl-hi transition-colors"
                   >
                     <img
                       src={img.url}
@@ -497,7 +497,7 @@ export function FieldExamplesDisplay({
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  className="inline-flex min-h-11 items-center gap-1 text-[14px] text-ink underline underline-offset-[3px]"
                 >
                   <ExternalLink className="h-3 w-3" />
                   {link.label || link.url}

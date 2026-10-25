@@ -34,7 +34,7 @@ function formatDate(date: Date): string {
 function getStatusColor(status: StatusLevel): string {
   switch (status) {
     case "operational":
-      return "bg-emerald-500 hover:bg-emerald-400";
+      return "bg-success hover:bg-success/85";
     case "degraded":
       return "bg-amber-500 hover:bg-amber-400";
     case "partial_outage":
@@ -145,7 +145,7 @@ export function UptimeChart({
           </p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+          <p className="text-2xl font-bold text-success">
             {overallUptime.toFixed(2)}%
           </p>
           <p className="text-xs text-muted-foreground">Overall Uptime</p>
@@ -202,8 +202,8 @@ export function CompactUptime({
   className,
 }: CompactUptimeProps) {
   const getUptimeColor = (value: number): string => {
-    if (value >= 99.9) return "text-emerald-600 dark:text-emerald-400";
-    if (value >= 99) return "text-emerald-500 dark:text-emerald-400";
+    if (value >= 99.9) return "text-success";
+    if (value >= 99) return "text-success";
     if (value >= 95) return "text-amber-600 dark:text-amber-400";
     return "text-red-600 dark:text-red-400";
   };

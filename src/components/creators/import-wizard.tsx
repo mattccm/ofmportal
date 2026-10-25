@@ -335,7 +335,7 @@ export function ImportWizard() {
                   currentStep === step.id
                     ? "bg-primary text-primary-foreground"
                     : currentStep > step.id
-                    ? "bg-green-500 text-white"
+                    ? "bg-success text-ground"
                     : "bg-muted text-muted-foreground"
                 )}
               >
@@ -363,7 +363,7 @@ export function ImportWizard() {
               <div
                 className={cn(
                   "w-12 sm:w-24 h-0.5 mx-2",
-                  currentStep > step.id ? "bg-green-500" : "bg-muted"
+                  currentStep > step.id ? "bg-success" : "bg-muted"
                 )}
               />
             )}
@@ -401,7 +401,7 @@ export function ImportWizard() {
                 : parseError
                 ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
                 : parsedData
-                ? "border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
+                ? "border-success bg-success/10"
                 : "border-muted-foreground/25 hover:border-primary/50"
             )}
           >
@@ -412,9 +412,9 @@ export function ImportWizard() {
               </div>
             ) : parsedData ? (
               <div className="flex flex-col items-center gap-3">
-                <CheckCircle2 className="w-10 h-10 text-green-500" />
+                <CheckCircle2 className="w-10 h-10 text-success" />
                 <div>
-                  <p className="font-medium text-green-700 dark:text-green-400">
+                  <p className="font-medium text-success">
                     {file?.name}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -501,11 +501,11 @@ export function ImportWizard() {
               <span>First row must contain column headers</span>
             </li>
             <li className="flex items-start gap-2">
-              <Check className="w-4 h-4 mt-0.5 text-green-500" />
+              <Check className="w-4 h-4 mt-0.5 text-success" />
               <span>Required fields: <strong>Name</strong> and <strong>Email</strong></span>
             </li>
             <li className="flex items-start gap-2">
-              <Check className="w-4 h-4 mt-0.5 text-green-500" />
+              <Check className="w-4 h-4 mt-0.5 text-success" />
               <span>Optional fields: Phone, Preferred Contact (EMAIL/SMS/BOTH), Notes</span>
             </li>
             <li className="flex items-start gap-2">
@@ -550,11 +550,11 @@ export function ImportWizard() {
           <CardContent>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div className="p-2 rounded-full bg-success/10">
+                  <CheckCircle2 className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="font-medium text-green-700 dark:text-green-400">{validCount}</p>
+                  <p className="font-medium text-success">{validCount}</p>
                   <p className="text-xs text-muted-foreground">Valid rows</p>
                 </div>
               </div>
@@ -585,7 +585,7 @@ export function ImportWizard() {
                 value={duplicateHandling}
                 onValueChange={(value: "skip" | "update") => setDuplicateHandling(value)}
               >
-                <SelectTrigger className="w-full sm:w-[300px]">
+                <SelectTrigger id="duplicate-handling" className="w-full sm:w-[300px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -611,7 +611,7 @@ export function ImportWizard() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Checkbox
+              <Checkbox aria-label="Send invitation emails"
                 id="send-invites"
                 checked={sendInvites}
                 onCheckedChange={(checked) => setSendInvites(checked === true)}
@@ -658,7 +658,7 @@ export function ImportWizard() {
                       <TableCell className="font-mono text-xs">{result.row}</TableCell>
                       <TableCell>
                         {result.valid ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          <CheckCircle2 className="w-4 h-4 text-success" />
                         ) : (
                           <XCircle className="w-4 h-4 text-red-500" />
                         )}
@@ -712,8 +712,8 @@ export function ImportWizard() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
-                  <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
+                <div className="p-3 rounded-full bg-success/10">
+                  <CheckCircle2 className="w-8 h-8 text-success" />
                 </div>
                 <div>
                   <CardTitle>Import Complete</CardTitle>
@@ -725,8 +725,8 @@ export function ImportWizard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
-                  <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+                <div className="p-4 rounded-lg bg-success/10">
+                  <p className="text-2xl font-bold text-success">
                     {importSummary.created}
                   </p>
                   <p className="text-sm text-muted-foreground">Created</p>
@@ -758,7 +758,7 @@ export function ImportWizard() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <CheckCircle2 className="w-5 h-5 text-success" />
                   Created Creators ({importResults.created.length})
                 </CardTitle>
               </CardHeader>

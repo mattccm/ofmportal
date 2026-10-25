@@ -315,7 +315,7 @@ export function TemplateGroupSelector({
           <TabsContent value="all" className="m-0 p-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-ink border-t-transparent" />
               </div>
             ) : filteredGroups.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -382,6 +382,7 @@ export function TemplateGroupSelector({
       variant="outline"
       role="combobox"
       aria-expanded={open}
+      aria-label={selectedGroup ? `Template group: ${selectedGroup.name}` : placeholder}
       disabled={disabled}
       className={cn("w-full justify-between", className)}
     >
@@ -559,11 +560,11 @@ function GroupItem({
       <div
         className={cn(
           "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer transition-colors",
-          isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted"
+          isSelected ? "bg-tile-hi text-ink" : "hover:bg-muted"
         )}
       >
         {showTemplates && group.templates.length > 0 ? (
-          <button
+          <button aria-label={`${expanded ? "Collapse" : "Expand"} ${group.name}`} aria-expanded={expanded}
             className="shrink-0"
             onClick={(e) => {
               e.stopPropagation();
@@ -584,7 +585,7 @@ function GroupItem({
           <div className="flex items-center gap-2">
             <span className="truncate">{group.name}</span>
             {group.isDefault && (
-              <Badge variant="outline" className="text-[10px] px-1 py-0">
+              <Badge variant="outline" className="text-[12px] px-1 py-0">
                 Default
               </Badge>
             )}
@@ -597,13 +598,13 @@ function GroupItem({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-[12px]">
             {group.templates.length}
           </Badge>
-          <button
+          <button aria-label={`${isFavorite ? "Remove" : "Add"} ${group.name} ${isFavorite ? "from" : "to"} favourites`} aria-pressed={isFavorite}
             className={cn(
               "p-1 rounded hover:bg-muted/80",
-              isFavorite && "text-amber-500"
+              isFavorite && "text-ink-2"
             )}
             onClick={(e) => {
               e.stopPropagation();
@@ -617,7 +618,7 @@ function GroupItem({
               )}
             />
           </button>
-          {isSelected && <Check className="h-4 w-4 text-primary" />}
+          {isSelected && <Check className="h-4 w-4 text-ink" />}
         </div>
       </div>
 
@@ -635,9 +636,9 @@ function GroupItem({
               <Badge
                 variant={template.isActive ? "default" : "secondary"}
                 className={cn(
-                  "text-[10px]",
+                  "text-[12px]",
                   template.isActive &&
-                    "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    "bg-tile-hi text-ink"
                 )}
               >
                 {template.isActive ? "Active" : "Inactive"}

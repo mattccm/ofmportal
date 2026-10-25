@@ -90,9 +90,9 @@ interface BundleExecutorProps {
 
 const URGENCY_CONFIG: Record<UrgencyLevel, { label: string; color: string; bgColor: string }> = {
   LOW: { label: "Low", color: "text-slate-500", bgColor: "bg-slate-500/10" },
-  NORMAL: { label: "Normal", color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  HIGH: { label: "High", color: "text-amber-500", bgColor: "bg-amber-500/10" },
-  URGENT: { label: "Urgent", color: "text-red-500", bgColor: "bg-red-500/10" },
+  NORMAL: { label: "Normal", color: "text-ink-2", bgColor: "bg-tile-hi" },
+  HIGH: { label: "High", color: "text-ink-2", bgColor: "bg-tile-hi" },
+  URGENT: { label: "Urgent", color: "text-late", bgColor: "bg-late/10" },
 };
 
 // EXECUTION STEPS
@@ -315,14 +315,14 @@ export function BundleExecutor({
                     className={cn(
                       "flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
                       selectedCreatorIds.includes(creator.id)
-                        ? "border-primary bg-primary/5"
+                        ? "border-ink bg-tile-hi"
                         : "border-border hover:bg-muted/50"
                     )}
                     onClick={() =>
                       handleCreatorToggle(creator.id, !selectedCreatorIds.includes(creator.id))
                     }
                   >
-                    <Checkbox
+                    <Checkbox aria-label={`Select ${creator.name}`}
                       checked={selectedCreatorIds.includes(creator.id)}
                       onCheckedChange={(checked) =>
                         handleCreatorToggle(creator.id, checked as boolean)
@@ -383,7 +383,7 @@ export function BundleExecutor({
                     Email creators about new requests
                   </p>
                 </div>
-                <Switch
+                <Switch aria-label="Send Notifications"
                   id="send-notifications"
                   checked={sendNotifications}
                   onCheckedChange={setSendNotifications}
@@ -409,7 +409,7 @@ export function BundleExecutor({
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
+                            <div className="h-8 w-8 rounded-full bg-tile-hi flex items-center justify-center text-ink font-medium text-sm">
                               {creator.name.charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -467,7 +467,7 @@ export function BundleExecutor({
 
                                   {/* Quick Edit Controls */}
                                   <div className="flex items-center gap-2">
-                                    <Input
+                                    <Input aria-label="Due date"
                                       type="date"
                                       value={
                                         overrides.get(`${creatorId}-${request.templateId}`)?.dueDate ||
@@ -494,7 +494,7 @@ export function BundleExecutor({
                                         )
                                       }
                                     >
-                                      <SelectTrigger className="h-7 w-24 text-xs">
+                                      <SelectTrigger aria-label="Urgency" className="h-7 w-24 text-xs">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -519,7 +519,7 @@ export function BundleExecutor({
             </ScrollArea>
 
             {/* Summary */}
-            <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-tile-hi border border-line">
               <div>
                 <p className="font-medium">Ready to create</p>
                 <p className="text-sm text-muted-foreground">
@@ -547,8 +547,8 @@ export function BundleExecutor({
       case "executing":
         return (
           <div className="py-8 space-y-6 text-center">
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-tile-hi flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-ink animate-spin" />
             </div>
             <div>
               <h3 className="text-lg font-semibold">Creating Requests...</h3>
@@ -556,7 +556,7 @@ export function BundleExecutor({
                 Please wait while we create {totalRequestsToCreate} requests
               </p>
             </div>
-            <Progress value={executionProgress} className="w-full max-w-xs mx-auto" />
+            <Progress aria-label="Bundle progress" value={executionProgress} className="w-full max-w-xs mx-auto" />
             <p className="text-sm text-muted-foreground">{executionProgress}% complete</p>
           </div>
         );
@@ -569,14 +569,14 @@ export function BundleExecutor({
                 className={cn(
                   "mx-auto h-16 w-16 rounded-2xl flex items-center justify-center",
                   result?.totalFailed === 0
-                    ? "bg-emerald-500/10"
-                    : "bg-amber-500/10"
+                    ? "bg-success/10"
+                    : "bg-tile-hi"
                 )}
               >
                 {result?.totalFailed === 0 ? (
-                  <CheckCircle className="h-8 w-8 text-emerald-500" />
+                  <CheckCircle className="h-8 w-8 text-success" />
                 ) : (
-                  <AlertTriangle className="h-8 w-8 text-amber-500" />
+                  <AlertTriangle className="h-8 w-8 text-ink-2" />
                 )}
               </div>
               <h3 className="text-lg font-semibold mt-4">
@@ -590,10 +590,10 @@ export function BundleExecutor({
             {/* Results Summary */}
             {result && (
               <div className="grid gap-4 sm:grid-cols-2">
-                <Card className="bg-emerald-500/5 border-emerald-500/20">
+                <Card className="bg-success/5 border-success/20">
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-3">
-                      <CheckCircle className="h-5 w-5 text-emerald-500" />
+                      <CheckCircle className="h-5 w-5 text-success" />
                       <div>
                         <p className="font-medium">{result.totalCreated} Successful</p>
                         <p className="text-sm text-muted-foreground">Requests created</p>
@@ -605,7 +605,7 @@ export function BundleExecutor({
                 <Card
                   className={cn(
                     result.totalFailed > 0
-                      ? "bg-red-500/5 border-red-500/20"
+                      ? "bg-late/10 border-late/30"
                       : "bg-muted/50"
                   )}
                 >
@@ -614,7 +614,7 @@ export function BundleExecutor({
                       <XCircle
                         className={cn(
                           "h-5 w-5",
-                          result.totalFailed > 0 ? "text-red-500" : "text-muted-foreground"
+                          result.totalFailed > 0 ? "text-late" : "text-muted-foreground"
                         )}
                       />
                       <div>
@@ -657,15 +657,15 @@ export function BundleExecutor({
             {/* Failed Requests */}
             {result && result.failedRequests.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium text-red-500">Failed Requests</h4>
-                <ScrollArea className="h-[100px] border border-red-500/20 rounded-lg">
+                <h4 className="text-sm font-medium text-late">Failed Requests</h4>
+                <ScrollArea className="h-[100px] border border-late/30 rounded-lg">
                   <div className="p-2 space-y-2">
                     {result.failedRequests.map((failed, index) => (
                       <div
                         key={index}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-red-500/5"
+                        className="flex items-center gap-2 p-2 rounded-lg bg-late/10"
                       >
-                        <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                        <XCircle className="h-4 w-4 text-late shrink-0" />
                         <p className="text-xs text-muted-foreground truncate">
                           {failed.error}
                         </p>
@@ -731,11 +731,11 @@ export function BundleExecutor({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <div className="h-10 w-10 rounded-xl bg-tile-hi flex items-center justify-center text-ink">
               <Package className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle>Execute Bundle: {bundle.name}</DialogTitle>
+              <DialogTitle>Send {bundle.name}</DialogTitle>
               <DialogDescription>
                 {bundle.templateIds.length} template{bundle.templateIds.length !== 1 ? "s" : ""} in this bundle
               </DialogDescription>
@@ -750,9 +750,9 @@ export function BundleExecutor({
                   className={cn(
                     "flex items-center justify-center h-8 w-8 rounded-full text-sm font-medium transition-colors",
                     step === s || (step === "executing" && s === "preview")
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-ink text-ground"
                       : ["complete"].includes(step) || (step === "preview" && index === 0)
-                      ? "bg-emerald-500 text-white"
+                      ? "bg-success text-ground"
                       : "bg-muted text-muted-foreground"
                   )}
                 >

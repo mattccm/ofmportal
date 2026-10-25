@@ -274,7 +274,7 @@ export function ReadReceiptIndicator({
       <div className="flex items-center justify-between gap-4">
         <span className="font-medium">{statusInfo.label}</span>
         {mostRecentRead && (
-          <span className="text-muted-foreground text-[10px]">
+          <span className="text-muted-foreground text-[12px]">
             {format(mostRecentRead, "h:mm a")}
           </span>
         )}
@@ -282,7 +282,7 @@ export function ReadReceiptIndicator({
 
       {readers.length > 0 && (
         <div className="space-y-1.5 pt-1 border-t border-border/50">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="text-[12px] uppercase tracking-wider text-muted-foreground">
             Seen by {readers.length} {readers.length === 1 ? "person" : "people"}
           </span>
           <div className="space-y-1">
@@ -303,14 +303,14 @@ export function ReadReceiptIndicator({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <DeviceIcon deviceType={reader.deviceType} />
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[12px] text-muted-foreground">
                     {formatDistanceToNow(new Date(reader.readAt), { addSuffix: true })}
                   </span>
                 </div>
               </div>
             ))}
             {readers.length > 5 && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[12px] text-muted-foreground">
                 +{readers.length - 5} more
               </span>
             )}
@@ -384,7 +384,7 @@ export function ReadReceiptIndicator({
 
         {/* Timestamp (optional) */}
         {showTimestamp && mostRecentRead && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[12px] text-muted-foreground">
             {formatDistanceToNow(mostRecentRead, { addSuffix: true })}
           </span>
         )}
@@ -460,13 +460,13 @@ export function SeenByAvatars({
         </AvatarGroup>
 
         {showCount && readers.length > 0 && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[12px] text-muted-foreground">
             Seen by {readers.length}
           </span>
         )}
 
         {showTimestamp && latestRead && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[12px] text-muted-foreground">
             {formatDistanceToNow(latestRead, { addSuffix: true })}
           </span>
         )}
@@ -502,7 +502,7 @@ export function InlineReadStatus({
     <div className={cn("inline-flex items-center gap-1", className)}>
       <StatusIcon status={status} className="h-3 w-3" />
       {readers.length > 0 && (
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[12px] text-muted-foreground">
           {readers.length}
         </span>
       )}
@@ -549,7 +549,7 @@ export function MessageReadReceiptFooter({
     >
       {/* Timestamp */}
       {sentAt && (
-        <span className="text-[10px]">{format(sentAt, "h:mm a")}</span>
+        <span className="text-[12px]">{format(sentAt, "h:mm a")}</span>
       )}
 
       {/* Read receipt indicator */}

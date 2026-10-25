@@ -168,7 +168,7 @@ export function OperationHistory({ className }: OperationHistoryProps) {
   const getStatusIcon = (status: BulkOperationStatus) => {
     switch (status) {
       case "completed":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-success" />;
       case "failed":
         return <XCircle className="h-4 w-4 text-red-500" />;
       case "partially_completed":
@@ -278,7 +278,7 @@ export function OperationHistory({ className }: OperationHistoryProps) {
 
             {/* Type filter */}
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter by type" className="w-[180px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
@@ -294,7 +294,7 @@ export function OperationHistory({ className }: OperationHistoryProps) {
 
             {/* Status filter */}
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter by status" className="w-[180px]">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -346,7 +346,7 @@ export function OperationHistory({ className }: OperationHistoryProps) {
                     >
                       <CollapsibleTrigger asChild>
                         <div className="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors">
-                          <Button variant="ghost" size="icon-sm" className="h-6 w-6">
+                          <Button aria-label={isExpanded ? "Collapse operation" : "Expand operation"} variant="ghost" size="icon-sm" className="h-6 w-6">
                             {isExpanded ? (
                               <ChevronDown className="h-4 w-4" />
                             ) : (
@@ -404,7 +404,7 @@ export function OperationHistory({ className }: OperationHistoryProps) {
                           </div>
 
                           {/* View details button */}
-                          <Button
+                          <Button aria-label="View operation details"
                             variant="ghost"
                             size="sm"
                             onClick={(e) => {
@@ -529,9 +529,9 @@ export function OperationHistory({ className }: OperationHistoryProps) {
                       <p className="text-sm text-muted-foreground">Total Items</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-green-200 dark:border-green-800">
+                  <Card className="border-success/30">
                     <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-bold text-green-600">{selectedOperation.successCount}</p>
+                      <p className="text-2xl font-bold text-success">{selectedOperation.successCount}</p>
                       <p className="text-sm text-muted-foreground">Succeeded</p>
                     </CardContent>
                   </Card>

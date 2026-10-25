@@ -83,12 +83,12 @@ export default function DuplicateDetectionPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/settings" aria-label="Back to settings">
             <ChevronLeft className="h-5 w-5" />
           </Link>
         </Button>
         <div className="flex items-center gap-4 flex-1">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-red-500/20 via-orange-500/20 to-amber-500/20 flex items-center justify-center">
+          <div className="h-14 w-14 rounded-2xl bg-red-500/20 flex items-center justify-center">
             <ShieldCheck className="h-7 w-7 text-red-600 dark:text-red-400" />
           </div>
           <div>
@@ -101,7 +101,7 @@ export default function DuplicateDetectionPage() {
       </div>
 
       {/* Info Banner */}
-      <Card className="card-elevated border-red-200/50 bg-gradient-to-r from-red-50/50 to-orange-50/50 dark:from-red-950/20 dark:to-orange-950/20 dark:border-red-800/30">
+      <Card className="card-elevated border-red-200/50 bg-red-50/50 dark:bg-red-950/20 dark:border-red-800/30">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
@@ -157,7 +157,7 @@ export default function DuplicateDetectionPage() {
           <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-indigo-500" />
+                <Settings className="h-5 w-5 text-foreground" />
                 Detection Settings
               </CardTitle>
               <CardDescription>

@@ -34,7 +34,7 @@ export function PriorityIndicator({
   const deadlineInfo = deadline ? getDeadlineInfo(deadline, priority) : null;
 
   const sizeClasses = {
-    sm: "h-4 text-[10px] px-1.5 gap-0.5",
+    sm: "h-5 text-[12px] px-1.5 gap-0.5",
     md: "h-5 text-xs px-2 gap-1",
     lg: "h-6 text-sm px-2.5 gap-1.5",
   };
@@ -104,7 +104,7 @@ export function DeadlineCountdown({
   const urgencyClasses = getUrgencyLevelClasses(deadlineInfo.urgencyLevel);
 
   const sizeClasses = {
-    sm: "text-[10px] gap-0.5",
+    sm: "text-[12px] gap-0.5",
     md: "text-xs gap-1",
     lg: "text-sm gap-1.5",
   };
@@ -152,7 +152,7 @@ export function PriorityBadge({
   const config = getPriorityConfig(priority);
 
   const sizeClasses = {
-    sm: "h-4 text-[10px] px-1.5 gap-0.5",
+    sm: "h-5 text-[12px] px-1.5 gap-0.5",
     md: "h-5 text-xs px-2 gap-1",
     lg: "h-6 text-sm px-2.5 gap-1.5",
   };
@@ -201,9 +201,9 @@ export function OverdueWarning({ deadline, className }: OverdueWarningProps) {
     <div
       className={cn(
         "flex items-center gap-2 px-3 py-2 rounded-lg",
-        "bg-red-100 dark:bg-red-900/30",
-        "border border-red-200 dark:border-red-800",
-        "text-red-700 dark:text-red-400",
+        "bg-late/10 dark:bg-late/10",
+        "border border-late/30 dark:border-late/30",
+        "text-late dark:text-late",
         "animate-pulse",
         className
       )}
@@ -236,10 +236,10 @@ export function PriorityDot({
   const shouldAnimate = forceAnimate ?? config.animate;
 
   const dotColors: Record<Priority, string> = {
-    URGENT: "bg-red-500",
-    HIGH: "bg-orange-500",
-    NORMAL: "bg-blue-500",
-    LOW: "bg-gray-400",
+    URGENT: "bg-late",
+    HIGH: "bg-ink",
+    NORMAL: "bg-ink-2",
+    LOW: "bg-waiting",
   };
 
   const sizeClasses = {
@@ -338,7 +338,7 @@ export function UrgentPulse({ children, isUrgent, className }: UrgentPulseProps)
       )}
     >
       {/* Pulse ring effect */}
-      <div className="absolute inset-0 rounded-lg bg-red-500/10 animate-ping opacity-25" />
+      <div className="absolute inset-0 rounded-lg bg-late animate-ping opacity-25" />
       <div className="relative">{children}</div>
     </div>
   );

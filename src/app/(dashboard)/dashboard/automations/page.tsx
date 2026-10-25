@@ -153,7 +153,7 @@ const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     name: "Reminder 2 Days Before Due",
     description: "Send a reminder to creators 2 days before the deadline",
     icon: Clock,
-    iconColor: "from-amber-500 to-orange-500",
+    iconColor: "bg-amber-500 ",
     trigger: { type: "due_date_approaching", config: { daysBefore: 2 } },
     conditions: [],
     actions: [
@@ -166,7 +166,7 @@ const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     name: "Auto-Assign Urgent Requests",
     description: "Automatically assign urgent requests to a senior team member",
     icon: UserPlus,
-    iconColor: "from-red-500 to-rose-500",
+    iconColor: "bg-red-500 ",
     trigger: { type: "request_created", config: {} },
     conditions: [
       { id: "1", field: "urgency", operator: "equals", value: "URGENT" },
@@ -181,7 +181,7 @@ const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     name: "Notify on New Upload",
     description: "Send notification when creators upload new content",
     icon: Upload,
-    iconColor: "from-emerald-500 to-teal-500",
+    iconColor: "bg-success ",
     trigger: { type: "upload_submitted", config: {} },
     conditions: [],
     actions: [
@@ -193,7 +193,7 @@ const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     name: "Overdue Escalation",
     description: "Escalate overdue requests to managers",
     icon: AlertTriangle,
-    iconColor: "from-red-500 to-orange-500",
+    iconColor: "bg-red-500 ",
     trigger: { type: "due_date_approaching", config: { daysBefore: -1 } },
     conditions: [
       { id: "1", field: "status", operator: "not_equals", value: "APPROVED" },
@@ -209,7 +209,7 @@ const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     name: "Welcome New Requests",
     description: "Send a welcome notification for new requests",
     icon: FileText,
-    iconColor: "from-violet-500 to-purple-500",
+    iconColor: "bg-raised-hi ",
     trigger: { type: "request_created", config: {} },
     conditions: [],
     actions: [
@@ -221,7 +221,7 @@ const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     name: "Status Change Notifications",
     description: "Notify creators when request status changes",
     icon: RefreshCw,
-    iconColor: "from-blue-500 to-cyan-500",
+    iconColor: "bg-blue-500 ",
     trigger: { type: "status_changed", config: {} },
     conditions: [],
     actions: [
@@ -276,7 +276,7 @@ function AutomationCard({
             <div className={cn(
               "h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0",
               automation.isActive
-                ? "bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/25"
+                ? " bg-primary shadow-lg shadow-primary/25"
                 : "bg-muted"
             )}>
               <TriggerIcon className={cn(
@@ -317,13 +317,13 @@ function AutomationCard({
               <p className="text-xs text-muted-foreground">Triggered</p>
               <p className="text-sm font-medium">{automation.triggerCount} times</p>
             </div>
-            <Switch
+            <Switch aria-label={`${automation.name} active`}
               checked={automation.isActive}
               onCheckedChange={(checked) => onToggle(automation.id, checked)}
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button aria-label={`More actions for ${automation.name}`} variant="ghost" size="icon" className="h-8 w-8">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -373,7 +373,7 @@ function TemplateCard({
     >
       <div className="flex items-start gap-3">
         <div className={cn(
-          "h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br shadow-lg flex-shrink-0",
+          "h-10 w-10 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0",
           template.iconColor
         )}>
           <Icon className="h-5 w-5 text-white" />
@@ -440,7 +440,7 @@ function ConditionBuilder({
                 value={condition.field}
                 onValueChange={(value) => updateCondition(condition.id, { field: value })}
               >
-                <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectTrigger aria-label="Condition field" className="w-[140px] h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -455,7 +455,7 @@ function ConditionBuilder({
                 value={condition.operator}
                 onValueChange={(value) => updateCondition(condition.id, { operator: value as ConditionOperator })}
               >
-                <SelectTrigger className="w-[130px] h-8 text-xs">
+                <SelectTrigger aria-label="Condition operator" className="w-[130px] h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -474,7 +474,7 @@ function ConditionBuilder({
                   className="flex-1 h-8 text-xs"
                 />
               )}
-              <Button
+              <Button aria-label="Remove condition"
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-red-600"
@@ -546,7 +546,7 @@ function ActionBuilder({
                     value={action.type}
                     onValueChange={(value) => updateAction(action.id, { type: value as ActionType, config: {} })}
                   >
-                    <SelectTrigger className="flex-1 h-8 text-xs">
+                    <SelectTrigger aria-label="Action type" className="flex-1 h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -560,7 +560,7 @@ function ActionBuilder({
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button
+                  <Button aria-label="Remove action"
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-red-600"
@@ -613,7 +613,7 @@ function ActionBuilder({
                       value={String(action.config.status || "")}
                       onValueChange={(value) => updateAction(action.id, { config: { ...action.config, status: value } })}
                     >
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger aria-label="Status" className="h-8 text-xs">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -642,7 +642,7 @@ function ActionBuilder({
                       value={String(action.config.role || "")}
                       onValueChange={(value) => updateAction(action.id, { config: { ...action.config, role: value } })}
                     >
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger aria-label="Role" className="h-8 text-xs">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -903,7 +903,7 @@ export default function AutomationsPage() {
           </Button>
           <Button
             onClick={openCreateDialog}
-            className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+            className=" bg-primary hover:bg-primary/90 "
           >
             <Plus className="h-4 w-4 mr-2" />
             New Automation
@@ -926,8 +926,8 @@ export default function AutomationsPage() {
         </div>
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <Play className="h-6 w-6 text-emerald-500" />
+            <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+              <Play className="h-6 w-6 text-success" />
             </div>
             <div>
               <p className="text-2xl font-bold">{activeCount}</p>
@@ -937,8 +937,8 @@ export default function AutomationsPage() {
         </div>
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <RefreshCw className="h-6 w-6 text-violet-500" />
+            <div className="h-12 w-12 rounded-xl bg-tile-hi flex items-center justify-center">
+              <RefreshCw className="h-6 w-6 text-foreground" />
             </div>
             <div>
               <p className="text-2xl font-bold">{totalTriggers}</p>
@@ -960,7 +960,7 @@ export default function AutomationsPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger aria-label="Filter by status" className="w-[160px]">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue />
           </SelectTrigger>
@@ -977,18 +977,18 @@ export default function AutomationsPage() {
         <div className={cn(
           "fixed bottom-4 right-4 z-50 p-4 rounded-xl shadow-lg border animate-in slide-in-from-bottom-4",
           testResult.success
-            ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800"
+            ? "bg-success/10 border-success/30"
             : "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"
         )}>
           <div className="flex items-center gap-3">
             {testResult.success ? (
-              <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <CheckCircle className="h-5 w-5 text-success" />
             ) : (
               <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
             )}
             <p className={cn(
               "text-sm font-medium",
-              testResult.success ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"
+              testResult.success ? "text-success" : "text-red-700 dark:text-red-300"
             )}>
               {testResult.message}
             </p>
@@ -1186,7 +1186,7 @@ export default function AutomationsPage() {
                     value={String(formTriggerConfig.fromStatus || "")}
                     onValueChange={(v) => setFormTriggerConfig({ ...formTriggerConfig, fromStatus: v })}
                   >
-                    <SelectTrigger className="h-8 text-xs mt-2">
+                    <SelectTrigger aria-label="From status (optional)" className="h-8 text-xs mt-2">
                       <SelectValue placeholder="Any status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1203,7 +1203,7 @@ export default function AutomationsPage() {
                     value={String(formTriggerConfig.toStatus || "")}
                     onValueChange={(v) => setFormTriggerConfig({ ...formTriggerConfig, toStatus: v })}
                   >
-                    <SelectTrigger className="h-8 text-xs mt-2">
+                    <SelectTrigger aria-label="To status (optional)" className="h-8 text-xs mt-2">
                       <SelectValue placeholder="Any status" />
                     </SelectTrigger>
                     <SelectContent>

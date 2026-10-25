@@ -406,12 +406,12 @@ export default function ReviewSessionsPage() {
                       <div
                         className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
                           session.status === "COMPLETED"
-                            ? "bg-green-100"
+                            ? "bg-success/10"
                             : "bg-gray-100"
                         }`}
                       >
                         {session.status === "COMPLETED" ? (
-                          <CheckCircle className="h-6 w-6 text-green-500" />
+                          <CheckCircle className="h-6 w-6 text-success" />
                         ) : (
                           <XCircle className="h-6 w-6 text-gray-500" />
                         )}
@@ -431,7 +431,7 @@ export default function ReviewSessionsPage() {
                           <span>
                             {session.reviewedItems}/{session.totalItems} reviewed
                           </span>
-                          <span className="flex items-center gap-1 text-green-600">
+                          <span className="flex items-center gap-1 text-success">
                             <CheckCircle className="h-3.5 w-3.5" />
                             {session.approvedCount}
                           </span>

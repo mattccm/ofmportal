@@ -1,428 +1,390 @@
 "use client";
 
 import * as React from "react";
-import { format, isValid, parse, setHours, setMinutes } from "date-fns";
-import { Calendar as CalendarIcon, Clock, X, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  getDeadlinePresets,
-  getDeadlineInfo,
-  type Priority,
-} from "@/lib/deadline-utils";
+import { formatDay, timeLeft } from "@/components/title-wall";
+
+/**
+ * The due date, in-world: quick chips plus a drawn month calendar in a
+ * popover. No native date-input chrome. Values are plain days ("2026-10-30"),
+ * which the wall reads as due at 23:59 that day.
+ *
+ * Calendar keys: arrows move a day / a week, Home / End go to the week's
+ * ends, Page Up / Page Down change month, Enter or Space picks, Esc closes.
+ */
+
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+export function isoDay(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export function dayFromIso(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+export function addDaysIso(n: number, from: Date = new Date()): string {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + n);
+  return isoDay(d);
+}
+
+function sameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function monthGrid(month: Date): Date[] {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  // weeks start on Monday
+  const lead = (first.getDay() + 6) % 7;
+  const start = new Date(first.getFullYear(), first.getMonth(), 1 - lead);
+  const days: Date[] = [];
+  for (let i = 0; i < 42; i++) days.push(new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+  // drop a trailing week that belongs wholly to the next month
+  return days[35].getMonth() !== month.getMonth() ? days.slice(0, 35) : days;
+}
+
+export interface QuickDue {
+  days: number;
+  label: string;
+}
+
+export const DEFAULT_QUICK_DUE: QuickDue[] = [
+  { days: 3, label: "3 days" },
+  { days: 7, label: "1 week" },
+  { days: 14, label: "2 weeks" },
+];
+
+export interface DueDateFieldProps {
+  /** "YYYY-MM-DD" or "" for no due date */
+  value: string;
+  onChange: (value: string) => void;
+  quick?: QuickDue[];
+  /** Offer a "No due date" chip */
+  allowNone?: boolean;
+  disabled?: boolean;
+  invalid?: boolean;
+  /** id for the group, so a label or an error can point at it */
+  id?: string;
+  /** Show the "Due Thu 22 Oct, 23:59 · 6 days left" line under the chips */
+  showLine?: boolean;
+  className?: string;
+}
+
+export function DueDateField({
+  value,
+  onChange,
+  quick = DEFAULT_QUICK_DUE,
+  allowNone = true,
+  disabled,
+  invalid,
+  id,
+  showLine = true,
+  className,
+}: DueDateFieldProps) {
+  const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const today = React.useMemo(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  }, []);
+  const quickIsos = quick.map((q) => addDaysIso(q.days, today));
+  const custom = !!value && !quickIsos.includes(value);
+  const past = !!value && dayFromIso(value) < today;
+  const left = value ? timeLeft(value) : null;
+
+  const chip = (pressed: boolean) =>
+    cn(
+      "inline-flex h-10 items-center gap-2 rounded-[var(--tw-r-ctl)] px-3.5 text-sm font-medium transition-colors duration-150 md:h-9",
+      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acc",
+      pressed ? "!bg-ink text-ground" : "bg-well text-ink shadow-[inset_0_0_0_1px_var(--tw-ctl)] hover:shadow-[inset_0_0_0_1px_var(--tw-ctl-hi)]",
+      "disabled:pointer-events-none disabled:opacity-60"
+    );
+
+  return (
+    <div className={className}>
+      <div
+        id={id}
+        role="group"
+        aria-label="Due date"
+        aria-invalid={invalid || undefined}
+        className="relative flex flex-wrap items-center gap-2"
+      >
+        {quick.map((q, i) => (
+          <button
+            key={q.days}
+            type="button"
+            disabled={disabled}
+            aria-pressed={value === quickIsos[i]}
+            className={chip(value === quickIsos[i])}
+            onClick={() => onChange(quickIsos[i])}
+          >
+            {q.label}
+          </button>
+        ))}
+        <button
+          ref={triggerRef}
+          type="button"
+          disabled={disabled}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-pressed={custom}
+          className={chip(custom)}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <CalendarDays className="size-4" aria-hidden="true" />
+          {custom ? formatDay(value) : "Pick a date"}
+        </button>
+        {allowNone && (
+          <button
+            type="button"
+            disabled={disabled}
+            aria-pressed={!value}
+            className={chip(!value)}
+            onClick={() => onChange("")}
+          >
+            No due date
+          </button>
+        )}
+        {open && (
+          <CalendarPopover
+            value={value}
+            min={today}
+            onPick={(iso) => {
+              onChange(iso);
+              setOpen(false);
+              triggerRef.current?.focus();
+            }}
+            onClose={(refocus) => {
+              setOpen(false);
+              if (refocus) triggerRef.current?.focus();
+            }}
+            triggerRef={triggerRef}
+          />
+        )}
+      </div>
+      {showLine && (
+        <p className={cn("mt-2 text-sm font-medium", invalid && "text-late")} aria-live="polite">
+          {value ? (
+            past ? (
+              <>That day has passed. Pick today or later.</>
+            ) : (
+              <>
+                Due {formatDay(value)}, 23:59{" "}
+                <span className={cn("font-normal", left?.urgent ? "text-late" : "text-ink-2")}>· {left?.text}</span>
+              </>
+            )
+          ) : (
+            <span className="font-normal text-ink-2">No due date. Reminders only run when there is one.</span>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CalendarPopover({
+  value,
+  min,
+  onPick,
+  onClose,
+  triggerRef,
+}: {
+  value: string;
+  min: Date;
+  onPick: (iso: string) => void;
+  onClose: (refocus: boolean) => void;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const initial = value && dayFromIso(value) >= min ? dayFromIso(value) : min;
+  const [cursor, setCursor] = React.useState<Date>(initial);
+  const [month, setMonth] = React.useState<Date>(new Date(initial.getFullYear(), initial.getMonth(), 1));
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const gridRef = React.useRef<HTMLDivElement>(null);
+  const moved = React.useRef(false);
+  const selected = value ? dayFromIso(value) : null;
+  const headingId = React.useId();
+
+  // focus the cursor day on open and after every keyboard move
+  React.useEffect(() => {
+    const btn = gridRef.current?.querySelector<HTMLButtonElement>('[tabindex="0"]');
+    btn?.focus();
+  }, [cursor]);
+
+  // close on outside press
+  React.useEffect(() => {
+    const down = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (panelRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      onClose(false);
+    };
+    document.addEventListener("mousedown", down);
+    return () => document.removeEventListener("mousedown", down);
+  }, [onClose, triggerRef]);
+
+  const go = (d: Date) => {
+    const next = d < min ? min : d;
+    moved.current = true;
+    setCursor(next);
+    if (next.getMonth() !== month.getMonth() || next.getFullYear() !== month.getFullYear()) {
+      setMonth(new Date(next.getFullYear(), next.getMonth(), 1));
+    }
+  };
+
+  const onKey = (e: React.KeyboardEvent) => {
+    const c = cursor;
+    const at = (n: number) => new Date(c.getFullYear(), c.getMonth(), c.getDate() + n);
+    switch (e.key) {
+      case "ArrowLeft": go(at(-1)); break;
+      case "ArrowRight": go(at(1)); break;
+      case "ArrowUp": go(at(-7)); break;
+      case "ArrowDown": go(at(7)); break;
+      case "Home": go(at(-((c.getDay() + 6) % 7))); break;
+      case "End": go(at(6 - ((c.getDay() + 6) % 7))); break;
+      case "PageUp": go(new Date(c.getFullYear(), c.getMonth() - 1, c.getDate())); break;
+      case "PageDown": go(new Date(c.getFullYear(), c.getMonth() + 1, c.getDate())); break;
+      case "Escape": onClose(true); break;
+      default: return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const days = monthGrid(month);
+  const weeks: Date[][] = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+  const canPrev = new Date(month.getFullYear(), month.getMonth(), 0) >= min;
+  const cursorInMonth = cursor.getMonth() === month.getMonth() && cursor.getFullYear() === month.getFullYear();
+  const tabDay = cursorInMonth ? cursor : days.find((d) => d.getMonth() === month.getMonth() && d >= min) ?? cursor;
+
+  const shiftMonth = (n: number) => {
+    const m = new Date(month.getFullYear(), month.getMonth() + n, 1);
+    setMonth(m);
+  };
+
+  return (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby={headingId}
+      className="absolute left-0 top-full z-50 mt-2 w-[min(320px,calc(100vw-32px))] rounded-[var(--tw-r-tile)] bg-raised p-3 shadow-xl shadow-black/40"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onClose(true);
+        }
+      }}
+    >
+      <div className="flex items-center justify-between gap-2 pb-2">
+        <button
+          type="button"
+          onClick={() => shiftMonth(-1)}
+          disabled={!canPrev}
+          aria-label="Previous month"
+          className="inline-flex size-9 items-center justify-center rounded-[var(--tw-r-ctl)] text-icon hover:bg-raised-hi hover:text-ink disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-acc"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        <h3 id={headingId} className="text-[15px] font-semibold" aria-live="polite">
+          {MONTHS[month.getMonth()]} {month.getFullYear()}
+        </h3>
+        <button
+          type="button"
+          onClick={() => shiftMonth(1)}
+          aria-label="Next month"
+          className="inline-flex size-9 items-center justify-center rounded-[var(--tw-r-ctl)] text-icon hover:bg-raised-hi hover:text-ink focus-visible:outline-2 focus-visible:outline-acc"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+      <div ref={gridRef} role="grid" aria-labelledby={headingId} onKeyDown={onKey} className="grid gap-0.5">
+        <div role="row" className="grid grid-cols-7 gap-0.5">
+          {DOW.map((d) => (
+            <span key={d} role="columnheader" aria-label={d} className="py-1 text-center text-xs text-ink-2">
+              {d.slice(0, 2)}
+            </span>
+          ))}
+        </div>
+        {weeks.map((w, wi) => (
+          <div role="row" key={wi} className="grid grid-cols-7 gap-0.5">
+            {w.map((d) => {
+              const outside = d.getMonth() !== month.getMonth();
+              const before = d < min;
+              const isSel = !!selected && sameDay(d, selected);
+              const isToday = sameDay(d, min);
+              const isCursor = sameDay(d, tabDay) && !outside;
+              return (
+                <div role="gridcell" key={d.toISOString()} aria-selected={isSel}>
+                  <button
+                    type="button"
+                    tabIndex={isCursor ? 0 : -1}
+                    disabled={before}
+                    aria-label={`${formatDay(isoDay(d))}${isToday ? ", today" : ""}`}
+                    aria-current={isToday ? "date" : undefined}
+                    onClick={() => onPick(isoDay(d))}
+                    onFocus={() => {
+                      if (!sameDay(d, cursor) && !before) setCursor(d);
+                    }}
+                    className={cn(
+                      "relative flex h-10 w-full items-center justify-center rounded-[var(--tw-r-ctl)] text-sm tabular-nums transition-colors duration-150",
+                      "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acc",
+                      isSel ? "bg-ink font-semibold text-ground" : "hover:bg-raised-hi",
+                      outside && !isSel && "text-ink-2",
+                      before && "cursor-default text-ctl-hi line-through decoration-ctl hover:bg-transparent",
+                      isToday && !isSel && "font-semibold underline decoration-2 underline-offset-4"
+                    )}
+                  >
+                    {d.getDate()}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <p className="pt-2 text-xs text-ink-2">Due at 23:59 on the day you pick.</p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Compatibility: the older Date-based API, now drawn with DueDateField.    */
+/* ------------------------------------------------------------------------ */
 
 interface DeadlinePickerProps {
   value?: Date | null;
   onChange?: (date: Date | null) => void;
-  priority?: Priority;
-  disabled?: boolean;
-  placeholder?: string;
-  showPresets?: boolean;
-  showTimePicker?: boolean;
-  minDate?: Date;
-  className?: string;
-}
-
-/**
- * Deadline picker with calendar, time picker, and quick presets
- */
-export function DeadlinePicker({
-  value,
-  onChange,
-  priority = "NORMAL",
-  disabled = false,
-  placeholder = "Select deadline",
-  showPresets = true,
-  showTimePicker = true,
-  minDate,
-  className,
-}: DeadlinePickerProps) {
-  const [open, setOpen] = React.useState(false);
-  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
-    value ? new Date(value) : undefined
-  );
-  const [timeValue, setTimeValue] = React.useState<string>(
-    value ? format(new Date(value), "HH:mm") : "17:00"
-  );
-
-  const presets = React.useMemo(() => getDeadlinePresets(), []);
-
-  // Update local state when value changes externally
-  React.useEffect(() => {
-    if (value) {
-      const date = new Date(value);
-      setSelectedDate(date);
-      setTimeValue(format(date, "HH:mm"));
-    } else {
-      setSelectedDate(undefined);
-      setTimeValue("17:00");
-    }
-  }, [value]);
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!date) {
-      setSelectedDate(undefined);
-      return;
-    }
-
-    // Apply current time to the selected date
-    const [hours, minutes] = timeValue.split(":").map(Number);
-    const dateWithTime = setMinutes(setHours(date, hours || 17), minutes || 0);
-    setSelectedDate(dateWithTime);
-    onChange?.(dateWithTime);
-  };
-
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = e.target.value;
-    setTimeValue(newTime);
-
-    if (selectedDate && newTime) {
-      const [hours, minutes] = newTime.split(":").map(Number);
-      if (!isNaN(hours) && !isNaN(minutes)) {
-        const dateWithTime = setMinutes(setHours(selectedDate, hours), minutes);
-        setSelectedDate(dateWithTime);
-        onChange?.(dateWithTime);
-      }
-    }
-  };
-
-  const handlePresetClick = (presetDate: Date) => {
-    // Apply current time to preset
-    const [hours, minutes] = timeValue.split(":").map(Number);
-    const dateWithTime = setMinutes(setHours(presetDate, hours || 17), minutes || 0);
-    setSelectedDate(dateWithTime);
-    onChange?.(dateWithTime);
-    setOpen(false);
-  };
-
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedDate(undefined);
-    onChange?.(null);
-  };
-
-  const deadlineInfo = selectedDate
-    ? getDeadlineInfo(selectedDate, priority)
-    : null;
-
-  const displayText = React.useMemo(() => {
-    if (!selectedDate) return placeholder;
-    return format(selectedDate, "MMM d, yyyy 'at' h:mm a");
-  }, [selectedDate, placeholder]);
-
-  const relativeText = deadlineInfo?.relativeText;
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          disabled={disabled}
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !selectedDate && "text-muted-foreground",
-            className
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          <span className="flex-1 truncate">{displayText}</span>
-          {relativeText && (
-            <span className="ml-2 text-xs text-muted-foreground">
-              ({relativeText})
-            </span>
-          )}
-          {selectedDate && !disabled && (
-            <X
-              className="ml-2 h-4 w-4 opacity-50 hover:opacity-100"
-              onClick={handleClear}
-            />
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="flex flex-col sm:flex-row">
-          {/* Quick Presets */}
-          {showPresets && (
-            <div className="border-b sm:border-b-0 sm:border-r p-3 space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
-                <Zap className="h-3 w-3" />
-                Quick Select
-              </div>
-              {presets.map((preset) => (
-                <Button
-                  key={preset.label}
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start text-left h-auto py-2"
-                  onClick={() => handlePresetClick(preset.value)}
-                >
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium">{preset.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {preset.description}
-                    </span>
-                  </div>
-                </Button>
-              ))}
-            </div>
-          )}
-
-          {/* Calendar and Time Picker */}
-          <div className="p-0">
-            <Calendar
-              selected={selectedDate}
-              onSelect={handleDateSelect}
-              disabled={(date) => {
-                if (minDate && date < minDate) return true;
-                return false;
-              }}
-              initialFocus
-            />
-
-            {/* Time Picker */}
-            {showTimePicker && (
-              <div className="border-t p-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <Label htmlFor="time" className="text-sm font-medium">
-                    Time
-                  </Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={timeValue}
-                    onChange={handleTimeChange}
-                    className="w-auto"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer with selected info */}
-        {selectedDate && (
-          <div className="border-t p-3 bg-muted/30">
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <span className="font-medium">Selected: </span>
-                <span>{format(selectedDate, "EEEE, MMMM d, yyyy 'at' h:mm a")}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setOpen(false)}
-              >
-                Done
-              </Button>
-            </div>
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-interface DeadlineQuickPickerProps {
-  value?: Date | null;
-  onChange?: (date: Date | null) => void;
-  className?: string;
-}
-
-/**
- * Compact deadline picker with only quick presets
- */
-export function DeadlineQuickPicker({
-  value,
-  onChange,
-  className,
-}: DeadlineQuickPickerProps) {
-  const presets = React.useMemo(() => getDeadlinePresets(), []);
-
-  const handlePresetClick = (presetDate: Date) => {
-    // Default to 5 PM for quick picker
-    const dateWithTime = setMinutes(setHours(presetDate, 17), 0);
-    onChange?.(dateWithTime);
-  };
-
-  return (
-    <div className={cn("flex flex-wrap gap-2", className)}>
-      {presets.slice(0, 3).map((preset) => (
-        <Button
-          key={preset.label}
-          variant="outline"
-          size="sm"
-          onClick={() => handlePresetClick(preset.value)}
-          className="h-8"
-        >
-          {preset.label}
-        </Button>
-      ))}
-      {value && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onChange?.(null)}
-          className="h-8 text-muted-foreground"
-        >
-          <X className="h-3.5 w-3.5 mr-1" />
-          Clear
-        </Button>
-      )}
-    </div>
-  );
-}
-
-interface RelativeDateDisplayProps {
-  date: Date | string | null;
-  priority?: Priority;
-  showAbsolute?: boolean;
-  className?: string;
-}
-
-/**
- * Display a date with relative formatting
- */
-export function RelativeDateDisplay({
-  date,
-  priority = "NORMAL",
-  showAbsolute = true,
-  className,
-}: RelativeDateDisplayProps) {
-  const deadlineInfo = date ? getDeadlineInfo(date, priority) : null;
-
-  if (!deadlineInfo) {
-    return (
-      <span className={cn("text-muted-foreground", className)}>
-        No deadline set
-      </span>
-    );
-  }
-
-  return (
-    <div className={cn("flex flex-col gap-0.5", className)}>
-      <div
-        className={cn(
-          "flex items-center gap-1.5 text-sm font-medium",
-          deadlineInfo.isOverdue
-            ? "text-red-600 dark:text-red-400"
-            : deadlineInfo.isDueSoon
-            ? "text-amber-600 dark:text-amber-400"
-            : "text-foreground"
-        )}
-      >
-        <Clock className="h-3.5 w-3.5" />
-        <span>{deadlineInfo.relativeText}</span>
-        {deadlineInfo.isOverdue && (
-          <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded">
-            Overdue
-          </span>
-        )}
-      </div>
-      {showAbsolute && (
-        <span className="text-xs text-muted-foreground">
-          {deadlineInfo.displayText}
-        </span>
-      )}
-    </div>
-  );
-}
-
-interface DateTimeInputProps {
-  value?: Date | null;
-  onChange?: (date: Date | null) => void;
-  label?: string;
   disabled?: boolean;
   className?: string;
 }
 
-/**
- * Simple date and time input fields
- */
-export function DateTimeInput({
-  value,
-  onChange,
-  label,
-  disabled = false,
-  className,
-}: DateTimeInputProps) {
-  const [dateStr, setDateStr] = React.useState(
-    value ? format(new Date(value), "yyyy-MM-dd") : ""
-  );
-  const [timeStr, setTimeStr] = React.useState(
-    value ? format(new Date(value), "HH:mm") : "17:00"
-  );
-
-  React.useEffect(() => {
-    if (value) {
-      const date = new Date(value);
-      setDateStr(format(date, "yyyy-MM-dd"));
-      setTimeStr(format(date, "HH:mm"));
-    } else {
-      setDateStr("");
-      setTimeStr("17:00");
-    }
-  }, [value]);
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = e.target.value;
-    setDateStr(newDate);
-
-    if (newDate) {
-      const parsed = parse(newDate, "yyyy-MM-dd", new Date());
-      if (isValid(parsed)) {
-        const [hours, minutes] = timeStr.split(":").map(Number);
-        const dateWithTime = setMinutes(setHours(parsed, hours || 17), minutes || 0);
-        onChange?.(dateWithTime);
-      }
-    } else {
-      onChange?.(null);
-    }
-  };
-
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = e.target.value;
-    setTimeStr(newTime);
-
-    if (dateStr && newTime) {
-      const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
-      if (isValid(parsed)) {
-        const [hours, minutes] = newTime.split(":").map(Number);
-        const dateWithTime = setMinutes(setHours(parsed, hours), minutes);
-        onChange?.(dateWithTime);
-      }
-    }
-  };
-
+export function DeadlinePicker({ value, onChange, disabled, className }: DeadlinePickerProps) {
   return (
-    <div className={cn("space-y-2", className)}>
-      {label && (
-        <Label className="text-sm font-medium">{label}</Label>
-      )}
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <Input
-            type="date"
-            value={dateStr}
-            onChange={handleDateChange}
-            disabled={disabled}
-            className="w-full"
-          />
-        </div>
-        <div className="w-28">
-          <Input
-            type="time"
-            value={timeStr}
-            onChange={handleTimeChange}
-            disabled={disabled || !dateStr}
-            className="w-full"
-          />
-        </div>
-      </div>
-    </div>
+    <DueDateField
+      value={value ? isoDay(new Date(value)) : ""}
+      onChange={(v) => onChange?.(v ? new Date(`${v}T23:59:00`) : null)}
+      disabled={disabled}
+      className={className}
+    />
+  );
+}
+
+export function DeadlineQuickPicker({ value, onChange, className }: Omit<DeadlinePickerProps, "disabled">) {
+  return (
+    <DueDateField
+      value={value ? isoDay(new Date(value)) : ""}
+      onChange={(v) => onChange?.(v ? new Date(`${v}T23:59:00`) : null)}
+      showLine={false}
+      className={className}
+    />
   );
 }

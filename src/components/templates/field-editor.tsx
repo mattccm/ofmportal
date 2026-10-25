@@ -132,9 +132,9 @@ export function FieldEditor({
         className={cn(
           "group relative rounded-xl border bg-card transition-all duration-200",
           isDragging
-            ? "border-primary shadow-lg ring-2 ring-primary/20"
+            ? "border-ink shadow-lg ring-2 ring-ink/20"
             : "border-border/50 hover:border-border hover:shadow-sm",
-          isExpanded && "ring-1 ring-primary/10"
+          isExpanded && "ring-1 ring-ink/10"
         )}
       >
         {/* Header */}
@@ -142,6 +142,9 @@ export function FieldEditor({
           {/* Drag Handle */}
           <div
             {...dragHandleProps}
+            // dnd-kit gives the handle role="button" and a tab stop; without it the grip is decoration.
+            aria-label={dragHandleProps ? `Reorder ${field.label || "Untitled Field"}` : undefined}
+            aria-hidden={dragHandleProps ? undefined : true}
             className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors"
           >
             <GripVertical className="h-5 w-5 text-muted-foreground" />
@@ -196,7 +199,7 @@ export function FieldEditor({
 
           {/* Actions */}
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
+            <Button aria-label={`Field settings for ${field.label || "Untitled Field"}`}
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -204,7 +207,7 @@ export function FieldEditor({
             >
               <Settings2 className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label={`Duplicate ${field.label || "Untitled Field"}`}
               variant="ghost"
               size="icon"
               className="h-8 w-8"
@@ -212,7 +215,7 @@ export function FieldEditor({
             >
               <Plus className="h-4 w-4" />
             </Button>
-            <Button
+            <Button aria-label={`Delete ${field.label || "Untitled Field"}`}
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -248,7 +251,7 @@ export function FieldEditor({
                     updateField(updates);
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Field Type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -301,7 +304,7 @@ export function FieldEditor({
 
             {/* Required Toggle */}
             <div className="flex items-center gap-3">
-              <Checkbox
+              <Checkbox aria-label="Required field"
                 id={`required-${field.id}`}
                 checked={field.required}
                 onCheckedChange={(checked) =>
@@ -488,7 +491,7 @@ function OptionsEditor({ options, onChange }: OptionsEditorProps) {
         {options.map((option, index) => (
           <div key={option.id} className="flex items-center gap-2">
             <div className="flex flex-col gap-1">
-              <Button
+              <Button aria-label={`Move ${option.label || "option"} up`}
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
@@ -497,7 +500,7 @@ function OptionsEditor({ options, onChange }: OptionsEditorProps) {
               >
                 <ChevronDown className="h-3 w-3 rotate-180" />
               </Button>
-              <Button
+              <Button aria-label={`Move ${option.label || "option"} down`}
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
@@ -519,7 +522,7 @@ function OptionsEditor({ options, onChange }: OptionsEditorProps) {
               placeholder="Value"
               className="flex-1"
             />
-            <Button
+            <Button aria-label={`Remove ${option.label || "option"}`}
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -999,7 +1002,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
               <div
                 className={cn(
                   "p-3 rounded-lg transition-colors",
-                  isDraggingImage ? "bg-primary/10 ring-2 ring-primary ring-dashed" : ""
+                  isDraggingImage ? "bg-tile-hi ring-2 ring-ink ring-dashed" : ""
                 )}
                 onDragEnter={handleImageDragEnter}
                 onDragLeave={handleImageDragLeave}
@@ -1025,7 +1028,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
                           </div>
                         )}
                       </div>
-                      <Button
+                      <Button aria-label={`Remove example image ${index + 1}`}
                         variant="destructive"
                         size="icon"
                         className="absolute -top-2 -right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1043,9 +1046,9 @@ export function RichContentEditor({ richContent, onChange, title, description }:
                   ))}
                 </div>
                 {isDraggingImage && (
-                  <div className="mt-3 p-3 border-2 border-dashed border-primary rounded-lg text-center">
-                    <Upload className="h-6 w-6 mx-auto text-primary mb-1" />
-                    <p className="text-sm text-primary font-medium">Drop to add more images</p>
+                  <div className="mt-3 p-3 border-2 border-dashed border-ink rounded-lg text-center">
+                    <Upload className="h-6 w-6 mx-auto text-ink mb-1" />
+                    <p className="text-sm text-ink font-medium">Drop to add more images</p>
                   </div>
                 )}
               </div>
@@ -1056,7 +1059,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
                 className={cn(
                   "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
                   isDraggingImage
-                    ? "border-primary bg-primary/10"
+                    ? "border-ink bg-tile-hi"
                     : "hover:bg-muted/50"
                 )}
                 onClick={() => imageInputRef.current?.click()}
@@ -1067,13 +1070,13 @@ export function RichContentEditor({ richContent, onChange, title, description }:
               >
                 {uploadingImage ? (
                   <>
-                    <Loader2 className="h-8 w-8 mx-auto text-primary mb-2 animate-spin" />
+                    <Loader2 className="h-8 w-8 mx-auto text-ink mb-2 animate-spin" />
                     <p className="text-sm text-muted-foreground">Uploading...</p>
                   </>
                 ) : isDraggingImage ? (
                   <>
-                    <Upload className="h-8 w-8 mx-auto text-primary mb-2" />
-                    <p className="text-sm text-primary font-medium">Drop images here</p>
+                    <Upload className="h-8 w-8 mx-auto text-ink mb-2" />
+                    <p className="text-sm text-ink font-medium">Drop images here</p>
                   </>
                 ) : (
                   <>
@@ -1126,7 +1129,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
                 className={cn(
                   "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
                   isDraggingVideo
-                    ? "border-primary bg-primary/10"
+                    ? "border-ink bg-tile-hi"
                     : "hover:bg-muted/50"
                 )}
                 onClick={() => videoInputRef.current?.click()}
@@ -1137,13 +1140,13 @@ export function RichContentEditor({ richContent, onChange, title, description }:
               >
                 {uploadingVideo ? (
                   <>
-                    <Loader2 className="h-8 w-8 mx-auto text-primary mb-2 animate-spin" />
+                    <Loader2 className="h-8 w-8 mx-auto text-ink mb-2 animate-spin" />
                     <p className="text-sm text-muted-foreground">Uploading...</p>
                   </>
                 ) : isDraggingVideo ? (
                   <>
-                    <Upload className="h-8 w-8 mx-auto text-primary mb-2" />
-                    <p className="text-sm text-primary font-medium">Drop video here</p>
+                    <Upload className="h-8 w-8 mx-auto text-ink mb-2" />
+                    <p className="text-sm text-ink font-medium">Drop video here</p>
                   </>
                 ) : (
                   <>
@@ -1187,7 +1190,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
                   type="url"
                   className="flex-1"
                 />
-                <Button
+                <Button aria-label={`Remove reference link ${index + 1}`}
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-destructive"
@@ -1217,7 +1220,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
                   placeholder="Instructions"
                   className="h-8 text-sm"
                 />
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[12px] text-muted-foreground">
                   Blank uses default. e.g. &quot;Brief&quot;, &quot;Info&quot;
                 </p>
               </div>
@@ -1229,7 +1232,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
                   placeholder="Examples"
                   className="h-8 text-sm"
                 />
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[12px] text-muted-foreground">
                   Blank uses default. e.g. &quot;Reference&quot;, &quot;Inspiration&quot;
                 </p>
               </div>
@@ -1238,14 +1241,14 @@ export function RichContentEditor({ richContent, onChange, title, description }:
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Show instructions toggle for creators</Label>
-                <Switch
+                <Switch aria-label="Show instructions toggle for creators"
                   checked={richContent?.showInstructionsToggle !== false}
                   onCheckedChange={(checked) => updateRichContent({ showInstructionsToggle: checked })}
                 />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Show examples toggle for creators</Label>
-                <Switch
+                <Switch aria-label="Show examples toggle for creators"
                   checked={richContent?.showExamplesToggle !== false}
                   onCheckedChange={(checked) => updateRichContent({ showExamplesToggle: checked })}
                 />
@@ -1297,7 +1300,7 @@ function FileOptionsEditor({
         <div className="space-y-3 p-3 rounded-lg border bg-background">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Switch
+              <Switch aria-label="Restrict File Types"
                 checked={enforceFileTypes}
                 onCheckedChange={(checked) =>
                   onChange({ enforceFileTypes: checked })
@@ -1346,7 +1349,7 @@ function FileOptionsEditor({
         <div className="space-y-3 p-3 rounded-lg border bg-background">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Switch
+              <Switch aria-label="Limit File Size"
                 checked={enforceMaxFileSize}
                 onCheckedChange={(checked) =>
                   onChange({ enforceMaxFileSize: checked })
@@ -1364,7 +1367,7 @@ function FileOptionsEditor({
                   Max Size: {fileSizeInMB} MB
                 </Label>
                 <div className="flex items-center gap-2">
-                  <Checkbox
+                  <Checkbox aria-label="Show limit to creators"
                     id="show-max-file-size"
                     checked={showMaxFileSize}
                     onCheckedChange={(checked) =>
@@ -1397,7 +1400,7 @@ function FileOptionsEditor({
         <div className="space-y-3 p-3 rounded-lg border bg-background">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Switch
+              <Switch aria-label="Limit Number of Files"
                 checked={enforceFileCount}
                 onCheckedChange={(checked) =>
                   onChange({ enforceFileCount: checked })
@@ -1557,7 +1560,7 @@ function ValidationPanel({
                       />
                     </div>
                   </div>
-                  <Button
+                  <Button aria-label={`Remove rule ${index + 1}`}
                     variant="ghost"
                     size="icon"
                     className="shrink-0"
@@ -1660,7 +1663,7 @@ function ConditionalVisibilityPanel({
                     })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Show this field when">
                     <SelectValue placeholder="Select a field" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1685,7 +1688,7 @@ function ConditionalVisibilityPanel({
                     })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Condition">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1742,46 +1745,38 @@ interface FieldTypePaletteProps {
 
 export function FieldTypePalette({ onAddField }: FieldTypePaletteProps) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-medium text-muted-foreground px-1">
-        Add Field
-      </h3>
-      {/* Mobile: horizontal scroll, compact | Desktop: 2-col grid */}
-      <div className="flex gap-2 overflow-x-auto pb-2 lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
+    <section aria-labelledby="add-field-h" className="space-y-2">
+      <h2 id="add-field-h" className="px-1 text-[17px] font-semibold">
+        Add a field
+      </h2>
+      {/* phone: a scrolling row of chips; desktop: a list */}
+      <ul className="flex list-none gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-col lg:gap-1 lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
         {(Object.keys(FIELD_TYPE_CONFIG) as FieldType[]).map((type) => {
           const Icon = fieldTypeIcons[type];
           const config = FIELD_TYPE_CONFIG[type];
           return (
-            <button
-              key={type}
-              onClick={() => onAddField(type)}
-              className={cn(
-                "flex flex-col items-center gap-1.5 p-3 lg:p-4 rounded-xl border border-border/50",
-                "bg-card hover:bg-muted/50 hover:border-border transition-all duration-200",
-                "group cursor-pointer shrink-0 min-w-[80px] lg:min-w-0"
-              )}
-            >
-              <div
+            <li key={type} className="shrink-0">
+              <button
+                type="button"
+                onClick={() => onAddField(type)}
+                aria-label={`Add a ${config.label.toLowerCase()} field`}
                 className={cn(
-                  "h-8 w-8 lg:h-10 lg:w-10 rounded-lg flex items-center justify-center",
-                  "bg-muted group-hover:bg-primary/10 transition-colors"
+                  "flex h-11 w-full items-center gap-3 rounded-[var(--tw-r-ctl)] bg-tile px-3 text-left transition-colors duration-150",
+                  "hover:bg-tile-hi focus-visible:outline-2 focus-visible:outline-acc lg:h-auto lg:py-2.5"
                 )}
               >
-                <Icon className="h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="text-center">
-                <div className="text-xs lg:text-sm font-medium text-foreground">
-                  {config.label}
-                </div>
-                <div className="hidden lg:block text-xs text-muted-foreground">
-                  {config.description}
-                </div>
-              </div>
-            </button>
+                <Icon className="size-4 shrink-0 text-icon" aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block whitespace-nowrap text-sm font-medium">{config.label}</span>
+                  <span className="hidden text-[13px] text-ink-2 lg:block">{config.description}</span>
+                </span>
+                <Plus className="ml-auto hidden size-4 text-icon lg:block" aria-hidden="true" />
+              </button>
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ul>
+    </section>
   );
 }
 

@@ -384,7 +384,7 @@ export function DuplicateExportDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5 text-indigo-500" />
+            <FileSpreadsheet className="h-5 w-5 text-foreground" />
             Export Duplicate Attempts
           </DialogTitle>
           <DialogDescription>
@@ -402,7 +402,7 @@ export function DuplicateExportDialog({
                 setOptions({ ...options, format: value as "csv" | "json" })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Export Format">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -434,7 +434,7 @@ export function DuplicateExportDialog({
                 setOptions({ ...options, dateRange: value as ExportOptions["dateRange"] })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Date Range">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -477,7 +477,7 @@ export function DuplicateExportDialog({
                   setOptions({ ...options, filterAction: value as ExportOptions["filterAction"] })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter by action">
                   <SelectValue placeholder="Action" />
                 </SelectTrigger>
                 <SelectContent>
@@ -495,7 +495,7 @@ export function DuplicateExportDialog({
                   setOptions({ ...options, filterMatchType: value as ExportOptions["filterMatchType"] })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter by match type">
                   <SelectValue placeholder="Match Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -519,7 +519,7 @@ export function DuplicateExportDialog({
                 { key: "overrideInfo", label: "Override Information" },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center space-x-2">
-                  <Checkbox
+                  <Checkbox aria-label={label}
                     id={key}
                     checked={options.includeFields[key as keyof ExportOptions["includeFields"]]}
                     onCheckedChange={(checked) =>
@@ -546,7 +546,7 @@ export function DuplicateExportDialog({
           )}
 
           {success && (
-            <div className="flex items-center gap-2 text-green-600 text-sm p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+            <div className="flex items-center gap-2 text-success text-sm p-3 bg-success/10 rounded-lg">
               <CheckCircle2 className="h-4 w-4" />
               Export ready
             </div>
@@ -560,7 +560,7 @@ export function DuplicateExportDialog({
           <Button
             onClick={handleExport}
             disabled={isExporting}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-raised-hi text-ink hover:bg-raised-hi"
           >
             {isExporting ? (
               <>

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { calculateNextRunDate } from "@/types/recurring-requests";
+import { resolveTemplateIds, templateInput } from "./template-ids";
 
 // VALIDATION SCHEMA
 
@@ -19,7 +20,9 @@ const requestSettingsSchema = z.object({
 const createRecurringRequestSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  templateId: z.string().min(1, "Template is required"),
+  templateId: z.string().min(1).optional(),
+  // Ordered list of templates sent on each run; the first is the primary one
+  templateIds: z.array(z.string().min(1)).max(20, "Pick 20 templates or fewer").optional(),
   creatorIds: z.array(z.string()).optional().default([]),
   creatorGroupIds: z.array(z.string()).optional().default([]),
   frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY"]),
@@ -74,7 +77,8 @@ export async function GET(req: NextRequest) {
     });
 
     // Fetch related data
-    const templateIds = [...new Set(recurringRequests.map(r => r.templateId))];
+    const templateIdsByRow = new Map(recurringRequests.map(r => [r.id, resolveTemplateIds(r)]));
+    const templateIds = [...new Set([...templateIdsByRow.values()].flat())];
     const allCreatorIds = [...new Set(recurringRequests.flatMap(r => r.creatorIds as string[]))];
     const allGroupIds = [...new Set(recurringRequests.flatMap(r => r.creatorGroupIds as string[]))];
 
@@ -114,6 +118,10 @@ export async function GET(req: NextRequest) {
       description: rr.description,
       templateId: rr.templateId,
       template: templateMap.get(rr.templateId),
+      templateIds: templateIdsByRow.get(rr.id) ?? [rr.templateId],
+      templates: (templateIdsByRow.get(rr.id) ?? [rr.templateId])
+        .map(id => templateMap.get(id))
+        .filter(Boolean),
       creatorIds: rr.creatorIds,
       creatorGroupIds: rr.creatorGroupIds,
       creators: (rr.creatorIds as string[]).map(id => creatorMap.get(id)).filter(Boolean),
@@ -160,15 +168,22 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validatedData = createRecurringRequestSchema.parse(body);
 
-    // Validate template exists
-    const template = await db.requestTemplate.findFirst({
+    // Validate every template exists in this agency
+    const templateIds = templateInput(validatedData);
+    if (!templateIds) {
+      return NextResponse.json(
+        { error: "Pick at least one template" },
+        { status: 400 }
+      );
+    }
+    const foundTemplates = await db.requestTemplate.count({
       where: {
-        id: validatedData.templateId,
+        id: { in: templateIds },
         agencyId: session.user.agencyId,
       },
     });
 
-    if (!template) {
+    if (foundTemplates !== templateIds.length) {
       return NextResponse.json(
         { error: "Template not found" },
         { status: 404 }
@@ -247,7 +262,8 @@ export async function POST(req: NextRequest) {
         agencyId: session.user.agencyId,
         name: validatedData.name,
         description: validatedData.description || null,
-        templateId: validatedData.templateId,
+        templateId: templateIds[0],
+        templateIds,
         creatorIds: validatedData.creatorIds,
         creatorGroupIds: validatedData.creatorGroupIds,
         frequency: validatedData.frequency,
@@ -276,6 +292,7 @@ export async function POST(req: NextRequest) {
           name: recurringRequest.name,
           frequency: recurringRequest.frequency,
           templateId: recurringRequest.templateId,
+          templateIds,
         },
       },
     });

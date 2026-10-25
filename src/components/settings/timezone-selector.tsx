@@ -247,6 +247,7 @@ export function TimezoneSelector({
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            aria-label={`${label || "Timezone"}: ${selectedTimezone ? `${selectedTimezone.city} ${selectedTimezone.offset}` : "not set"}`}
             disabled={disabled}
             className={cn(
               "w-full justify-between h-auto min-h-[44px] px-3 py-2",

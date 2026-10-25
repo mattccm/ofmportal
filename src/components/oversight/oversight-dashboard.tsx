@@ -248,8 +248,8 @@ export function OversightDashboard({ onNavigate }: OversightDashboardProps) {
                   {stats.activeStaffCount + stats.activeCreatorCount}
                 </p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-green-500" />
+              <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-success" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
@@ -562,7 +562,7 @@ export function OversightDashboard({ onNavigate }: OversightDashboardProps) {
         <CardContent className="pt-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-3 rounded-lg bg-muted/50">
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-2xl font-bold text-success">
                 {stats.averageResponseTime}m
               </p>
               <p className="text-xs text-muted-foreground">Avg Response Time</p>
@@ -578,7 +578,7 @@ export function OversightDashboard({ onNavigate }: OversightDashboardProps) {
               <p className="text-xs text-muted-foreground">Staff Online</p>
             </div>
             <div className="text-center p-3 rounded-lg bg-muted/50">
-              <p className="text-2xl font-bold text-purple-600">
+              <p className="text-2xl font-bold text-foreground">
                 {stats.activeCreatorCount}
               </p>
               <p className="text-xs text-muted-foreground">Creators Active</p>

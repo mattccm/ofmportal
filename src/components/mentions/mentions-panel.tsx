@@ -144,7 +144,7 @@ export function MentionsPanel({
         )}
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 text-white shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white shadow-sm">
             <AtSign className="h-5 w-5" />
           </div>
           <div>
@@ -206,7 +206,7 @@ export function MentionsPanel({
             )
           }
         >
-          <SelectTrigger className="w-[120px] h-8 text-xs">
+          <SelectTrigger aria-label="Filter by read status" className="w-[120px] h-8 text-xs">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -226,7 +226,7 @@ export function MentionsPanel({
             )
           }
         >
-          <SelectTrigger className="w-[130px] h-8 text-xs">
+          <SelectTrigger aria-label="Filter by type" className="w-[130px] h-8 text-xs">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
@@ -366,7 +366,7 @@ function MentionItem({
     >
       {/* Selection checkbox */}
       <div className="pt-1">
-        <Checkbox
+        <Checkbox aria-label={`Select mention from ${mention.mentionedBy.name}`}
           checked={isSelected}
           onCheckedChange={onToggleSelect}
           className="opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100"

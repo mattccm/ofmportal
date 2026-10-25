@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Loader2, Send, Lock, AtSign } from "lucide-react";
+import { Loader2, Send, Lock, AtSign, MessageSquarePlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { MentionInput, RenderMentions } from "@/components/mentions";
@@ -38,6 +38,15 @@ interface CommentSectionProps {
   /** Tightens spacing/rows for inline per-section threads. */
   compact?: boolean;
   placeholder?: string;
+  /** What the empty thread says, in the product's voice. */
+  emptyText?: string;
+  /**
+   * Keep the composer folded behind one quiet button until asked for, so a
+   * page with two threads shows only one open composer.
+   */
+  composerFolded?: boolean;
+  /** Label of the button that unfolds the composer. */
+  composerLabel?: string;
 }
 
 // COMMENT SECTION COMPONENT
@@ -50,7 +59,11 @@ export function CommentSection({
   currentUserId,
   compact = false,
   placeholder,
+  emptyText = "No comments yet.",
+  composerFolded = false,
+  composerLabel = "Write a comment",
 }: CommentSectionProps) {
+  const [composerOpen, setComposerOpen] = useState(!composerFolded);
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState("");
   const [mentionIds, setMentionIds] = useState<string[]>([]);
@@ -135,6 +148,20 @@ export function CommentSection({
   return (
     <div className={compact ? "space-y-4" : "space-y-6"}>
       {/* New Comment Form */}
+      {!composerOpen ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setComposerOpen(true);
+            requestAnimationFrame(() => mentionInputRef.current?.focus());
+          }}
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+          {composerLabel}
+        </Button>
+      ) : (
       <form id={formId} onSubmit={handleSubmit} className="space-y-3">
         <div className="relative">
           <MentionInput
@@ -171,7 +198,7 @@ export function CommentSection({
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Checkbox
+            <Checkbox aria-label="Internal only (not visible to creator)"
               id={internalId}
               checked={isInternal}
               onCheckedChange={(checked) => setIsInternal(!!checked)}
@@ -179,7 +206,7 @@ export function CommentSection({
             />
             <Label
               htmlFor={internalId}
-              className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1"
+              className="text-sm text-ink-2 flex items-center gap-1"
             >
               <Lock className="h-3 w-3" />
               Internal only (not visible to creator)
@@ -199,12 +226,11 @@ export function CommentSection({
           </Button>
         </div>
       </form>
+      )}
 
       {/* Comments List */}
       {comments.length === 0 ? (
-        <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-          No comments yet. Be the first to comment!
-        </p>
+        <p className="text-[14px] text-ink-2">{emptyText}</p>
       ) : (
         <div className="space-y-4">
           {comments.map((comment) => (
@@ -236,8 +262,8 @@ function CommentItem({ comment, currentUserId }: CommentItemProps) {
     <div
       className={`flex gap-3 p-3 rounded-lg ${
         comment.isInternal
-          ? "bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-800/30"
-          : "bg-gray-50 dark:bg-gray-800/50"
+          ? "border border-ctl bg-transparent"
+          : "bg-tile-hi"
       }`}
     >
       <Avatar
@@ -254,18 +280,18 @@ function CommentItem({ comment, currentUserId }: CommentItemProps) {
             {comment.user.name ?? "Unknown"}
           </span>
           {comment.isInternal && (
-            <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+            <span className="text-xs text-ink-2 flex items-center gap-1">
               <Lock className="h-3 w-3" />
-              Internal
+              Staff only
             </span>
           )}
           {hasMentions && (
-            <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+            <span className="text-xs text-ink-2 flex items-center gap-1">
               <AtSign className="h-3 w-3" />
               Mentions
             </span>
           )}
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="text-xs text-ink-2">
             {formatDistanceToNow(new Date(comment.createdAt), {
               addSuffix: true,
             })}

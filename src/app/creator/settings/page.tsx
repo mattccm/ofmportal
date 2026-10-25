@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import {
   Select,
@@ -14,17 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useBranding } from "@/components/providers/branding-provider";
-import {
-  Loader2,
-  Camera,
-  User,
-  Lock,
-  Globe,
-  Save,
-  Palette,
-  LogOut,
-} from "lucide-react";
+import { Loader2, Camera, Lock, Save, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeSwitcher } from "@/components/theme/theme-toggle";
 import { useTheme } from "@/components/theme/theme-provider";
@@ -109,7 +100,6 @@ const TIMEZONES = [
 
 export default function CreatorSettingsPage() {
   const router = useRouter();
-  const { branding } = useBranding();
   const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -190,7 +180,7 @@ export default function CreatorSettingsPage() {
       const compressed = await compressAvatarImage(file);
       setPreviewImage(compressed);
     } catch {
-      toast.error("Failed to process image");
+      toast.error("That photo couldn't be read. Try a JPG or PNG.");
     }
   };
 
@@ -216,7 +206,7 @@ export default function CreatorSettingsPage() {
         if (response.status === 413) {
           throw new Error("That image is too large — please choose a smaller one");
         }
-        throw new Error("Failed to save profile");
+        throw new Error("Your profile didn't save. Try again.");
       }
 
       // Update local storage
@@ -224,7 +214,7 @@ export default function CreatorSettingsPage() {
 
       toast.success("Profile saved");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save profile");
+      toast.error(error instanceof Error ? error.message : "Your profile didn't save. Try again.");
     } finally {
       setSaving(false);
     }
@@ -232,12 +222,12 @@ export default function CreatorSettingsPage() {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error("The two new passwords don't match. Type them again.");
       return;
     }
 
     if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
+      toast.error("Use at least 8 characters for your new password.");
       return;
     }
 
@@ -258,7 +248,7 @@ export default function CreatorSettingsPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to change password");
+        throw new Error(error.error || "Your password didn't change. Check your current password and try again.");
       }
 
       setCurrentPassword("");
@@ -267,7 +257,7 @@ export default function CreatorSettingsPage() {
 
       toast.success("Password changed");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to change password");
+      toast.error(error instanceof Error ? error.message : "Your password didn't change. Check your current password and try again.");
     } finally {
       setSaving(false);
     }
@@ -319,143 +309,91 @@ export default function CreatorSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2
-            className="h-10 w-10 animate-spin mx-auto"
-            style={{ color: branding.primaryColor }}
-          />
-          <p className="text-muted-foreground">Loading settings...</p>
-        </div>
+      <div className="px-4 pt-5 lg:max-w-[640px] lg:px-6 lg:pt-10" role="status" aria-label="Loading your settings">
+        <Skeleton className="h-7 w-28" />
+        <Skeleton className="mt-6 h-72 w-full" />
+        <Skeleton className="mt-6 h-32 w-full" />
       </div>
     );
   }
 
+  const sectionH = "mb-2 text-[17px] font-semibold leading-snug";
+  const tile = "rounded-[var(--tw-r-tile)] bg-tile p-4";
+
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your profile and preferences
-        </p>
-      </div>
+    <div className="px-4 pt-5 lg:max-w-[640px] lg:px-6 lg:pt-10">
+      <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] lg:text-[26px]">Settings</h1>
+      <p className="mt-1 text-[15px] leading-normal text-ink-2">Your profile, time zone and password.</p>
 
-      {/* Profile Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <User className="h-5 w-5" style={{ color: branding.primaryColor }} />
-            Profile
-          </CardTitle>
-          <CardDescription>
-            Your personal information and profile picture
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Profile Picture */}
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <Avatar
-                size="2xl"
-                user={{
-                  name: name,
-                  email: email,
-                  image: previewImage || avatar,
-                }}
-              />
+      <section aria-labelledby="profile-h" className="mt-6">
+        <h2 id="profile-h" className={sectionH}>
+          Profile
+        </h2>
+        <div className={cn(tile, "space-y-5")}>
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              <Avatar size="2xl" user={{ name, email, image: previewImage || avatar }} />
               <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 w-8 h-8 rounded-full text-white flex items-center justify-center shadow-lg transition-colors"
-                style={{ backgroundColor: branding.primaryColor }}
+                aria-label="Change your photo"
+                className="absolute -bottom-1 -right-1 grid size-9 place-items-center rounded-full bg-tile-hi text-ink outline-2 outline-tile transition-colors after:absolute after:-inset-1 after:content-[''] hover:bg-raised-hi focus-visible:outline-ring"
               >
-                <Camera className="h-4 w-4" />
+                <Camera className="size-4" aria-hidden="true" />
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
             </div>
-            <div>
-              <p className="font-medium">Profile Photo</p>
-              <p className="text-sm text-muted-foreground">
-                Click the camera icon to upload a new photo
-              </p>
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold">Your photo</p>
+              <p className="text-[14px] leading-normal text-ink-2">Only your team sees it. Use the camera button to change it.</p>
             </div>
           </div>
 
-          {/* Name & Email */}
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-              />
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" autoComplete="name" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">
-                Contact your agency to change your email
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} disabled aria-describedby="email-note" />
+              <p id="email-note" className="text-[13px] text-ink-2">
+                To change your email, message your team.
               </p>
             </div>
           </div>
 
-          {/* Phone */}
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">Phone</Label>
             <Input
               id="phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 (555) 000-0000"
+              placeholder="+61 400 000 000"
+              autoComplete="tel"
             />
           </div>
 
-          <Button
-            onClick={handleSaveProfile}
-            disabled={saving}
-            style={{ backgroundColor: branding.primaryColor }}
-          >
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Save Profile
+          <Button onClick={handleSaveProfile} disabled={saving} className="h-11 md:h-9">
+            {saving ? <Loader2 className="animate-spin" /> : <Save />}
+            Save profile
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* Timezone */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Globe className="h-5 w-5" style={{ color: branding.primaryColor }} />
-            Timezone
-          </CardTitle>
-          <CardDescription>
-            Set your timezone for due date displays
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-sm">
+      <section aria-labelledby="tz-h" className="mt-8">
+        <h2 id="tz-h" className={sectionH}>
+          Time zone
+        </h2>
+        <div className={tile}>
+          <Label htmlFor="tz" className="text-[14px] font-normal text-ink-2">
+            Due dates and times show in this time zone.
+          </Label>
+          <div className="mt-2 max-w-sm">
             <Select value={timezone} onValueChange={setTimezone}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select timezone" />
+              <SelectTrigger id="tz">
+                <SelectValue placeholder="Choose a time zone" />
               </SelectTrigger>
               <SelectContent>
                 {TIMEZONES.map((tz) => (
@@ -466,133 +404,89 @@ export default function CreatorSettingsPage() {
               </SelectContent>
             </Select>
           </div>
-          <Button
-            onClick={handleSaveProfile}
-            disabled={saving}
-            className="mt-4"
-            variant="outline"
-          >
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Save Timezone
+          <Button onClick={handleSaveProfile} disabled={saving} className="mt-4 h-11 md:h-9" variant="outline">
+            {saving ? <Loader2 className="animate-spin" /> : <Save />}
+            Save time zone
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* Appearance / Theme */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Palette className="h-5 w-5" style={{ color: branding.primaryColor }} />
-            Appearance
-          </CardTitle>
-          <CardDescription>
-            Choose your preferred color theme
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-sm font-medium mb-3 block">Theme</Label>
-              <ThemeSwitcher
-                theme={theme}
-                setTheme={setTheme}
-                className="w-full justify-center"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Choose Light, Dark, or System to match your device settings
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <section aria-labelledby="look-h" className="mt-8">
+        <h2 id="look-h" className={sectionH}>
+          Appearance
+        </h2>
+        <div className={tile}>
+          <ThemeSwitcher theme={theme} setTheme={setTheme} />
+        </div>
+      </section>
 
-      {/* Change Password */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Lock className="h-5 w-5" style={{ color: branding.primaryColor }} />
-            Change Password
-          </CardTitle>
-          <CardDescription>
-            Update your password to keep your account secure
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="current-password">Current Password</Label>
+      <section aria-labelledby="pw-h" className="mt-8">
+        <h2 id="pw-h" className={sectionH}>
+          Password
+        </h2>
+        <div className={cn(tile, "space-y-4")}>
+          <div className="space-y-1.5">
+            <Label htmlFor="current-password">Current password</Label>
             <Input
               id="current-password"
               type="password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Enter current password"
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password">New password</Label>
               <Input
                 id="new-password"
                 type="password"
+                autoComplete="new-password"
+                aria-describedby="pw-rule"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-password">Type it again</Label>
               <Input
                 id="confirm-password"
                 type="password"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
               />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Password must be at least 8 characters long
+          <p id="pw-rule" className="text-[13px] text-ink-2">
+            At least 8 characters.
           </p>
           <Button
             onClick={handleChangePassword}
             disabled={saving || !currentPassword || !newPassword}
             variant="outline"
+            className="h-11 md:h-9"
           >
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Lock className="mr-2 h-4 w-4" />
-            )}
-            Change Password
+            {saving ? <Loader2 className="animate-spin" /> : <Lock />}
+            Change password
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* Sign Out Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base text-destructive">
-            <LogOut className="h-5 w-5" />
-            Sign Out
-          </CardTitle>
-          <CardDescription>
-            Sign out of your account on this device
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={handleSignOut}
-            variant="destructive"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+      <section aria-labelledby="out-h" className="mt-8">
+        <h2 id="out-h" className={sectionH}>
+          Sign out
+        </h2>
+        <div className={cn(tile, "flex flex-wrap items-center gap-3")}>
+          <p className="min-w-0 flex-1 text-[14px] leading-normal text-ink-2">
+            Signs you out on this device. You&apos;ll need your password to sign in again.
+          </p>
+          <Button onClick={handleSignOut} variant="destructive" className="h-11 md:h-9">
+            <LogOut />
+            Sign out
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

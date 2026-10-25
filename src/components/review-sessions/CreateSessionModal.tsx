@@ -245,7 +245,7 @@ export function CreateSessionModal({
                             }`}
                             onClick={() => toggleUpload(upload.id)}
                           >
-                            <Checkbox
+                            <Checkbox aria-label={`Select ${upload.originalName}`}
                               checked={selectedUploadIds.includes(upload.id)}
                               onCheckedChange={() => toggleUpload(upload.id)}
                             />
@@ -303,7 +303,7 @@ export function CreateSessionModal({
                       }`}
                       onClick={() => toggleUser(member.id)}
                     >
-                      <Checkbox
+                      <Checkbox aria-label={`Select ${member.name}`}
                         checked={selectedUserIds.includes(member.id)}
                         onCheckedChange={() => toggleUser(member.id)}
                       />
@@ -373,7 +373,7 @@ export function CreateSessionModal({
                     <Label htmlFor="show-votes" className="text-sm">
                       Show votes immediately
                     </Label>
-                    <Switch
+                    <Switch aria-label="Show votes immediately"
                       id="show-votes"
                       checked={settings.showVotesImmediately}
                       onCheckedChange={(checked) =>
@@ -385,7 +385,7 @@ export function CreateSessionModal({
                     <Label htmlFor="allow-chat" className="text-sm">
                       Enable chat
                     </Label>
-                    <Switch
+                    <Switch aria-label="Enable chat"
                       id="allow-chat"
                       checked={settings.allowChat}
                       onCheckedChange={(checked) =>
@@ -397,7 +397,7 @@ export function CreateSessionModal({
                     <Label htmlFor="host-navigate" className="text-sm">
                       Only host can navigate
                     </Label>
-                    <Switch
+                    <Switch aria-label="Only host can navigate"
                       id="host-navigate"
                       checked={settings.onlyHostCanNavigate}
                       onCheckedChange={(checked) =>
@@ -409,7 +409,7 @@ export function CreateSessionModal({
                     <Label htmlFor="auto-advance" className="text-sm">
                       Auto-advance after voting
                     </Label>
-                    <Switch
+                    <Switch aria-label="Auto-advance after voting"
                       id="auto-advance"
                       checked={settings.autoAdvance}
                       onCheckedChange={(checked) =>
@@ -421,7 +421,7 @@ export function CreateSessionModal({
                     <Label htmlFor="allow-voice-notes" className="text-sm">
                       Allow voice notes
                     </Label>
-                    <Switch
+                    <Switch aria-label="Allow voice notes"
                       id="allow-voice-notes"
                       checked={settings.allowVoiceNotes}
                       onCheckedChange={(checked) =>
@@ -433,7 +433,7 @@ export function CreateSessionModal({
                     <Label htmlFor="allow-annotations" className="text-sm">
                       Allow annotations
                     </Label>
-                    <Switch
+                    <Switch aria-label="Allow annotations"
                       id="allow-annotations"
                       checked={settings.allowAnnotations}
                       onCheckedChange={(checked) =>
@@ -445,7 +445,7 @@ export function CreateSessionModal({
                     <Label htmlFor="conflict-highlighting" className="text-sm">
                       Highlight voting conflicts
                     </Label>
-                    <Switch
+                    <Switch aria-label="Highlight voting conflicts"
                       id="conflict-highlighting"
                       checked={settings.conflictHighlighting}
                       onCheckedChange={(checked) =>
@@ -457,7 +457,7 @@ export function CreateSessionModal({
                     <Label htmlFor="session-recording" className="text-sm">
                       Enable session recording
                     </Label>
-                    <Switch
+                    <Switch aria-label="Enable session recording"
                       id="session-recording"
                       checked={settings.enableSessionRecording}
                       onCheckedChange={(checked) =>

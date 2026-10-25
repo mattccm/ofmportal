@@ -197,7 +197,7 @@ export function BatchCreatorSelector({
       {/* Selected creators count and actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-indigo-500" />
+          <Users className="h-5 w-5 text-foreground" />
           <span className="font-medium text-foreground">
             {selectedCreators.length} creator{selectedCreators.length !== 1 ? "s" : ""} selected
           </span>
@@ -235,7 +235,7 @@ export function BatchCreatorSelector({
       {selectedCreators.length > 0 && (
         <div
           ref={dragRef}
-          className="flex flex-wrap gap-2 p-3 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg border border-indigo-100 dark:border-indigo-900/50"
+          className="flex flex-wrap gap-2 p-3 bg-tile-hi rounded-lg border border-line dark:border-line"
         >
           {selectedCreators.map((creator, index) => (
             <div
@@ -248,25 +248,25 @@ export function BatchCreatorSelector({
               onDragEnd={handleDragEnd}
               className={`
                 group flex items-center gap-1.5 px-2 py-1 rounded-full
-                bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800
+                bg-tile-hi border border-line
                 shadow-sm cursor-grab active:cursor-grabbing
                 transition-all duration-200
                 ${draggedIndex === index ? "opacity-50 scale-95" : ""}
-                ${dragOverIndex === index ? "ring-2 ring-indigo-500 ring-offset-1" : ""}
+                ${dragOverIndex === index ? "ring-2 ring-ctl ring-offset-1" : ""}
               `}
             >
               <GripVertical className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               <Avatar className="h-5 w-5">
-                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-[10px] font-semibold">
+                <AvatarFallback gradient={false} className="bg-raised text-ink text-[12px] font-semibold">
                   {creator.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <span className="text-sm font-medium text-foreground max-w-[120px] truncate">
                 {creator.name}
               </span>
-              <button
+              <button aria-label={`Remove ${creator.name}`}
                 onClick={() => removeCreator(creator.id)}
-                className="ml-1 p-0.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 transition-colors"
+                className="ml-1 p-0.5 rounded-full hover:bg-late/10 text-muted-foreground hover:text-late transition-colors"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -288,7 +288,7 @@ export function BatchCreatorSelector({
         </div>
         <div className="flex gap-2">
           <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as FilterStatus)}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger aria-label="Filter by status" className="w-[140px]">
               <Filter className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -301,7 +301,7 @@ export function BatchCreatorSelector({
           </Select>
           {allTags.length > 0 && (
             <Select value={filterTag} onValueChange={setFilterTag}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger aria-label="Filter by tag" className="w-[140px]">
                 <SelectValue placeholder="Tag" />
               </SelectTrigger>
               <SelectContent>
@@ -338,19 +338,19 @@ export function BatchCreatorSelector({
                 key={creator.id}
                 className={`
                   flex items-center gap-3 p-3 transition-colors cursor-pointer
-                  ${selected ? "bg-indigo-50/50 dark:bg-indigo-950/20" : "hover:bg-muted/50"}
+                  ${selected ? "bg-tile-hi dark:bg-tile-hi" : "hover:bg-muted/50"}
                   ${disabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
                 onClick={() => !disabled && toggleCreator(creator)}
               >
-                <Checkbox
+                <Checkbox aria-label={`Select ${creator.name}`}
                   checked={selected}
                   onCheckedChange={() => !disabled && toggleCreator(creator)}
                   disabled={disabled}
-                  className="data-checked:bg-indigo-600 data-checked:border-indigo-600"
+                  className=""
                 />
                 <Avatar className="h-9 w-9">
-                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-sm font-semibold">
+                  <AvatarFallback gradient={false} className="bg-raised text-ink text-sm font-semibold">
                     {creator.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -360,12 +360,12 @@ export function BatchCreatorSelector({
                       {creator.name}
                     </span>
                     {creator.inviteStatus === "ACCEPTED" && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px]">
+                      <Badge variant="secondary" className="bg-success/10 text-success text-[12px]">
                         Active
                       </Badge>
                     )}
                     {creator.inviteStatus === "PENDING" && (
-                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-[10px]">
+                      <Badge variant="secondary" className="bg-tile-hi text-ink-2 text-[12px]">
                         Pending
                       </Badge>
                     )}
@@ -377,7 +377,7 @@ export function BatchCreatorSelector({
                 {creator.tags && creator.tags.length > 0 && (
                   <div className="hidden sm:flex items-center gap-1">
                     {creator.tags.slice(0, 2).map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-[10px]">
+                      <Badge key={tag} variant="outline" className="text-[12px]">
                         {tag}
                       </Badge>
                     ))}

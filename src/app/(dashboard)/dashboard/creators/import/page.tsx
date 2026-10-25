@@ -11,7 +11,7 @@ export default function ImportCreatorsPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/creators">
+          <Link href="/dashboard/creators" aria-label="Back to creators">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>

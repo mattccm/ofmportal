@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarView, CalendarEvent, CalendarEventType } from "@/components/calendar/calendar-view";
+import { CalendarView, CalendarEvent, eventLook } from "@/components/calendar/calendar-view";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatePill, requestStatusState } from "@/components/title-wall";
 import {
   Select,
   SelectContent,
@@ -29,9 +30,7 @@ import {
 import {
   Filter,
   X,
-  FileText,
   AlertCircle,
-  Bell,
   Calendar,
   Clock,
   User,
@@ -76,29 +75,33 @@ const typeOptions = [
 
 // STATUS BADGE COMPONENT
 
-function StatusBadge({ status }: { status?: string }) {
+function StatusBadge({ status, overdue = false }: { status?: string; overdue?: boolean }) {
   if (!status) return null;
 
-  const statusConfig: Record<string, { label: string; className: string }> = {
-    DRAFT: { label: "Draft", className: "badge-info" },
-    PENDING: { label: "Pending", className: "badge-warning" },
-    IN_PROGRESS: { label: "In Progress", className: "badge-info" },
-    SUBMITTED: { label: "Submitted", className: "badge-purple" },
-    UNDER_REVIEW: { label: "Under Review", className: "badge-warning" },
-    NEEDS_REVISION: { label: "Needs Revision", className: "badge-error" },
-    APPROVED: { label: "Approved", className: "badge-success" },
-    CANCELLED: { label: "Cancelled", className: "badge-info" },
-    ARCHIVED: { label: "Archived", className: "badge-info" },
+  // Request statuses in the field-state vocabulary: colour, icon and word
+  const label: Record<string, string> = {
+    DRAFT: "Draft",
+    PENDING: "Pending",
+    IN_PROGRESS: "In progress",
+    SUBMITTED: "Submitted",
+    UNDER_REVIEW: "Under review",
+    NEEDS_REVISION: "Needs changes",
+    APPROVED: "Approved",
+    CANCELLED: "Cancelled",
+    ARCHIVED: "Archived",
   };
-
-  const config = statusConfig[status] || { label: status, className: "" };
-
-  return (
-    <Badge variant="outline" className={config.className}>
-      {config.label}
-    </Badge>
-  );
+  const state = requestStatusState(status, overdue);
+  if (!state) return <Badge variant="draft">{label[status] ?? status}</Badge>;
+  return <StatePill state={state}>{label[status] ?? status}</StatePill>;
 }
+
+/** A reminder's delivery status (not a request state, so it stays neutral) */
+const REMINDER_STATUS: Record<string, string> = {
+  PENDING: "Scheduled",
+  SENT: "Sent",
+  FAILED: "Not sent",
+  CANCELLED: "Cancelled",
+};
 
 // EVENT DETAIL PANEL
 
@@ -115,30 +118,24 @@ function EventDetailPanel({ event, onClose, onReschedule, isOpen, isMobile }: Ev
 
   if (!event) return null;
 
-  const eventTypeIcons: Record<CalendarEventType, typeof FileText> = {
-    request: FileText,
-    deadline: AlertCircle,
-    reminder: Bell,
-  };
-
-  const Icon = eventTypeIcons[event.type];
+  const look = eventLook(event);
+  const Icon = look.Icon;
+  const overdue = Boolean(event.metadata?.isOverdue);
+  const typeWord = event.type === "reminder" ? "Reminder" : event.type === "deadline" ? "Due date" : "Request";
 
   const content = (
     <div className="space-y-6">
       {/* Event header */}
       <div className="flex items-start gap-4">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${event.color}20` }}
-        >
-          <Icon className="h-6 w-6" style={{ color: event.color }} />
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-tile-hi">
+          <Icon aria-hidden="true" className={cn("h-6 w-6", look.iconClass)} />
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-semibold text-foreground truncate">
             {event.title}
           </h3>
-          <p className="text-sm text-muted-foreground capitalize">
-            {event.type}
+          <p className="text-sm text-muted-foreground">
+            {typeWord}
           </p>
         </div>
       </div>
@@ -169,7 +166,11 @@ function EventDetailPanel({ event, onClose, onReschedule, isOpen, isMobile }: Ev
         {event.status && (
           <div className="flex items-center gap-3 text-sm">
             <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-            <StatusBadge status={event.status} />
+            {event.type === "reminder" ? (
+              <Badge variant="draft">{REMINDER_STATUS[event.status] ?? event.status}</Badge>
+            ) : (
+              <StatusBadge status={event.status} overdue={overdue} />
+            )}
           </div>
         )}
 
@@ -182,10 +183,10 @@ function EventDetailPanel({ event, onClose, onReschedule, isOpen, isMobile }: Ev
         )}
 
         {Boolean(event.metadata?.isOverdue) && (
-          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">This deadline is overdue</span>
+          <div className="rounded-lg bg-late/10 p-3">
+            <div className="flex items-center gap-2 text-late">
+              <AlertCircle aria-hidden="true" className="h-4 w-4" />
+              <span className="text-sm font-medium">Overdue: the due date has passed</span>
             </div>
           </div>
         )}
@@ -417,7 +418,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
             !showFilters && "hidden sm:flex"
           )}>
             <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger aria-label="Filter by creator" className="w-full sm:w-[180px]">
                 <User className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="All Creators" />
               </SelectTrigger>
@@ -432,7 +433,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger aria-label="Filter by status" className="w-full sm:w-[180px]">
                 <AlertCircle className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
@@ -446,7 +447,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
             </Select>
 
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger aria-label="Filter by type" className="w-full sm:w-[180px]">
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>

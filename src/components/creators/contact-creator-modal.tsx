@@ -431,14 +431,14 @@ export function ContactCreatorModal({
                 className={cn(
                   "h-10 w-10 rounded-full flex items-center justify-center",
                   availability.available
-                    ? "bg-emerald-100 dark:bg-emerald-900/30"
+                    ? "bg-success/10"
                     : activeQuietPeriod
                     ? "bg-amber-100 dark:bg-amber-900/30"
                     : "bg-gray-100 dark:bg-gray-800"
                 )}
               >
                 {availability.available ? (
-                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                  <CheckCircle className="h-5 w-5 text-success" />
                 ) : activeQuietPeriod ? (
                   <Moon className="h-5 w-5 text-amber-600" />
                 ) : (
@@ -499,10 +499,10 @@ export function ContactCreatorModal({
                         </div>
                         <span className="text-xs font-medium">{method.label}</span>
                         {isPreferred && (
-                          <Badge className="text-[10px] px-1 py-0">Primary</Badge>
+                          <Badge className="text-[12px] px-1 py-0">Primary</Badge>
                         )}
                         {isSecondary && (
-                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                          <Badge variant="secondary" className="text-[12px] px-1 py-0">
                             Secondary
                           </Badge>
                         )}
@@ -521,11 +521,11 @@ export function ContactCreatorModal({
               <span className="text-sm text-muted-foreground flex-1 truncate">
                 {getContactValue() || "No contact info available"}
               </span>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyContactInfo}>
+              <Button aria-label="Copy contact info" variant="ghost" size="icon" className="h-8 w-8" onClick={copyContactInfo}>
                 <Copy className="h-4 w-4" />
               </Button>
               {["email", "phone", "sms", "whatsapp", "telegram"].includes(selectedMethod) && (
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={openExternalApp}>
+                <Button aria-label="Open in app" variant="ghost" size="icon" className="h-8 w-8" onClick={openExternalApp}>
                   <ExternalLink className="h-4 w-4" />
                 </Button>
               )}

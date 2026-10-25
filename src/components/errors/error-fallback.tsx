@@ -86,7 +86,7 @@ Timestamp: ${new Date().toISOString()}
 
   if (level === "section") {
     return (
-      <Card className="border-rose-200/50 dark:border-rose-800/30 bg-gradient-to-br from-rose-50/50 to-orange-50/30 dark:from-rose-950/20 dark:to-orange-950/10">
+      <Card className="border-rose-200/50 dark:border-rose-800/30 bg-rose-50/50 dark:bg-rose-950/20 ">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
@@ -131,10 +131,10 @@ Timestamp: ${new Date().toISOString()}
       <div className="max-w-lg w-full">
         <Card className="border-rose-200/50 dark:border-rose-800/30 shadow-xl">
           {/* Header with calming gradient */}
-          <div className="h-2 w-full bg-gradient-to-r from-rose-400 via-orange-400 to-amber-400 rounded-t-xl" />
+          <div className="h-2 w-full bg-rose-400 rounded-t-xl" />
 
           <CardHeader className="text-center pt-8 pb-4">
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-gradient-to-br from-rose-100 to-orange-100 dark:from-rose-900/30 dark:to-orange-900/30 flex items-center justify-center mb-4 shadow-lg shadow-rose-500/10">
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center mb-4 shadow-lg shadow-rose-500/10">
               <Frown className="h-8 w-8 text-rose-500" />
             </div>
             <CardTitle className="text-2xl">
@@ -191,7 +191,7 @@ Timestamp: ${new Date().toISOString()}
                       >
                         {copied ? (
                           <>
-                            <span className="text-emerald-500">Copied!</span>
+                            <span className="text-success">Copied!</span>
                           </>
                         ) : (
                           <>
@@ -260,7 +260,7 @@ Timestamp: ${new Date().toISOString()}
             {onRetry && (
               <Button
                 onClick={onRetry}
-                className="w-full sm:w-auto bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white"
+                className="w-full sm:w-auto bg-rose-500 hover:bg-rose-600 text-white"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Try Again

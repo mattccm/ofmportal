@@ -130,7 +130,7 @@ export function OfflineBanner({
           className
         )}
       >
-        <div className="bg-emerald-500 text-white">
+        <div className="bg-success text-ground">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-between h-12">
               <div className="flex items-center gap-3">
@@ -174,7 +174,7 @@ export function OfflineBanner({
     >
       <div
         className={cn(
-          'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
+          ' bg-amber-500 text-white',
           'shadow-lg shadow-amber-500/20'
         )}
       >
@@ -384,7 +384,7 @@ export function FloatingOfflineIndicator({
                   {isOffline ? 'Offline Mode' : 'Syncing'}
                 </span>
               </div>
-              <button
+              <button aria-label="Close"
                 onClick={() => setIsExpanded(false)}
                 className="p-1 rounded-full hover:bg-black/10 transition-colors"
               >

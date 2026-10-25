@@ -41,23 +41,21 @@ function TooltipTrigger({
   asChild,
   ...props
 }: TooltipTriggerProps) {
-  // If asChild is true, we render the Trigger with the child element
-  // Base UI's Tooltip.Trigger should handle render prop pattern
+  // asChild: hand Base UI the element itself so it merges props (chaining the
+  // child's own handlers and keeping its children) instead of a render function
+  // that would overwrite them
+  if (asChild && React.isValidElement(children)) {
+    return (
+      <TooltipPrimitive.Trigger
+        className={className}
+        render={children as React.ReactElement<Record<string, unknown>>}
+        {...props}
+      />
+    )
+  }
   return (
-    <TooltipPrimitive.Trigger
-      className={cn("cursor-default", className)}
-      render={asChild && React.isValidElement(children) ? (triggerProps) => {
-        const child = children as React.ReactElement<
-          React.HTMLAttributes<HTMLElement> & { ref?: React.Ref<HTMLElement> }
-        >
-        return React.cloneElement(child, {
-          ...triggerProps,
-          className: cn(child.props.className, className),
-        })
-      } : undefined}
-      {...props}
-    >
-      {!asChild ? children : undefined}
+    <TooltipPrimitive.Trigger className={cn("cursor-default", className)} {...props}>
+      {children}
     </TooltipPrimitive.Trigger>
   )
 }
@@ -81,7 +79,7 @@ function TooltipContent({
       <TooltipPrimitive.Positioner side={side} sideOffset={sideOffset}>
         <TooltipPrimitive.Popup
           className={cn(
-            "z-50 overflow-hidden rounded-md bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md border border-border/50",
+            "z-50 overflow-hidden rounded-[6px] bg-popover px-2.5 py-1 text-[13px] font-medium leading-normal text-popover-foreground shadow-lg",
             "animate-in fade-in-0 zoom-in-95",
             "data-[side=bottom]:slide-in-from-top-2",
             "data-[side=left]:slide-in-from-right-2",
@@ -92,7 +90,7 @@ function TooltipContent({
           {...props}
         >
           {children}
-          <TooltipPrimitive.Arrow className="fill-popover [&>path]:stroke-border" />
+          <TooltipPrimitive.Arrow className="fill-popover" />
         </TooltipPrimitive.Popup>
       </TooltipPrimitive.Positioner>
     </TooltipPrimitive.Portal>

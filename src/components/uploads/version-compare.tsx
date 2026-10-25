@@ -219,7 +219,7 @@ export function VersionCompare({
             value={leftVersion?.id || ""}
             onValueChange={(value) => handleVersionChange("left", value)}
           >
-            <SelectTrigger className="w-[180px] border-indigo-200 dark:border-indigo-800">
+            <SelectTrigger aria-label="Left version" className="w-[180px] border-line dark:border-line">
               <SelectValue placeholder="Select version" />
             </SelectTrigger>
             <SelectContent>
@@ -228,7 +228,7 @@ export function VersionCompare({
                   <div className="flex items-center gap-2">
                     <span>Version {v.versionNumber}</span>
                     {v.isCurrent && (
-                      <Badge className="text-[10px] px-1 py-0 bg-indigo-500">Current</Badge>
+                      <Badge className="text-[12px] px-1 py-0 bg-raised-hi">Current</Badge>
                     )}
                   </div>
                 </SelectItem>
@@ -236,7 +236,7 @@ export function VersionCompare({
             </SelectContent>
           </Select>
 
-          <Button
+          <Button aria-label="Swap versions"
             variant="ghost"
             size="icon-sm"
             onClick={swapVersions}
@@ -249,7 +249,7 @@ export function VersionCompare({
             value={rightVersion?.id || ""}
             onValueChange={(value) => handleVersionChange("right", value)}
           >
-            <SelectTrigger className="w-[180px] border-violet-200 dark:border-violet-800">
+            <SelectTrigger aria-label="Right version" className="w-[180px] border-line dark:border-line">
               <SelectValue placeholder="Select version" />
             </SelectTrigger>
             <SelectContent>
@@ -258,7 +258,7 @@ export function VersionCompare({
                   <div className="flex items-center gap-2">
                     <span>Version {v.versionNumber}</span>
                     {v.isCurrent && (
-                      <Badge className="text-[10px] px-1 py-0 bg-indigo-500">Current</Badge>
+                      <Badge className="text-[12px] px-1 py-0 bg-raised-hi">Current</Badge>
                     )}
                   </div>
                 </SelectItem>
@@ -303,7 +303,7 @@ export function VersionCompare({
         {/* Zoom controls */}
         {isImage && (
           <div className="flex items-center gap-1">
-            <Button
+            <Button aria-label="Zoom out"
               variant="outline"
               size="icon-sm"
               onClick={() => setZoom(Math.max(50, zoom - 25))}
@@ -312,7 +312,7 @@ export function VersionCompare({
               <ZoomOut className="h-3.5 w-3.5" />
             </Button>
             <span className="text-xs text-muted-foreground w-12 text-center">{zoom}%</span>
-            <Button
+            <Button aria-label="Zoom in"
               variant="outline"
               size="icon-sm"
               onClick={() => setZoom(Math.min(200, zoom + 25))}
@@ -320,7 +320,7 @@ export function VersionCompare({
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </Button>
-            <Button
+            <Button aria-label="Reset zoom"
               variant="outline"
               size="icon-sm"
               onClick={() => setZoom(100)}
@@ -343,7 +343,7 @@ export function VersionCompare({
                 <div className="absolute top-2 left-2 z-10">
                   <Badge
                     variant="secondary"
-                    className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300"
+                    className="bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground"
                   >
                     V{leftVersion.versionNumber}
                   </Badge>
@@ -380,7 +380,7 @@ export function VersionCompare({
                 <div className="absolute top-2 left-2 z-10">
                   <Badge
                     variant="secondary"
-                    className="bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300"
+                    className="bg-tile-hi text-foreground dark:bg-tile-hi dark:text-foreground"
                   >
                     V{rightVersion.versionNumber}
                     {rightVersion.isCurrent && " (Current)"}
@@ -466,18 +466,18 @@ export function VersionCompare({
               >
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
                   <div className="flex items-center">
-                    <ChevronLeft className="h-4 w-4 text-indigo-600" />
-                    <ChevronRight className="h-4 w-4 text-violet-600" />
+                    <ChevronLeft className="h-4 w-4 text-foreground" />
+                    <ChevronRight className="h-4 w-4 text-foreground" />
                   </div>
                 </div>
               </div>
 
               {/* Labels */}
               <div className="absolute top-2 left-2 z-10">
-                <Badge className="bg-indigo-500">V{leftVersion.versionNumber}</Badge>
+                <Badge className="bg-raised-hi">V{leftVersion.versionNumber}</Badge>
               </div>
               <div className="absolute top-2 right-2 z-10">
-                <Badge className="bg-violet-500">V{rightVersion.versionNumber}</Badge>
+                <Badge className="bg-raised-hi">V{rightVersion.versionNumber}</Badge>
               </div>
             </div>
           )}
@@ -523,16 +523,16 @@ export function VersionCompare({
               {/* Opacity slider */}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-background/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
                 <div className="flex items-center gap-3">
-                  <Badge className="bg-indigo-500 text-xs">V{leftVersion.versionNumber}</Badge>
+                  <Badge className="bg-raised-hi text-xs">V{leftVersion.versionNumber}</Badge>
                   <input
                     type="range"
                     min="0"
                     max="100"
                     value={overlayOpacity}
                     onChange={(e) => setOverlayOpacity(parseInt(e.target.value))}
-                    className="w-32 h-1.5 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-indigo-500"
+                    className="w-32 h-1.5 bg-raised-hi rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-ctl"
                   />
-                  <Badge className="bg-violet-500 text-xs">V{rightVersion.versionNumber}</Badge>
+                  <Badge className="bg-raised-hi text-xs">V{rightVersion.versionNumber}</Badge>
                 </div>
               </div>
             </div>
@@ -550,10 +550,10 @@ export function VersionCompare({
             {/* Basic info comparison */}
             <div className="grid grid-cols-3 text-xs">
               <div className="px-4 py-2 font-medium text-muted-foreground bg-muted/20">Property</div>
-              <div className="px-4 py-2 font-medium text-center bg-indigo-50/50 dark:bg-indigo-950/20">
+              <div className="px-4 py-2 font-medium text-center bg-tile-hi dark:bg-tile-hi">
                 V{leftVersion.versionNumber}
               </div>
-              <div className="px-4 py-2 font-medium text-center bg-violet-50/50 dark:bg-violet-950/20">
+              <div className="px-4 py-2 font-medium text-center bg-tile-hi dark:bg-tile-hi">
                 V{rightVersion.versionNumber}
               </div>
             </div>
@@ -566,12 +566,12 @@ export function VersionCompare({
                 className={cn(
                   "px-4 py-2 text-center truncate",
                   leftVersion.originalName !== rightVersion.originalName &&
-                    "bg-amber-50 dark:bg-amber-950/20"
+                    "bg-changes/10 dark:bg-changes/10"
                 )}
               >
                 {rightVersion.originalName}
                 {leftVersion.originalName !== rightVersion.originalName && (
-                  <span className="ml-1 text-amber-600">*</span>
+                  <span className="ml-1 text-changes">*</span>
                 )}
               </div>
             </div>
@@ -585,8 +585,8 @@ export function VersionCompare({
                   "px-4 py-2 text-center flex items-center justify-center gap-1",
                   leftVersion.fileSize !== rightVersion.fileSize &&
                     (rightVersion.fileSize > leftVersion.fileSize
-                      ? "bg-red-50 dark:bg-red-950/20 text-red-600"
-                      : "bg-green-50 dark:bg-green-950/20 text-green-600")
+                      ? "bg-late/10 dark:bg-late/10 text-late"
+                      : "bg-success/10 text-success")
                 )}
               >
                 {formatFileSize(rightVersion.fileSize)}
@@ -608,7 +608,7 @@ export function VersionCompare({
                 className={cn(
                   "px-4 py-2 text-center",
                   leftVersion.fileType !== rightVersion.fileType &&
-                    "bg-amber-50 dark:bg-amber-950/20"
+                    "bg-changes/10 dark:bg-changes/10"
                 )}
               >
                 {rightVersion.fileType}
@@ -648,7 +648,7 @@ export function VersionCompare({
                   <div
                     className={cn(
                       "px-4 py-2 text-center",
-                      change.type === "removed" && "bg-red-50 dark:bg-red-950/20"
+                      change.type === "removed" && "bg-late/10 dark:bg-late/10"
                     )}
                   >
                     {change.type === "added" ? (
@@ -660,8 +660,8 @@ export function VersionCompare({
                   <div
                     className={cn(
                       "px-4 py-2 text-center",
-                      change.type === "added" && "bg-green-50 dark:bg-green-950/20",
-                      change.type === "changed" && "bg-amber-50 dark:bg-amber-950/20"
+                      change.type === "added" && "bg-success/10",
+                      change.type === "changed" && "bg-changes/10 dark:bg-changes/10"
                     )}
                   >
                     {change.type === "removed" ? (
@@ -670,10 +670,10 @@ export function VersionCompare({
                       <>
                         {formatMetadataValue(change.newValue)}
                         {change.type === "added" && (
-                          <Check className="h-3 w-3 inline ml-1 text-green-600" />
+                          <Check className="h-3 w-3 inline ml-1 text-success" />
                         )}
                         {change.type === "changed" && (
-                          <span className="ml-1 text-amber-600">*</span>
+                          <span className="ml-1 text-changes">*</span>
                         )}
                       </>
                     )}
@@ -689,7 +689,7 @@ export function VersionCompare({
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-lg border p-3">
             <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-indigo-500 text-xs">V{leftVersion.versionNumber}</Badge>
+              <Badge className="bg-raised-hi text-xs">V{leftVersion.versionNumber}</Badge>
               <span className="text-xs text-muted-foreground">Notes</span>
             </div>
             <p className="text-sm whitespace-pre-wrap">
@@ -698,7 +698,7 @@ export function VersionCompare({
           </div>
           <div className="rounded-lg border p-3">
             <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-violet-500 text-xs">V{rightVersion.versionNumber}</Badge>
+              <Badge className="bg-raised-hi text-xs">V{rightVersion.versionNumber}</Badge>
               <span className="text-xs text-muted-foreground">Notes</span>
             </div>
             <p className="text-sm whitespace-pre-wrap">

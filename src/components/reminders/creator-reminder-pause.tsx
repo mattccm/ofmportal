@@ -201,13 +201,13 @@ export function CreatorReminderPause({
                 "h-10 w-10 rounded-xl flex items-center justify-center",
                 pauseStatus.isPaused
                   ? "bg-amber-100 dark:bg-amber-900/20"
-                  : "bg-green-100 dark:bg-green-900/20"
+                  : "bg-success/10"
               )}
             >
               {pauseStatus.isPaused ? (
                 <Pause className="h-5 w-5 text-amber-500" />
               ) : (
-                <Play className="h-5 w-5 text-green-500" />
+                <Play className="h-5 w-5 text-success" />
               )}
             </div>
             <div>
@@ -222,7 +222,7 @@ export function CreatorReminderPause({
             className={cn(
               pauseStatus.isPaused
                 ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700"
-                : "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700"
+                : "bg-success/10 text-success border-success/30"
             )}
           >
             {pauseStatus.isPaused ? "Paused" : "Active"}
@@ -356,7 +356,7 @@ function PauseDialogContent({
             }
           }}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Pause duration">
             <SelectValue placeholder="Select duration..." />
           </SelectTrigger>
           <SelectContent>

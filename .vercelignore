@@ -1,0 +1,14 @@
+# CLI deploys upload the working folder: keep secrets, local data and tooling out
+.env*
+!.env.example
+/uploads/
+/design-mocks/
+.impeccable/
+.taste-skill/
+.claude/
+.agents/
+.codex/
+.github/agents/
+.github/hooks/
+.github/skills/
+skills-lock.json

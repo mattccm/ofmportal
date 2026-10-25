@@ -58,7 +58,7 @@ function StatusBadge({ status }: { status: PrintableInvoiceProps["status"] }) {
   const config = {
     paid: {
       label: "PAID",
-      className: "invoice-status-paid bg-emerald-100 text-emerald-800 border-emerald-300",
+      className: "invoice-status-paid bg-success/10 text-success border-success",
       icon: <CheckCircle className="h-4 w-4" />,
     },
     pending: {
@@ -297,7 +297,7 @@ export function PrintableInvoice({
           </div>
 
           {discount && (
-            <div className="flex justify-between py-2 border-b text-emerald-600">
+            <div className="flex justify-between py-2 border-b text-success">
               <span>{discount.description}</span>
               <span className="font-medium">
                 -{formatCurrency(discount.amount, currency)}
@@ -439,12 +439,12 @@ export function PrintableReceipt({
       </div>
 
       {/* Status */}
-      <div className="text-center py-4 mb-6 bg-emerald-50 rounded-lg border border-emerald-200 print:bg-emerald-50">
-        <CheckCircle className="h-8 w-8 mx-auto text-emerald-600 mb-2" />
-        <div className="text-lg font-semibold text-emerald-800">
+      <div className="text-center py-4 mb-6 bg-success/10 rounded-lg border border-success/30 print:bg-success/10">
+        <CheckCircle className="h-8 w-8 mx-auto text-success mb-2" />
+        <div className="text-lg font-semibold text-success">
           Request Completed
         </div>
-        <div className="text-sm text-emerald-600">
+        <div className="text-sm text-success">
           All deliverables have been received
         </div>
       </div>
