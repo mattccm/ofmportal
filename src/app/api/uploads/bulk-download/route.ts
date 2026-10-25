@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { getDownloadPresignedUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 import { parseJsonBody } from "@/lib/api";
@@ -53,11 +52,9 @@ function getFolderPath(
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.download");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const parsed = await parseJsonBody(req);
     if (!parsed.ok) return parsed.response;
@@ -69,9 +66,7 @@ export async function POST(req: NextRequest) {
       where: {
         id: { in: uploadIds },
         uploadStatus: "COMPLETED",
-        request: {
-          agencyId: session.user.agencyId,
-        },
+        request: requestWhere(access),
       },
       include: {
         creator: {
@@ -160,7 +155,7 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         message: "Download URLs generated. Files will download directly from storage.",
-        files: downloadFiles,
+        files: redactCreatorsIn(access, downloadFiles),
         totalFiles: downloadFiles.length,
         totalSize: downloadFiles.reduce((acc, f) => acc + f.fileSize, 0),
         totalSizeFormatted: formatBytes(downloadFiles.reduce((acc, f) => acc + f.fileSize, 0)),
@@ -194,11 +189,8 @@ export async function POST(req: NextRequest) {
 // Support GET for simple downloads (using query params)
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.download");
+    if (gate.error) return gate.error;
 
     const { searchParams } = new URL(req.url);
     const idsParam = searchParams.get("ids");

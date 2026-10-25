@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
+import { creatorWhere, forbidden, getAccess, requestWhere, type Access } from "@/lib/access/server";
 import { z } from "zod";
 import type {
   DuplicateHistoryEntry,
@@ -28,17 +30,18 @@ export async function GET(req: NextRequest) {
 
     let targetCreatorId: string;
     let agencyId: string;
+    let access: Access | null = null;
 
     if (session?.user?.agencyId) {
-      agencyId = session.user.agencyId;
+      access = await getAccess(session);
+      if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!access.has("review.view")) return forbidden("review.view");
+      agencyId = access.agencyId;
 
       if (creatorId) {
-        // Verify creator belongs to agency
+        // Verify the creator is one this person may see
         const creator = await db.creator.findFirst({
-          where: {
-            id: creatorId,
-            agencyId,
-          },
+          where: { AND: [creatorWhere(access), { id: creatorId }] },
         });
 
         if (!creator) {
@@ -94,12 +97,12 @@ export async function GET(req: NextRequest) {
 
     // Build query
     const whereClause: {
-      request: { agencyId: string };
+      request: Prisma.ContentRequestWhereInput;
       creatorId?: string;
       metadata?: { path: string[]; not: null };
       createdAt?: { gte: Date };
     } = {
-      request: { agencyId },
+      request: access ? requestWhere(access) : { agencyId },
     };
 
     if (targetCreatorId) {
@@ -223,7 +226,13 @@ export async function POST(req: NextRequest) {
     let hasAccess = false;
 
     if (session?.user?.agencyId) {
-      hasAccess = upload.request.agencyId === session.user.agencyId;
+      const access = await getAccess(session);
+      if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      // Recording a duplicate check is part of uploading on a creator's behalf
+      if (!access.has("requests.upload")) return forbidden("requests.upload");
+      hasAccess =
+        upload.request.agencyId === access.agencyId &&
+        (await db.upload.count({ where: { id: upload.id, request: requestWhere(access) } })) > 0;
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -17,11 +16,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["templates.view", "requests.create", "recurring.create", "recurring.edit", "bundles.edit"]);
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { id } = await params;
 
@@ -98,11 +95,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("templates.groups");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { id } = await params;
     const body = await req.json();
@@ -221,11 +216,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("templates.groups");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { id } = await params;
     const body = await req.json();

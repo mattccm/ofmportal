@@ -161,7 +161,8 @@ interface ContactCreatorModalProps {
   creator: {
     id: string;
     name: string;
-    email: string;
+    /** null when the viewer's role can't see it */
+    email: string | null;
   };
   preferences: CommunicationPreferences;
   senderName?: string;
@@ -265,7 +266,7 @@ export function ContactCreatorModal({
   const getContactValue = (): string => {
     switch (selectedMethod) {
       case "email":
-        return preferences.contactDetails.email || creator.email;
+        return preferences.contactDetails.email || creator.email || "";
       case "phone":
       case "sms":
         return preferences.contactDetails.phone || "";
@@ -471,7 +472,7 @@ export function ContactCreatorModal({
               {CONTACT_METHODS.filter((m) => {
                 // Only show methods with contact details
                 if (m.key === "in_app") return true;
-                if (m.key === "email") return preferences.contactDetails.email || creator.email;
+                if (m.key === "email") return preferences.contactDetails.email || creator.email || "";
                 if (m.key === "phone" || m.key === "sms") return preferences.contactDetails.phone;
                 if (m.key === "whatsapp") return preferences.contactDetails.whatsapp;
                 if (m.key === "telegram") return preferences.contactDetails.telegram;

@@ -43,6 +43,8 @@ import { cn } from "@/lib/utils";
 import { BatchCreatorSelector, type Creator } from "@/components/requests/batch-creator-selector";
 import { BatchPreview, type BatchRequestItem } from "@/components/requests/batch-preview";
 import { addDays, format } from "date-fns";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 // Step definition
 interface Step {
@@ -78,6 +80,12 @@ interface BatchConfig {
 }
 
 export default function BatchRequestPage() {
+  const { can, roleName } = useAccess();
+  if (!can("requests.create")) return <NoAccess what="creating requests" roleName={roleName} />;
+  return <BatchRequestComposer />;
+}
+
+function BatchRequestComposer() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);

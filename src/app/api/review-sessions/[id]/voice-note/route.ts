@@ -1,7 +1,7 @@
 // POST /api/review-sessions/[id]/voice-note - Upload a voice note
 // GET /api/review-sessions/[id]/voice-note - Get voice notes for session
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess, uploadWhere } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -24,9 +24,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
 
     // Get session
     const session = await db.reviewSession.findUnique({
@@ -81,6 +81,14 @@ export async function POST(
         { error: "Audio file is required" },
         { status: 400 }
       );
+    }
+
+    // The upload it is about must belong to a creator inside the person's scope
+    const sessionUploads = session.uploadIds as string[];
+    const aboutUpload = uploadId || sessionUploads[session.currentUploadIndex] || null;
+    if (aboutUpload) {
+      const visible = await db.upload.count({ where: { AND: [uploadWhere(gate.access), { id: aboutUpload }] } });
+      if (!visible) return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
     // Validate file type
@@ -197,9 +205,9 @@ export async function GET(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { agencyId } = gate.access;
     const { searchParams } = new URL(request.url);
     const uploadId = searchParams.get("uploadId");
 
@@ -223,7 +231,7 @@ export async function GET(
     }
 
     // Get voice notes (chat messages with type VOICE_NOTE)
-    const voiceNotes = await db.reviewSessionChat.findMany({
+    let voiceNotes = await db.reviewSessionChat.findMany({
       where: {
         sessionId,
         type: "VOICE_NOTE",
@@ -231,6 +239,15 @@ export async function GET(
       },
       orderBy: { createdAt: "asc" },
     });
+
+    // Only notes about uploads whose creator is inside the person's scope
+    const noteUploadIds = [...new Set(voiceNotes.map((v) => v.uploadId).filter((x): x is string => !!x))];
+    const visibleUploads = new Set(
+      noteUploadIds.length
+        ? (await db.upload.findMany({ where: { AND: [uploadWhere(gate.access), { id: { in: noteUploadIds } }] }, select: { id: true } })).map((u) => u.id)
+        : []
+    );
+    voiceNotes = voiceNotes.filter((v) => !v.uploadId || visibleUploads.has(v.uploadId));
 
     // Get user info
     const userIds = [...new Set(voiceNotes.map((v) => v.userId))];

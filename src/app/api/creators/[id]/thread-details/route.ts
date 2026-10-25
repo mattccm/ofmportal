@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, redactCreatorsIn, requireAccess } from "@/lib/access/server";
 import {
   ACTIVE_STATUSES,
   deliverySummary,
@@ -19,21 +18,22 @@ import {
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("messages.creators");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id } = await params;
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
 
     const creator = await db.creator.findFirst({
-      where: { id, agencyId },
+      where: { AND: [creatorWhere(access), { id }] },
       select: {
         id: true,
         name: true,
-        preferredContact: true,
-        timezone: true,
-        lastLoginAt: true,
+        // Contact preference, time zone and last sign-in are read only when
+        // the role may see them (creatorInfo.preferences / location / activity)
+        preferredContact: access.has("creatorInfo.preferences"),
+        timezone: access.has("creatorInfo.location"),
+        lastLoginAt: access.has("creatorInfo.activity"),
         requests: {
           where: { status: { in: [...ACTIVE_STATUSES, "APPROVED"] } },
           select: {
@@ -52,10 +52,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     });
     if (!creator) return NextResponse.json({ error: "Creator not found" }, { status: 404 });
 
-    const override = await db.creatorReminderOverride.findUnique({
-      where: { agencyId_creatorId: { agencyId, creatorId: id } },
-      select: { quietHoursEnabled: true, quietHoursStart: true, quietHoursEnd: true },
-    });
+    // Quiet hours are the creator's local hours: part of time zone and location
+    const canLocation = access.has("creatorInfo.location");
+    const override = canLocation
+      ? await db.creatorReminderOverride.findUnique({
+          where: { agencyId_creatorId: { agencyId, creatorId: id } },
+          select: { quietHoursEnabled: true, quietHoursStart: true, quietHoursEnd: true },
+        })
+      : null;
 
     const now = new Date();
     const active = creator.requests
@@ -64,7 +68,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // The most pressing first: overdue or soonest due, then undated
       .sort((a, b) => (a.due ? dueMoment(a.due).getTime() : Infinity) - (b.due ? dueMoment(b.due).getTime() : Infinity));
 
-    return NextResponse.json({
+    // Contact preference, time zone and last sign-in only when the role can see them
+    return NextResponse.json(redactCreatorsIn(access, {
       creator: {
         id: creator.id,
         name: creator.name,
@@ -72,10 +77,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         timezone: creator.timezone,
         lastLoginAt: creator.lastLoginAt,
       },
-      quiet: quietOf(override),
-      active: active.map((r) => ({ ...r, due: r.due ? r.due.toISOString() : null })),
+      quiet: canLocation ? quietOf(override) : null,
+      active: access.has("requests.view") ? active.map((r) => ({ ...r, due: r.due ? r.due.toISOString() : null })) : [],
       delivery: deliverySummary(finishedPoints(creator.requests)),
-    });
+    }));
   } catch (error) {
     console.error("Error fetching thread details:", error);
     return NextResponse.json({ error: "Failed to load details" }, { status: 500 });

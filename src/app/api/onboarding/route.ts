@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -34,16 +33,14 @@ const CREATOR_ONBOARDING_STEPS = [
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Fetch all completed onboarding steps for the user
     const completedSteps = await db.onboardingStep.findMany({
       where: {
-        userId: session.user.id,
+        userId: access.userId,
       },
       select: {
         stepKey: true,
@@ -69,7 +66,7 @@ export async function GET() {
 
     // Get user's onboardingCompleted flag
     const user = await db.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: access.userId },
       select: { onboardingCompleted: true },
     });
 
@@ -97,11 +94,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = markStepCompleteSchema.parse(body);
@@ -110,7 +105,7 @@ export async function POST(req: NextRequest) {
     const existingStep = await db.onboardingStep.findUnique({
       where: {
         userId_stepKey: {
-          userId: session.user.id,
+          userId: access.userId,
           stepKey: validatedData.stepKey,
         },
       },
@@ -129,7 +124,7 @@ export async function POST(req: NextRequest) {
     // Create the onboarding step record
     const step = await db.onboardingStep.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         stepKey: validatedData.stepKey,
         data: (validatedData.data || {}) as object,
       },
@@ -144,7 +139,7 @@ export async function POST(req: NextRequest) {
 
     const completedSteps = await db.onboardingStep.findMany({
       where: {
-        userId: session.user.id,
+        userId: access.userId,
         stepKey: { in: relevantSteps },
       },
       select: { stepKey: true },
@@ -158,7 +153,7 @@ export async function POST(req: NextRequest) {
     // Update user's onboardingCompleted flag if all steps are done
     if (isComplete) {
       await db.user.update({
-        where: { id: session.user.id },
+        where: { id: access.userId },
         data: { onboardingCompleted: true },
       });
     }
@@ -192,15 +187,13 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     // Only allow in development or for owners
     const isDevelopment = process.env.NODE_ENV === "development";
-    const isOwner = session.user.role === "OWNER";
+    const isOwner = access.isOwner;
 
     if (!isDevelopment && !isOwner) {
       return NextResponse.json(
@@ -212,13 +205,13 @@ export async function DELETE() {
     // Delete all onboarding steps for the user
     const result = await db.onboardingStep.deleteMany({
       where: {
-        userId: session.user.id,
+        userId: access.userId,
       },
     });
 
     // Reset the user's onboardingCompleted flag
     await db.user.update({
-      where: { id: session.user.id },
+      where: { id: access.userId },
       data: { onboardingCompleted: false },
     });
 

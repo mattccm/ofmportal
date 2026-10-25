@@ -63,6 +63,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { useAccess } from "@/lib/access/client";
 
 // TYPES
 
@@ -100,7 +101,8 @@ interface Reminder {
     creator: {
       id: string;
       name: string;
-      email: string;
+      /** Left out when the person's role hides creators' email */
+      email?: string;
     };
   };
 }
@@ -108,7 +110,6 @@ interface Reminder {
 interface Creator {
   id: string;
   name: string;
-  email: string;
 }
 
 interface RemindersClientProps {
@@ -137,6 +138,14 @@ export function RemindersClient({
   creators,
   agencySettings: _agencySettings,
 }: RemindersClientProps) {
+  const { can } = useAccess();
+  // Sending scheduled reminders early, and cancelling them
+  const canSend = can("reminders.send");
+  const canCancel = can("reminders.delete");
+  const canPick = canSend || canCancel;
+  // Reminder templates are the wording; rules (timing) live in Reminder rules
+  const canWording = can("reminders.templates");
+  const canRules = can("reminders.rules");
   const [templates, setTemplates] = useState<ReminderTemplate[]>(initialTemplates);
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [selectedReminders, setSelectedReminders] = useState<Set<string>>(new Set());
@@ -341,15 +350,17 @@ export function RemindersClient({
             </p>
           </div>
           <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-            <DialogTrigger asChild>
-              <Button
-                className=" bg-primary hover:bg-primary/90 "
-                onClick={() => setEditingTemplate(null)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Template
-              </Button>
-            </DialogTrigger>
+            {canWording && (
+              <DialogTrigger asChild>
+                <Button
+                  className=" bg-primary hover:bg-primary/90 "
+                  onClick={() => setEditingTemplate(null)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Template
+                </Button>
+              </DialogTrigger>
+            )}
             <TemplateDialog
               template={editingTemplate}
               onClose={() => {
@@ -376,16 +387,18 @@ export function RemindersClient({
                 <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
                   Create your first reminder template to automate content request notifications.
                 </p>
-                <Button
-                  className="mt-6"
-                  onClick={() => {
-                    setEditingTemplate(null);
-                    setShowTemplateDialog(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Template
-                </Button>
+                {canWording && (
+                  <Button
+                    className="mt-6"
+                    onClick={() => {
+                      setEditingTemplate(null);
+                      setShowTemplateDialog(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Template
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -401,6 +414,7 @@ export function RemindersClient({
                         {template.isActive ? "Active" : "Inactive"}
                       </CardDescription>
                     </div>
+                    {canWording && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button aria-label={`More actions for ${template.name}`} variant="ghost" size="icon" className="h-8 w-8">
@@ -440,6 +454,7 @@ export function RemindersClient({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -529,20 +544,24 @@ export function RemindersClient({
         </Card>
 
         {/* Bulk Actions */}
-        {selectedReminders.size > 0 && (
+        {canPick && selectedReminders.size > 0 && (
           <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
             <span className="text-sm font-medium">
               {selectedReminders.size} reminder{selectedReminders.size !== 1 ? "s" : ""} selected
             </span>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => handleBulkAction("sendNow")}>
-                <Send className="h-4 w-4 mr-1" />
-                Send Now
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleBulkAction("cancel")}>
-                <X className="h-4 w-4 mr-1" />
-                Cancel
-              </Button>
+              {canSend && (
+                <Button size="sm" variant="outline" onClick={() => handleBulkAction("sendNow")}>
+                  <Send className="h-4 w-4 mr-1" />
+                  Send Now
+                </Button>
+              )}
+              {canCancel && (
+                <Button size="sm" variant="outline" onClick={() => handleBulkAction("cancel")}>
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+              )}
             </div>
             <Button
               size="sm"
@@ -573,6 +592,7 @@ export function RemindersClient({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {canPick && (
                     <TableHead className="w-[40px]">
                       <Checkbox aria-label="Select all reminders"
                         checked={pendingReminders.every((r) => selectedReminders.has(r.id))}
@@ -585,17 +605,19 @@ export function RemindersClient({
                         }}
                       />
                     </TableHead>
+                    )}
                     <TableHead>Request</TableHead>
                     <TableHead>Creator</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Channel</TableHead>
                     <TableHead>Scheduled</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
+                    {canPick && <TableHead className="w-[80px]"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pendingReminders.map((reminder) => (
                     <TableRow key={reminder.id}>
+                      {canPick && (
                       <TableCell>
                         <Checkbox aria-label={`Select reminder for ${reminder.request.title}`}
                           checked={selectedReminders.has(reminder.id)}
@@ -610,6 +632,7 @@ export function RemindersClient({
                           }}
                         />
                       </TableCell>
+                      )}
                       <TableCell className="font-medium">{reminder.request.title}</TableCell>
                       <TableCell>{reminder.request.creator.name}</TableCell>
                       <TableCell>
@@ -630,6 +653,7 @@ export function RemindersClient({
                           {format(new Date(reminder.scheduledAt), "MMM d, h:mm a")}
                         </div>
                       </TableCell>
+                      {canPick && (
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -638,11 +662,14 @@ export function RemindersClient({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleSendReminder(reminder.id)}>
-                              <Send className="h-4 w-4 mr-2" />
-                              Send Now
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
+                            {canSend && (
+                              <DropdownMenuItem onClick={() => handleSendReminder(reminder.id)}>
+                                <Send className="h-4 w-4 mr-2" />
+                                Send Now
+                              </DropdownMenuItem>
+                            )}
+                            {canSend && canCancel && <DropdownMenuSeparator />}
+                            {canCancel && (
                             <DropdownMenuItem
                               className="text-late"
                               onClick={() => {
@@ -653,9 +680,11 @@ export function RemindersClient({
                               <X className="h-4 w-4 mr-2" />
                               Cancel
                             </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -797,9 +826,13 @@ export function RemindersClient({
             When reminders go out, which channel they use and each creator&apos;s quiet hours are set in Reminder rules,
             with a preview of the reminder as it lands on the creator&apos;s lock screen.
           </p>
-          <Button asChild variant="outline" className="mt-4">
-            <Link href="/dashboard/settings/reminder-rules">Open reminder rules</Link>
-          </Button>
+          {canRules ? (
+            <Button asChild variant="outline" className="mt-4">
+              <Link href="/dashboard/settings/reminder-rules">Open reminder rules</Link>
+            </Button>
+          ) : (
+            <p className="mt-3 text-sm text-ink-2">Your role doesn&apos;t include changing reminder rules.</p>
+          )}
         </div>
       </TabsContent>
     </Tabs>

@@ -8,6 +8,7 @@ import {
   isCreatorPseudoEmail,
 } from "@/lib/portal-auth";
 import { notifyTeam, NotificationType } from "@/lib/notifications";
+import { recipientsWhoCanSee } from "@/lib/access/server";
 
 /**
  * GET /api/portal/requests/[id]/comments
@@ -204,13 +205,19 @@ export async function POST(
         },
         select: { id: true },
       });
-      if (staff.length > 0) {
+      // Only staff whose role sees requests and this creator
+      const recipients = await recipientsWhoCanSee(
+        request.agencyId,
+        staff.map((s) => s.id),
+        { creatorId: request.creatorId, keys: ["requests.view"] }
+      );
+      if (recipients.length > 0) {
         const preview =
           comment.message.length > 50
             ? comment.message.slice(0, 50) + "..."
             : comment.message;
         await notifyTeam(
-          staff.map((s) => s.id),
+          recipients,
           NotificationType.COMMENT_ADDED,
           "New creator comment",
           `${creator.name} commented on "${request.title}": ${preview}`,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -19,21 +18,18 @@ const createFolderSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // The library is the creators' content, so it also needs "Their content library"
+    if (!access.has("creatorInfo.content")) return forbidden("creatorInfo.content");
 
     const body = await req.json();
     const data = createFolderSchema.parse(body);
 
     // Verify creator belongs to the caller's agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: data.creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: data.creatorId }] },
       select: { id: true },
     });
 
@@ -46,7 +42,7 @@ export async function POST(req: NextRequest) {
       const parent = await db.mediaFolder.findFirst({
         where: {
           id: data.parentId,
-          agencyId: session.user.agencyId,
+          agencyId: access.agencyId,
           creatorId: data.creatorId,
         },
         select: { id: true },
@@ -63,7 +59,7 @@ export async function POST(req: NextRequest) {
     try {
       const folder = await db.mediaFolder.create({
         data: {
-          agencyId: session.user.agencyId,
+          agencyId: access.agencyId,
           creatorId: data.creatorId,
           name: data.name,
           parentId: data.parentId ?? null,

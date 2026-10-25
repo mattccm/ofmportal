@@ -1,7 +1,7 @@
 // POST /api/review-sessions - Create a new review session
 // GET /api/review-sessions - List active sessions for agency
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { recipientsWhoCanSee, requireAccess, uploadWhere } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -18,9 +18,9 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const body: CreateSessionRequest = await request.json();
 
     // Validate request
@@ -36,6 +36,17 @@ export async function POST(request: NextRequest) {
         { error: "At least one upload is required for review" },
         { status: 400 }
       );
+    }
+
+    // Only uploads this person may see can go into a session
+    const visible = await db.upload.findMany({
+      where: { AND: [uploadWhere(gate.access), { id: { in: body.uploadIds } }] },
+      select: { id: true },
+    });
+    const visibleIds = new Set(visible.map((u) => u.id));
+    body.uploadIds = body.uploadIds.filter((id) => visibleIds.has(id));
+    if (body.uploadIds.length === 0) {
+      return NextResponse.json({ error: "Uploads not found" }, { status: 404 });
     }
 
     // Merge settings with defaults
@@ -76,8 +87,8 @@ export async function POST(request: NextRequest) {
 
     // Get first upload info
     const firstUploadId = body.uploadIds[0];
-    const firstUpload = await db.upload.findUnique({
-      where: { id: firstUploadId },
+    const firstUpload = await db.upload.findFirst({
+      where: { AND: [uploadWhere(gate.access), { id: firstUploadId }] },
       include: {
         creator: { select: { id: true, name: true } },
         request: { select: { id: true, title: true } },
@@ -126,10 +137,14 @@ export async function POST(request: NextRequest) {
     sessionStore.setSession(session.id, initialState);
 
     // Invite other users if specified
-    if (body.inviteUserIds && body.inviteUserIds.length > 0) {
+    // Only people whose role includes review sessions can be invited
+    const invitees = body.inviteUserIds?.length
+      ? await recipientsWhoCanSee(agencyId, body.inviteUserIds, { keys: ["settings.reviewSessions"] })
+      : [];
+    if (invitees.length > 0) {
       // Create notifications for invited users
       await db.notification.createMany({
-        data: body.inviteUserIds.map((invitedUserId) => ({
+        data: invitees.map((invitedUserId) => ({
           userId: invitedUserId,
           type: "review_session_invite",
           title: "Review Session Invitation",
@@ -160,9 +175,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { agencyId } = gate.access;
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "ACTIVE";
     const limit = parseInt(searchParams.get("limit") || "10", 10);

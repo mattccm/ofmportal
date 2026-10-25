@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import {
   type SavedFilter,
@@ -82,11 +81,9 @@ function updateSavedFiltersInPreferences(
 // GET - List saved filters
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(req.url);
     const entityType = searchParams.get("entityType") as "requests" | "uploads" | "creators" | null;
@@ -117,11 +114,9 @@ export async function GET(req: NextRequest) {
 // POST - Create a new saved filter
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
     const validatedData = savedFilterSchema.parse(body);
@@ -204,11 +199,9 @@ export async function POST(req: NextRequest) {
 // PUT - Update a saved filter
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
 
@@ -305,11 +298,9 @@ export async function PUT(req: NextRequest) {
 // DELETE - Delete a saved filter
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(req.url);
     const filterId = searchParams.get("id");

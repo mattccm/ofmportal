@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { MentionInput, RenderMentions } from "@/components/mentions";
 import type { MentionInputRef } from "@/components/mentions";
 import { textToMentionSegments } from "@/lib/mention-parser";
+import { useAccess } from "@/lib/access/client";
 
 // TYPES
 
@@ -63,6 +64,8 @@ export function CommentSection({
   composerFolded = false,
   composerLabel = "Write a comment",
 }: CommentSectionProps) {
+  const { can } = useAccess();
+  const canComment = can("requests.comment");
   const [composerOpen, setComposerOpen] = useState(!composerFolded);
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState("");
@@ -147,8 +150,8 @@ export function CommentSection({
 
   return (
     <div className={compact ? "space-y-4" : "space-y-6"}>
-      {/* New Comment Form */}
-      {!composerOpen ? (
+      {/* New Comment Form: only for roles that may comment */}
+      {!canComment ? null : !composerOpen ? (
         <Button
           type="button"
           variant="outline"

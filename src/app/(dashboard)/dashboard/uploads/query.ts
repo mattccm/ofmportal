@@ -1,5 +1,6 @@
 // Server-side query for the Uploads page and its "load more" action.
 import { db } from "@/lib/db";
+import { uploadWhere, redactCreatorsIn, type Access } from "@/lib/access/server";
 
 export interface PageProps {
   searchParams: Promise<{
@@ -15,7 +16,7 @@ export interface PageProps {
   }>;
 }
 
-export async function getUploads(agencyId: string, searchParams: Awaited<PageProps["searchParams"]>) {
+export async function getUploads(access: Access, searchParams: Awaited<PageProps["searchParams"]>) {
   const {
     status,
     creator,
@@ -33,10 +34,12 @@ export async function getUploads(agencyId: string, searchParams: Awaited<PagePro
   const pageNum = parseInt(page, 10) || 1;
   const skip = (pageNum - 1) * pageSize;
 
-  // Build where clause
+  // Build where clause. The creator scope sits in AND so the template
+  // filter below can still add to `request`.
   const where: Record<string, unknown> = {
+    AND: [uploadWhere(access)],
     request: {
-      agencyId,
+      agencyId: access.agencyId,
     },
     uploadStatus: "COMPLETED",
   };
@@ -110,7 +113,7 @@ export async function getUploads(agencyId: string, searchParams: Awaited<PagePro
   ]);
 
   return {
-    uploads: uploads.map((upload) => ({
+    uploads: redactCreatorsIn(access, uploads).map((upload) => ({
       ...upload,
       fileSize: Number(upload.fileSize),
       tags: upload.tags as Array<{ id: string; name: string; color: string }> | undefined,

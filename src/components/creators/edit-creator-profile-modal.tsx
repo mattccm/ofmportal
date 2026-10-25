@@ -25,6 +25,7 @@ import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
 import {
   User,
   Mail,
@@ -61,14 +62,15 @@ const CONTACT_METHODS = [
   { value: "BOTH", label: "Email & SMS" },
 ];
 
+// Fields the viewer's role can't see arrive as null and are neither shown nor sent back
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   avatar: string | null;
-  timezone: string;
-  preferredContact: string;
+  timezone: string | null;
+  preferredContact: string | null;
   inviteStatus: string;
   notes: string | null;
 }
@@ -78,7 +80,8 @@ interface EditCreatorProfileModalProps {
   onOpenChange: (open: boolean) => void;
   creator: Creator;
   onUpdate: (updatedCreator: Partial<Creator>) => void;
-  currentUserRole: string;
+  /** No longer read: permissions come from the role (useAccess) */
+  currentUserRole?: string;
 }
 
 export function EditCreatorProfileModal({
@@ -86,8 +89,17 @@ export function EditCreatorProfileModal({
   onOpenChange,
   creator,
   onUpdate,
-  currentUserRole,
 }: EditCreatorProfileModalProps) {
+  const { can, canAny, isOwner } = useAccess();
+  const see = {
+    email: can("creatorInfo.email"),
+    phone: can("creatorInfo.phone"),
+    notes: can("creatorInfo.notes"),
+    location: can("creatorInfo.location"),
+    preferences: can("creatorInfo.preferences"),
+    invite: can("creatorInfo.invite"),
+  };
+  const showContactTab = see.email || see.phone || see.location || see.preferences;
   const [activeTab, setActiveTab] = useState("profile");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingReset, setIsSendingReset] = useState(false);
@@ -95,7 +107,7 @@ export function EditCreatorProfileModal({
   // Form state
   const [formData, setFormData] = useState({
     name: creator.name,
-    email: creator.email,
+    email: creator.email ?? "",
     phone: creator.phone || "",
     timezone: creator.timezone || "UTC",
     preferredContact: creator.preferredContact || "EMAIL",
@@ -103,9 +115,10 @@ export function EditCreatorProfileModal({
     avatar: creator.avatar || "",
   });
 
-  // Check if user has admin permissions
-  const canEdit = ["OWNER", "ADMIN", "MANAGER"].includes(currentUserRole);
-  const canSendPasswordReset = ["OWNER", "ADMIN"].includes(currentUserRole);
+  // What this person's role allows (the server checks every one of these too)
+  const canEdit = can("creators.edit");
+  const canSendPasswordReset = can("creators.resetAccess");
+  const canResendInvite = canAny(["creators.invite", "creators.resetAccess"]);
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -122,13 +135,14 @@ export function EditCreatorProfileModal({
       const response = await fetch(`/api/creators/${creator.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        // Only the details this role can see are sent
         body: JSON.stringify({
           name: formData.name,
-          email: formData.email,
-          phone: formData.phone || null,
-          timezone: formData.timezone,
-          preferredContact: formData.preferredContact,
-          notes: formData.notes || null,
+          ...(see.email ? { email: formData.email } : {}),
+          ...(see.phone ? { phone: formData.phone || null } : {}),
+          ...(see.location ? { timezone: formData.timezone } : {}),
+          ...(see.preferences ? { preferredContact: formData.preferredContact } : {}),
+          ...(see.notes ? { notes: formData.notes || null } : {}),
           avatar: formData.avatar || null,
         }),
       });
@@ -261,15 +275,17 @@ export function EditCreatorProfileModal({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className={cn("grid w-full", showContactTab ? "grid-cols-3" : "grid-cols-2")}>
             <TabsTrigger value="profile" className="flex items-center gap-1.5">
               <User className="h-4 w-4" />
               Profile
             </TabsTrigger>
-            <TabsTrigger value="contact" className="flex items-center gap-1.5">
-              <Mail className="h-4 w-4" />
-              Contact
-            </TabsTrigger>
+            {showContactTab && (
+              <TabsTrigger value="contact" className="flex items-center gap-1.5">
+                <Mail className="h-4 w-4" />
+                Contact
+              </TabsTrigger>
+            )}
             <TabsTrigger value="security" className="flex items-center gap-1.5">
               <Shield className="h-4 w-4" />
               Security
@@ -314,6 +330,7 @@ export function EditCreatorProfileModal({
             </div>
 
             {/* Notes */}
+            {see.notes && (
             <div className="space-y-2">
               <Label htmlFor="notes">Internal Notes</Label>
               <Textarea
@@ -327,8 +344,10 @@ export function EditCreatorProfileModal({
                 These notes are only visible to your team, not the creator.
               </p>
             </div>
+            )}
 
             {/* Invite Status */}
+            {see.invite && (
             <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
               <div className="space-y-1">
                 <Label className="text-sm font-medium">Portal Access Status</Label>
@@ -351,18 +370,20 @@ export function EditCreatorProfileModal({
                   </Badge>
                 </div>
               </div>
-              {creator.inviteStatus === "PENDING" && (
+              {creator.inviteStatus === "PENDING" && canResendInvite && (
                 <Button variant="outline" size="sm" onClick={handleResendInvite}>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Resend Invite
                 </Button>
               )}
             </div>
+            )}
           </TabsContent>
 
           {/* Contact Tab */}
           <TabsContent value="contact" className="space-y-6 pt-4">
             {/* Email */}
+            {see.email && (
             <div className="space-y-2">
               <Label htmlFor="email">
                 Email Address <span className="text-destructive">*</span>
@@ -382,8 +403,10 @@ export function EditCreatorProfileModal({
                 This email is used for portal login and notifications.
               </p>
             </div>
+            )}
 
             {/* Phone */}
+            {see.phone && (
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
@@ -401,8 +424,10 @@ export function EditCreatorProfileModal({
                 Used for SMS notifications if enabled.
               </p>
             </div>
+            )}
 
             {/* Timezone */}
+            {see.location && (
             <div className="space-y-2">
               <Label htmlFor="timezone">Timezone</Label>
               <Select
@@ -427,8 +452,10 @@ export function EditCreatorProfileModal({
                 Used for scheduling and displaying times correctly.
               </p>
             </div>
+            )}
 
             {/* Preferred Contact Method */}
+            {see.preferences && (
             <div className="space-y-2">
               <Label htmlFor="preferredContact">Preferred Contact Method</Label>
               <Select
@@ -447,11 +474,13 @@ export function EditCreatorProfileModal({
                 </SelectContent>
               </Select>
             </div>
+            )}
           </TabsContent>
 
           {/* Security Tab */}
           <TabsContent value="security" className="space-y-6 pt-4">
             {/* Password Reset */}
+            {canSendPasswordReset && (
             <div className="p-4 rounded-lg border space-y-3">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
@@ -482,13 +511,8 @@ export function EditCreatorProfileModal({
                   </>
                 )}
               </Button>
-              {!canSendPasswordReset && (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Only Owners and Admins can send password reset links.
-                </p>
-              )}
             </div>
+            )}
 
             {/* Account Status */}
             <div className="p-4 rounded-lg border space-y-3">
@@ -504,6 +528,7 @@ export function EditCreatorProfileModal({
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
+                {see.invite && (
                 <div>
                   <span className="text-muted-foreground">Portal Status:</span>
                   <Badge
@@ -518,10 +543,13 @@ export function EditCreatorProfileModal({
                     {creator.inviteStatus === "ACCEPTED" ? "Active" : "Pending"}
                   </Badge>
                 </div>
+                )}
+                {see.email && (
                 <div>
                   <span className="text-muted-foreground">Email:</span>
                   <span className="ml-2 font-mono text-xs">{creator.email}</span>
                 </div>
+                )}
               </div>
             </div>
 
@@ -541,7 +569,7 @@ export function EditCreatorProfileModal({
               <Button
                 variant="outline"
                 className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                disabled={currentUserRole !== "OWNER"}
+                disabled={!isOwner}
               >
                 Deactivate Portal Access
               </Button>

@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { db } from "@/lib/db";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, type Access } from "@/lib/access/server";
+import { INBOX_KEYS, findStaffConversation, visibleConversationWhere } from "@/lib/conversation-access";
+import type { Prisma } from "@prisma/client";
+
+/** Messages in threads this person is in and their role lets them see */
+function myMessagesWhere(access: Access): Prisma.MessageWhereInput {
+  return {
+    conversation: {
+      AND: [
+        { participants: { some: { userId: access.userId } } },
+        { OR: [{ agencyId: access.agencyId }, { agencyId: null }] },
+        visibleConversationWhere(access),
+      ],
+    },
+  };
+}
+
+const conversationNotFound = () =>
+  NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
 // Types for read receipt tracking
 export interface ReadReceiptData {
@@ -27,11 +44,9 @@ export interface MessageReadStatus {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const { messageId, messageIds, conversationId } = body;
@@ -52,21 +67,9 @@ export async function POST(req: NextRequest) {
 
     // If conversationId is provided, mark all messages in conversation as read
     if (conversationId) {
-      // Verify user is a participant in the conversation
-      const participant = await db.conversationParticipant.findUnique({
-        where: {
-          conversationId_userId: {
-            conversationId,
-            userId,
-          },
-        },
-      });
-
-      if (!participant) {
-        return NextResponse.json(
-          { error: "Not a participant in this conversation" },
-          { status: 403 }
-        );
+      // A participant, in this agency, and a thread this role may see
+      if (!(await findStaffConversation(conversationId, userId, access.agencyId, access))) {
+        return conversationNotFound();
       }
 
       // Get all unread messages in the conversation
@@ -97,8 +100,8 @@ export async function POST(req: NextRequest) {
     } else {
       // Mark specific messages as read
       for (const id of idsToMark) {
-        const message = await db.message.findUnique({
-          where: { id },
+        const message = await db.message.findFirst({
+          where: { AND: [{ id }, myMessagesWhere(access)] },
           include: {
             conversation: {
               include: {
@@ -165,11 +168,9 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get("messageId");
@@ -180,8 +181,8 @@ export async function GET(req: NextRequest) {
 
     // Get read status for a single message
     if (messageId) {
-      const message = await db.message.findUnique({
-        where: { id: messageId },
+      const message = await db.message.findFirst({
+        where: { AND: [{ id: messageId }, myMessagesWhere(access)] },
         include: {
           conversation: {
             include: {
@@ -244,9 +245,7 @@ export async function GET(req: NextRequest) {
     if (messageIds) {
       const ids = messageIds.split(",");
       const messages = await db.message.findMany({
-        where: {
-          id: { in: ids },
-        },
+        where: { AND: [{ id: { in: ids } }, myMessagesWhere(access)] },
         include: {
           conversation: {
             include: {
@@ -294,21 +293,8 @@ export async function GET(req: NextRequest) {
 
     // Get unread count for a conversation
     if (conversationId) {
-      // Verify user is a participant
-      const participant = await db.conversationParticipant.findUnique({
-        where: {
-          conversationId_userId: {
-            conversationId,
-            userId,
-          },
-        },
-      });
-
-      if (!participant) {
-        return NextResponse.json(
-          { error: "Not a participant in this conversation" },
-          { status: 403 }
-        );
+      if (!(await findStaffConversation(conversationId, userId, access.agencyId, access))) {
+        return conversationNotFound();
       }
 
       const messages = await db.message.findMany({
@@ -354,11 +340,9 @@ export async function GET(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get("messageId");
@@ -367,6 +351,9 @@ export async function DELETE(req: NextRequest) {
     const userId = session.user.id;
 
     if (conversationId) {
+      if (!(await findStaffConversation(conversationId, userId, access.agencyId, access))) {
+        return conversationNotFound();
+      }
       // Remove all read receipts from this user in the conversation
       const messages = await db.message.findMany({
         where: {
@@ -401,8 +388,8 @@ export async function DELETE(req: NextRequest) {
     }
 
     if (messageId) {
-      const message = await db.message.findUnique({
-        where: { id: messageId },
+      const message = await db.message.findFirst({
+        where: { AND: [{ id: messageId }, myMessagesWhere(access)] },
       });
 
       if (!message) {

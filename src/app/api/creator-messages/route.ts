@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { requestWhere, requireAccess } from "@/lib/access/server";
+
+/** Comments page and nav badge follow the Comments nav item: "See requests" */
+const COMMENTS_KEY = "requests.view" as const;
 
 interface ReadByEntry {
   userId: string;
@@ -14,13 +17,11 @@ interface ReadByEntry {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(COMMENTS_KEY);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
-    if (!session?.user?.agencyId || !session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
     const userId = session.user.id;
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit") || "50");
@@ -30,11 +31,10 @@ export async function GET(req: NextRequest) {
     // Creator comments are authored by per-creator pseudo-users
     // (creator-<id>@<agencyId>.internal), so match all of them, not just one.
     // Only non-internal comments (visible to creators = from creators)
-    const whereClause = {
+    // Only comments on requests whose creator this person can see
+    const whereClause: Prisma.CommentWhereInput = {
       isInternal: false,
-      request: {
-        agencyId: agencyId,
-      },
+      request: requestWhere(access),
       user: {
         email: { endsWith: `@${agencyId}.internal` },
       },
@@ -73,7 +73,6 @@ export async function GET(req: NextRequest) {
                 select: {
                   id: true,
                   name: true,
-                  email: true,
                   avatar: true,
                 },
               },
@@ -158,13 +157,11 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(COMMENTS_KEY);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
-    if (!session?.user?.agencyId || !session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
     const userId = session.user.id;
     const body = await req.json();
     const { commentIds, markAllRead } = body as { commentIds?: string[]; markAllRead?: boolean };
@@ -173,11 +170,9 @@ export async function POST(req: NextRequest) {
 
     if (markAllRead) {
       // Get all unread creator comments
-      const whereClause = {
+      const whereClause: Prisma.CommentWhereInput = {
         isInternal: false,
-        request: {
-          agencyId: agencyId,
-        },
+        request: requestWhere(access),
         user: {
           email: { endsWith: `@${agencyId}.internal` },
         },
@@ -196,7 +191,7 @@ export async function POST(req: NextRequest) {
         where: {
           id: { in: commentIds },
           isInternal: false,
-          request: { agencyId },
+          request: requestWhere(access),
           user: { email: { endsWith: `@${agencyId}.internal` } },
         },
         select: {

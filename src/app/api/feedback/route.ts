@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import type { FeedbackType, FeedbackStatus } from "@/types/feedback";
@@ -25,19 +24,8 @@ const updateFeedbackSchema = z.object({
 // GET - Fetch feedback list (admin only)
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user is admin or owner
-    if (session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
-      return NextResponse.json(
-        { error: "Access denied. Admin privileges required." },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.feedback");
+    if (gate.error) return gate.error;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") as FeedbackType | null;
@@ -79,18 +67,16 @@ export async function GET(req: NextRequest) {
 // POST - Create new feedback
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = createFeedbackSchema.parse(body);
 
     const feedback = await db.feedback.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         userName: session.user.name || "Anonymous",
         userEmail: session.user.email || "",
         type: validatedData.type,
@@ -123,19 +109,9 @@ export async function POST(req: NextRequest) {
 // PATCH - Update feedback status/reply (admin only)
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user is admin or owner
-    if (session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
-      return NextResponse.json(
-        { error: "Access denied. Admin privileges required." },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.feedback");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
     const validatedData = updateFeedbackSchema.parse(body);

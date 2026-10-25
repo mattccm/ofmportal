@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { forbidden, requestWhere as scopedRequests, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { rescheduleReminders } from "@/lib/auto-reminder-scheduler";
@@ -65,11 +64,9 @@ const colorOf = (state: FieldState | null) => (state ? STATE_COLOR[state] : NEUT
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("calendar.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const params = listEventsSchema.parse({
@@ -87,8 +84,10 @@ export async function GET(req: NextRequest) {
     const events: CalendarEvent[] = [];
 
     // Build base where clause for requests
+    // Only requests whose creator is in this person's creator scope. Events
+    // carry the creator's id and name only, never contact details.
     const requestWhere: Record<string, unknown> = {
-      agencyId: session.user.agencyId,
+      ...scopedRequests(access),
     };
 
     if (params.creatorId) {
@@ -195,9 +194,10 @@ export async function GET(req: NextRequest) {
     }
 
     // FETCH REMINDER EVENTS
-    if (params.type === "all" || params.type === "reminder") {
+    // Reminder events only for people who may see reminders
+    if ((params.type === "all" || params.type === "reminder") && access.has("reminders.view")) {
       const reminderRequestWhere: Record<string, unknown> = {
-        agencyId: session.user.agencyId,
+        ...scopedRequests(access),
       };
 
       if (params.creatorId) {
@@ -295,11 +295,9 @@ const rescheduleSchema = z.object({
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("calendar.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const { eventId, newDate } = rescheduleSchema.parse(body);
@@ -311,12 +309,10 @@ export async function PATCH(req: NextRequest) {
 
     switch (eventType) {
       case "deadline": {
-        // Update the request due date
+        // Moving a due date is editing the request
+        if (!access.has("requests.edit")) return forbidden("requests.edit");
         const request = await db.contentRequest.findFirst({
-          where: {
-            id,
-            agencyId: session.user.agencyId,
-          },
+          where: { AND: [scopedRequests(access), { id }] },
         });
 
         if (!request) {
@@ -362,12 +358,12 @@ export async function PATCH(req: NextRequest) {
 
       case "reminder": {
         // Update the reminder scheduled date
+        // Moving a scheduled reminder is rescheduling it
+        if (!access.has("reminders.edit")) return forbidden("reminders.edit");
         const reminder = await db.reminder.findFirst({
           where: {
             id,
-            request: {
-              agencyId: session.user.agencyId,
-            },
+            request: scopedRequests(access),
             status: "PENDING",
           },
         });

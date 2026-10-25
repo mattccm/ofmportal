@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere } from "@/lib/access/server";
 import {
   getResponseTimeMetrics,
   getSLAComplianceMetrics,
@@ -17,16 +16,11 @@ import type { DateRange, DateRangeParams } from "@/lib/analytics";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("analytics.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // Every count is limited to the creators this person may see
+    const scope = access;
     const searchParams = request.nextUrl.searchParams;
 
     // Parse date range parameters
@@ -45,32 +39,32 @@ export async function GET(request: NextRequest) {
     switch (type) {
       case "full": {
         // Get all response time analytics in one call
-        const data = await getResponseTimeAnalytics(agencyId, dateRangeParams);
+        const data = await getResponseTimeAnalytics(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "metrics": {
-        const data = await getResponseTimeMetrics(agencyId, dateRangeParams);
+        const data = await getResponseTimeMetrics(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "sla-compliance": {
-        const data = await getSLAComplianceMetrics(agencyId, dateRangeParams);
+        const data = await getSLAComplianceMetrics(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "by-creator": {
-        const data = await getResponseTimeByCreator(agencyId, dateRangeParams);
+        const data = await getResponseTimeByCreator(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "by-request-type": {
-        const data = await getResponseTimeByRequestType(agencyId, dateRangeParams);
+        const data = await getResponseTimeByRequestType(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "trends": {
-        const data = await getResponseTimeTrends(agencyId, dateRangeParams);
+        const data = await getResponseTimeTrends(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
@@ -78,7 +72,7 @@ export async function GET(request: NextRequest) {
         // Get requests with pending SLA status
         const pendingRequests = await db.contentRequest.findMany({
           where: {
-            agencyId,
+            ...requestWhere(access),
             status: {
               in: ["PENDING", "IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW"],
             },
@@ -151,8 +145,8 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        const contentRequest = await db.contentRequest.findUnique({
-          where: { id: requestId },
+        const contentRequest = await db.contentRequest.findFirst({
+          where: { AND: [requestWhere(access), { id: requestId }] },
           select: {
             id: true,
             title: true,
@@ -177,13 +171,6 @@ export async function GET(request: NextRequest) {
           return NextResponse.json(
             { error: "Request not found" },
             { status: 404 }
-          );
-        }
-
-        if (contentRequest.agencyId !== agencyId) {
-          return NextResponse.json(
-            { error: "Unauthorized" },
-            { status: 403 }
           );
         }
 
@@ -235,16 +222,11 @@ export async function GET(request: NextRequest) {
 // POST endpoint for custom queries
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("analytics.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // Every count is limited to the creators this person may see
+    const scope = access;
     const body = await request.json();
 
     const { types, dateRange } = body as {
@@ -265,19 +247,19 @@ export async function POST(request: NextRequest) {
     const promises = types.map(async (type) => {
       switch (type) {
         case "metrics":
-          results.metrics = await getResponseTimeMetrics(agencyId, dateRange);
+          results.metrics = await getResponseTimeMetrics(scope, dateRange);
           break;
         case "sla-compliance":
-          results.slaCompliance = await getSLAComplianceMetrics(agencyId, dateRange);
+          results.slaCompliance = await getSLAComplianceMetrics(scope, dateRange);
           break;
         case "by-creator":
-          results.byCreator = await getResponseTimeByCreator(agencyId, dateRange);
+          results.byCreator = await getResponseTimeByCreator(scope, dateRange);
           break;
         case "by-request-type":
-          results.byRequestType = await getResponseTimeByRequestType(agencyId, dateRange);
+          results.byRequestType = await getResponseTimeByRequestType(scope, dateRange);
           break;
         case "trends":
-          results.trends = await getResponseTimeTrends(agencyId, dateRange);
+          results.trends = await getResponseTimeTrends(scope, dateRange);
           break;
       }
     });

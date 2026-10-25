@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, forbidden, requestWhere, requireAccess, uploadWhere } from "@/lib/access/server";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
+import type { PermissionKey } from "@/lib/access/catalogue";
+import type { Access } from "@/lib/access/server";
 import {
   createNote,
   extractMentions,
@@ -49,11 +50,28 @@ const searchSchema = z.object({
   pinnedOnly: z.boolean().optional(),
 });
 
-// Helper to get notes storage field based on entity type
+// What reading and writing notes needs, per kind of thing they sit on.
+// Creator notes are the creator's private notes (creatorInfo.notes).
+const NOTE_KEYS: Record<string, { read: PermissionKey[]; write: PermissionKey[] }> = {
+  creator: { read: ["creators.view", "creatorInfo.notes"], write: ["creators.view", "creatorInfo.notes"] },
+  request: { read: ["requests.view"], write: ["requests.comment"] },
+  upload: { read: ["review.view"], write: ["review.view"] },
+};
+
+/** null when allowed, else the 403 to return */
+function noteGate(access: Access, entityType: string, mode: "read" | "write") {
+  const needed = NOTE_KEYS[entityType]?.[mode];
+  if (!needed) return forbidden("requests.view", "You don't have permission to do that.");
+  const missing = needed.find((k) => !access.has(k));
+  return missing ? forbidden(missing) : null;
+}
+
+// Helper to get notes storage field based on entity type (within the
+// person's creator scope: out-of-scope entities read as not found)
 async function getEntityNotes(
   entityType: string,
   entityId: string,
-  agencyId: string
+  access: Access
 ): Promise<{ entity: Record<string, unknown> | null; notes: StoredNote[] }> {
   let entity: Record<string, unknown> | null = null;
   let notes: StoredNote[] = [];
@@ -61,7 +79,7 @@ async function getEntityNotes(
   switch (entityType) {
     case "request": {
       const request = await db.contentRequest.findFirst({
-        where: { id: entityId, agencyId },
+        where: { AND: [requestWhere(access), { id: entityId }] },
         select: { id: true, requirements: true },
       });
       if (request) {
@@ -73,7 +91,7 @@ async function getEntityNotes(
     }
     case "creator": {
       const creator = await db.creator.findFirst({
-        where: { id: entityId, agencyId },
+        where: { AND: [creatorWhere(access), { id: entityId }] },
         select: { id: true, contentPreferences: true },
       });
       if (creator) {
@@ -85,10 +103,7 @@ async function getEntityNotes(
     }
     case "upload": {
       const upload = await db.upload.findFirst({
-        where: {
-          id: entityId,
-          request: { agencyId },
-        },
+        where: { AND: [uploadWhere(access), { id: entityId }] },
         select: { id: true, metadata: true },
       });
       if (upload) {
@@ -158,11 +173,9 @@ async function saveEntityNotes(
 // GET - Fetch notes for an entity or search across entities
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const url = new URL(req.url);
     const entityType = url.searchParams.get("entityType");
@@ -173,11 +186,9 @@ export async function GET(req: NextRequest) {
 
     // If fetching notes for a specific entity
     if (entityType && entityId) {
-      const { entity, notes } = await getEntityNotes(
-        entityType,
-        entityId,
-        session.user.agencyId
-      );
+      const denied = noteGate(access, entityType, "read");
+      if (denied) return denied;
+      const { entity, notes } = await getEntityNotes(entityType, entityId, access);
 
       if (!entity) {
         return NextResponse.json({ error: "Entity not found" }, { status: 404 });
@@ -234,20 +245,21 @@ export async function GET(req: NextRequest) {
 // POST - Create a new note
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const validated = createNoteSchema.parse(body);
 
-    // Verify entity exists and belongs to agency
+    const denied = noteGate(access, validated.entityType, "write");
+    if (denied) return denied;
+
+    // Verify entity exists, belongs to agency and is within their scope
     const { entity, notes: existingNotes } = await getEntityNotes(
       validated.entityType,
       validated.entityId,
-      session.user.agencyId
+      access
     );
 
     if (!entity) {
@@ -310,11 +322,9 @@ export async function POST(req: NextRequest) {
 // PATCH - Update a note (content, pin status)
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const validated = updateNoteSchema.parse(body);
@@ -328,7 +338,7 @@ export async function PATCH(req: NextRequest) {
 
     // Search in requests
     const requests = await db.contentRequest.findMany({
-      where: { agencyId: session.user.agencyId },
+      where: requestWhere(access),
       select: { id: true, requirements: true },
     });
 
@@ -348,7 +358,7 @@ export async function PATCH(req: NextRequest) {
     // Search in creators if not found
     if (!foundNote) {
       const creators = await db.creator.findMany({
-        where: { agencyId: session.user.agencyId },
+        where: creatorWhere(access),
         select: { id: true, contentPreferences: true },
       });
 
@@ -369,9 +379,7 @@ export async function PATCH(req: NextRequest) {
     // Search in uploads if not found
     if (!foundNote) {
       const uploads = await db.upload.findMany({
-        where: {
-          request: { agencyId: session.user.agencyId },
-        },
+        where: uploadWhere(access),
         select: { id: true, metadata: true },
       });
 
@@ -392,6 +400,8 @@ export async function PATCH(req: NextRequest) {
     if (!foundNote || !foundEntityType || !foundEntityId) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
+    const denied = noteGate(access, foundEntityType, "write");
+    if (denied) return denied;
 
     // Update the note
     const updatedNote: StoredNote = {
@@ -445,11 +455,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE - Delete a note
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const url = new URL(req.url);
     const noteId = url.searchParams.get("noteId");
@@ -466,7 +474,7 @@ export async function DELETE(req: NextRequest) {
 
     // Search in requests
     const requests = await db.contentRequest.findMany({
-      where: { agencyId: session.user.agencyId },
+      where: requestWhere(access),
       select: { id: true, requirements: true },
     });
 
@@ -486,7 +494,7 @@ export async function DELETE(req: NextRequest) {
     // Search in creators
     if (!foundNote) {
       const creators = await db.creator.findMany({
-        where: { agencyId: session.user.agencyId },
+        where: creatorWhere(access),
         select: { id: true, contentPreferences: true },
       });
 
@@ -507,9 +515,7 @@ export async function DELETE(req: NextRequest) {
     // Search in uploads
     if (!foundNote) {
       const uploads = await db.upload.findMany({
-        where: {
-          request: { agencyId: session.user.agencyId },
-        },
+        where: uploadWhere(access),
         select: { id: true, metadata: true },
       });
 
@@ -530,11 +536,13 @@ export async function DELETE(req: NextRequest) {
     if (!foundNote || !foundEntityType || !foundEntityId) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
+    const denied = noteGate(access, foundEntityType, "write");
+    if (denied) return denied;
 
-    // Check if user is the author or has admin permissions
+    // Check if user is the author, or may remove other people's notes
     const canDelete =
       foundNote.authorId === session.user.id ||
-      ["OWNER", "ADMIN"].includes(session.user.role);
+      access.has("notes.moderate");
 
     if (!canDelete) {
       return NextResponse.json(

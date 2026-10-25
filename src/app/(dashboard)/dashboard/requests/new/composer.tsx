@@ -472,11 +472,13 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
       ? "Each creator in the group gets their own copy."
       : "Pick one creator or several; each gets their own copy."
     : recipients.length === 1
-      ? `${recipients[0].name} hears about it by ${recipients[0].hasPhone && recipients[0].preferredContact !== "EMAIL" ? "text and email" : "email"}.`
+      ? recipients[0].preferredContact === null
+        ? `${recipients[0].name} gets their own copy.`
+        : `${recipients[0].name} hears about it by ${recipients[0].hasPhone && recipients[0].preferredContact !== "EMAIL" ? "text and email" : "email"}.`
       : `${list(recipients.slice(0, 4).map((c) => c.name))}${recipients.length > 4 ? ` and ${recipients.length - 4} more` : ""} each get their own copy.`;
 
   const filteredCreators = creators.filter(
-    (c) => !creatorQuery.trim() || c.name.toLowerCase().includes(creatorQuery.toLowerCase()) || c.email.toLowerCase().includes(creatorQuery.toLowerCase())
+    (c) => !creatorQuery.trim() || c.name.toLowerCase().includes(creatorQuery.toLowerCase()) || (c.email ?? "").toLowerCase().includes(creatorQuery.toLowerCase())
   );
 
   const examples =
@@ -721,9 +723,11 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
                                   {initials}
                                 </span>
                                 {c.name}
-                                <small className="hidden text-[13px] font-normal text-ink-2 sm:inline">
-                                  {c.hasPhone && c.preferredContact !== "EMAIL" ? "Text and email" : "Email"}
-                                </small>
+                                {c.preferredContact !== null && (
+                                  <small className="hidden text-[13px] font-normal text-ink-2 sm:inline">
+                                    {c.hasPhone && c.preferredContact !== "EMAIL" ? "Text and email" : "Email"}
+                                  </small>
+                                )}
                               </button>
                             );
                           })}
@@ -1005,9 +1009,16 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
               />
               <p className="text-[13px] text-ink-2">
                 {previewCreator
-                  ? `${previewCreator.name} prefers ${
-                      previewCreator.preferredContact === "BOTH" ? "texts and email" : previewCreator.preferredContact === "SMS" ? "texts" : "email"
-                    }${previewCreator.preferredContact !== "EMAIL" && !previewCreator.hasPhone ? ", but has no phone number, so it goes by email" : ""}. Their time zone is ${previewCreator.timezone.replace(/_/g, " ")}.`
+                  ? [
+                      previewCreator.preferredContact === null
+                        ? `${previewCreator.name} is told the way they prefer.`
+                        : `${previewCreator.name} prefers ${
+                            previewCreator.preferredContact === "BOTH" ? "texts and email" : previewCreator.preferredContact === "SMS" ? "texts" : "email"
+                          }${previewCreator.preferredContact !== "EMAIL" && !previewCreator.hasPhone ? ", but has no phone number, so it goes by email" : ""}.`,
+                      previewCreator.timezone ? `Their time zone is ${previewCreator.timezone.replace(/_/g, " ")}.` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")
                   : "Pick a creator to see their name and how they are reached."}
               </p>
             </aside>

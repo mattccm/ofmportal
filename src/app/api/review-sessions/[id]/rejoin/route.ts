@@ -1,6 +1,6 @@
 // POST /api/review-sessions/[id]/rejoin - Rejoin a session with state sync
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess, uploadWhere } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -22,9 +22,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const body: RejoinSessionRequest = await request.json().catch(() => ({}));
 
     // Get session
@@ -145,7 +145,7 @@ export async function POST(
       // Get upload info for vote context
       const uploadIds = session.uploadIds as string[];
       const uploads = await db.upload.findMany({
-        where: { id: { in: uploadIds } },
+        where: { AND: [uploadWhere(gate.access), { id: { in: uploadIds } }] },
         select: { id: true, originalName: true },
       });
       const uploadMap = new Map(uploads.map((u) => [u.id, u.originalName]));
@@ -252,8 +252,8 @@ export async function POST(
         let currentUpload: ReviewUploadInfo | null = null;
 
         if (currentUploadId) {
-          const upload = await db.upload.findUnique({
-            where: { id: currentUploadId },
+          const upload = await db.upload.findFirst({
+            where: { AND: [uploadWhere(gate.access), { id: currentUploadId }] },
             include: {
               creator: { select: { id: true, name: true } },
               request: { select: { id: true, title: true } },

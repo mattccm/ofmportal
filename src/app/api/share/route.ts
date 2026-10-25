@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, requestWhere, uploadWhere, type Access } from "@/lib/access/server";
 import {
   createShareLink,
   getShareLinksForResource,
@@ -14,11 +13,9 @@ import {
 // GET - List share links for a resource
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.share");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const agencyId = session.user.agencyId;
     const searchParams = request.nextUrl.searchParams;
@@ -33,6 +30,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (!(await validateResourceOwnership(resourceType, resourceId, access))) {
+      return NextResponse.json({ error: "Resource not found or access denied" }, { status: 404 });
+    }
+
     const links = await getShareLinksForResource(resourceType, resourceId, agencyId);
 
     return NextResponse.json({
@@ -45,6 +46,8 @@ export async function GET(request: NextRequest) {
         viewCount: link.viewCount,
         isActive: link.isActive,
         createdAt: link.createdAt.toISOString(),
+        // Anyone turns off their own links; review.shareManage turns off anyone's
+        canDeactivate: link.createdById === access.userId || access.has("review.shareManage"),
       })),
     });
   } catch (error) {
@@ -59,11 +62,9 @@ export async function GET(request: NextRequest) {
 // POST - Create a new share link
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId || !session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.share");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const agencyId = session.user.agencyId;
     const userId = session.user.id;
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
     const resourceValid = await validateResourceOwnership(
       resourceType,
       resourceId,
-      agencyId
+      access
     );
 
     if (!resourceValid) {
@@ -156,25 +157,20 @@ export async function POST(request: NextRequest) {
 async function validateResourceOwnership(
   resourceType: ShareResourceType,
   resourceId: string,
-  agencyId: string
+  access: Access
 ): Promise<boolean> {
+  const agencyId = access.agencyId;
   switch (resourceType) {
     case "UPLOAD": {
       const upload = await db.upload.findFirst({
-        where: {
-          id: resourceId,
-          request: { agencyId },
-        },
+        where: { AND: [uploadWhere(access), { id: resourceId }] },
       });
       return !!upload;
     }
 
     case "REQUEST": {
       const request = await db.contentRequest.findFirst({
-        where: {
-          id: resourceId,
-          agencyId,
-        },
+        where: { AND: [requestWhere(access), { id: resourceId }] },
       });
       return !!request;
     }

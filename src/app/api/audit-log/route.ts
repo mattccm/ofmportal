@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { z } from "zod";
-import { excludePseudoUsers } from "@/lib/staff";
+import { activityWhere, requireAccess, staffWhere, type Access } from "@/lib/access/server";
 
 // VALIDATION SCHEMAS
 
@@ -41,23 +40,26 @@ function formatDateForCSV(date: Date): string {
   return date.toISOString();
 }
 
+/**
+ * Log rows this person may read: their agency's, and only by teammates inside
+ * their team scope. With the whole team in scope, system rows (no user) and
+ * rows written for creators stay in, as before.
+ */
+function auditScope(access: Access): Prisma.ActivityLogWhereInput {
+  if (access.teamScope.type === "all") {
+    return { OR: [{ user: { agencyId: access.agencyId } }, { userId: null }] };
+  }
+  return activityWhere(access);
+}
+
 // GET - Fetch audit logs with pagination, filtering, and search
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only ADMIN and OWNER can access audit logs
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Forbidden: Admin access required" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.auditLog");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    const scope = auditScope(access);
 
     // Parse query parameters
     const { searchParams } = new URL(req.url);
@@ -79,7 +81,7 @@ export async function GET(req: NextRequest) {
 
     // Build where clause
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    const where: any = { AND: [scope] };
 
     // Search across action, entityType, entityId
     if (validatedQuery.search) {
@@ -217,17 +219,19 @@ export async function GET(req: NextRequest) {
     const [actionTypes, entityTypes, users] = await Promise.all([
       db.activityLog.findMany({
         distinct: ["action"],
+        where: scope,
         select: { action: true },
         orderBy: { action: "asc" },
       }),
       db.activityLog.findMany({
         distinct: ["entityType"],
+        where: scope,
         select: { entityType: true },
         orderBy: { entityType: "asc" },
       }),
       db.activityLog.findMany({
         distinct: ["userId"],
-        where: { userId: { not: null }, user: excludePseudoUsers },
+        where: { userId: { not: null }, user: staffWhere(access) },
         select: {
           user: {
             select: {

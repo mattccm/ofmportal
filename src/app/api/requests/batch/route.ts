@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, creatorWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
@@ -62,11 +61,9 @@ const NOTIFICATION_BATCH_SIZE = 10;
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.create");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = batchCreateSchema.parse(body);
@@ -86,10 +83,7 @@ export async function POST(req: NextRequest) {
 
     // Verify all creators belong to this agency
     const creators = await db.creator.findMany({
-      where: {
-        id: { in: creatorIds },
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: { in: creatorIds } }] },
     });
 
     const creatorMap = new Map(creators.map((c) => [c.id, c]));
@@ -316,12 +310,9 @@ async function sendBatchNotifications(
 // GET endpoint to check batch creation status (for future async implementation)
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    
     const { searchParams } = new URL(req.url);
     const batchId = searchParams.get("batchId");
 

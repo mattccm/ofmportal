@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useAccess } from "@/lib/access/client";
 import { CalendarView, CalendarEvent, eventLook } from "@/components/calendar/calendar-view";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,10 +44,10 @@ import { cn } from "@/lib/utils";
 
 // TYPES
 
+// The calendar only needs who: id and name (contact details never reach it)
 interface Creator {
   id: string;
   name: string;
-  email: string;
 }
 
 interface CalendarClientProps {
@@ -109,11 +110,13 @@ interface EventDetailPanelProps {
   event: CalendarEvent | null;
   onClose: () => void;
   onReschedule: (eventId: string, newDate: Date) => void;
+  /** Whether this person may move this kind of event */
+  canMove: (event: CalendarEvent) => boolean;
   isOpen: boolean;
   isMobile: boolean;
 }
 
-function EventDetailPanel({ event, onClose, onReschedule, isOpen, isMobile }: EventDetailPanelProps) {
+function EventDetailPanel({ event, onClose, onReschedule, canMove, isOpen, isMobile }: EventDetailPanelProps) {
   const router = useRouter();
 
   if (!event) return null;
@@ -204,7 +207,7 @@ function EventDetailPanel({ event, onClose, onReschedule, isOpen, isMobile }: Ev
           </Button>
         )}
 
-        {event.type !== "request" && (
+        {event.type !== "request" && canMove(event) && (
           <Button
             variant="outline"
             onClick={() => {
@@ -256,6 +259,15 @@ function EventDetailPanel({ event, onClose, onReschedule, isOpen, isMobile }: Ev
 
 export function CalendarClient({ creators }: CalendarClientProps) {
   const router = useRouter();
+  const { can } = useAccess();
+  const canCreate = can("requests.create");
+  // Moving a due date edits the request; moving a reminder is a manual reminder action
+  const canMove = useCallback(
+    (event: CalendarEvent) =>
+      event.type === "deadline" ? can("requests.edit") : event.type === "reminder" ? can("reminders.edit") : false,
+    [can]
+  );
+  const canMoveAny = can("requests.edit") || can("reminders.edit");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -337,6 +349,11 @@ export function CalendarClient({ creators }: CalendarClientProps) {
   }, []);
 
   const handleEventReschedule = useCallback(async (eventId: string, newDate: Date) => {
+    const moving = events.find((e) => e.id === eventId);
+    if (moving && !canMove(moving)) {
+      toast.error("Your role can't move this");
+      return;
+    }
     try {
       const response = await fetch("/api/calendar/events", {
         method: "PATCH",
@@ -359,7 +376,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
       console.error("Error rescheduling event:", error);
       toast.error("Failed to reschedule event");
     }
-  }, [fetchEvents]);
+  }, [fetchEvents, events, canMove]);
 
   const handleDateSelect = useCallback((date: Date) => {
     setCurrentDate(date);
@@ -402,14 +419,16 @@ export function CalendarClient({ creators }: CalendarClientProps) {
                 </Badge>
               )}
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => router.push("/dashboard/requests/new")}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Request
-            </Button>
+            {canCreate && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => router.push("/dashboard/requests/new")}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Request
+              </Button>
+            )}
           </div>
 
           {/* Filter controls - always visible on desktop, toggle on mobile */}
@@ -474,16 +493,18 @@ export function CalendarClient({ creators }: CalendarClientProps) {
           </div>
 
           {/* Desktop new request button */}
-          <div className="hidden sm:flex sm:ml-auto">
-            <Button
-              variant="default"
-              onClick={() => router.push("/dashboard/requests/new")}
-              className="btn-gradient"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Request
-            </Button>
-          </div>
+          {canCreate && (
+            <div className="hidden sm:flex sm:ml-auto">
+              <Button
+                variant="default"
+                onClick={() => router.push("/dashboard/requests/new")}
+                className="btn-gradient"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Request
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -492,9 +513,9 @@ export function CalendarClient({ creators }: CalendarClientProps) {
         <CalendarView
           events={events}
           onEventClick={handleEventClick}
-          onEventReschedule={handleEventReschedule}
+          onEventReschedule={canMoveAny ? handleEventReschedule : undefined}
           onDateSelect={handleDateSelect}
-          onCreateEvent={handleCreateEvent}
+          onCreateEvent={canCreate ? handleCreateEvent : undefined}
           isLoading={isLoading}
           initialDate={currentDate}
         />
@@ -508,6 +529,7 @@ export function CalendarClient({ creators }: CalendarClientProps) {
           setSelectedEvent(null);
         }}
         onReschedule={handleEventReschedule}
+        canMove={canMove}
         isOpen={isEventPanelOpen}
         isMobile={isMobile}
       />

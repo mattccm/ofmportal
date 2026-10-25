@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -69,11 +68,9 @@ const listAutomationsSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.automations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const params = listAutomationsSchema.parse({
@@ -85,7 +82,7 @@ export async function GET(req: NextRequest) {
 
     // Build the where clause
     const where: Record<string, unknown> = {
-      agencyId: session.user.agencyId,
+      agencyId: access.agencyId,
     };
 
     if (params.isActive !== undefined) {
@@ -103,7 +100,7 @@ export async function GET(req: NextRequest) {
 
     // For now, we'll use the agency settings to store automations
     const agency = await db.agency.findUnique({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       select: { settings: true },
     });
 
@@ -193,26 +190,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check user role - only OWNER, ADMIN, or MANAGER can create automations
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role || "")) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.automations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await req.json();
     const validatedData = createAutomationSchema.parse(body);
 
     // Get current agency settings
     const agency = await db.agency.findUnique({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       select: { settings: true },
     });
 
@@ -283,7 +270,7 @@ export async function POST(req: NextRequest) {
     };
 
     await db.agency.update({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       data: {
         settings: JSON.parse(JSON.stringify(settingsUpdate)),
       },

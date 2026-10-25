@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { forbidden, getAccess, requestWhere } from "@/lib/access/server";
 import { getViewPresignedUrl, getPublicFileUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 export async function GET(
@@ -30,9 +31,14 @@ export async function GET(
 
     // Authorize as agency staff (session) or the owning creator (portal token).
     if (session?.user?.agencyId) {
-      if (upload.request.agencyId !== session.user.agencyId) {
+      const access = await getAccess(session);
+      if (!access || upload.request.agencyId !== access.agencyId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      // A thumbnail is a preview of the content
+      if (!access.has("review.reveal")) return forbidden("review.reveal");
+      const visible = await db.upload.count({ where: { id, request: requestWhere(access) } });
+      if (!visible) return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {

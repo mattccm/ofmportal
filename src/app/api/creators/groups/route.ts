@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { z } from "zod";
+import { CREATOR_PICKER_KEYS, groupInclude, shapeGroup } from "../creator-access";
 
 // Schema for creating/updating a creator group
 const groupSchema = z.object({
@@ -15,53 +15,23 @@ const groupSchema = z.object({
 // GET - List all creator groups for the agency
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(CREATOR_PICKER_KEYS);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const groups = await db.creatorGroup.findMany({
       where: { agencyId: session.user.agencyId },
       orderBy: { createdAt: "desc" },
-      include: {
-        members: {
-          orderBy: { sortOrder: "asc" },
-          include: {
-            creator: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true,
-                inviteStatus: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: { members: true },
-        },
-      },
+      include: groupInclude(access),
     });
 
     // Transform the data for easier consumption
+    // inScope: the group is one of the person's own when their role sees
+    // only creators in chosen groups (the invite form offers only these)
+    const scope = access.creatorScope;
     const transformedGroups = groups.map((group) => ({
-      id: group.id,
-      name: group.name,
-      description: group.description,
-      color: group.color,
-      memberCount: group._count.members,
-      members: group.members.map((m) => ({
-        id: m.creator.id,
-        name: m.creator.name,
-        email: m.creator.email,
-        avatar: m.creator.avatar,
-        inviteStatus: m.creator.inviteStatus,
-        sortOrder: m.sortOrder,
-      })),
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
+      ...shapeGroup(access, group),
+      inScope: scope.type === "all" || (scope.type === "groups" && scope.groupIds.includes(group.id)),
     }));
 
     return NextResponse.json(transformedGroups);
@@ -77,11 +47,9 @@ export async function GET() {
 // POST - Create a new creator group
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("creators.groups");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const validatedData = groupSchema.parse(body);
@@ -106,10 +74,7 @@ export async function POST(req: NextRequest) {
     // Verify all member IDs belong to the agency
     if (validatedData.memberIds && validatedData.memberIds.length > 0) {
       const validCreators = await db.creator.findMany({
-        where: {
-          id: { in: validatedData.memberIds },
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [creatorWhere(access), { id: { in: validatedData.memberIds } }] },
         select: { id: true },
       });
 
@@ -140,25 +105,7 @@ export async function POST(req: NextRequest) {
             }
           : undefined,
       },
-      include: {
-        members: {
-          orderBy: { sortOrder: "asc" },
-          include: {
-            creator: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true,
-                inviteStatus: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: { members: true },
-        },
-      },
+      include: groupInclude(access),
     });
 
     // Log activity
@@ -175,23 +122,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const transformedGroup = {
-      id: group.id,
-      name: group.name,
-      description: group.description,
-      color: group.color,
-      memberCount: group._count.members,
-      members: group.members.map((m) => ({
-        id: m.creator.id,
-        name: m.creator.name,
-        email: m.creator.email,
-        avatar: m.creator.avatar,
-        inviteStatus: m.creator.inviteStatus,
-        sortOrder: m.sortOrder,
-      })),
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    };
+    const transformedGroup = shapeGroup(access, group);
 
     return NextResponse.json(transformedGroup, { status: 201 });
   } catch (error) {

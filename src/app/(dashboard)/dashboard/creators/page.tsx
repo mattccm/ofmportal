@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Plus, FileUp, Users } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, getPageAccess, type Access } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { Button } from "@/components/ui/button";
 import { CreatorsList, type CreatorTile } from "@/components/creators/creators-list";
 import { PageHead } from "@/components/creators/people-ui";
@@ -23,9 +22,19 @@ import {
 
 export const metadata = { title: "Creators" };
 
-async function getCreatorTiles(agencyId: string, userId: string, now: Date): Promise<CreatorTile[]> {
+async function getCreatorTiles(access: Access, now: Date): Promise<CreatorTile[]> {
+  const { agencyId, userId } = access;
+  // Creator information this role may see; the rest never reaches the page
+  const see = {
+    email: access.has("creatorInfo.email"),
+    phone: access.has("creatorInfo.phone"),
+    preferences: access.has("creatorInfo.preferences"),
+    location: access.has("creatorInfo.location"),
+    activity: access.has("creatorInfo.activity"),
+    invite: access.has("creatorInfo.invite"),
+  };
   const creators = await db.creator.findMany({
-    where: { agencyId },
+    where: creatorWhere(access),
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -92,10 +101,12 @@ async function getCreatorTiles(agencyId: string, userId: string, now: Date): Pro
     const delivery = deliverySummary(finishedPoints(c.requests));
     const p = pause.get(c.id);
     const paused = !!p?.isPaused && (!p.pauseResumeAt || p.pauseResumeAt > now);
-    // The invite as staff see it (the raw token never leaves the server here)
-    const invite = creatorInvite(c, now);
+    // The invite as staff see it (the raw token never leaves the server here).
+    // Without invite information it reads as accepted, so nothing about it shows.
+    const invite = see.invite ? creatorInvite(c, now) : ({ state: "accepted", expiresAt: null } as const);
     const inviteStatus =
       invite.state === "accepted" ? "ACCEPTED" : invite.state === "cancelled" ? "CANCELLED" : invite.state === "expired" ? "EXPIRED" : "PENDING";
+    const lastLoginAt = see.activity ? c.lastLoginAt : null;
     const status = creatorStatus({
       archived: c.archivedAt !== null,
       inviteStatus,
@@ -111,23 +122,27 @@ async function getCreatorTiles(agencyId: string, userId: string, now: Date): Pro
     return {
       id: c.id,
       name: c.name,
-      email: c.email,
-      phone: c.phone,
+      email: see.email ? c.email : null,
+      phone: see.phone ? c.phone : null,
       archived: c.archivedAt !== null,
       inviteStatus,
       invite:
         invite.state === "accepted"
           ? null
           : { state: invite.state, expiresAt: invite.expiresAt ? invite.expiresAt.toISOString() : null },
-      meta: `${contactLabel(c.preferredContact)} · ${cityOf(c.timezone)} · ${
-        c.lastLoginAt ? `last seen ${ago(c.lastLoginAt, now)}` : "not signed in yet"
-      }`,
+      meta: [
+        see.preferences ? contactLabel(c.preferredContact) : null,
+        see.location ? cityOf(c.timezone) : null,
+        see.activity ? (lastLoginAt ? `last seen ${ago(lastLoginAt, now)}` : "not signed in yet") : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
       sentence: creatorSentence(active.length, delivery),
       status,
       unread: unread.get(c.id) ?? 0,
       owed,
       activeCount: active.length,
-      lastSeen: c.lastLoginAt ? c.lastLoginAt.toISOString() : null,
+      lastSeen: lastLoginAt ? lastLoginAt.toISOString() : null,
       onTimeRate: delivery.finished ? delivery.onTime / delivery.finished : null,
       finished: delivery.finished,
       onTime: delivery.onTime,
@@ -136,7 +151,7 @@ async function getCreatorTiles(agencyId: string, userId: string, now: Date): Pro
 }
 
 /** The page's finding: who owes work and has been quiet longest, then the on-time record. */
-function lede(tiles: CreatorTile[], now: Date): string {
+function lede(tiles: CreatorTile[], now: Date, seeActivity: boolean): string {
   const live = tiles.filter((t) => !t.archived);
   if (live.length === 0) return "No creators yet. Invite one to send them requests.";
   const quiet = live
@@ -144,9 +159,11 @@ function lede(tiles: CreatorTile[], now: Date): string {
     .sort((a, b) => (a.lastSeen ?? "").localeCompare(b.lastSeen ?? ""))[0];
   const fin = live.reduce((n, t) => n + t.finished, 0);
   const on = live.reduce((n, t) => n + t.onTime, 0);
-  const first = quiet
-    ? `${quiet.name} ${quiet.lastSeen ? `was last seen ${ago(quiet.lastSeen, now)}` : "has not signed in yet"} and still owes ${plural(quiet.owed, "field")}. `
-    : "";
+  const first = !quiet
+    ? ""
+    : seeActivity
+      ? `${quiet.name} ${quiet.lastSeen ? `was last seen ${ago(quiet.lastSeen, now)}` : "has not signed in yet"} and still owes ${plural(quiet.owed, "field")}. `
+      : `${quiet.name} still owes ${plural(quiet.owed, "field")}. `;
   const record = fin
     ? `Across ${plural(live.length, "creator")}, ${on} of ${plural(fin, "finished request")} came in on time.`
     : `${plural(live.length, "creator")}, nothing finished yet.`;
@@ -154,14 +171,14 @@ function lede(tiles: CreatorTile[], now: Date): string {
 }
 
 export default async function CreatorsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.agencyId) redirect("/login");
+  const access = await getPageAccess();
+  if (!access.has("creators.view")) return <NoAccess what="creators" roleName={access.role.name} />;
 
   const now = new Date();
   let tiles: CreatorTile[] = [];
   let failed = false;
   try {
-    tiles = await getCreatorTiles(session.user.agencyId, session.user.id, now);
+    tiles = await getCreatorTiles(access, now);
   } catch (error) {
     console.error("CreatorsPage data fetch error:", error);
     failed = true;
@@ -171,7 +188,11 @@ export default async function CreatorsPage() {
     <div className="space-y-6">
       <PageHead
         title="Creators"
-        lede={failed ? "Creators could not be loaded. Reload the page to try again." : lede(tiles, now)}
+        lede={
+          failed
+            ? "Creators could not be loaded. Reload the page to try again."
+            : lede(tiles, now, access.has("creatorInfo.activity"))
+        }
         actions={
           <>
             <Button asChild variant="outline">
@@ -180,22 +201,34 @@ export default async function CreatorsPage() {
                 Groups
               </Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link href="/dashboard/creators/import">
-                <FileUp aria-hidden="true" />
-                Import CSV
-              </Link>
-            </Button>
-            <Button asChild variant="light">
-              <Link href="/dashboard/creators/invite">
-                <Plus aria-hidden="true" />
-                Invite creator
-              </Link>
-            </Button>
+            {access.has("creators.import") && (
+              <Button asChild variant="outline">
+                <Link href="/dashboard/creators/import">
+                  <FileUp aria-hidden="true" />
+                  Import CSV
+                </Link>
+              </Button>
+            )}
+            {access.has("creators.invite") && (
+              <Button asChild variant="light">
+                <Link href="/dashboard/creators/invite">
+                  <Plus aria-hidden="true" />
+                  Invite creator
+                </Link>
+              </Button>
+            )}
           </>
         }
       />
-      <CreatorsList creators={tiles} canManageInvites={["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)} />
+      <CreatorsList
+        creators={tiles}
+        canManageInvites={access.hasAny(["creators.invite", "creators.resetAccess"]) && access.has("creatorInfo.invite")}
+        canInvite={access.has("creators.invite")}
+        canMessage={access.has("messages.creators")}
+        canRequest={access.has("requests.create")}
+        seeEmail={access.has("creatorInfo.email")}
+        seeActivity={access.has("creatorInfo.activity")}
+      />
     </div>
   );
 }

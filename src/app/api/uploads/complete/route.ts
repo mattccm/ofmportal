@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { forbidden, getAccess, redactCreatorsIn, requestWhere, type Access } from "@/lib/access/server";
 import { z } from "zod";
 import { finalizeUpload } from "@/lib/upload-finalize";
 import { parseJsonBody } from "@/lib/api";
@@ -42,10 +43,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify authorization
+    let access: Access | null = null;
     if (session?.user?.agencyId) {
-      if (upload.request.agencyId !== session.user.agencyId) {
+      access = await getAccess(session);
+      if (!access || upload.request.agencyId !== access.agencyId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      // Staff uploading on a creator's behalf changes the request
+      if (!access.has("requests.upload")) return forbidden("requests.upload");
+      const visible = await db.contentRequest.count({ where: { AND: [requestWhere(access), { id: upload.requestId }] } });
+      if (!visible) return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {
@@ -81,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      upload: result.upload,
+      upload: access ? redactCreatorsIn(access, result.upload) : result.upload,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

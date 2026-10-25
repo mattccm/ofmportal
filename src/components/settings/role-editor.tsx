@@ -1,1244 +1,943 @@
 "use client";
 
 import * as React from "react";
-import { useState, useCallback, useMemo, useEffect } from "react";
-import {
-  Shield,
-  Users,
-  FileText,
-  Upload,
-  UserPlus,
-  Settings,
-  BarChart2,
-  ChevronDown,
-  ChevronRight,
-  Save,
-  Loader2,
-  AlertTriangle,
-  Info,
-  Eye,
-} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ChevronDown, Copy, Loader2, Lock, RotateCcw, Search, ShieldAlert, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BackLink, Pill } from "@/components/creators/people-ui";
+import { InviteConfirmDialog } from "@/components/invites/invite-link";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import {
-  Role,
-  Permission,
-  FieldPermission,
-  PermissionAction,
-  PermissionResource,
-  PermissionCategory,
-  CreatorVisibility,
-  DataFieldVisibility,
-  TeamMemberVisibility,
-  PERMISSION_RESOURCES,
-  PERMISSION_CATEGORIES,
-  permissionsToMatrix,
-  matrixToPermissions,
-} from "@/types/permissions";
+  AREAS,
+  PERMISSION_KEYS,
+  ROLE_COLORS,
+  creatorScopeSentence,
+  dependentsOf,
+  permissionsInArea,
+  summarize,
+  teamScopeSentence,
+  withImplied,
+  type AreaId,
+  type CreatorScope,
+  type PermissionDef,
+  type TeamScope,
+} from "@/lib/access/catalogue";
 
-// Icon mapping for categories
-const CategoryIcons: Record<PermissionCategory, React.ElementType> = {
-  creators: Users,
-  requests: FileText,
-  uploads: Upload,
-  team: UserPlus,
-  settings: Settings,
-  analytics: BarChart2,
-};
-
-interface CategoryPermissionEditorProps {
-  permissions: Permission[];
-  onChange: (permissions: Permission[]) => void;
-  disabled?: boolean;
+export interface RoleEditorData {
+  role: {
+    id: string;
+    kind: "owner" | "preset" | "custom";
+    name: string;
+    description: string;
+    color: string | null;
+    keys: string[];
+    creatorScope: CreatorScope;
+    teamScope: TeamScope;
+  };
+  roles: { id: string; name: string; kind: "owner" | "preset" | "custom"; memberCount: number; grantable: boolean }[];
+  groups: { id: string; name: string; count: number }[];
+  creators: { id: string; name: string }[];
+  staff: { id: string; name: string; email: string; roleId: string }[];
+  holderIds: string[];
+  me: { id: string; isOwner: boolean; canChangeRoles: boolean };
 }
 
-// Category-based Permission Editor Component
-export function CategoryPermissionEditor({
-  permissions,
-  onChange,
-  disabled = false,
-}: CategoryPermissionEditorProps) {
-  const [expandedCategories, setExpandedCategories] = useState<Set<PermissionCategory>>(
-    new Set(PERMISSION_CATEGORIES.map(c => c.id))
+type Draft = {
+  name: string;
+  description: string;
+  color: string | null;
+  keys: string[];
+  creatorScope: CreatorScope;
+  teamScope: TeamScope;
+};
+
+const TOTAL = PERMISSION_KEYS.length;
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+function draftOf(r: RoleEditorData["role"]): Draft {
+  return {
+    name: r.name,
+    description: r.description,
+    color: r.color,
+    keys: r.kind === "owner" ? [...PERMISSION_KEYS] : [...withImplied(r.keys)].sort(),
+    creatorScope: r.creatorScope,
+    teamScope: r.teamScope,
+  };
+}
+
+const same = (a: Draft, b: Draft) => JSON.stringify({ ...a, keys: [...a.keys].sort() }) === JSON.stringify({ ...b, keys: [...b.keys].sort() });
+
+export function RoleEditor({ data }: { data: RoleEditorData }) {
+  const router = useRouter();
+  const { role } = data;
+  const isNew = role.id === "new";
+  const locked = role.kind === "owner";
+  const builtIn = role.kind !== "custom";
+
+  const [saved, setSaved] = React.useState<Draft>(() => draftOf(role));
+  const [draft, setDraft] = React.useState<Draft>(() => draftOf(role));
+  const [query, setQuery] = React.useState("");
+  const [open, setOpen] = React.useState<Set<AreaId>>(() => new Set(isNew ? (["requests"] as AreaId[]) : []));
+  const [busy, setBusy] = React.useState<null | "save" | "duplicate" | "reset" | "delete" | "assign">(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [status, setStatus] = React.useState("");
+  const [confirm, setConfirm] = React.useState<null | "reset" | "delete">(null);
+
+  const dirty = isNew || !same(draft, saved);
+  const keys = React.useMemo(() => new Set(draft.keys), [draft.keys]);
+
+  const names = React.useMemo(
+    () => ({
+      groups: Object.fromEntries(data.groups.map((g) => [g.id, g.name])),
+      creators: Object.fromEntries(data.creators.map((c) => [c.id, c.name])),
+      roles: Object.fromEntries(data.roles.map((r) => [r.id, r.name])),
+      members: Object.fromEntries(data.staff.map((s) => [s.id, s.name])),
+    }),
+    [data.groups, data.creators, data.roles, data.staff]
   );
 
-  // Convert permissions to matrix for easier manipulation
-  const permissionMatrix = useMemo(() => permissionsToMatrix(permissions), [permissions]);
+  // ----- editing -----
 
-  const toggleCategory = (categoryId: PermissionCategory) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(categoryId)) {
-        next.delete(categoryId);
-      } else {
-        next.add(categoryId);
+  const setKeys = (next: Set<string>) => setDraft((d) => ({ ...d, keys: [...next].sort() }));
+
+  const turnOn = (list: string[]) => {
+    const next = new Set(keys);
+    const before = next.size;
+    for (const k of withImplied(list)) next.add(k);
+    const extra = next.size - before - list.filter((k) => !keys.has(k)).length;
+    setKeys(next);
+    setStatus(extra > 0 ? `Also turned on ${plural(extra, "permission")} it needs.` : "");
+  };
+
+  const turnOff = (list: string[]) => {
+    const next = new Set(keys);
+    let extra = 0;
+    for (const k of list) {
+      next.delete(k);
+      for (const dep of dependentsOf(k)) {
+        if (next.has(dep) && !list.includes(dep)) {
+          next.delete(dep);
+          extra++;
+        }
       }
+    }
+    setKeys(next);
+    setStatus(extra > 0 ? `Also turned off ${plural(extra, "permission")} that need it.` : "");
+  };
+
+  const toggleArea = (id: AreaId) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-  };
 
-  // Check if a specific permission is enabled
-  const hasPermission = useCallback((resource: PermissionResource, action: PermissionAction) => {
-    return permissionMatrix[resource]?.[action] ?? false;
-  }, [permissionMatrix]);
+  // ----- search -----
 
-  // Toggle a specific permission
-  const togglePermission = useCallback((resource: PermissionResource, action: PermissionAction) => {
-    if (disabled) return;
+  const q = query.trim().toLowerCase();
+  const matches = (d: PermissionDef) =>
+    !q || d.label.toLowerCase().includes(q) || d.description.toLowerCase().includes(q) || d.key.toLowerCase().includes(q);
+  const areaMatches = (title: string) => !!q && title.toLowerCase().includes(q);
 
-    const newMatrix = { ...permissionMatrix };
-    if (!newMatrix[resource]) {
-      newMatrix[resource] = {} as Record<PermissionAction, boolean>;
-    }
-    newMatrix[resource] = { ...newMatrix[resource] };
-    newMatrix[resource][action] = !newMatrix[resource][action];
+  const visibleAreas = AREAS.map((a) => {
+    const all = permissionsInArea(a.id);
+    const rows = areaMatches(a.title) ? all : all.filter(matches);
+    const scopeHit =
+      !q ||
+      (a.id === "creators" && "which creators groups chosen".includes(q)) ||
+      (a.id === "team" && "which team members teammates people themselves".includes(q));
+    return { ...a, all, rows, scopeHit };
+  }).filter((a) => a.rows.length > 0 || (q && a.scopeHit && (a.id === "creators" || a.id === "team")));
 
-    onChange(matrixToPermissions(newMatrix));
-  }, [permissionMatrix, onChange, disabled]);
+  const shownCount = visibleAreas.reduce((n, a) => n + a.rows.length, 0);
 
-  // Toggle all permissions in a category
-  const toggleCategoryAll = useCallback((category: typeof PERMISSION_CATEGORIES[0]) => {
-    if (disabled) return;
+  // ----- server actions -----
 
-    const newMatrix = { ...permissionMatrix };
-
-    // Check if all are currently enabled
-    let allEnabled = true;
-    for (const resource of category.resources) {
-      for (const actionConfig of category.actions) {
-        if (!actionConfig.resourceSpecific || actionConfig.resourceSpecific.includes(resource)) {
-          if (!hasPermission(resource, actionConfig.action)) {
-            allEnabled = false;
-            break;
-          }
-        }
-      }
-      if (!allEnabled) break;
-    }
-
-    // Toggle all permissions
-    for (const resource of category.resources) {
-      if (!newMatrix[resource]) {
-        newMatrix[resource] = {} as Record<PermissionAction, boolean>;
-      }
-      newMatrix[resource] = { ...newMatrix[resource] };
-
-      for (const actionConfig of category.actions) {
-        if (!actionConfig.resourceSpecific || actionConfig.resourceSpecific.includes(resource)) {
-          newMatrix[resource][actionConfig.action] = !allEnabled;
-        }
-      }
-    }
-
-    onChange(matrixToPermissions(newMatrix));
-  }, [permissionMatrix, onChange, disabled, hasPermission]);
-
-  // Get count of enabled permissions in a category
-  const getCategoryPermissionCount = useCallback((category: typeof PERMISSION_CATEGORIES[0]) => {
-    let count = 0;
-    let total = 0;
-
-    for (const resource of category.resources) {
-      for (const actionConfig of category.actions) {
-        if (!actionConfig.resourceSpecific || actionConfig.resourceSpecific.includes(resource)) {
-          total++;
-          if (hasPermission(resource, actionConfig.action)) {
-            count++;
-          }
-        }
-      }
-    }
-
-    return { count, total };
-  }, [hasPermission]);
-
-  return (
-    <div className="space-y-3">
-      {PERMISSION_CATEGORIES.map((category) => {
-        const Icon = CategoryIcons[category.id];
-        const isExpanded = expandedCategories.has(category.id);
-        const { count, total } = getCategoryPermissionCount(category);
-        const allEnabled = count === total;
-
-        return (
-          <Card key={category.id} className={cn(
-            "border transition-colors",
-            count > 0 && "border-primary/30 bg-primary/5"
-          )}>
-            <Collapsible open={isExpanded} onOpenChange={() => toggleCategory(category.id)}>
-              <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "p-2 rounded-lg",
-                      count > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                    )}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-sm">{category.label}</h3>
-                      <p className="text-xs text-muted-foreground">{category.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={count > 0 ? "default" : "secondary"} className="text-xs">
-                      {count}/{total}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleCategoryAll(category);
-                      }}
-                      disabled={disabled}
-                      className="text-xs"
-                    >
-                      {allEnabled ? "Disable All" : "Enable All"}
-                    </Button>
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-              </CollapsibleTrigger>
-
-              <CollapsibleContent>
-                <div className="px-4 pb-4 pt-0">
-                  <Separator className="mb-4" />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {category.actions.map((actionConfig) => {
-                      // For resource-specific actions, show them separately
-                      const relevantResources = actionConfig.resourceSpecific || category.resources;
-
-                      return relevantResources.map((resource) => {
-                        const isEnabled = hasPermission(resource, actionConfig.action);
-                        const resourceLabel = PERMISSION_RESOURCES[resource].label;
-                        const showResourceLabel = category.resources.length > 1 || actionConfig.resourceSpecific;
-
-                        return (
-                          <div
-                            key={`${resource}-${actionConfig.action}`}
-                            className={cn(
-                              "flex items-center justify-between p-3 rounded-lg border transition-all",
-                              isEnabled ? "border-primary/30 bg-primary/5" : "border-transparent bg-muted/30",
-                              !disabled && "hover:border-primary/20"
-                            )}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">
-                                  {actionConfig.label}
-                                  {showResourceLabel && (
-                                    <span className="text-muted-foreground font-normal"> ({resourceLabel})</span>
-                                  )}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {actionConfig.description}
-                              </p>
-                            </div>
-                            <Switch aria-label={showResourceLabel ? `${actionConfig.label} (${resourceLabel})` : actionConfig.label}
-                              checked={isEnabled}
-                              onCheckedChange={() => togglePermission(resource, actionConfig.action)}
-                              disabled={disabled}
-                            />
-                          </div>
-                        );
-                      });
-                    })}
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
-
-// Creator Visibility Settings Component
-interface CreatorVisibilitySettingsProps {
-  visibility: CreatorVisibility;
-  onChange: (visibility: CreatorVisibility) => void;
-  creatorGroups?: Array<{ id: string; name: string }>;
-  disabled?: boolean;
-}
-
-export function CreatorVisibilitySettings({
-  visibility,
-  onChange,
-  creatorGroups = [],
-  disabled = false,
-}: CreatorVisibilitySettingsProps) {
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label>Creator Access Level</Label>
-        <Select
-          value={visibility.type}
-          onValueChange={(value: CreatorVisibility["type"]) =>
-            onChange({ ...visibility, type: value })
-          }
-          disabled={disabled}
-        >
-          <SelectTrigger aria-label="Creator Access Level">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              <div className="flex items-center gap-2">
-                <Eye className="h-4 w-4" />
-                <div className="text-left">
-                  <p className="font-medium">All Creators</p>
-                  <p className="text-xs text-muted-foreground">
-                    Can see all creators in the agency
-                  </p>
-                </div>
-              </div>
-            </SelectItem>
-            <SelectItem value="assigned">
-              <div className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                <div className="text-left">
-                  <p className="font-medium">Assigned Only</p>
-                  <p className="text-xs text-muted-foreground">
-                    Can only see creators assigned to them
-                  </p>
-                </div>
-              </div>
-            </SelectItem>
-            <SelectItem value="groups">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <div className="text-left">
-                  <p className="font-medium">By Groups</p>
-                  <p className="text-xs text-muted-foreground">
-                    Can see creators in specific groups
-                  </p>
-                </div>
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {visibility.type === "groups" && creatorGroups.length > 0 && (
-        <div className="space-y-2">
-          <Label>Allowed Groups</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {creatorGroups.map((group) => (
-              <div key={group.id} className="flex items-center space-x-2">
-                <Checkbox aria-label={group.name}
-                  id={`group-${group.id}`}
-                  checked={visibility.groupIds?.includes(group.id)}
-                  onCheckedChange={(checked) => {
-                    const newGroupIds = checked
-                      ? [...(visibility.groupIds || []), group.id]
-                      : (visibility.groupIds || []).filter((id) => id !== group.id);
-                    onChange({ ...visibility, groupIds: newGroupIds });
-                  }}
-                  disabled={disabled}
-                />
-                <Label htmlFor={`group-${group.id}`} className="text-sm">
-                  {group.name}
-                </Label>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {visibility.type === "groups" && creatorGroups.length === 0 && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
-          <Info className="h-4 w-4" />
-          <span>No creator groups available. Create groups first to use this option.</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Data Field Visibility Settings
-interface DataFieldVisibilitySettingsProps {
-  visibility: DataFieldVisibility;
-  onChange: (visibility: DataFieldVisibility) => void;
-  disabled?: boolean;
-}
-
-// Field permission config: fields with view/edit granularity vs view-only
-type CreatorFieldConfig = {
-  key: keyof DataFieldVisibility["creatorFields"];
-  label: string;
-  hasEdit: boolean; // true = has view/edit toggles, false = view only (boolean)
-};
-
-const CREATOR_FIELD_CONFIGS: CreatorFieldConfig[] = [
-  { key: "name", label: "Name", hasEdit: true },
-  { key: "email", label: "Email Address", hasEdit: true },
-  { key: "phone", label: "Phone Number", hasEdit: true },
-  { key: "avatar", label: "Profile Photo", hasEdit: true },
-  { key: "socialLinks", label: "Social Links", hasEdit: true },
-  { key: "personalNotes", label: "Personal Notes", hasEdit: true },
-  { key: "earnings", label: "Earnings & Revenue", hasEdit: false },
-  { key: "contracts", label: "Contracts & Agreements", hasEdit: false },
-  { key: "paymentInfo", label: "Payment Information", hasEdit: false },
-];
-
-type RequestFieldConfig = {
-  key: keyof DataFieldVisibility["requestFields"];
-  label: string;
-  hasEdit: boolean;
-};
-
-const REQUEST_FIELD_CONFIGS: RequestFieldConfig[] = [
-  { key: "internalNotes", label: "Internal Notes", hasEdit: true },
-  { key: "creatorCompensation", label: "Creator Compensation", hasEdit: false },
-];
-
-export function DataFieldVisibilitySettings({
-  visibility,
-  onChange,
-  disabled = false,
-}: DataFieldVisibilitySettingsProps) {
-  const [expanded, setExpanded] = useState(true);
-
-  // Helper to get field value (handles both boolean and FieldPermission)
-  const getFieldValue = (field: boolean | FieldPermission | undefined): { view: boolean; edit: boolean } => {
-    if (typeof field === "boolean") {
-      return { view: field, edit: field };
-    }
-    return field || { view: false, edit: false };
-  };
-
-  // Count visible fields
-  const countVisible = () => {
-    let count = 0;
-    for (const cfg of CREATOR_FIELD_CONFIGS) {
-      const val = visibility.creatorFields[cfg.key];
-      if (typeof val === "boolean" ? val : val?.view) count++;
-    }
-    for (const cfg of REQUEST_FIELD_CONFIGS) {
-      const val = visibility.requestFields[cfg.key];
-      if (typeof val === "boolean" ? val : val?.view) count++;
-    }
-    return count;
-  };
-
-  return (
-    <Card>
-      <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <CardTitle className="text-base">Data Field Visibility</CardTitle>
-              </div>
-              <Badge variant="outline">
-                {countVisible()} visible
-              </Badge>
-            </div>
-            <CardDescription>Control which fields are visible and editable for this role</CardDescription>
-          </CardHeader>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <CardContent className="space-y-6">
-            {/* Creator Fields */}
-            <div className="space-y-3">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                Creator Fields
-              </Label>
-              <div className="space-y-2">
-                {/* Header row */}
-                <div className="grid grid-cols-[1fr,60px,60px] gap-2 px-2 text-xs font-medium text-muted-foreground">
-                  <span>Field</span>
-                  <span className="text-center">View</span>
-                  <span className="text-center">Edit</span>
-                </div>
-                {CREATOR_FIELD_CONFIGS.map((cfg) => {
-                  const fieldVal = getFieldValue(visibility.creatorFields[cfg.key]);
-                  return (
-                    <div key={cfg.key} className="grid grid-cols-[1fr,60px,60px] gap-2 items-center p-2 rounded-lg bg-muted/30">
-                      <Label className="text-sm">{cfg.label}</Label>
-                      <div className="flex justify-center">
-                        <Checkbox aria-label={`View ${cfg.label}`}
-                          checked={fieldVal.view}
-                          onCheckedChange={(checked) => {
-                            const newVal = cfg.hasEdit
-                              ? { view: !!checked, edit: checked ? fieldVal.edit : false }
-                              : !!checked;
-                            onChange({
-                              ...visibility,
-                              creatorFields: {
-                                ...visibility.creatorFields,
-                                [cfg.key]: newVal,
-                              },
-                            });
-                          }}
-                          disabled={disabled}
-                        />
-                      </div>
-                      <div className="flex justify-center">
-                        {cfg.hasEdit ? (
-                          <Checkbox aria-label={`Edit ${cfg.label}`}
-                            checked={fieldVal.edit}
-                            onCheckedChange={(checked) => {
-                              onChange({
-                                ...visibility,
-                                creatorFields: {
-                                  ...visibility.creatorFields,
-                                  [cfg.key]: { view: fieldVal.view || !!checked, edit: !!checked },
-                                },
-                              });
-                            }}
-                            disabled={disabled || !fieldVal.view}
-                          />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Request Fields */}
-            <div className="space-y-3">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                Request Fields
-              </Label>
-              <div className="space-y-2">
-                {/* Header row */}
-                <div className="grid grid-cols-[1fr,60px,60px] gap-2 px-2 text-xs font-medium text-muted-foreground">
-                  <span>Field</span>
-                  <span className="text-center">View</span>
-                  <span className="text-center">Edit</span>
-                </div>
-                {REQUEST_FIELD_CONFIGS.map((cfg) => {
-                  const fieldVal = getFieldValue(visibility.requestFields[cfg.key]);
-                  return (
-                    <div key={cfg.key} className="grid grid-cols-[1fr,60px,60px] gap-2 items-center p-2 rounded-lg bg-muted/30">
-                      <Label className="text-sm">{cfg.label}</Label>
-                      <div className="flex justify-center">
-                        <Checkbox aria-label={`View ${cfg.label}`}
-                          checked={fieldVal.view}
-                          onCheckedChange={(checked) => {
-                            const newVal = cfg.hasEdit
-                              ? { view: !!checked, edit: checked ? fieldVal.edit : false }
-                              : !!checked;
-                            onChange({
-                              ...visibility,
-                              requestFields: {
-                                ...visibility.requestFields,
-                                [cfg.key]: newVal,
-                              },
-                            });
-                          }}
-                          disabled={disabled}
-                        />
-                      </div>
-                      <div className="flex justify-center">
-                        {cfg.hasEdit ? (
-                          <Checkbox aria-label={`Edit ${cfg.label}`}
-                            checked={fieldVal.edit}
-                            onCheckedChange={(checked) => {
-                              onChange({
-                                ...visibility,
-                                requestFields: {
-                                  ...visibility.requestFields,
-                                  [cfg.key]: { view: fieldVal.view || !!checked, edit: !!checked },
-                                },
-                              });
-                            }}
-                            disabled={disabled || !fieldVal.view}
-                          />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
-  );
-}
-
-// Team Member Visibility Settings
-interface TeamMemberVisibilitySettingsProps {
-  visibility: TeamMemberVisibility;
-  onChange: (visibility: TeamMemberVisibility) => void;
-  disabled?: boolean;
-}
-
-export function TeamMemberVisibilitySettings({
-  visibility,
-  onChange,
-  disabled = false,
-}: TeamMemberVisibilitySettingsProps) {
-  // Ensure memberFieldVisibility exists with defaults
-  const memberFields = visibility.memberFieldVisibility || {
-    email: true,
-    phone: false,
-    role: true,
-    lastActive: true,
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Users className="h-4 w-4" />
-          Team Visibility
-        </CardTitle>
-        <CardDescription>Control what this role can see about themselves and other team members</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Own Profile Section */}
-        <div className="space-y-3">
-          <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-            Own Profile
-          </Label>
-          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-            <div>
-              <Label htmlFor="see-own-profile" className="cursor-pointer">View Own Profile</Label>
-              <p className="text-xs text-muted-foreground">Can view their own profile details</p>
-            </div>
-            <Switch aria-label="View Own Profile"
-              id="see-own-profile"
-              checked={visibility.canSeeOwnProfile ?? true}
-              onCheckedChange={(checked) =>
-                onChange({ ...visibility, canSeeOwnProfile: checked })
-              }
-              disabled={disabled}
-            />
-          </div>
-          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-            <div>
-              <Label htmlFor="edit-own-profile" className="cursor-pointer">Edit Own Profile</Label>
-              <p className="text-xs text-muted-foreground">Can edit their own profile information</p>
-            </div>
-            <Switch aria-label="Edit Own Profile"
-              id="edit-own-profile"
-              checked={visibility.canEditOwnProfile ?? true}
-              onCheckedChange={(checked) =>
-                onChange({ ...visibility, canEditOwnProfile: checked })
-              }
-              disabled={disabled}
-            />
-          </div>
-        </div>
-
-        {/* Other Team Members Section */}
-        <div className="space-y-3">
-          <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-            Other Team Members
-          </Label>
-          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-            <div>
-              <Label htmlFor="see-other-members" className="cursor-pointer">See Team Members</Label>
-              <p className="text-xs text-muted-foreground">Can view the team member list</p>
-            </div>
-            <Switch aria-label="See Team Members"
-              id="see-other-members"
-              checked={visibility.canSeeOtherMembers}
-              onCheckedChange={(checked) =>
-                onChange({ ...visibility, canSeeOtherMembers: checked })
-              }
-              disabled={disabled}
-            />
-          </div>
-
-          {visibility.canSeeOtherMembers && (
-            <>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                <div>
-                  <Label htmlFor="see-member-activity" className="cursor-pointer">See Member Activity</Label>
-                  <p className="text-xs text-muted-foreground">Can view other members&apos; activity logs</p>
-                </div>
-                <Switch aria-label="See Member Activity"
-                  id="see-member-activity"
-                  checked={visibility.canSeeOtherMemberActivity}
-                  onCheckedChange={(checked) =>
-                    onChange({ ...visibility, canSeeOtherMemberActivity: checked })
-                  }
-                  disabled={disabled}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                <div>
-                  <Label htmlFor="see-member-earnings" className="cursor-pointer">See Member Earnings</Label>
-                  <p className="text-xs text-muted-foreground">Can view team member compensation</p>
-                </div>
-                <Switch aria-label="See Member Earnings"
-                  id="see-member-earnings"
-                  checked={visibility.canSeeMemberEarnings}
-                  onCheckedChange={(checked) =>
-                    onChange({ ...visibility, canSeeMemberEarnings: checked })
-                  }
-                  disabled={disabled}
-                />
-              </div>
-
-              {/* Member Field Visibility */}
-              <div className="space-y-2 pt-2">
-                <Label className="text-xs text-muted-foreground">Visible Member Fields</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                    <Checkbox aria-label="Email"
-                      id="member-email"
-                      checked={memberFields.email}
-                      onCheckedChange={(checked) =>
-                        onChange({
-                          ...visibility,
-                          memberFieldVisibility: { ...memberFields, email: !!checked },
-                        })
-                      }
-                      disabled={disabled}
-                    />
-                    <Label htmlFor="member-email" className="text-sm cursor-pointer">Email</Label>
-                  </div>
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                    <Checkbox aria-label="Phone"
-                      id="member-phone"
-                      checked={memberFields.phone}
-                      onCheckedChange={(checked) =>
-                        onChange({
-                          ...visibility,
-                          memberFieldVisibility: { ...memberFields, phone: !!checked },
-                        })
-                      }
-                      disabled={disabled}
-                    />
-                    <Label htmlFor="member-phone" className="text-sm cursor-pointer">Phone</Label>
-                  </div>
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                    <Checkbox aria-label="Role"
-                      id="member-role"
-                      checked={memberFields.role}
-                      onCheckedChange={(checked) =>
-                        onChange({
-                          ...visibility,
-                          memberFieldVisibility: { ...memberFields, role: !!checked },
-                        })
-                      }
-                      disabled={disabled}
-                    />
-                    <Label htmlFor="member-role" className="text-sm cursor-pointer">Role</Label>
-                  </div>
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                    <Checkbox aria-label="Last Active"
-                      id="member-lastActive"
-                      checked={memberFields.lastActive}
-                      onCheckedChange={(checked) =>
-                        onChange({
-                          ...visibility,
-                          memberFieldVisibility: { ...memberFields, lastActive: !!checked },
-                        })
-                      }
-                      disabled={disabled}
-                    />
-                    <Label htmlFor="member-lastActive" className="text-sm cursor-pointer">Last Active</Label>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Role Preview Summary
-interface RolePreviewProps {
-  role: Partial<Role>;
-}
-
-export function RolePreview({ role }: RolePreviewProps) {
-  // Count permissions by category
-  const categoryCounts = useMemo(() => {
-    const permissions = role.permissions || [];
-    const counts: Record<string, number> = {};
-    for (const category of PERMISSION_CATEGORIES) {
-      counts[category.id] = 0;
-    }
-
-    for (const permission of permissions) {
-      const resourceConfig = PERMISSION_RESOURCES[permission.resource];
-      if (resourceConfig) {
-        counts[resourceConfig.category] = (counts[resourceConfig.category] || 0) + permission.actions.length;
-      }
-    }
-
-    return counts;
-  }, [role.permissions]);
-
-  const totalPermissions = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Eye className="h-4 w-4" />
-          Role Summary
-        </CardTitle>
-        <CardDescription>
-          Overview of permissions for {role.name || "this role"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Total count */}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-          <span className="text-sm font-medium">Total Permissions</span>
-          <Badge variant="secondary">{totalPermissions}</Badge>
-        </div>
-
-        {/* Category breakdown */}
-        <div className="space-y-2">
-          {PERMISSION_CATEGORIES.map((category) => {
-            const Icon = CategoryIcons[category.id];
-            const count = categoryCounts[category.id] || 0;
-
-            return (
-              <div key={category.id} className="flex items-center justify-between p-2">
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{category.label}</span>
-                </div>
-                <Badge variant={count > 0 ? "default" : "outline"} className="text-xs">
-                  {count}
-                </Badge>
-              </div>
-            );
-          })}
-        </div>
-
-        <Separator />
-
-        {/* Creator visibility */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-            Creator Access
-          </Label>
-          <Badge variant="outline" className="capitalize">
-            {role.creatorVisibility?.type?.replace("_", " ") || "Assigned Only"}
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Main Role Editor Dialog
-interface RoleEditorDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  role: Partial<Role> | null;
-  onSave: (role: Omit<Role, "id" | "createdAt" | "updatedAt">) => Promise<void>;
-  creatorGroups?: Array<{ id: string; name: string }>;
-  isNew?: boolean;
-}
-
-export function RoleEditorDialog({
-  open,
-  onOpenChange,
-  role,
-  onSave,
-  creatorGroups = [],
-  isNew = false,
-}: RoleEditorDialogProps) {
-  const [editedRole, setEditedRole] = useState<Partial<Role>>({
-    name: "",
-    description: "",
-    permissions: [],
-    creatorVisibility: { type: "assigned" },
-    dataFieldVisibility: {
-      creatorFields: {
-        name: { view: true, edit: false },
-        email: { view: true, edit: false },
-        phone: { view: false, edit: false },
-        earnings: false,
-        personalNotes: { view: false, edit: false },
-        contracts: false,
-        paymentInfo: false,
-        avatar: { view: true, edit: false },
-        socialLinks: { view: true, edit: false },
-      },
-      requestFields: {
-        internalNotes: { view: false, edit: false },
-        creatorCompensation: false,
-      },
-    },
-    teamMemberVisibility: {
-      canSeeOwnProfile: true,
-      canEditOwnProfile: false,
-      canSeeOtherMembers: true,
-      canSeeOtherMemberActivity: false,
-      canSeeMemberEarnings: false,
-      memberFieldVisibility: {
-        email: true,
-        phone: false,
-        role: true,
-        lastActive: false,
-      },
-    },
-    isSystem: false,
-    color: "#6ea8ff",
+  const body = () => ({
+    ...(role.kind === "custom" ? { name: draft.name.trim() } : {}),
+    description: draft.description.trim() || null,
+    color: draft.color,
+    keys: draft.keys,
+    creatorScope: draft.creatorScope,
+    teamScope: draft.teamScope,
   });
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("general");
-
-  // Update state when role prop changes
-  useEffect(() => {
-    if (role) {
-      setEditedRole(role);
-    } else {
-      setEditedRole({
-        name: "",
-        description: "",
-        permissions: [],
-        creatorVisibility: { type: "assigned" },
-        dataFieldVisibility: {
-          creatorFields: {
-            name: { view: true, edit: false },
-            email: { view: true, edit: false },
-            phone: { view: false, edit: false },
-            earnings: false,
-            personalNotes: { view: false, edit: false },
-            contracts: false,
-            paymentInfo: false,
-            avatar: { view: true, edit: false },
-            socialLinks: { view: true, edit: false },
-          },
-          requestFields: {
-            internalNotes: { view: false, edit: false },
-            creatorCompensation: false,
-          },
-        },
-        teamMemberVisibility: {
-          canSeeOwnProfile: true,
-          canEditOwnProfile: false,
-          canSeeOtherMembers: true,
-          canSeeOtherMemberActivity: false,
-          canSeeMemberEarnings: false,
-          memberFieldVisibility: {
-            email: true,
-            phone: false,
-            role: true,
-            lastActive: false,
-          },
-        },
-        isSystem: false,
-        color: "#6ea8ff",
-      });
-    }
-    setActiveTab("general");
-  }, [role, open]);
-
-  const handleSave = async () => {
-    if (!editedRole.name?.trim()) {
-      toast.error("Role name is required");
+  const save = async () => {
+    if (role.kind === "custom" && !draft.name.trim()) {
+      setError("Give the role a name.");
+      document.getElementById("role-name")?.focus();
       return;
     }
-
-    setIsSaving(true);
+    setError(null);
+    setBusy("save");
     try {
-      await onSave({
-        name: editedRole.name!,
-        description: editedRole.description,
-        permissions: editedRole.permissions!,
-        creatorVisibility: editedRole.creatorVisibility!,
-        dataFieldVisibility: editedRole.dataFieldVisibility!,
-        teamMemberVisibility: editedRole.teamMemberVisibility!,
-        isSystem: false,
-        color: editedRole.color,
+      const res = await fetch(isNew ? "/api/roles" : `/api/roles/${role.id}`, {
+        method: isNew ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body()),
       });
-      onOpenChange(false);
-      toast.success(isNew ? "Role created" : "Role updated");
-    } catch (error) {
-      console.error("Role save error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save role");
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(json?.error || "The role could not be saved. Try again.");
+        return;
+      }
+      toast.success(isNew ? `${json.role.name} created` : `${json.role.name} saved`, {
+        description: isNew ? "Move people onto it here or on the Team page." : "Everyone with this role has the new access straight away.",
+      });
+      if (isNew) {
+        router.replace(`/dashboard/settings/roles/${json.role.id}`);
+        return;
+      }
+      const next = draftOf({ ...role, ...json.role, description: json.role.description ?? "" });
+      setSaved(next);
+      setDraft(next);
+      router.refresh();
+    } catch {
+      setError("The role could not be saved. Check your connection and try again.");
     } finally {
-      setIsSaving(false);
+      setBusy(null);
     }
   };
 
-  // Owner role is fully locked, other system roles can have permissions edited
-  const isOwnerRole = editedRole.id === "owner";
-  const isSystemRole = editedRole.isSystem;
-  // Only disable name/description editing for system roles, but allow permission editing
-  const isNameDisabled = isSystemRole;
-  // Only owner role is fully locked
-  const isFullyDisabled = isOwnerRole;
+  const duplicate = async () => {
+    setBusy("duplicate");
+    try {
+      const res = await fetch(`/api/roles/${role.id}/duplicate`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "The role could not be duplicated");
+      toast.success(`${json.role.name} created`, { description: "Rename it and change what it can do." });
+      router.push(`/dashboard/settings/roles/${json.role.id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "The role could not be duplicated");
+    } finally {
+      setBusy(null);
+    }
+  };
 
-  // Color presets
-  const colorPresets = [
-    "#6366f1", // Indigo
-    "#8b5cf6", // Violet
-    "#ec4899", // Pink
-    "#ef4444", // Red
-    "#f97316", // Orange
-    "#eab308", // Yellow
-    "#14b8a6", // Teal
-    "#0ea5e9", // Sky
-    "#6b7280", // Gray
-  ];
+  const reset = async () => {
+    setBusy("reset");
+    try {
+      const res = await fetch(`/api/roles/${role.id}/reset`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "The role could not be reset");
+      const next = draftOf({ ...role, ...json.role, description: json.role.description ?? "" });
+      setSaved(next);
+      setDraft(next);
+      setConfirm(null);
+      toast.success(`${role.name} is back to its defaults`);
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "The role could not be reset");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async () => {
+    setBusy("delete");
+    try {
+      const res = await fetch(`/api/roles/${role.id}`, { method: "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "The role could not be deleted");
+      toast.success(`${role.name} deleted`);
+      router.push("/dashboard/settings/roles");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "The role could not be deleted");
+      setConfirm(null);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const assign = async (memberId: string, roleId: string) => {
+    setBusy("assign");
+    try {
+      const res = await fetch(`/api/team/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleId }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "The role could not be changed");
+      const who = data.staff.find((s) => s.id === memberId)?.name ?? "They";
+      toast.success(`${who} is now ${json.role.name}`);
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "The role could not be changed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // ----- derived -----
+
+  const summary = summarize(draft.keys);
+  const holders = data.staff.filter((s) => data.holderIds.includes(s.id));
+  const thisRole = data.roles.find((r) => r.id === role.id);
+  const canMovePeople = data.me.canChangeRoles;
+  const movable = (s: { id: string; roleId: string }) =>
+    canMovePeople && s.id !== data.me.id && (s.roleId !== "owner" || data.me.isOwner) && (data.roles.find((r) => r.id === s.roleId)?.grantable ?? false);
+  const targets = data.roles.filter((r) => r.grantable && (r.kind !== "owner" || data.me.isOwner));
+  const addable = !isNew && thisRole?.grantable ? data.staff.filter((s) => !data.holderIds.includes(s.id) && movable(s)) : [];
+
+  const title = isNew ? "New role" : role.name;
+  const lede = locked
+    ? "The owner can do everything, always. This role can't be changed, and the last owner can't be removed."
+    : isNew
+      ? "Name the role, then switch on what it can do. It starts with nothing, so it can only see what you allow."
+      : role.kind === "preset"
+        ? "A built-in role. Change what it can do, or put it back to its defaults at any time."
+        : "Change what this role can see and do. Everyone with it gets the change straight away.";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            {isNew ? "Create New Role" : `Edit Role: ${role?.name}`}
-          </DialogTitle>
-          <DialogDescription>
-            {isNew
-              ? "Define permissions and visibility settings for this role"
-              : "Modify permissions and visibility settings for this role"}
-          </DialogDescription>
-        </DialogHeader>
+    <div className="mx-auto max-w-[1280px]">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 max-w-[72ch]">
+          <BackLink href="/dashboard/settings/roles" label="Roles" className="mb-3" />
+          <h1 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[22px] font-bold leading-tight tracking-[-0.015em] text-ink sm:text-[26px]">
+            {!isNew && <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: draft.color ?? "#a6aab3" }} aria-hidden="true" />}
+            {title}
+          </h1>
+          <p className="mt-1.5 text-[15px] leading-normal text-ink">{lede}</p>
+        </div>
+        {!isNew && (
+          <div className="flex shrink-0 flex-col gap-2 max-sm:[&>*]:h-11 max-sm:[&>*]:w-full sm:flex-row sm:flex-wrap sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={duplicate}
+              disabled={!!busy || (dirty && !locked)}
+              title={dirty && !locked ? "Save or discard your changes first" : undefined}
+            >
+              {busy === "duplicate" ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Copy aria-hidden="true" />}
+              Duplicate role
+            </Button>
+            {role.kind === "preset" && (
+              <Button variant="outline" onClick={() => setConfirm("reset")} disabled={!!busy}>
+                <RotateCcw aria-hidden="true" />
+                Reset to default
+              </Button>
+            )}
+            {role.kind === "custom" && (
+              <Button
+                variant="destructive"
+                onClick={() => setConfirm("delete")}
+                disabled={!!busy || holders.length > 0}
+                title={holders.length > 0 ? "Move everyone off this role first" : undefined}
+              >
+                <Trash2 aria-hidden="true" />
+                Delete role
+              </Button>
+            )}
+          </div>
+        )}
+      </header>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-4 shrink-0">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="permissions">Permissions</TabsTrigger>
-            <TabsTrigger value="visibility">Visibility</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-          </TabsList>
-
-          <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6 mt-4">
-            <TabsContent value="general" className="space-y-4 mt-0">
-              {isOwnerRole && (
-                <div className="flex items-center gap-2 text-sm text-amber-600 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span>The Owner role cannot be modified for security reasons</span>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
+        <div className="min-w-0 space-y-8">
+          {/* Details */}
+          <section aria-labelledby="role-details-h" className="space-y-3">
+            <h2 id="role-details-h" className="text-[17px] font-semibold leading-snug text-ink">
+              Details
+            </h2>
+            <div className="grid gap-5 rounded-[10px] bg-tile p-4 sm:p-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="role-name">Name</Label>
+                  <Input
+                    id="role-name"
+                    value={draft.name}
+                    onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                    disabled={builtIn}
+                    maxLength={60}
+                    placeholder="Reviewer"
+                    aria-describedby={builtIn ? "role-name-hint" : undefined}
+                    aria-invalid={!!error && !draft.name.trim() ? true : undefined}
+                  />
+                  {builtIn && (
+                    <p id="role-name-hint" className="text-[13px] text-ink-2">
+                      Built-in roles keep their name. Duplicate it to make a renamed copy.
+                    </p>
+                  )}
                 </div>
-              )}
-              {isSystemRole && !isOwnerRole && (
-                <div className="flex items-center gap-2 text-sm text-blue-600 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <Info className="h-4 w-4" />
-                  <span>This is a system role. You can modify permissions but not the role name.</span>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="role-name">Role Name *</Label>
-                <Input
-                  id="role-name"
-                  value={editedRole.name || ""}
-                  onChange={(e) =>
-                    setEditedRole((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  placeholder="e.g., Content Reviewer"
-                  disabled={isNameDisabled}
-                />
+                <fieldset className="space-y-2" disabled={locked}>
+                  <legend className="mb-2 text-sm font-medium text-ink">Colour</legend>
+                  <div className="flex flex-wrap gap-1 sm:gap-2">
+                    {ROLE_COLORS.map((c) => (
+                      <label key={c.value} className="relative grid size-10 cursor-pointer place-items-center rounded-full has-[:disabled]:cursor-not-allowed md:size-9">
+                        <input
+                          type="radio"
+                          name="role-color"
+                          value={c.value}
+                          checked={draft.color === c.value}
+                          onChange={() => setDraft((d) => ({ ...d, color: c.value }))}
+                          className="peer sr-only"
+                        />
+                        <span
+                          className="size-6 rounded-full ring-offset-2 ring-offset-tile peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-ring"
+                          style={{ backgroundColor: c.value }}
+                          aria-hidden="true"
+                        />
+                        <span className="sr-only">{c.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="role-description">Description</Label>
                 <Textarea
                   id="role-description"
-                  value={editedRole.description || ""}
-                  onChange={(e) =>
-                    setEditedRole((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                  placeholder="Describe what this role is for..."
-                  rows={3}
-                  disabled={isFullyDisabled}
+                  value={draft.description}
+                  onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                  disabled={locked}
+                  rows={2}
+                  maxLength={240}
+                  placeholder="What this role is for, in a sentence"
                 />
               </div>
+            </div>
+          </section>
 
-              <div className="space-y-2">
-                <Label>Badge Color</Label>
-                <div className="flex items-center gap-3 flex-wrap">
-                  {colorPresets.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={cn(
-                        "w-8 h-8 rounded-lg border-2 transition-all",
-                        editedRole.color === color
-                          ? "border-foreground scale-110"
-                          : "border-transparent hover:scale-105"
-                      )}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setEditedRole((prev) => ({ ...prev, color }))}
-                      disabled={isFullyDisabled}
-                    />
-                  ))}
-                  <div className="relative">
-                    <div
-                      className="w-8 h-8 rounded-lg border-2 border-dashed border-muted-foreground cursor-pointer"
-                      style={{ backgroundColor: editedRole.color }}
-                    >
-                      <input
-                        type="color"
-                        value={editedRole.color || "#6ea8ff"}
-                        onChange={(e) =>
-                          setEditedRole((prev) => ({ ...prev, color: e.target.value }))
-                        }
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        disabled={isFullyDisabled}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-sm text-muted-foreground">Preview:</span>
-                  <Badge style={{ backgroundColor: editedRole.color, color: "white" }}>
-                    {editedRole.name || "Role Name"}
-                  </Badge>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="permissions" className="mt-0 pb-6">
-              <div className="space-y-2 mb-4">
-                <h4 className="font-medium">Permission Categories</h4>
-                <p className="text-sm text-muted-foreground">
-                  Enable permissions for each category. Expand categories to fine-tune individual actions.
+          {/* Permissions */}
+          <section aria-labelledby="role-perms-h" className="space-y-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 id="role-perms-h" className="text-[17px] font-semibold leading-snug text-ink">
+                  Permissions
+                </h2>
+                <p className="mt-0.5 text-sm tabular-nums text-ink-2">
+                  {keys.size} of {TOTAL} on.{" "}
+                  {q ? `${plural(shownCount, "permission")} match “${query.trim()}”.` : "Open an area to switch single permissions."}
                 </p>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="relative w-full md:w-[280px]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-icon" aria-hidden="true" />
+                  <Input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Find a permission"
+                    aria-label="Find a permission"
+                    className="pl-9 pr-9"
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      aria-label="Clear the search"
+                      className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-icon hover:text-ink focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <X className="size-4" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                {!q && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 text-ink-2 hover:text-ink max-md:h-11"
+                    onClick={() => setOpen(open.size === AREAS.length ? new Set() : new Set(AREAS.map((a) => a.id)))}
+                  >
+                    {open.size === AREAS.length ? "Close all" : "Open all"}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <p role="status" aria-live="polite" className={cn("text-sm text-ink", !status && "sr-only")}>
+              {status}
+            </p>
 
-              <CategoryPermissionEditor
-                permissions={editedRole.permissions || []}
-                onChange={(permissions) =>
-                  setEditedRole((prev) => ({ ...prev, permissions }))
-                }
-                disabled={isFullyDisabled}
-              />
-            </TabsContent>
+            {visibleAreas.length === 0 ? (
+              <div className="rounded-[10px] border border-dashed border-ctl px-4 py-4 text-sm text-ink-2">
+                No permission matches “{query.trim()}”. Try a word like requests, email or export.
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {visibleAreas.map((a) => {
+                  const isOpen = !!q || open.has(a.id);
+                  const on = a.all.filter((d) => keys.has(d.key)).length;
+                  const allOn = on === a.all.length;
+                  return (
+                    <li key={a.id} className="overflow-hidden rounded-[10px] bg-tile">
+                      <div className="flex items-center gap-3 pr-4">
+                        <button
+                          type="button"
+                          onClick={() => toggleArea(a.id)}
+                          aria-expanded={isOpen}
+                          aria-controls={`area-${a.id}`}
+                          disabled={!!q}
+                          className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left transition-colors hover:bg-tile-hi focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-default disabled:hover:bg-transparent"
+                        >
+                          <ChevronDown
+                            className={cn("size-4 shrink-0 text-icon transition-transform duration-200 motion-reduce:transition-none", !isOpen && "-rotate-90")}
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0">
+                            <span className="block font-semibold text-ink">{a.title}</span>
+                            <span className="block text-[13px] tabular-nums text-ink-2">
+                              {a.id === "creatorInfo"
+                                ? on === a.all.length
+                                  ? "Sees everything about a creator"
+                                  : `Sees ${on} of ${a.all.length} details`
+                                : `${on} of ${a.all.length} on`}
+                              {a.id === "creators" && ` · ${creatorScopeSentence(draft.creatorScope, names).replace(/\.$/, "").toLowerCase()}`}
+                              {a.id === "team" && ` · ${teamScopeSentence(draft.teamScope, names).replace(/\.$/, "").toLowerCase()}`}
+                            </span>
+                          </span>
+                        </button>
+                        <Switch
+                          checked={allOn}
+                          onCheckedChange={(v) => (v ? turnOn(a.all.map((d) => d.key)) : turnOff(a.all.map((d) => d.key)))}
+                          disabled={locked}
+                          aria-label={`Everything in ${a.title}`}
+                        />
+                      </div>
+                      {isOpen && (
+                        <div id={`area-${a.id}`} className="border-t border-line">
+                          {a.id === "creatorInfo" && <p className="px-4 pt-3 text-[13px] text-ink-2">{AREAS.find((x) => x.id === "creatorInfo")!.description}</p>}
+                          {a.id === "creators" && a.scopeHit && (
+                            <CreatorScopePicker
+                              value={draft.creatorScope}
+                              onChange={(creatorScope) => setDraft((d) => ({ ...d, creatorScope }))}
+                              groups={data.groups}
+                              creators={data.creators}
+                              disabled={locked}
+                            />
+                          )}
+                          {a.id === "team" && a.scopeHit && (
+                            <TeamScopePicker
+                              value={draft.teamScope}
+                              onChange={(teamScope) => setDraft((d) => ({ ...d, teamScope }))}
+                              roles={data.roles}
+                              staff={data.staff}
+                              disabled={locked}
+                            />
+                          )}
+                          <ul className="divide-y divide-line">
+                            {a.rows.map((d) => (
+                              <li key={d.key} className="flex items-start gap-4 px-4 py-3.5">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span id={`perm-${d.key}`} className="text-[15px] font-medium text-ink">
+                                      {d.label}
+                                    </span>
+                                    {d.dangerous && (
+                                      <Pill tone="quiet">
+                                        <ShieldAlert className="mr-1 size-3" aria-hidden="true" />
+                                        Sensitive
+                                      </Pill>
+                                    )}
+                                  </div>
+                                  <p id={`perm-${d.key}-d`} className="mt-0.5 text-[13px] leading-normal text-ink-2">
+                                    {d.description}
+                                  </p>
+                                </div>
+                                <Switch
+                                  className="mt-0.5"
+                                  checked={keys.has(d.key)}
+                                  onCheckedChange={(v) => (v ? turnOn([d.key]) : turnOff([d.key]))}
+                                  disabled={locked}
+                                  aria-describedby={`perm-${d.key}-d`}
+                                  aria-label={d.label}
+                                />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
 
-            <TabsContent value="visibility" className="space-y-6 mt-0 pb-6">
-              <CreatorVisibilitySettings
-                visibility={editedRole.creatorVisibility || { type: "assigned" }}
-                onChange={(visibility) =>
-                  setEditedRole((prev) => ({ ...prev, creatorVisibility: visibility }))
-                }
-                creatorGroups={creatorGroups}
-                disabled={isFullyDisabled}
-              />
+          {!locked && dirty && (
+            <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-ground px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:mx-0 sm:px-0">
+              {error && (
+                <p role="alert" className="mb-3 rounded-[8px] border border-late/35 bg-late/10 p-3 text-sm text-ink">
+                  {error}
+                </p>
+              )}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <p className="text-sm text-ink-2 sm:mr-auto">{isNew ? "Not created yet." : "Unsaved changes."}</p>
+                {isNew ? (
+                  <Button asChild variant="ghost" className="max-sm:h-11">
+                    <Link href="/dashboard/settings/roles">Cancel</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="max-sm:h-11"
+                    disabled={!!busy}
+                    onClick={() => {
+                      setDraft(saved);
+                      setError(null);
+                      setStatus("");
+                    }}
+                  >
+                    Discard changes
+                  </Button>
+                )}
+                <Button onClick={save} disabled={!!busy} className="max-sm:h-11">
+                  {busy === "save" && <Loader2 className="animate-spin" aria-hidden="true" />}
+                  {isNew ? "Create role" : "Save role"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
 
-              <DataFieldVisibilitySettings
-                visibility={
-                  editedRole.dataFieldVisibility || {
-                    creatorFields: {
-                      name: { view: true, edit: false },
-                      email: { view: true, edit: false },
-                      phone: { view: false, edit: false },
-                      earnings: false,
-                      personalNotes: { view: false, edit: false },
-                      contracts: false,
-                      paymentInfo: false,
-                      avatar: { view: true, edit: false },
-                      socialLinks: { view: true, edit: false },
-                    },
-                    requestFields: {
-                      internalNotes: { view: false, edit: false },
-                      creatorCompensation: false,
-                    },
-                  }
-                }
-                onChange={(visibility) =>
-                  setEditedRole((prev) => ({ ...prev, dataFieldVisibility: visibility }))
-                }
-                disabled={isFullyDisabled}
-              />
+        {/* Summary and people */}
+        <aside className="min-w-0 space-y-6 lg:sticky lg:top-6 lg:self-start" aria-label="About this role">
+          <section aria-labelledby="role-summary-h" className="rounded-[10px] bg-tile p-4 sm:p-5">
+            <h2 id="role-summary-h" className="text-[17px] font-semibold leading-snug text-ink">
+              What this role can do
+            </h2>
+            <p className="mt-2 text-sm text-ink">
+              {creatorScopeSentence(draft.creatorScope, names)} {teamScopeSentence(draft.teamScope, names)}
+            </p>
+            {summary.lines.length === 0 ? (
+              <p className="mt-3 text-sm text-ink-2">Nothing yet. Switch on permissions to give this role access.</p>
+            ) : (
+              <dl className="mt-3 space-y-2">
+                {summary.lines.map((l) => (
+                  <div key={l.area}>
+                    <dt className="text-[13px] font-semibold text-ink">{l.title}</dt>
+                    <dd className="text-[13px] text-ink-2">{l.text.charAt(0).toUpperCase() + l.text.slice(1)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {summary.hiddenInfo.length > 0 && (
+              <p className="mt-3 border-t border-line pt-3 text-[13px] text-ink">
+                <Lock className="mr-1 inline size-3.5 align-[-2px] text-icon" aria-hidden="true" />
+                Hidden from them: creators&apos; {summary.hiddenInfo.join(", ")}.
+              </p>
+            )}
+            {summary.none.length > 0 && summary.lines.length > 0 && (
+              <p className="mt-3 text-[13px] text-ink-2">No access to {summary.none.join(", ").toLowerCase()}.</p>
+            )}
+          </section>
 
-              <TeamMemberVisibilitySettings
-                visibility={
-                  editedRole.teamMemberVisibility || {
-                    canSeeOwnProfile: true,
-                    canEditOwnProfile: false,
-                    canSeeOtherMembers: true,
-                    canSeeOtherMemberActivity: false,
-                    canSeeMemberEarnings: false,
-                    memberFieldVisibility: {
-                      email: true,
-                      phone: false,
-                      role: true,
-                      lastActive: false,
-                    },
-                  }
-                }
-                onChange={(visibility) =>
-                  setEditedRole((prev) => ({ ...prev, teamMemberVisibility: visibility }))
-                }
-                disabled={isFullyDisabled}
-              />
-            </TabsContent>
+          {!isNew && (
+            <section aria-labelledby="role-people-h" className="rounded-[10px] bg-tile p-4 sm:p-5">
+              <h2 id="role-people-h" className="text-[17px] font-semibold leading-snug text-ink">
+                People with this role
+              </h2>
+              <p className="mt-0.5 text-sm tabular-nums text-ink-2">
+                {holders.length === 0 ? "Nobody yet." : `${plural(holders.length, "person", "people")}.`}
+              </p>
+              {holders.length > 0 && (
+                <ul className="mt-3 divide-y divide-line">
+                  {holders.map((s) => (
+                    <li key={s.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-medium text-ink">
+                          {s.name}
+                          {s.id === data.me.id && <span className="font-normal text-ink-2"> (you)</span>}
+                        </p>
+                        <p className="truncate text-[13px] text-ink-2">{s.email}</p>
+                      </div>
+                      {movable(s) && (
+                        <Select value="" onValueChange={(v) => v && assign(s.id, v)} disabled={!!busy}>
+                          <SelectTrigger aria-label={`Change role for ${s.name}`} className="h-11 md:h-9">
+                            <SelectValue placeholder="Change role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {targets
+                              .filter((r) => r.id !== role.id)
+                              .map((r) => (
+                                <SelectItem key={r.id} value={r.id}>
+                                  {r.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {addable.length > 0 && (
+                <div className="mt-4 space-y-2 border-t border-line pt-4">
+                  <Label htmlFor="role-add-person">Move someone onto this role</Label>
+                  <Select value="" onValueChange={(v) => v && assign(v, role.id)} disabled={!!busy || dirty}>
+                    <SelectTrigger id="role-add-person" className="h-11 md:h-9" aria-describedby={dirty ? "role-add-hint" : undefined}>
+                      <SelectValue placeholder="Choose a teammate" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {addable.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name} · now {names.roles[s.roleId] ?? "no role"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {dirty && (
+                    <p id="role-add-hint" className="text-[13px] text-ink-2">
+                      Save your changes first.
+                    </p>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+        </aside>
+      </div>
 
-            <TabsContent value="preview" className="mt-0 pb-6">
-              <RolePreview role={editedRole} />
-            </TabsContent>
-          </div>
-        </Tabs>
-
-        <DialogFooter className="mt-4 shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving || isFullyDisabled}>
-            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            <Save className="h-4 w-4 mr-2" />
-            {isNew ? "Create Role" : "Save Changes"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <InviteConfirmDialog
+        open={confirm === "reset"}
+        onOpenChange={(o) => !o && setConfirm(null)}
+        title={`Put ${role.name} back to its defaults?`}
+        description={`Every permission, the creators it sees and the teammates it sees go back to how ${role.name} started. ${plural(holders.length, "person", "people")} with this role get the change straight away.`}
+        confirmLabel="Reset to default"
+        onConfirm={reset}
+      />
+      <InviteConfirmDialog
+        open={confirm === "delete"}
+        onOpenChange={(o) => !o && setConfirm(null)}
+        title={`Delete ${role.name}?`}
+        description="The role is removed for good. Nobody has it, so nobody loses access."
+        confirmLabel="Delete role"
+        destructive
+        onConfirm={remove}
+      />
+    </div>
   );
 }
 
-export default RoleEditorDialog;
+// ---------- scope pickers ----------
+
+function Choice({
+  name,
+  value,
+  checked,
+  onChange,
+  disabled,
+  title,
+  hint,
+}: {
+  name: string;
+  value: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+  title: string;
+  hint: string;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer items-start gap-3 rounded-[8px] px-3 py-2.5 transition-colors hover:bg-tile-hi has-[:disabled]:cursor-not-allowed has-[:disabled]:hover:bg-transparent",
+        checked && "bg-tile-hi"
+      )}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        className="mt-1 size-4 shrink-0 cursor-pointer appearance-none rounded-full border border-ctl-hi bg-well transition-[border-width,border-color] checked:border-[5px] checked:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed"
+      />
+      <span className="min-w-0">
+        <span className="block text-[15px] font-medium text-ink">{title}</span>
+        <span className="block text-[13px] text-ink-2">{hint}</span>
+      </span>
+    </label>
+  );
+}
+
+function CheckList<T extends { id: string; name: string }>({
+  items,
+  chosen,
+  onChange,
+  disabled,
+  detail,
+  label: groupLabel,
+  filterable,
+}: {
+  items: T[];
+  chosen: string[];
+  onChange: (ids: string[]) => void;
+  disabled?: boolean;
+  detail?: (item: T) => string;
+  label: string;
+  filterable?: boolean;
+}) {
+  const [filter, setFilter] = React.useState("");
+  const f = filter.trim().toLowerCase();
+  const shown = f ? items.filter((i) => i.name.toLowerCase().includes(f)) : items;
+  const set = new Set(chosen);
+  return (
+    <div className="ml-7 mt-1 space-y-2">
+      {filterable && items.length > 8 && (
+        <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={`Find in ${groupLabel.toLowerCase()}`} aria-label={`Find in ${groupLabel.toLowerCase()}`} />
+      )}
+      <div role="group" aria-label={groupLabel} className="max-h-[280px] overflow-y-auto rounded-[8px] bg-well p-1">
+        {shown.length === 0 ? (
+          <p className="px-3 py-2.5 text-sm text-ink-2">Nothing matches.</p>
+        ) : (
+          shown.map((i) => (
+            <label key={i.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[6px] px-3 py-2 hover:bg-tile md:min-h-9">
+              <Checkbox
+                checked={set.has(i.id)}
+                disabled={disabled}
+                onCheckedChange={(v) => onChange(v === true ? [...chosen, i.id] : chosen.filter((x) => x !== i.id))}
+                aria-label={i.name}
+              />
+              <span className="min-w-0 flex-1 truncate text-sm text-ink">{i.name}</span>
+              {detail && <span className="shrink-0 text-[13px] tabular-nums text-ink-2">{detail(i)}</span>}
+            </label>
+          ))
+        )}
+      </div>
+      <p className="text-[13px] tabular-nums text-ink-2">{chosen.length} chosen.</p>
+    </div>
+  );
+}
+
+function ScopeBlock({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="border-b border-line px-4 py-4">
+      <legend className="sr-only">{title}</legend>
+      <p aria-hidden="true" className="text-[15px] font-semibold text-ink">
+        {title}
+      </p>
+      <p className="mt-0.5 text-[13px] text-ink-2">{hint}</p>
+      <div className="mt-3 space-y-1">{children}</div>
+    </fieldset>
+  );
+}
+
+function CreatorScopePicker({
+  value,
+  onChange,
+  groups,
+  creators,
+  disabled,
+}: {
+  value: CreatorScope;
+  onChange: (s: CreatorScope) => void;
+  groups: RoleEditorData["groups"];
+  creators: RoleEditorData["creators"];
+  disabled?: boolean;
+}) {
+  const groupIds = value.type === "groups" ? value.groupIds : [];
+  const creatorIds = value.type === "creators" ? value.creatorIds : [];
+  return (
+    <ScopeBlock title="Which creators" hint="Creators outside this are invisible to them everywhere: lists, requests, messages, search, counts and exports.">
+      <Choice name="creator-scope" value="all" checked={value.type === "all"} onChange={() => onChange({ type: "all" })} disabled={disabled} title="Every creator" hint="Including creators added later." />
+      <Choice
+        name="creator-scope"
+        value="groups"
+        checked={value.type === "groups"}
+        onChange={() => onChange({ type: "groups", groupIds })}
+        disabled={disabled}
+        title="Creators in chosen groups"
+        hint="Follows the groups: adding a creator to a group shows them to this role."
+      />
+      {value.type === "groups" &&
+        (groups.length === 0 ? (
+          <p className="ml-7 text-[13px] text-ink-2">
+            There are no creator groups yet.{" "}
+            <Link href="/dashboard/creators/groups" className="font-medium text-ink underline decoration-ctl-hi underline-offset-[3px] hover:decoration-ink">
+              Make groups
+            </Link>{" "}
+            first.
+          </p>
+        ) : (
+          <CheckList
+            label="Creator groups"
+            items={groups}
+            chosen={groupIds}
+            onChange={(ids) => onChange({ type: "groups", groupIds: ids })}
+            disabled={disabled}
+            detail={(g) => plural(g.count, "creator")}
+          />
+        ))}
+      <Choice
+        name="creator-scope"
+        value="creators"
+        checked={value.type === "creators"}
+        onChange={() => onChange({ type: "creators", creatorIds })}
+        disabled={disabled}
+        title="Chosen creators"
+        hint="Only the creators you tick. New creators stay hidden until you add them."
+      />
+      {value.type === "creators" && (
+        <CheckList label="Creators" items={creators} chosen={creatorIds} onChange={(ids) => onChange({ type: "creators", creatorIds: ids })} disabled={disabled} filterable />
+      )}
+    </ScopeBlock>
+  );
+}
+
+function TeamScopePicker({
+  value,
+  onChange,
+  roles,
+  staff,
+  disabled,
+}: {
+  value: TeamScope;
+  onChange: (s: TeamScope) => void;
+  roles: RoleEditorData["roles"];
+  staff: RoleEditorData["staff"];
+  disabled?: boolean;
+}) {
+  const roleIds = value.type === "roles" ? value.roleIds : [];
+  const memberIds = value.type === "members" ? value.memberIds : [];
+  return (
+    <ScopeBlock
+      title="Which team members"
+      hint="Applies to the Team page, people pickers (assignees, watchers, mentions, chats), oversight and activity. They always see themselves."
+    >
+      <Choice name="team-scope" value="all" checked={value.type === "all"} onChange={() => onChange({ type: "all" })} disabled={disabled} title="Everyone" hint="The whole team." />
+      <Choice
+        name="team-scope"
+        value="roles"
+        checked={value.type === "roles"}
+        onChange={() => onChange({ type: "roles", roleIds })}
+        disabled={disabled}
+        title="People with chosen roles"
+        hint="Follows the roles as people move between them."
+      />
+      {value.type === "roles" && (
+        <CheckList
+          label="Roles"
+          items={roles}
+          chosen={roleIds}
+          onChange={(ids) => onChange({ type: "roles", roleIds: ids })}
+          disabled={disabled}
+          detail={(r) => plural(r.memberCount, "person", "people")}
+        />
+      )}
+      <Choice
+        name="team-scope"
+        value="members"
+        checked={value.type === "members"}
+        onChange={() => onChange({ type: "members", memberIds })}
+        disabled={disabled}
+        title="Chosen people"
+        hint="Only the teammates you tick."
+      />
+      {value.type === "members" && (
+        <CheckList label="Teammates" items={staff} chosen={memberIds} onChange={(ids) => onChange({ type: "members", memberIds: ids })} disabled={disabled} filterable />
+      )}
+      <Choice name="team-scope" value="self" checked={value.type === "self"} onChange={() => onChange({ type: "self" })} disabled={disabled} title="Only themselves" hint="Nobody else on the team appears anywhere for them." />
+    </ScopeBlock>
+  );
+}
+

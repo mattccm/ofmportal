@@ -1,25 +1,26 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, getPageAccess, redactCreator, staffWhere, type Access } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { ReportsDashboard } from "./reports-dashboard";
 
-async function getReportOptions(agencyId: string) {
+async function getReportOptions(access: Access) {
   try {
     const [creators, teamMembers] = await Promise.all([
+      // Only creators inside this person's creator scope
       db.creator.findMany({
-        where: { agencyId },
+        where: creatorWhere(access),
         select: { id: true, name: true, email: true },
         orderBy: { name: "asc" },
       }),
+      // Only teammates inside this person's team scope
       db.user.findMany({
-        where: { agencyId },
+        where: staffWhere(access),
         select: { id: true, name: true, email: true, role: true },
         orderBy: { name: "asc" },
       }),
     ]);
 
-    return { creators, teamMembers };
+    return { creators: redactCreator(access, creators), teamMembers };
   } catch (error) {
     console.error("Failed to fetch report options:", error);
     return { creators: [], teamMembers: [] };
@@ -27,13 +28,10 @@ async function getReportOptions(agencyId: string) {
 }
 
 export default async function ReportsPage() {
-  const session = await getServerSession(authOptions);
+  const access = await getPageAccess();
+  if (!access.has("reports.view")) return <NoAccess what="reports" roleName={access.role.name} />;
 
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
-
-  const { creators, teamMembers } = await getReportOptions(session.user.agencyId);
+  const { creators, teamMembers } = await getReportOptions(access);
 
   return (
     <div className="animate-fade-in">

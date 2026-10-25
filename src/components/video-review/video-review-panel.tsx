@@ -37,6 +37,7 @@ import {
 } from "./video-player-with-timestamps";
 import { TimestampList } from "./timestamp-list";
 import { TimestampForm } from "./timestamp-form";
+import { useAccess } from "@/lib/access/client";
 
 // TYPES
 
@@ -66,6 +67,8 @@ export function VideoReviewPanel({
   onDownload,
   currentUser = { id: "", name: "Unknown" },
 }: VideoReviewPanelProps) {
+  const { can } = useAccess();
+  const canComment = can("requests.comment");
   const playerRef = useRef<VideoPlayerRef>(null);
   const [timestamps, setTimestamps] = useState<VideoTimestamp[]>([]);
   const [selectedTimestamp, setSelectedTimestamp] = useState<VideoTimestamp | null>(null);
@@ -392,7 +395,7 @@ export function VideoReviewPanel({
                   poster={videoPoster}
                   timestamps={timestamps}
                   onTimeUpdate={setCurrentTime}
-                  onAddTimestamp={handleAddTimestamp}
+                  onAddTimestamp={canComment ? handleAddTimestamp : undefined}
                   onTimestampSelect={handleTimestampSelect}
                   onTimestampResolve={handleResolveTimestamp}
                   selectedTimestampId={selectedTimestamp?.id}

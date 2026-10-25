@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requestWhere, requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import type {
   BatchScanResult,
@@ -32,29 +31,18 @@ const batchScanRequestSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admins and owners can run batch scans
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to run batch scans" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const params = batchScanRequestSchema.parse(body);
     const agencyId = session.user.agencyId;
 
     // Build query for uploads to scan - filter for uploads that have fingerprints
+    // (only uploads by creators inside this person's creator scope)
     const whereClause: Record<string, unknown> = {
-      request: {
-        agencyId,
-      },
+      request: requestWhere(access),
       // Only scan files that have fingerprints
       fingerprint: {
         isNot: null,
@@ -287,18 +275,9 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to view batch scans" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(req.url);
     const scanId = searchParams.get("scanId");

@@ -25,6 +25,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 /**
  * Template groups (stored as TemplateCategory rows; the route keeps its old
@@ -50,6 +52,8 @@ async function readError(res: Response, fallback: string): Promise<string> {
 }
 
 export default function TemplateGroupsPage() {
+  const { can, roleName } = useAccess();
+  const allowed = can("templates.groups");
   const [groups, setGroups] = React.useState<TemplateGroup[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [formOpen, setFormOpen] = React.useState(false);
@@ -58,6 +62,7 @@ export default function TemplateGroupsPage() {
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
+    if (!allowed) return;
     (async () => {
       try {
         const res = await fetch("/api/template-categories?includeTemplateCount=true");
@@ -70,7 +75,7 @@ export default function TemplateGroupsPage() {
         setIsLoading(false);
       }
     })();
-  }, []);
+  }, [allowed]);
 
   const save = async (data: { name: string; description: string }) => {
     const url = editing ? `/api/template-categories/${editing.id}` : "/api/template-categories";
@@ -140,6 +145,8 @@ export default function TemplateGroupsPage() {
   };
 
   const total = groups.reduce((n, g) => n + g.templateCount, 0);
+
+  if (!allowed) return <NoAccess what="managing template groups" roleName={roleName} />;
 
   return (
     <div>

@@ -1,22 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, forbidden, requestWhere } from "@/lib/access/server";
+import { db } from "@/lib/db";
 import { createConversation, getConversations, getOrCreateDirectConversation } from "@/lib/chat";
 import { ConversationType } from "@prisma/client";
-import { staffIdsInAgency } from "@/lib/conversation-access";
+import { INBOX_KEYS, staffIdsInAgency, visibleConversationWhere } from "@/lib/conversation-access";
 
 /**
  * GET /api/conversations
  * List all conversations for the current user
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
-    const conversations = await getConversations(session.user.id);
+    const all = await getConversations(session.user.id);
+    // Only threads this role may see (creator scope, team chats key)
+    const visible = new Set(
+      (
+        await db.conversation.findMany({
+          where: { AND: [{ id: { in: all.map((c) => c.id) } }, visibleConversationWhere(access)] },
+          select: { id: true },
+        })
+      ).map((c) => c.id)
+    );
+    const conversations = all.filter((c) => visible.has(c.id));
 
     return NextResponse.json({ conversations });
   } catch (error) {
@@ -40,13 +49,20 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("messages.team");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await request.json();
     const { type, participantIds, name, requestId } = body;
+    if (type === "GROUP" && !access.has("messages.groups")) return forbidden("messages.groups");
+    // A request thread only for a request whose creator this person can see
+    if (requestId) {
+      const seen = await db.contentRequest.count({
+        where: { AND: [requestWhere(access), { id: String(requestId) }] },
+      });
+      if (!seen) return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
 
     // Validate input
     if (!type || !participantIds || !Array.isArray(participantIds)) {
@@ -65,14 +81,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Everyone in a team thread must be real staff of the caller's agency
-    // (no creator pseudo-users, no other agency's users)
-    if (!session.user.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // (no creator pseudo-users, no other agency's users), inside the caller's team scope
     const requestedIds = Array.from(
       new Set(participantIds.filter((id: unknown): id is string => typeof id === "string" && !!id))
     );
-    const validIds = await staffIdsInAgency(requestedIds, session.user.agencyId);
+    const validIds = await staffIdsInAgency(requestedIds, access.agencyId, access);
     if (validIds.length !== requestedIds.length || requestedIds.length !== participantIds.length) {
       return NextResponse.json(
         { error: "Only people on your team can be added" },

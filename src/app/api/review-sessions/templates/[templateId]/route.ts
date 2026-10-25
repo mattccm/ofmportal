@@ -2,7 +2,7 @@
 // PUT /api/review-sessions/templates/[templateId] - Update a template
 // DELETE /api/review-sessions/templates/[templateId] - Delete a template
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
@@ -19,9 +19,9 @@ export async function GET(
 ) {
   try {
     const { templateId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { agencyId } = gate.access;
 
     const template = await db.sessionTemplate.findUnique({
       where: { id: templateId },
@@ -78,9 +78,9 @@ export async function PUT(
 ) {
   try {
     const { templateId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const body: Partial<CreateSessionTemplateRequest> = await request.json();
 
     const template = await db.sessionTemplate.findUnique({
@@ -163,9 +163,9 @@ export async function DELETE(
 ) {
   try {
     const { templateId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
 
     const template = await db.sessionTemplate.findUnique({
       where: { id: templateId },

@@ -69,7 +69,8 @@ interface Template {
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  /** Left out when the person's role hides creators' email */
+  email?: string;
 }
 
 interface CreatorGroup {
@@ -206,7 +207,7 @@ export function RecurringRequestModal({
     return creators.filter(
       (c) =>
         c.name.toLowerCase().includes(search) ||
-        c.email.toLowerCase().includes(search)
+        (c.email ?? "").toLowerCase().includes(search)
     );
   }, [creators, creatorSearch]);
 
@@ -666,9 +667,11 @@ export function RecurringRequestModal({
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">{creator.name}</p>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {creator.email}
-                            </p>
+                            {creator.email && (
+                              <p className="text-sm text-muted-foreground truncate">
+                                {creator.email}
+                              </p>
+                            )}
                           </div>
                         </label>
                       ))

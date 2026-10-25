@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, creatorWhere, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
@@ -98,11 +97,9 @@ const requestListSelect = {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const pagination = parsePaginationParams(searchParams);
@@ -116,7 +113,7 @@ export async function GET(req: NextRequest) {
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
     // Build where clause
-    const where: Record<string, unknown> = { agencyId: session.user.agencyId };
+    const where: Record<string, unknown> = { ...requestWhere(access) };
 
     if (status && status !== "all") {
       // Support multiple statuses separated by comma
@@ -197,7 +194,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json(
-      createPaginatedResponse(requestsWithReview, total, pagination)
+      redactCreatorsIn(access, createPaginatedResponse(requestsWithReview, total, pagination))
     );
   } catch (error) {
     console.error("Error fetching requests:", error);
@@ -210,21 +207,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.create");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = createRequestSchema.parse(body);
 
     // Verify creator belongs to this agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: validatedData.creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: validatedData.creatorId }] },
     });
 
     if (!creator) {
@@ -340,7 +332,7 @@ export async function POST(req: NextRequest) {
     // Invalidate request list cache
     invalidateCache.request(contentRequest.id, session.user.agencyId);
 
-    return NextResponse.json({
+    return NextResponse.json(redactCreatorsIn(access, {
       ...contentRequest,
       reminderSchedule: reminderScheduleResult
         ? {
@@ -349,7 +341,7 @@ export async function POST(req: NextRequest) {
             configSource: reminderScheduleResult.config.source,
           }
         : null,
-    }, { status: 201 });
+    }), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

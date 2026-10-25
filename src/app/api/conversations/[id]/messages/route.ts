@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { getMessages, sendMessage, markMessagesAsRead, type Attachment } from "@/lib/chat";
-import { db } from "@/lib/db";
+import { requireAccess, forbidden } from "@/lib/access/server";
+import { findStaffConversation, INBOX_KEYS } from "@/lib/conversation-access";
+
+const notFound = () => NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,31 +19,18 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id: conversationId } = await params;
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
     const cursor = searchParams.get("cursor") || undefined;
 
-    // Verify user is a participant of this conversation
-    const participant = await db.conversationParticipant.findUnique({
-      where: {
-        conversationId_userId: {
-          conversationId,
-          userId: session.user.id,
-        },
-      },
-    });
-
-    if (!participant) {
-      return NextResponse.json(
-        { error: "You are not a participant of this conversation" },
-        { status: 403 }
-      );
+    // A participant, in this agency, and a thread this role may see
+    if (!(await findStaffConversation(conversationId, session.user.id, access.agencyId, access))) {
+      return notFound();
     }
 
     const result = await getMessages(conversationId, limit, cursor);
@@ -67,12 +55,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id: conversationId } = await params;
+    const convo = await findStaffConversation(conversationId, session.user.id, access.agencyId, access);
+    if (!convo) return notFound();
+    // Writing to a creator needs "Message creators"
+    if (convo.type === "CREATOR" && !access.has("messages.reply")) return forbidden("messages.reply");
+
     const body = await request.json();
     const { content, attachments } = body;
 
@@ -151,28 +143,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id: conversationId } = await params;
 
-    // Verify user is a participant
-    const participant = await db.conversationParticipant.findUnique({
-      where: {
-        conversationId_userId: {
-          conversationId,
-          userId: session.user.id,
-        },
-      },
-    });
-
-    if (!participant) {
-      return NextResponse.json(
-        { error: "You are not a participant of this conversation" },
-        { status: 403 }
-      );
+    if (!(await findStaffConversation(conversationId, session.user.id, access.agencyId, access))) {
+      return notFound();
     }
 
     const result = await markMessagesAsRead(conversationId, session.user.id);

@@ -206,7 +206,7 @@ export function ScheduleRequestModal({
     return creators.filter(
       (c) =>
         c.name.toLowerCase().includes(search) ||
-        c.email.toLowerCase().includes(search)
+        (c.email ?? "").toLowerCase().includes(search)
     );
   }, [creators, creatorSearch]);
 

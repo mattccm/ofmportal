@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { getViewPresignedUrl, getPublicFileUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
@@ -36,11 +35,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
 
@@ -48,9 +45,7 @@ export async function GET(
     const upload = await db.upload.findFirst({
       where: {
         id,
-        request: {
-          agencyId: session.user.agencyId,
-        },
+        request: requestWhere(access),
       },
       include: {
         creator: {
@@ -95,8 +90,10 @@ export async function GET(
     const versions: UploadVersion[] = [];
 
     // Add current version (creator content: signed inline view URL)
-    let currentPreviewUrl = getPublicFileUrl(upload.storageKey);
-    if (!currentPreviewUrl) {
+    // Previews stay hidden from people who can't reveal them
+    const canReveal = access.has("review.reveal");
+    let currentPreviewUrl = canReveal ? getPublicFileUrl(upload.storageKey) : null;
+    if (!currentPreviewUrl && canReveal) {
       currentPreviewUrl = await getViewPresignedUrl(upload.storageKey).catch(() => null);
     }
 
@@ -131,7 +128,7 @@ export async function GET(
         const prevVersion = metadata.previousVersion as Record<string, unknown>;
         const prevStorageKey = prevVersion.storageKey as string;
         let prevPreviewUrl: string | null = null;
-        if (prevStorageKey) {
+        if (prevStorageKey && canReveal) {
           prevPreviewUrl = getPublicFileUrl(prevStorageKey);
           if (!prevPreviewUrl) {
             prevPreviewUrl = await getViewPresignedUrl(prevStorageKey).catch(() => null);
@@ -194,11 +191,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.upload");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id } = await params;
     const body = await req.json();
@@ -216,9 +211,7 @@ export async function POST(
     const currentUpload = await db.upload.findFirst({
       where: {
         id,
-        request: {
-          agencyId: session.user.agencyId,
-        },
+        request: requestWhere(access),
       },
       include: {
         request: {

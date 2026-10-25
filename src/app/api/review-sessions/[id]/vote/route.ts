@@ -1,6 +1,6 @@
 // POST /api/review-sessions/[id]/vote - Cast a vote
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess, uploadWhere } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -17,9 +17,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const body: VoteRequest = await request.json();
 
     // Validate vote type
@@ -92,6 +92,12 @@ export async function POST(
         { error: "Upload is not part of this session" },
         { status: 400 }
       );
+    }
+    const visibleUpload = await db.upload.count({
+      where: { AND: [uploadWhere(gate.access), { id: body.uploadId }] },
+    });
+    if (!visibleUpload) {
+      return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
     // Get user info

@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { excludePseudoUsers } from "@/lib/staff";
+import { requireAccess, requestWhere, staffWhere } from "@/lib/access/server";
 import { extractMentionIds } from "@/lib/mention-parser";
 import { MentionContextType } from "@prisma/client";
+import { visibleMentionIds } from "@/lib/mention-visibility";
 
 // GET /api/mentions - List mentions for current user
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
@@ -52,18 +50,24 @@ export async function GET(request: NextRequest) {
       select: { id: true, name: true, email: true, avatar: true },
     });
     const usersMap = new Map(users.map((u) => [u.id, u]));
+    // Mentions of something outside the person's scopes keep no text or title
+    const visible = await visibleMentionIds(access, mentions);
 
     // Transform mentions with user details and context info
     const mentionsWithDetails = await Promise.all(
       mentions.map(async (mention) => {
         const mentionedBy = usersMap.get(mention.mentionedById);
         let contextDetails = { title: "Unknown", url: mention.contextUrl || "#" };
+        const shown = visible.has(mention.id);
 
         try {
+          if (!shown) {
+            contextDetails = { title: "Something your role can't see", url: "#" };
+          } else
           // Fetch context details based on type
           if (mention.contextType === "REQUEST") {
-            const request = await db.contentRequest.findUnique({
-              where: { id: mention.contextId },
+            const request = await db.contentRequest.findFirst({
+              where: { AND: [requestWhere(access), { id: mention.contextId }] },
               select: { id: true, title: true },
             });
             if (request) {
@@ -106,7 +110,7 @@ export async function GET(request: NextRequest) {
 
         return {
           id: mention.id,
-          content: mention.content,
+          content: shown ? mention.content : "",
           contextType: mention.contextType,
           contextId: mention.contextId,
           contextUrl: contextDetails.url,
@@ -152,10 +156,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await request.json();
     const { content, contextType, contextId, contextUrl } = body;
@@ -176,11 +179,7 @@ export async function POST(request: NextRequest) {
 
     // Verify mentioned users exist and belong to the same agency
     const validUsers = await db.user.findMany({
-      where: {
-        id: { in: mentionedUserIds },
-        agencyId: session.user.agencyId,
-        ...excludePseudoUsers,
-      },
+      where: { AND: [staffWhere(access), { id: { in: mentionedUserIds } }] },
       select: { id: true },
     });
 

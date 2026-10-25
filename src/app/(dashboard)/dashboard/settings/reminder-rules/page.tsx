@@ -19,6 +19,8 @@ import { EmptyLine, PageHead, Panel, SettingsSection } from "@/components/creato
 import { cityOf, contactLabel, plural, type QuietHours } from "@/components/creators/insights";
 import { reminderEmailSubject, reminderSmsBody, withBrandPrefix } from "@/lib/reminder-copy";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 // ---------------------------------------------------------------- types
 
@@ -41,9 +43,10 @@ interface ReminderRule {
 interface PreviewCreator {
   id: string;
   name: string;
-  preferredContact: string;
-  timezone: string;
-  hasPhone: boolean;
+  /** Each left out when the person's role hides that creator information */
+  preferredContact?: string;
+  timezone?: string;
+  hasPhone?: boolean;
   quiet: QuietHours;
   paused: boolean;
   disabled: boolean;
@@ -122,7 +125,7 @@ function inQuiet(local: number, q: QuietHours): boolean {
  * Reminders are scheduled for the start of the day on the server (UTC) and
  * the hourly run holds them back through quiet hours.
  */
-function arrival(sendDay: Date, tz: string, q: QuietHours): { time: string; day: Date } {
+function arrival(sendDay: Date, tz: string | undefined, q: QuietHours): { time: string; day: Date } {
   const at = new Date(Date.UTC(sendDay.getFullYear(), sendDay.getMonth(), sendDay.getDate(), 0, 0));
   let hh = 0;
   let mm = 0;
@@ -162,6 +165,12 @@ const shortDay = (d: Date) => d.toLocaleDateString("en-AU", { weekday: "short", 
 // ---------------------------------------------------------------- page
 
 export default function ReminderRulesPage() {
+  const { can, roleName } = useAccess();
+  const canRules = can("reminders.rules");
+  // The wording (reminder templates) has its own key
+  const canWording = can("reminders.templates");
+  // Quiet hours are a creator's reminder settings (Creators: pause reminders)
+  const canQuiet = can("creators.pauseReminders");
   const [rules, setRules] = React.useState<ReminderRule[]>([]);
   const [missing, setMissing] = React.useState<Urgency[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -197,8 +206,8 @@ export default function ReminderRulesPage() {
   }, []);
 
   React.useEffect(() => {
-    void load();
-  }, [load]);
+    if (canRules) void load();
+  }, [load, canRules]);
 
   const sorted = [...rules].sort((a, b) => ORDER.indexOf(a.urgency) - ORDER.indexOf(b.urgency));
   const on = rules.filter((r) => r.isActive);
@@ -355,6 +364,8 @@ export default function ReminderRulesPage() {
     : error
       ? error
       : `${on.length} of ${plural(rules.length, "rule")} on. Texts and emails never carry a request title.`;
+
+  if (!canRules) return <NoAccess what="reminder rules and wording" roleName={roleName} />;
 
   if (loading) {
     return (
@@ -571,8 +582,8 @@ export default function ReminderRulesPage() {
                 {[
                   ["Arrives", `${arrive.time} their time, ${shortDay(arrive.day)}`],
                   ["Goes by", moment ? (moment.sms ? (creator.hasPhone ? "SMS" : "SMS, but no phone number") : "Email") : "Nothing"],
-                  ["They prefer", contactLabel(creator.preferredContact)],
-                  ["Time zone", cityOf(creator.timezone)],
+                  ...(creator.preferredContact !== undefined ? [["They prefer", contactLabel(creator.preferredContact)]] : []),
+                  ...(creator.timezone !== undefined ? [["Time zone", cityOf(creator.timezone)]] : []),
                   ["Quiet hours", creator.quiet.enabled ? `${creator.quiet.start}–${creator.quiet.end}` : "None"],
                   ["Request title shown", "Never"],
                 ].map(([k, v]) => (
@@ -618,14 +629,14 @@ export default function ReminderRulesPage() {
                   <div className="min-w-[140px] flex-1">
                     <p className="font-medium text-ink">{c.name}</p>
                     <p className="text-[13px] text-ink-2">
-                      {cityOf(c.timezone)}
+                      {c.timezone !== undefined ? cityOf(c.timezone) : "Their time"}
                       {c.quiet.isDefault ? " · default" : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Select
                       value={c.quiet.start}
-                      disabled={!c.quiet.enabled || quietSaving === c.id}
+                      disabled={!canQuiet || !c.quiet.enabled || quietSaving === c.id}
                       onValueChange={(v) => void setQuiet(c, { ...c.quiet, start: v })}
                     >
                       <SelectTrigger className="w-[108px] md:w-[96px]" aria-label={`Quiet hours for ${c.name} start`}>
@@ -642,7 +653,7 @@ export default function ReminderRulesPage() {
                     <span className="text-sm text-ink-2">to</span>
                     <Select
                       value={c.quiet.end}
-                      disabled={!c.quiet.enabled || quietSaving === c.id}
+                      disabled={!canQuiet || !c.quiet.enabled || quietSaving === c.id}
                       onValueChange={(v) => void setQuiet(c, { ...c.quiet, end: v })}
                     >
                       <SelectTrigger className="w-[108px] md:w-[96px]" aria-label={`Quiet hours for ${c.name} end`}>
@@ -658,7 +669,7 @@ export default function ReminderRulesPage() {
                     </Select>
                     <Switch
                       checked={c.quiet.enabled}
-                      disabled={quietSaving === c.id}
+                      disabled={!canQuiet || quietSaving === c.id}
                       onCheckedChange={(v) => void setQuiet(c, { ...c.quiet, enabled: v })}
                       aria-label={`Quiet hours for ${c.name}`}
                       className="ml-2"
@@ -677,14 +688,16 @@ export default function ReminderRulesPage() {
         title="Wording and tests"
         description="Message templates by tier, a test reminder to yourself, and the schedule laid out on a calendar."
       >
-        <Tabs defaultValue="templates" className="space-y-4">
+        <Tabs defaultValue={canWording ? "templates" : "test"} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="templates">Message templates</TabsTrigger>
+            {canWording && <TabsTrigger value="templates">Message templates</TabsTrigger>}
             <TabsTrigger value="test">Test and calendar</TabsTrigger>
           </TabsList>
-          <TabsContent value="templates">
-            <TieredTemplatesPanel />
-          </TabsContent>
+          {canWording && (
+            <TabsContent value="templates">
+              <TieredTemplatesPanel />
+            </TabsContent>
+          )}
           <TabsContent value="test">
             <ReminderSettingsPanel rules={rules} />
           </TabsContent>

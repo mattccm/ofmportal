@@ -1,8 +1,7 @@
 import { Suspense } from "react";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getPageAccess, creatorWhere, uploadWhere, redactCreator, type Access } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { UploadsPageClient } from "./page-client";
 import { getUploads, type PageProps } from "./query";
 import { UploadsSkeleton } from "@/components/skeletons/page-skeletons/uploads-skeleton";
@@ -12,9 +11,9 @@ export const metadata = {
   description: "Review and manage all content uploads",
 };
 
-async function getCreators(agencyId: string) {
+async function getCreators(access: Access) {
   return db.creator.findMany({
-    where: { agencyId },
+    where: creatorWhere(access),
     select: {
       id: true,
       name: true,
@@ -39,12 +38,12 @@ async function getTemplates(agencyId: string) {
   });
 }
 
-async function getStats(agencyId: string) {
+async function getStats(access: Access) {
   // Use groupBy to get all status counts in a single query instead of 4 separate counts
   const statusCounts = await db.upload.groupBy({
     by: ["status"],
     where: {
-      request: { agencyId },
+      ...uploadWhere(access),
       uploadStatus: "COMPLETED",
     },
     _count: true,
@@ -71,11 +70,8 @@ function LoadingFallback() {
 }
 
 export default async function UploadsPage({ searchParams }: PageProps) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
+  const access = await getPageAccess();
+  if (!access.has("review.view")) return <NoAccess what="uploads" roleName={access.role.name} />;
 
   const params = await searchParams;
 
@@ -85,10 +81,10 @@ export default async function UploadsPage({ searchParams }: PageProps) {
   let stats: Awaited<ReturnType<typeof getStats>>;
   try {
     [uploadsData, creators, templates, stats] = await Promise.all([
-      getUploads(session.user.agencyId, params),
-      getCreators(session.user.agencyId),
-      getTemplates(session.user.agencyId),
-      getStats(session.user.agencyId),
+      getUploads(access, params),
+      getCreators(access).then((c) => redactCreator(access, c)),
+      getTemplates(access.agencyId),
+      getStats(access),
     ]);
   } catch (error) {
     console.error("Failed to fetch uploads data:", error);

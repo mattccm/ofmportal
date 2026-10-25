@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -20,11 +19,9 @@ const createCategorySchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["templates.view", "requests.create", "recurring.create", "recurring.edit", "bundles.edit"]);
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(req.url);
     const includeTemplateCount = searchParams.get("includeTemplateCount") === "true";
@@ -72,19 +69,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("templates.groups");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only owners/admins can create categories
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Only owners and admins can make template groups" },
-        { status: 403 }
-      );
-    }
 
     const body = await req.json();
     const validatedData = createCategorySchema.parse(body);

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, forbidden, activityWhere, requestWhere, uploadWhere } from "@/lib/access/server";
 import { z } from "zod";
 import { UploadApprovalStatus, RequestStatus } from "@prisma/client";
 import {
@@ -19,19 +18,26 @@ const undoSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.bulk");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = undoSchema.parse(body);
     const { operationId, type, affectedIds, previousStates } = validatedData;
 
+    // Undoing an operation is the same action as the opposite change
+    if (type === "request_create" && !access.has("requests.delete")) return forbidden("requests.delete");
+    if (type === "upload_review" && !access.hasAny(["review.approve", "review.requestChanges"])) {
+      return forbidden("review.approve");
+    }
+    if (type === "status_update" && !access.has("requests.edit")) return forbidden("requests.edit");
+    if (type === "archive" && !access.has("requests.archive")) return forbidden("requests.archive");
+
     // Find the original operation in activity logs
     const originalOperation = await db.activityLog.findFirst({
       where: {
+        ...activityWhere(access),
         OR: [
           { id: operationId },
           {
@@ -79,9 +85,10 @@ export async function POST(req: NextRequest) {
         // Delete the created requests
         for (const requestId of affectedIds) {
           try {
-            await db.contentRequest.delete({
-              where: { id: requestId },
+            const { count } = await db.contentRequest.deleteMany({
+              where: { AND: [requestWhere(access), { id: requestId }] },
             });
+            if (!count) throw new Error("not found");
             undoneCount++;
           } catch (error) {
             errors.push(`Failed to delete request ${requestId}`);
@@ -97,8 +104,8 @@ export async function POST(req: NextRequest) {
           const previousState = previousStates?.[i];
 
           try {
-            await db.upload.update({
-              where: { id: uploadId },
+            const { count } = await db.upload.updateMany({
+              where: { AND: [uploadWhere(access), { id: uploadId }] },
               data: {
                 status: (previousState?.status as UploadApprovalStatus) || UploadApprovalStatus.PENDING,
                 rating: null,
@@ -106,6 +113,7 @@ export async function POST(req: NextRequest) {
                 reviewedById: null,
               },
             });
+            if (!count) throw new Error("not found");
             undoneCount++;
           } catch (error) {
             errors.push(`Failed to revert upload ${uploadId}`);
@@ -126,12 +134,13 @@ export async function POST(req: NextRequest) {
           }
 
           try {
-            await db.contentRequest.update({
-              where: { id: requestId },
+            const { count } = await db.contentRequest.updateMany({
+              where: { AND: [requestWhere(access), { id: requestId }] },
               data: {
                 status: previousState.status as RequestStatus,
               },
             });
+            if (!count) throw new Error("not found");
             undoneCount++;
           } catch (error) {
             errors.push(`Failed to revert status for request ${requestId}`);
@@ -147,12 +156,13 @@ export async function POST(req: NextRequest) {
           const previousState = previousStates?.[i];
 
           try {
-            await db.contentRequest.update({
-              where: { id: requestId },
+            const { count } = await db.contentRequest.updateMany({
+              where: { AND: [requestWhere(access), { id: requestId }] },
               data: {
                 status: (previousState?.status as RequestStatus) || RequestStatus.APPROVED,
               },
             });
+            if (!count) throw new Error("not found");
             undoneCount++;
           } catch (error) {
             errors.push(`Failed to unarchive request ${requestId}`);

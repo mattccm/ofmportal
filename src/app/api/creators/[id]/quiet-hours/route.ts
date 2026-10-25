@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { quietOf } from "@/components/creators/insights";
 
 const HHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm");
@@ -21,17 +20,13 @@ const schema = z.object({
  */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Only owners, admins and managers can change quiet hours" }, { status: 403 });
-    }
+    const gate = await requireAccess("creators.pauseReminders");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id: creatorId } = await params;
     const agencyId = session.user.agencyId;
 
-    const creator = await db.creator.findFirst({ where: { id: creatorId, agencyId }, select: { id: true } });
+    const creator = await db.creator.findFirst({ where: { AND: [creatorWhere(access), { id: creatorId }] }, select: { id: true } });
     if (!creator) return NextResponse.json({ error: "Creator not found" }, { status: 404 });
 
     const parsed = schema.safeParse(await req.json());

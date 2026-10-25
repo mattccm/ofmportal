@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, forbidden, redactCreator, requireAccess } from "@/lib/access/server";
 import QRCode from "qrcode";
 import { getAppUrl } from "@/lib/app-url";
 
@@ -13,15 +12,15 @@ import { getAppUrl } from "@/lib/app-url";
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("creators.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // Every code carries an invite link
+    if (!access.has("creatorInfo.invite")) return forbidden("creatorInfo.invite");
 
     const creators = await db.creator.findMany({
       where: {
-        agencyId: session.user.agencyId,
+        ...creatorWhere(access),
         inviteStatus: "PENDING",
         inviteToken: { not: null },
       },
@@ -62,7 +61,7 @@ export async function GET() {
       })
     );
 
-    return NextResponse.json({ creators: creatorsWithQr });
+    return NextResponse.json({ creators: redactCreator(access, creatorsWithQr) });
   } catch (error) {
     console.error("Error generating bulk QR codes:", error);
     return NextResponse.json(

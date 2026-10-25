@@ -71,11 +71,13 @@ import {
 } from "@/components/title-wall";
 import { isFinished } from "./title-wall-map";
 import { approveTarget, holdAction } from "./review-actions";
+import { useAccess } from "@/lib/access/client";
 
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  /** Absent when the viewer's role hides creators' email */
+  email?: string;
 }
 
 interface RequestTemplate {
@@ -268,6 +270,11 @@ function plural(n: number, one: string, many = `${one}s`) {
 export function RequestsList({ initialRequests, creators, teamMembers = [], initialError = false }: RequestsListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { can } = useAccess();
+  const canBulk = can("requests.bulk");
+  /** Status choices this person may set (approval and changes are review actions) */
+  const statusAllowed = (status: string) =>
+    status === "APPROVED" ? can("review.approve") : status === "NEEDS_REVISION" ? can("review.requestChanges") : status === "ARCHIVED" ? can("requests.archive") : can("requests.edit");
   const [isRefreshing, startRefresh] = useTransition();
   const [requests, setRequests] = useState<ContentRequest[]>(initialRequests);
   const [loadError, setLoadError] = useState(initialError);
@@ -393,7 +400,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
         (r) =>
           r.title.toLowerCase().includes(q) ||
           r.creator.name.toLowerCase().includes(q) ||
-          r.creator.email.toLowerCase().includes(q)
+          (r.creator.email ?? "").toLowerCase().includes(q)
       );
     }
 
@@ -726,28 +733,35 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
         <DropdownMenuItem asChild>
           <Link href={`/dashboard/requests/${request.id}`}>Open review</Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/dashboard/requests/${request.id}/edit`}>Edit request</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setCloneDialog({ open: true, request })}>
-          <Copy className="mr-2 size-4" />
-          Clone request
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => sendReminders([request.id])}>
-          <Bell className="mr-2 size-4" />
-          Send reminder
-        </DropdownMenuItem>
-        {(request.readyTargets?.length ?? 0) > 0 && (
+        {can("requests.edit") && (
+          <DropdownMenuItem asChild>
+            <Link href={`/dashboard/requests/${request.id}/edit`}>Edit request</Link>
+          </DropdownMenuItem>
+        )}
+        {can("requests.create") && (
+          <DropdownMenuItem onClick={() => setCloneDialog({ open: true, request })}>
+            <Copy className="mr-2 size-4" />
+            Clone request
+          </DropdownMenuItem>
+        )}
+        {(can("requests.remind") || can("review.approve")) && <DropdownMenuSeparator />}
+        {can("requests.remind") && (
+          <DropdownMenuItem onClick={() => sendReminders([request.id])}>
+            <Bell className="mr-2 size-4" />
+            Send reminder
+          </DropdownMenuItem>
+        )}
+        {can("review.approve") && (request.readyTargets?.length ?? 0) > 0 && (
           <DropdownMenuItem onClick={() => approveReady([request])}>
             <Check className="mr-2 size-4" />
             Approve {plural(request.readyTargets!.length, "ready field")}
           </DropdownMenuItem>
         )}
+        {STATUS_OPTIONS.some((s) => s.value !== "all" && statusAllowed(s.value)) && (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>Change status</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            {STATUS_OPTIONS.filter((s) => s.value !== "all").map((status) => (
+            {STATUS_OPTIONS.filter((s) => s.value !== "all" && statusAllowed(s.value)).map((status) => (
               <DropdownMenuItem
                 key={status.value}
                 disabled={request.status === status.value}
@@ -758,6 +772,8 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+        )}
+        {can("requests.edit") && (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>Change priority</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
@@ -772,13 +788,14 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        {request.status === "SUBMITTED" && (
+        )}
+        {can("review.approve") && request.status === "SUBMITTED" && (
           <DropdownMenuItem onClick={() => void quickAction(request.id, "changeStatus", { status: "APPROVED" })}>
             Mark as complete
           </DropdownMenuItem>
         )}
-        <DropdownMenuSeparator />
-        {request.status === "ARCHIVED" ? (
+        {(can("requests.archive") || can("requests.delete")) && <DropdownMenuSeparator />}
+        {!can("requests.archive") ? null : request.status === "ARCHIVED" ? (
           <DropdownMenuItem onClick={() => void restoreArchived([request.id])}>
             <ArchiveRestore className="mr-2 size-4" />
             Restore from archive
@@ -789,13 +806,15 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             Archive
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem
-          className="text-late focus:text-late"
-          onClick={() => setDeleteDialog({ open: true, ids: [request.id], label: `"${request.title}"` })}
-        >
-          <Trash2 className="mr-2 size-4" />
-          Delete
-        </DropdownMenuItem>
+        {can("requests.delete") && (
+          <DropdownMenuItem
+            className="text-late focus:text-late"
+            onClick={() => setDeleteDialog({ open: true, ids: [request.id], label: `"${request.title}"` })}
+          >
+            <Trash2 className="mr-2 size-4" />
+            Delete
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -1083,18 +1102,22 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
           <p className="mt-1 text-[15px] text-ink-2">{summary}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/dashboard/exports">
-              <Download className="size-4" />
-              Export
-            </Link>
-          </Button>
-          <Button asChild variant="light">
-            <Link href="/dashboard/requests/new">
-              <Plus className="size-4" />
-              New request
-            </Link>
-          </Button>
+          {(can("requests.export") || can("exports.data")) && (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/dashboard/exports">
+                <Download className="size-4" />
+                Export
+              </Link>
+            </Button>
+          )}
+          {can("requests.create") && (
+            <Button asChild variant="light">
+              <Link href="/dashboard/requests/new">
+                <Plus className="size-4" />
+                New request
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1268,6 +1291,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
           aria-label="Selected requests"
         >
           <span className="mr-1 text-[14px] font-medium text-ink">{plural(selectedIds.size, "request")} selected</span>
+          {can("review.approve") && (
           <Button
             size="sm"
             onClick={() => approveReady(selectedRequests)}
@@ -1277,6 +1301,8 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             {busy === "approve" ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
             Approve all ready{selectedReadyFields > 0 ? ` (${selectedReadyFields})` : ""}
           </Button>
+          )}
+          {canBulk && can("requests.remind") && (
           <Button
             size="sm"
             variant="outline"
@@ -1287,10 +1313,14 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             {busy === "remind" ? <Loader2 className="size-4 animate-spin" /> : <Bell className="size-4" />}
             Send reminder
           </Button>
+          )}
+          {canBulk && can("requests.archive") && (
           <Button size="sm" variant="outline" onClick={() => void archive(Array.from(selectedIds))} disabled={!!busy}>
             <Archive className="size-4" />
             Archive
           </Button>
+          )}
+          {canBulk && (can("requests.edit") || can("requests.delete")) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" disabled={!!busy}>
@@ -1298,30 +1328,37 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-52">
-              <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "changeStatus" })}>
-                <FileText className="mr-2 size-4" />
-                Change status
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "changePriority" })}>
-                <Flag className="mr-2 size-4" />
-                Change priority
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "assignTeamMember" })}>
-                <UserPlus className="mr-2 size-4" />
-                Assign team member
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-late focus:text-late"
-                onClick={() =>
-                  setDeleteDialog({ open: true, ids: Array.from(selectedIds), label: plural(selectedIds.size, "request") })
-                }
-              >
-                <Trash2 className="mr-2 size-4" />
-                Delete
-              </DropdownMenuItem>
+              {can("requests.edit") && (
+                <>
+                  <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "changeStatus" })}>
+                    <FileText className="mr-2 size-4" />
+                    Change status
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "changePriority" })}>
+                    <Flag className="mr-2 size-4" />
+                    Change priority
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setBulkStatusDialog({ open: true, actionType: "assignTeamMember" })}>
+                    <UserPlus className="mr-2 size-4" />
+                    Assign team member
+                  </DropdownMenuItem>
+                </>
+              )}
+              {can("requests.edit") && can("requests.delete") && <DropdownMenuSeparator />}
+              {can("requests.delete") && (
+                <DropdownMenuItem
+                  className="text-late focus:text-late"
+                  onClick={() =>
+                    setDeleteDialog({ open: true, ids: Array.from(selectedIds), label: plural(selectedIds.size, "request") })
+                  }
+                >
+                  <Trash2 className="mr-2 size-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelectedIds(new Set())}>
             <X className="size-4" />
             Clear selection
@@ -1357,7 +1394,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             <Button variant="outline" onClick={clearFilters}>
               Clear filters
             </Button>
-          ) : view === "all" || view === "drafts" ? (
+          ) : (view === "all" || view === "drafts") && can("requests.create") ? (
             <Button asChild>
               <Link href="/dashboard/requests/new">
                 <Plus className="size-4" />

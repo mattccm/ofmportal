@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, redactCreator, requireAccess } from "@/lib/access/server";
 import {
   S3Client,
   PutObjectCommand,
@@ -135,19 +134,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.edit");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id: creatorId } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: creatorId }] },
       select: { id: true, avatar: true },
     });
 
@@ -227,7 +221,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       url: avatarUrl,
-      creator: updatedCreator,
+      creator: redactCreator(access, updatedCreator),
     });
   } catch (error) {
     console.error("Error uploading creator avatar:", error);
@@ -244,18 +238,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.edit");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id: creatorId } = await params;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const creator = await db.creator.findFirst({
-      where: {
-        id: creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: creatorId }] },
       select: { id: true, avatar: true },
     });
 

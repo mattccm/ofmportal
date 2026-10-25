@@ -1,7 +1,7 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { getPageAccess } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,13 +41,10 @@ export default async function EditTemplatePage({
   params,
 }: EditTemplatePageProps) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const access = await getPageAccess();
+  if (!access.has("templates.edit")) return <NoAccess what="editing templates" roleName={access.role.name} />;
 
-  if (!session) {
-    redirect("/login");
-  }
-
-  const template = await getTemplate(id, session.user.agencyId);
+  const template = await getTemplate(id, access.agencyId);
 
   if (!template) {
     notFound();

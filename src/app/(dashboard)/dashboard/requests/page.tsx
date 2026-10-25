@@ -1,14 +1,12 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { excludePseudoUsers } from "@/lib/staff";
+import { getPageAccess, requestWhere, creatorWhere, staffWhere, uploadWhere, redactCreator, redactCreatorsIn, type Access } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { RequestsList } from "@/components/requests/requests-list";
 import { fileFieldsOf, mapFields, type MapSubmission } from "@/components/requests/title-wall-map";
 
-async function getRequests(agencyId: string) {
+async function getRequests(access: Access) {
   return db.contentRequest.findMany({
-    where: { agencyId },
+    where: requestWhere(access),
     orderBy: { createdAt: "desc" },
     include: {
       creator: {
@@ -31,11 +29,11 @@ async function getRequests(agencyId: string) {
 // A request "needs review" when it has at least one completed upload still
 // awaiting an approval decision. A single groupBy keeps this O(1) queries
 // instead of counting uploads per request (N+1).
-async function getPendingReviewCounts(agencyId: string) {
+async function getPendingReviewCounts(access: Access) {
   const grouped = await db.upload.groupBy({
     by: ["requestId"],
     where: {
-      request: { agencyId },
+      ...uploadWhere(access),
       status: "PENDING",
       uploadStatus: "COMPLETED",
     },
@@ -44,27 +42,25 @@ async function getPendingReviewCounts(agencyId: string) {
   return new Map(grouped.map((g) => [g.requestId, g._count._all]));
 }
 
-async function getCreators(agencyId: string) {
+async function getCreators(access: Access) {
   return db.creator.findMany({
-    where: { agencyId },
+    where: creatorWhere(access),
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });
 }
 
-async function getTeamMembers(agencyId: string) {
+async function getTeamMembers(access: Access) {
   return db.user.findMany({
-    where: { agencyId, ...excludePseudoUsers },
+    where: staffWhere(access),
     select: { id: true, name: true, email: true, role: true },
     orderBy: { name: "asc" },
   });
 }
 
 export default async function RequestsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
+  const access = await getPageAccess();
+  if (!access.has("requests.view")) return <NoAccess what="requests" roleName={access.role.name} />;
 
   let requests: Awaited<ReturnType<typeof getRequests>>;
   let creators: Awaited<ReturnType<typeof getCreators>>;
@@ -73,10 +69,10 @@ export default async function RequestsPage() {
   let loadError = false;
   try {
     [requests, creators, teamMembers, pendingReviewCounts] = await Promise.all([
-      getRequests(session.user.agencyId),
-      getCreators(session.user.agencyId),
-      getTeamMembers(session.user.agencyId),
-      getPendingReviewCounts(session.user.agencyId),
+      getRequests(access),
+      getCreators(access),
+      getTeamMembers(access),
+      getPendingReviewCounts(access),
     ]);
   } catch (error) {
     console.error("Failed to fetch requests data:", error);
@@ -121,9 +117,9 @@ export default async function RequestsPage() {
 
   return (
     <RequestsList
-      initialRequests={serializedRequests}
-      creators={creators}
-      currentUserId={session.user.id}
+      initialRequests={redactCreatorsIn(access, serializedRequests)}
+      creators={redactCreator(access, creators)}
+      currentUserId={access.userId}
       teamMembers={teamMembers}
       initialError={loadError}
     />

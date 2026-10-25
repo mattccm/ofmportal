@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
 
 interface BulkActionsBarProps {
   selectedIds: Set<string>;
@@ -63,6 +64,12 @@ export function BulkActionsBar({
   isProcessing = false,
   className,
 }: BulkActionsBarProps) {
+  const { can } = useAccess();
+  const canApprove = can("review.approve");
+  const canSendBack = can("review.requestChanges");
+  const canDelete = can("review.delete");
+  const canDownload = can("review.download");
+  const canExport = can("requests.export");
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -134,8 +141,9 @@ export function BulkActionsBar({
         {/* Right side - Action buttons */}
         <div className="flex items-center gap-2">
           {/* Selection actions when items selected */}
-          {selectedCount > 0 && (
+          {selectedCount > 0 && (canApprove || canSendBack || (onBulkDelete && canDelete)) && (
             <>
+              {canApprove && (
               <Button
                 size="sm"
                 className="gap-1.5"
@@ -149,7 +157,9 @@ export function BulkActionsBar({
                 )}
                 Approve {selectedCount}
               </Button>
+              )}
 
+              {canSendBack && (
               <Button
                 size="sm"
                 variant="outline"
@@ -160,8 +170,9 @@ export function BulkActionsBar({
                 <X className="h-4 w-4" />
                 Send back
               </Button>
+              )}
 
-              {onBulkDelete && (
+              {onBulkDelete && canDelete && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -179,6 +190,7 @@ export function BulkActionsBar({
           )}
 
           {/* Download/Export dropdown */}
+          {(canDownload || canExport) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -193,6 +205,7 @@ export function BulkActionsBar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              {canDownload && (
               <DropdownMenuItem
                 onClick={onBulkDownload}
                 className="gap-2"
@@ -205,13 +218,17 @@ export function BulkActionsBar({
                   </span>
                 )}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              )}
+              {canDownload && canExport && <DropdownMenuSeparator />}
+              {canExport && (
               <DropdownMenuItem onClick={onExportCsv} className="gap-2">
                 <FileText className="h-4 w-4" />
                 Export metadata (CSV)
               </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
         </div>
       </div>
 

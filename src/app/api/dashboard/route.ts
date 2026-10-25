@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { activityWhere, creatorWhere, requestWhere, requireAccess, type Access } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import {
   startOfDay,
@@ -62,14 +61,14 @@ export interface DashboardData {
   creatorPerformance: CreatorPerformance[];
 }
 
-async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
+async function getActivityFeed(access: Access): Promise<ActivityItem[]> {
   const activities: ActivityItem[] = [];
   const since = subDays(new Date(), 7); // Last 7 days
 
   // Get recent uploads
   const recentUploads = await db.upload.findMany({
     where: {
-      request: { agencyId },
+      request: requestWhere(access),
       uploadedAt: { gte: since },
     },
     orderBy: { uploadedAt: "desc" },
@@ -97,8 +96,10 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
   }
 
   // Get recent status changes from activity log
-  const statusChanges = await db.activityLog.findMany({
+  const loggedChanges = await db.activityLog.findMany({
     where: {
+      // By teammates this person may see, in their agency
+      ...activityWhere(access),
       entityType: "ContentRequest",
       action: { contains: "status" },
       createdAt: { gte: since },
@@ -109,6 +110,17 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
       user: { select: { id: true, name: true, avatar: true } },
     },
   });
+
+  // Only requests whose creator is inside this person's creator scope
+  const visibleRequestIds = new Set(
+    (
+      await db.contentRequest.findMany({
+        where: { AND: [requestWhere(access), { id: { in: loggedChanges.map((l) => l.entityId).filter((x): x is string => !!x) } }] },
+        select: { id: true },
+      })
+    ).map((r) => r.id)
+  );
+  const statusChanges = loggedChanges.filter((l) => l.entityId && visibleRequestIds.has(l.entityId));
 
   for (const log of statusChanges) {
     const metadata = log.metadata as Record<string, unknown>;
@@ -128,7 +140,7 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
   // Get new creator sign-ups
   const newCreators = await db.creator.findMany({
     where: {
-      agencyId,
+      ...creatorWhere(access),
       inviteStatus: "ACCEPTED",
       lastLoginAt: { gte: since },
     },
@@ -142,7 +154,7 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
     },
   });
 
-  for (const creator of newCreators) {
+  for (const creator of access.has("creatorInfo.activity") ? newCreators : []) {
     activities.push({
       id: `creator-${creator.id}`,
       type: "creator_signup",
@@ -158,7 +170,7 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
   // Get recent comments
   const recentComments = await db.comment.findMany({
     where: {
-      request: { agencyId },
+      request: requestWhere(access),
       createdAt: { gte: since },
       isInternal: false,
     },
@@ -186,12 +198,14 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
   }
 
   // Get recent messages
-  const recentMessages = await db.message.findMany({
+  // Conversations aren't scoped by creator here, so they show only to people who see every conversation
+  const seesMessages = access.has("messages.creators") && access.has("messages.team") && access.creatorScope.type === "all";
+  const recentMessages = !seesMessages ? [] : await db.message.findMany({
     where: {
       conversation: {
         participants: {
           some: {
-            user: { agencyId },
+            user: { agencyId: access.agencyId },
           },
         },
       },
@@ -228,7 +242,7 @@ async function getActivityFeed(agencyId: string): Promise<ActivityItem[]> {
     .slice(0, 15);
 }
 
-async function getQuickStats(agencyId: string): Promise<QuickStats> {
+async function getQuickStats(access: Access): Promise<QuickStats> {
   const now = new Date();
   const weekFromNow = addDays(now, 7);
 
@@ -242,21 +256,21 @@ async function getQuickStats(agencyId: string): Promise<QuickStats> {
     // Active creators (those who have accepted invite)
     db.creator.count({
       where: {
-        agencyId,
+        ...creatorWhere(access),
         inviteStatus: "ACCEPTED",
       },
     }),
     // Pending requests
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { in: ["PENDING", "IN_PROGRESS"] },
       },
     }),
     // Uploads awaiting review
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: requestWhere(access),
         status: "PENDING",
         uploadStatus: "COMPLETED",
       },
@@ -264,7 +278,7 @@ async function getQuickStats(agencyId: string): Promise<QuickStats> {
     // Requests due this week
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { notIn: ["APPROVED", "CANCELLED"] },
         dueDate: {
           gte: startOfDay(now),
@@ -275,7 +289,7 @@ async function getQuickStats(agencyId: string): Promise<QuickStats> {
     // Overdue items
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { notIn: ["APPROVED", "CANCELLED"] },
         dueDate: {
           lt: startOfDay(now),
@@ -293,13 +307,13 @@ async function getQuickStats(agencyId: string): Promise<QuickStats> {
   };
 }
 
-async function getUpcomingDeadlines(agencyId: string): Promise<UpcomingDeadline[]> {
+async function getUpcomingDeadlines(access: Access): Promise<UpcomingDeadline[]> {
   const now = new Date();
   const weekFromNow = addDays(now, 7);
 
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...requestWhere(access),
       status: { notIn: ["APPROVED", "CANCELLED"] },
       dueDate: {
         gte: startOfDay(now),
@@ -342,14 +356,14 @@ async function getUpcomingDeadlines(agencyId: string): Promise<UpcomingDeadline[
     });
 }
 
-async function getCreatorPerformance(agencyId: string): Promise<CreatorPerformance[]> {
+async function getCreatorPerformance(access: Access): Promise<CreatorPerformance[]> {
   const monthStart = startOfMonth(new Date());
   const monthEnd = endOfMonth(new Date());
 
   // Step 1: Get creators with upload counts using _count (very efficient)
   const creatorsWithCounts = await db.creator.findMany({
     where: {
-      agencyId,
+      ...creatorWhere(access),
       inviteStatus: "ACCEPTED",
     },
     select: {
@@ -461,16 +475,9 @@ async function getCreatorPerformance(agencyId: string): Promise<CreatorPerforman
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("overview.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     // NOTE: Server-side caching removed intentionally for this content management platform
     // Dashboard data needs to be fresh - uploads, approvals, and activity change frequently
@@ -480,10 +487,10 @@ export async function GET() {
     // Fetch all dashboard data in parallel
     const [activityFeed, quickStats, upcomingDeadlines, creatorPerformance] =
       await Promise.all([
-        getActivityFeed(agencyId),
-        getQuickStats(agencyId),
-        getUpcomingDeadlines(agencyId),
-        getCreatorPerformance(agencyId),
+        getActivityFeed(access),
+        getQuickStats(access),
+        getUpcomingDeadlines(access),
+        getCreatorPerformance(access),
       ]);
 
     const dashboardData: DashboardData = {

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteFile } from "@/lib/storage";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
+import { creatorWhere, forbidden, redactCreator, requireAccess } from "@/lib/access/server";
+import type { PermissionKey } from "@/lib/access/catalogue";
+import { scrubPreferences } from "../creator-access";
 
 // Cascade the effects of archiving a creator within a transaction:
 // archive their active requests and stop recurring generation for them.
@@ -56,18 +57,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id } = await params;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
       include: {
         _count: {
           select: {
@@ -146,10 +142,11 @@ export async function GET(
       memberSince: creator.createdAt,
     };
 
-    return NextResponse.json({
+    return NextResponse.json(redactCreator(access, {
       ...creator,
+      contentPreferences: scrubPreferences(access, creator.contentPreferences),
       stats,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching creator:", error);
     return NextResponse.json(
@@ -178,19 +175,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(["creators.edit", "creators.delete"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id } = await params;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check creator exists and belongs to agency
+    // Check creator exists, belongs to agency and is within their scope
     const existingCreator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
     });
 
     if (!existingCreator) {
@@ -199,6 +191,38 @@ export async function PATCH(
 
     const body = await req.json();
     const validatedData = updateCreatorSchema.parse(body);
+
+    // Archiving is its own permission; every other field needs creators.edit,
+    // and a field they can't see can't be changed either.
+    if (validatedData.archived !== undefined && !access.has("creators.delete")) {
+      return forbidden("creators.delete");
+    }
+    const editedFields = Object.keys(validatedData).filter((k) => k !== "archived");
+    if (editedFields.length > 0 && !access.has("creators.edit")) {
+      return forbidden("creators.edit");
+    }
+    const FIELD_KEYS: Record<string, PermissionKey> = {
+      email: "creatorInfo.email",
+      phone: "creatorInfo.phone",
+      notes: "creatorInfo.notes",
+      timezone: "creatorInfo.location",
+      contentPreferences: "creatorInfo.preferences",
+      preferredContact: "creatorInfo.preferences",
+    };
+    const norm = (v: unknown) => (v === "" || v === undefined ? null : JSON.stringify(v));
+    for (const field of editedFields) {
+      const key = FIELD_KEYS[field];
+      if (!key || access.has(key)) continue;
+      const current = (existingCreator as Record<string, unknown>)[field];
+      const next = (validatedData as Record<string, unknown>)[field];
+      const same =
+        field === "email"
+          ? String(next ?? "").toLowerCase() === String(current ?? "").toLowerCase()
+          : norm(next) === norm(current);
+      if (!same) return forbidden(key, "You can't change a detail your role can't see.");
+      // Unchanged (a form sending everything back): leave it alone
+      delete (validatedData as Record<string, unknown>)[field];
+    }
 
     // If email is changing, check for duplicates
     if (validatedData.email && validatedData.email !== existingCreator.email) {
@@ -270,7 +294,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ creator: updatedCreator });
+    return NextResponse.json({ creator: redactCreator(access, updatedCreator) });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -293,23 +317,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.delete");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id } = await params;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission (OWNER or ADMIN only)
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-    }
-
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
     });
 
     if (!creator) {

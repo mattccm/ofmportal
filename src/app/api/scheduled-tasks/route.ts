@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
+import { TASK_TYPE_KEY, creatorGroupWhere, filterTargetsInScope } from "../recurring-requests/scope";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { startOfDay, endOfDay } from "date-fns";
@@ -24,11 +24,9 @@ const scheduledTaskSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
@@ -66,11 +64,13 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    const tasks = await db.scheduledTask.findMany({
+    // Only tasks whose creators and groups are all in this person's creator scope
+    const allTasks = await db.scheduledTask.findMany({
       where,
       orderBy: { scheduledFor: "asc" },
-      take: limit,
+      take: access.creatorScope.type === "all" ? limit : undefined,
     });
+    const tasks = (await filterTargetsInScope(access, allTasks)).slice(0, limit);
 
     // Serialize tasks
     const serializedTasks = tasks.map((task) => ({
@@ -109,22 +109,31 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.create");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const validatedData = scheduledTaskSchema.parse(body);
 
+    // The task will do this when it runs, so the person needs that permission too
+    const actionKey = TASK_TYPE_KEY[validatedData.taskType];
+    if (actionKey && !access.has(actionKey)) return forbidden(actionKey);
+
+    if (validatedData.creatorGroupIds?.length) {
+      const n = await db.creatorGroup.count({
+        where: { AND: [creatorGroupWhere(access), { id: { in: validatedData.creatorGroupIds } }] },
+      });
+      if (n !== new Set(validatedData.creatorGroupIds).size) {
+        return NextResponse.json({ error: "One or more creator groups not found" }, { status: 404 });
+      }
+    }
+
     // Validate creator(s) belong to agency
     if (validatedData.creatorIds && validatedData.creatorIds.length > 0) {
       const creators = await db.creator.findMany({
-        where: {
-          id: { in: validatedData.creatorIds },
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [creatorWhere(access), { id: { in: validatedData.creatorIds } }] },
+        select: { id: true },
       });
 
       if (creators.length !== validatedData.creatorIds.length) {

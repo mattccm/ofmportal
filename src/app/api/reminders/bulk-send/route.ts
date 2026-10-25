@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { redactCreatorsIn, requestWhere, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import {
   bulkReminderSchema,
@@ -79,15 +78,10 @@ function getFilterWhereClause(filter: ReminderFilter, agencyId: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("reminders.send");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const body = await req.json();
     const validatedData = bulkReminderSchema.parse(body);
@@ -102,8 +96,7 @@ export async function POST(req: NextRequest) {
       // Custom filter with specific request IDs
       requests = await db.contentRequest.findMany({
         where: {
-          id: { in: validatedData.requestIds },
-          agencyId: session.user.agencyId,
+          AND: [requestWhere(access), { id: { in: validatedData.requestIds } }],
           status: { in: ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"] },
         },
         include: {
@@ -118,7 +111,7 @@ export async function POST(req: NextRequest) {
       );
 
       requests = await db.contentRequest.findMany({
-        where: whereClause,
+        where: { AND: [requestWhere(access), whereClause] },
         include: {
           creator: true,
         },
@@ -282,11 +275,9 @@ export async function POST(req: NextRequest) {
 // Preview endpoint - get list of requests that would be reminded
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("reminders.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const searchParams = req.nextUrl.searchParams;
     const filter = searchParams.get("filter") as ReminderFilter | null;
@@ -301,7 +292,7 @@ export async function GET(req: NextRequest) {
     const whereClause = getFilterWhereClause(filter, session.user.agencyId);
 
     const requests = await db.contentRequest.findMany({
-      where: whereClause,
+      where: { AND: [requestWhere(access), whereClause] },
       include: {
         creator: {
           select: {
@@ -339,7 +330,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       filter,
       count: preview.length,
-      requests: preview,
+      requests: redactCreatorsIn(access, preview),
     });
   } catch (error) {
     console.error("Error previewing bulk reminders:", error);

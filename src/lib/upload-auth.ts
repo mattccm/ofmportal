@@ -10,6 +10,7 @@ import {
 import type { UploadWithRequest } from "@/lib/upload-finalize";
 import { CREATOR_HIDDEN_STATUSES } from "@/lib/portal-auth";
 import type { RequestStatus } from "@prisma/client";
+import { forbidden, getAccess, requestWhere } from "@/lib/access/server";
 
 /**
  * Request statuses that no longer accept creator uploads: everything a creator
@@ -96,10 +97,16 @@ export async function resolveUploadContext(
   const creatorToken = req.headers.get("x-creator-token");
 
   if (session?.user?.agencyId) {
-    const agencyId = session.user.agencyId;
+    const access = await getAccess(session);
+    if (!access) {
+      return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    }
+    // Staff uploading on a creator's behalf
+    if (!access.has("requests.upload")) return { ok: false, response: forbidden("requests.upload") };
+    const agencyId = access.agencyId;
 
     const contentRequest = await db.contentRequest.findFirst({
-      where: { id: requestId, agencyId },
+      where: { AND: [requestWhere(access), { id: requestId }] },
     });
 
     if (!contentRequest) {
@@ -221,10 +228,21 @@ export async function authorizeUploadRecord(
   }
 
   if (session?.user?.agencyId) {
-    if (upload.request.agencyId !== session.user.agencyId) {
+    const access = await getAccess(session);
+    if (!access || upload.request.agencyId !== access.agencyId) {
       return {
         ok: false,
         response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      };
+    }
+    if (!access.has("requests.upload")) return { ok: false, response: forbidden("requests.upload") };
+    const visible = await db.contentRequest.count({
+      where: { AND: [requestWhere(access), { id: upload.requestId }] },
+    });
+    if (!visible) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: "Upload not found" }, { status: 404 }),
       };
     }
   } else if (creatorToken) {

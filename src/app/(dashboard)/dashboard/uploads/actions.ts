@@ -1,7 +1,6 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAccess } from "@/lib/access/server";
 import { getUploads, type PageProps } from "./query";
 
 /**
@@ -10,7 +9,8 @@ import { getUploads, type PageProps } from "./query";
  * contract: limit/offset and no template or date filters).
  */
 export async function loadUploadsPage(params: Awaited<PageProps["searchParams"]>) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.agencyId) throw new Error("Unauthorized");
-  return getUploads(session.user.agencyId, params);
+  const access = await getAccess();
+  if (!access) throw new Error("Unauthorized");
+  if (!access.has("review.view")) throw new Error("You don't have permission to see uploads.");
+  return getUploads(access, params);
 }

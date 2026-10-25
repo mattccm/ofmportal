@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 
 // GET - Fetch all uploads by a creator with filters
 export async function GET(
@@ -9,19 +8,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(["creatorInfo.content", "settings.mediaLibrary"]);
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
       select: { id: true },
     });
 

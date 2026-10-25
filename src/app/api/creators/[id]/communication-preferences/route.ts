@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
+import { scrubCommunication } from "../../creator-access";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 
@@ -51,19 +51,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!access.has("creatorInfo.preferences")) return forbidden("creatorInfo.preferences");
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
       select: {
         id: true,
         contentPreferences: true,
@@ -78,12 +74,13 @@ export async function GET(
     }
 
     // Extract communication preferences from contentPreferences JSON
+    // (only the fields this person may see)
     const prefs = creator.contentPreferences as Record<string, unknown>;
     const communicationPreferences = prefs?.communicationPreferences || null;
 
     // If no preferences exist, return defaults with creator's existing contact info
     if (!communicationPreferences) {
-      return NextResponse.json({
+      return NextResponse.json(scrubCommunication(access, {
         primaryMethod: "email",
         secondaryMethod: null,
         contactDetails: {
@@ -105,10 +102,10 @@ export async function GET(
         notifyOnApproval: true,
         quietPeriods: [],
         communicationNotes: "",
-      });
+      }));
     }
 
-    return NextResponse.json(communicationPreferences);
+    return NextResponse.json(scrubCommunication(access, communicationPreferences as Record<string, unknown>));
   } catch (error) {
     console.error("Error fetching communication preferences:", error);
     return NextResponse.json(
@@ -124,22 +121,19 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.edit");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!access.has("creatorInfo.preferences")) return forbidden("creatorInfo.preferences");
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
       select: {
         id: true,
         contentPreferences: true,
+        timezone: true,
       },
     });
 
@@ -152,6 +146,17 @@ export async function PUT(
 
     // Get existing contentPreferences
     const existingPrefs = (creator.contentPreferences as Record<string, unknown>) || {};
+
+    // Details this person can't see are kept as they were, never overwritten
+    const prevComm = (existingPrefs.communicationPreferences as Record<string, unknown> | undefined) ?? {};
+    const prevDetails = (prevComm.contactDetails as Record<string, string | undefined> | undefined) ?? {};
+    if (!access.has("creatorInfo.email")) validatedPrefs.contactDetails.email = prevDetails.email;
+    if (!access.has("creatorInfo.phone")) {
+      validatedPrefs.contactDetails.phone = prevDetails.phone;
+      validatedPrefs.contactDetails.whatsapp = prevDetails.whatsapp;
+    }
+    const canSetTimezone = access.has("creatorInfo.location");
+    if (!canSetTimezone) validatedPrefs.timezone = (prevComm.timezone as string | undefined) ?? creator.timezone ?? "UTC";
 
     // Update with new communication preferences
     const updatedPrefs = {
@@ -168,8 +173,8 @@ export async function PUT(
       where: { id },
       data: {
         contentPreferences: updatedPrefs as unknown as Prisma.InputJsonValue,
-        // Also update the main timezone field if provided
-        timezone: validatedPrefs.timezone,
+        // Also update the main timezone field if provided (and theirs to change)
+        ...(canSetTimezone ? { timezone: validatedPrefs.timezone } : {}),
       },
     });
 
@@ -190,7 +195,7 @@ export async function PUT(
 
     return NextResponse.json({
       message: "Communication preferences updated successfully",
-      preferences: validatedPrefs,
+      preferences: scrubCommunication(access, validatedPrefs),
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

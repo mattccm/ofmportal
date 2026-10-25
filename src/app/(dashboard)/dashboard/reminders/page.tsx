@@ -1,7 +1,7 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { creatorWhere, getPageAccess, redactCreatorsIn, requestWhere } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import Link from "next/link";
 import { PageHead } from "@/components/creators/people-ui";
 import { RemindersClient } from "./reminders-client";
@@ -15,12 +15,11 @@ async function getReminderTemplates(agencyId: string) {
   });
 }
 
-async function getReminders(agencyId: string) {
+// `scope`: requests whose creator is in this person's creator scope
+async function getReminders(scope: Prisma.ContentRequestWhereInput) {
   return db.reminder.findMany({
     where: {
-      request: {
-        agencyId,
-      },
+      request: scope,
     },
     include: {
       request: {
@@ -29,11 +28,11 @@ async function getReminders(agencyId: string) {
           title: true,
           dueDate: true,
           status: true,
+          // Name only: the page never shows a creator's contact details
           creator: {
             select: {
               id: true,
               name: true,
-              email: true,
             },
           },
         },
@@ -44,7 +43,7 @@ async function getReminders(agencyId: string) {
   });
 }
 
-async function getReminderStats(agencyId: string) {
+async function getReminderStats(agencyId: string, scope: Prisma.ContentRequestWhereInput) {
   const [
     totalTemplates,
     activeTemplates,
@@ -57,19 +56,19 @@ async function getReminderStats(agencyId: string) {
     db.reminder.count({
       where: {
         status: "PENDING",
-        request: { agencyId },
+        request: scope,
       },
     }),
     db.reminder.count({
       where: {
         status: "SENT",
-        request: { agencyId },
+        request: scope,
       },
     }),
     db.reminder.count({
       where: {
         status: "FAILED",
-        request: { agencyId },
+        request: scope,
       },
     }),
   ]);
@@ -83,13 +82,13 @@ async function getReminderStats(agencyId: string) {
   };
 }
 
-async function getCreators(agencyId: string) {
+// For the creator filter: name only, creators in scope
+async function getCreators(where: Prisma.CreatorWhereInput) {
   return db.creator.findMany({
-    where: { agencyId },
+    where,
     select: {
       id: true,
       name: true,
-      email: true,
     },
     orderBy: { name: "asc" },
   });
@@ -108,13 +107,10 @@ async function getAgencySettings(agencyId: string) {
 // PAGE COMPONENT
 
 export default async function RemindersPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
-
-  const agencyId = session.user.agencyId;
+  const access = await getPageAccess();
+  if (!access.has("reminders.view")) return <NoAccess what="reminders" roleName={access.role.name} />;
+  const agencyId = access.agencyId;
+  const scope = requestWhere(access);
 
   let rawTemplates: Awaited<ReturnType<typeof getReminderTemplates>>;
   let rawReminders: Awaited<ReturnType<typeof getReminders>>;
@@ -124,9 +120,9 @@ export default async function RemindersPage() {
   try {
     [rawTemplates, rawReminders, stats, creators, agencySettings] = await Promise.all([
       getReminderTemplates(agencyId),
-      getReminders(agencyId),
-      getReminderStats(agencyId),
-      getCreators(agencyId),
+      getReminders(scope),
+      getReminderStats(agencyId, scope),
+      getCreators(creatorWhere(access)),
       getAgencySettings(agencyId),
     ]);
   } catch (error) {
@@ -145,7 +141,7 @@ export default async function RemindersPage() {
     updatedAt: t.updatedAt.toISOString(),
   }));
 
-  const reminders = rawReminders.map((r) => ({
+  const reminders = redactCreatorsIn(access, rawReminders).map((r) => ({
     ...r,
     scheduledAt: r.scheduledAt.toISOString(),
     sentAt: r.sentAt?.toISOString() ?? null,
@@ -166,11 +162,16 @@ export default async function RemindersPage() {
               ? `${stats.pendingReminders} ${stats.pendingReminders === 1 ? "reminder is" : "reminders are"} scheduled`
               : "Nothing is scheduled"}
             , {stats.sentReminders} sent
-            {stats.failedReminders ? `, ${stats.failedReminders} failed to deliver` : ", none failed"}. When they go out and how they read is set in{" "}
-            <Link href="/dashboard/settings/reminder-rules" className="underline decoration-ctl-hi underline-offset-[3px] hover:decoration-ink">
-              Reminder rules
-            </Link>
-            .
+            {stats.failedReminders ? `, ${stats.failedReminders} failed to deliver` : ", none failed"}.
+            {access.has("reminders.rules") && (
+              <>
+                {" "}When they go out and how they read is set in{" "}
+                <Link href="/dashboard/settings/reminder-rules" className="underline decoration-ctl-hi underline-offset-[3px] hover:decoration-ink">
+                  Reminder rules
+                </Link>
+                .
+              </>
+            )}
           </>
         }
       />

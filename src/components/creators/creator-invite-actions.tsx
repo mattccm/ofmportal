@@ -34,7 +34,8 @@ export function CreatorInviteActions({
 }: {
   creatorId: string;
   name: string;
-  email: string;
+  /** null when the viewer's role can't see the creator's email */
+  email: string | null;
   state: CreatorInviteUiState;
   expiresAt: string | null;
   variant?: "card" | "panel";
@@ -80,7 +81,7 @@ export function CreatorInviteActions({
       if (!res.ok) throw new Error(data?.error || "The invite could not be sent");
       setState("pending");
       setExpiresAt(new Date(Date.now() + 7 * 86_400_000).toISOString());
-      toast.success(`Invite emailed to ${email}`);
+      toast.success(`Invite emailed to ${email ?? first}`);
       changed();
     } catch (e) {
       toast.error(`${e instanceof Error ? e.message : "The invite could not be sent"}. Try again in a minute.`);

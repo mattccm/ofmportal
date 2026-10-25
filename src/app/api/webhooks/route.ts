@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import crypto from "crypto";
@@ -24,14 +23,12 @@ const createWebhookSchema = z.object({
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.integrations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const webhooks = await db.webhook.findMany({
-      where: { agencyId: session.user.agencyId },
+      where: { agencyId: access.agencyId },
       include: {
         _count: { select: { deliveries: true } },
       },
@@ -56,16 +53,9 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId || !session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admins/owners can manage webhooks
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const gate = await requireAccess("settings.integrations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await req.json();
     const { name, url, description, events } = createWebhookSchema.parse(body);
@@ -75,13 +65,13 @@ export async function POST(req: NextRequest) {
 
     const webhook = await db.webhook.create({
       data: {
-        agencyId: session.user.agencyId,
+        agencyId: access.agencyId,
         name,
         url,
         secret,
         description,
         events,
-        createdById: session.user.id,
+        createdById: access.userId,
       },
     });
 

@@ -1,17 +1,22 @@
 import { db } from "@/lib/db";
+import { creatorWhere, requestWhere, type Access } from "@/lib/access/server";
 import { loadEmailBranding } from "@/lib/email";
 import type { TemplateField, RichContent } from "@/lib/template-types";
 
 /* Everything the composer needs, read once on the server. */
 
+/**
+ * A creator as the composer sees them. Fields the person's role hides
+ * (creatorInfo.*) are blank: email "", the rest null.
+ */
 export interface ComposeCreator {
   id: string;
   name: string;
   email: string;
   hasPhone: boolean;
-  preferredContact: "EMAIL" | "SMS" | "BOTH";
-  timezone: string;
-  inviteStatus: string;
+  preferredContact: "EMAIL" | "SMS" | "BOTH" | null;
+  timezone: string | null;
+  inviteStatus: string | null;
 }
 
 export interface ComposeGroup {
@@ -72,13 +77,13 @@ async function allowedCategories(userId: string): Promise<string[] | null> {
 }
 
 export async function getComposeData(
-  agencyId: string,
-  userId: string,
+  access: Access,
   agencyName?: string
 ): Promise<ComposeData> {
+  const { agencyId, userId } = access;
   const [creators, groups, templates, usage, totalRequests, allowed, branding] = await Promise.all([
     db.creator.findMany({
-      where: { agencyId, archivedAt: null },
+      where: { ...creatorWhere(access), archivedAt: null },
       select: {
         id: true,
         name: true,
@@ -106,11 +111,11 @@ export async function getComposeData(
     }),
     db.contentRequest.groupBy({
       by: ["templateId"],
-      where: { agencyId, templateId: { not: null } },
+      where: { ...requestWhere(access), templateId: { not: null } },
       _count: { _all: true },
       _max: { createdAt: true },
     }),
-    db.contentRequest.count({ where: { agencyId } }),
+    db.contentRequest.count({ where: requestWhere(access) }),
     allowedCategories(userId),
     loadEmailBranding(agencyId, agencyName),
   ]);
@@ -124,21 +129,31 @@ export async function getComposeData(
     portalHost = "";
   }
 
+  const visible = new Set(creators.map((c) => c.id));
+  const show = {
+    email: access.has("creatorInfo.email"),
+    preferences: access.has("creatorInfo.preferences"),
+    location: access.has("creatorInfo.location"),
+    invite: access.has("creatorInfo.invite"),
+  };
+
   return {
     creators: creators.map((c) => ({
       id: c.id,
       name: c.name,
-      email: c.email,
+      email: show.email ? c.email : "",
+      // Whether a text can go at all; the number itself never leaves the server
       hasPhone: !!c.phone,
-      preferredContact: c.preferredContact,
-      timezone: c.timezone,
-      inviteStatus: c.inviteStatus,
+      preferredContact: show.preferences ? c.preferredContact : null,
+      timezone: show.location ? c.timezone : null,
+      inviteStatus: show.invite ? c.inviteStatus : null,
     })),
+    // Groups list only the creators this person may see
     groups: groups.map((g) => ({
       id: g.id,
       name: g.name,
       description: g.description,
-      memberIds: g.members.map((m) => m.creatorId),
+      memberIds: g.members.map((m) => m.creatorId).filter((id) => visible.has(id)),
     })),
     templates: templates
       .filter((t) => !allowed || !t.categoryId || allowed.includes(t.categoryId))

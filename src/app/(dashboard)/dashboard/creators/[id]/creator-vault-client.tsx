@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -72,22 +72,28 @@ import {
   type QuietHours,
 } from "@/components/creators/insights";
 import { Shelf, TitleCard, formatDay, timeLeft, type FieldSummary } from "@/components/title-wall";
-import type { CommunicationPreferences } from "@/types/communication-preferences";
+import { DEFAULT_COMMUNICATION_PREFERENCES, type CommunicationPreferences } from "@/types/communication-preferences";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
 
+/**
+ * The profile as the viewer's role may see it: creator information they
+ * can't see arrives as null (or empty), and the server leaves out requests,
+ * messages and content they have no permission for.
+ */
 export interface ProfileData {
   creator: {
     id: string;
     name: string;
-    email: string;
+    email: string | null;
     phone: string | null;
     avatar: string | null;
     inviteStatus: string;
     /** Until they accept: the invite's state and when its link expires */
     invite?: { state: CreatorInviteUiState; expiresAt: string | null } | null;
     archivedAt: string | null;
-    timezone: string;
-    preferredContact: string;
+    timezone: string | null;
+    preferredContact: string | null;
     createdAt: string;
     lastLoginAt: string | null;
     notes: string | null;
@@ -115,7 +121,7 @@ export interface ProfileData {
   } | null;
   uploads: VaultUpload[];
   internalNotes: { id: string; content: string; createdAt: string; updatedAt: string; authorId: string; authorName: string }[];
-  communicationPreferences: CommunicationPreferences;
+  communicationPreferences: CommunicationPreferences | null;
 }
 
 const PAUSES = [
@@ -125,7 +131,8 @@ const PAUSES = [
   { key: "open", label: "Until I resume", days: null },
 ] as const;
 
-function localTime(tz: string): string | null {
+function localTime(tz: string | null): string | null {
+  if (!tz) return null;
   try {
     return new Intl.DateTimeFormat("en-AU", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
   } catch {
@@ -151,7 +158,9 @@ export function CreatorVaultClient({
   const [pauseChoice, setPauseChoice] = useState<string>("3");
   const [pausing, setPausing] = useState(false);
   const [notes, setNotes] = useState(data.internalNotes);
-  const [prefs, setPrefs] = useState<CommunicationPreferences>(data.communicationPreferences);
+  const [prefs, setPrefs] = useState<CommunicationPreferences>(
+    data.communicationPreferences ?? { ...DEFAULT_COMMUNICATION_PREFERENCES, contactDetails: {} }
+  );
   const [showPrefsForm, setShowPrefsForm] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -159,15 +168,42 @@ export function CreatorVaultClient({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [tab, setTab] = useState("uploads");
+  const { can, canAny } = useAccess();
+  // What this role allows here; the server checks each of these too
+  const may = {
+    request: can("requests.create"),
+    requests: can("requests.view"),
+    message: can("messages.creators"),
+    contact: can("messages.reply"),
+    remind: canAny(["requests.remind", "reminders.send"]),
+    edit: can("creators.edit"),
+    pause: can("creators.pauseReminders"),
+    invites: canAny(["creators.invite", "creators.resetAccess"]) && can("creatorInfo.invite"),
+    archive: can("creators.delete"),
+    template: can("templates.create"),
+    content: can("creatorInfo.content"),
+    preferences: can("creatorInfo.preferences"),
+    notes: can("creatorInfo.notes"),
+    activity: can("creatorInfo.activity") && can("activity.view"),
+  };
+  const tabs = [
+    may.content && "uploads",
+    (may.preferences || may.notes) && "contact",
+    "analytics",
+    may.activity && "activity",
+  ].filter(Boolean) as string[];
+  const [tab, setTab] = useState(tabs[0]);
+  // The "More" menu shows only when it has something in it
+  const moreMenu = (data.active.length > 0 && may.remind) || may.contact || may.content || may.archive;
+  // The action column beside the header shows only when the role has an action in it
+  const hasAside =
+    may.request || may.message || may.edit || moreMenu || ((may.invites || may.pause) && data.creator.archivedAt === null);
   const [analytics, setAnalytics] = useState<Record<string, unknown> | null>(null);
   const [analyticsRange, setAnalyticsRange] = useState("90d");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [reminding, setReminding] = useState<string | null>(null);
   const liveRef = useRef<HTMLParagraphElement>(null);
 
-  const canManage = ["OWNER", "ADMIN", "MANAGER"].includes(currentUser.role);
-  const canDelete = ["OWNER", "ADMIN"].includes(currentUser.role);
   const archived = creator.archivedAt !== null;
   const first = creator.name.split(/\s+/)[0];
   const tzTime = useMemo(() => localTime(creator.timezone), [creator.timezone]);
@@ -367,6 +403,12 @@ export function CreatorVaultClient({
     [creator.id]
   );
 
+  // When figures are the first tab (no content library), load them straight away
+  useEffect(() => {
+    if (tabs[0] === "analytics") void loadAnalytics(analyticsRange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
+
   const copy = async (text: string, what: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -402,34 +444,45 @@ export function CreatorVaultClient({
       <BackLink href="/dashboard/creators" label="Creators" />
 
       {/* header: the name, then everything about how to reach them */}
-      <section aria-labelledby="creator-name" className="grid gap-6 rounded-[10px] bg-tile p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <section
+        aria-labelledby="creator-name"
+        className={cn("grid gap-6 rounded-[10px] bg-tile p-5 sm:p-6", hasAside && "lg:grid-cols-[minmax(0,1fr)_300px]")}
+      >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <h1 id="creator-name" className="text-[28px] font-extrabold leading-tight tracking-[-0.025em] text-ink sm:text-[32px]">
-              <EditableCreatorName
-                creatorId={creator.id}
-                name={creator.name}
-                onUpdate={(name) => setCreator((c) => ({ ...c, name }))}
-                size="lg"
-                className="!text-[28px] font-extrabold tracking-[-0.025em] sm:!text-[32px]"
-              />
+              {may.edit ? (
+                <EditableCreatorName
+                  creatorId={creator.id}
+                  name={creator.name}
+                  onUpdate={(name) => setCreator((c) => ({ ...c, name }))}
+                  size="lg"
+                  className="!text-[28px] font-extrabold tracking-[-0.025em] sm:!text-[32px]"
+                />
+              ) : (
+                creator.name
+              )}
             </h1>
             <Pill tone={status.tone}>{status.label}</Pill>
           </div>
           <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-            <div>
-              <dt className="text-[13px] text-ink-2">Prefers</dt>
-              <dd className="mt-0.5 font-semibold text-ink">{contactLabel(creator.preferredContact)}</dd>
-            </div>
-            <div>
-              <dt className="text-[13px] text-ink-2">Time zone</dt>
-              <dd className="mt-0.5 font-semibold text-ink">{cityOf(creator.timezone)}</dd>
-              {tzTime && (
-                <dd className="text-[13px] text-ink-2" suppressHydrationWarning>
-                  {tzTime} there now
-                </dd>
-              )}
-            </div>
+            {creator.preferredContact && (
+              <div>
+                <dt className="text-[13px] text-ink-2">Prefers</dt>
+                <dd className="mt-0.5 font-semibold text-ink">{contactLabel(creator.preferredContact)}</dd>
+              </div>
+            )}
+            {creator.timezone && (
+              <div>
+                <dt className="text-[13px] text-ink-2">Time zone</dt>
+                <dd className="mt-0.5 font-semibold text-ink">{cityOf(creator.timezone)}</dd>
+                {tzTime && (
+                  <dd className="text-[13px] text-ink-2" suppressHydrationWarning>
+                    {tzTime} there now
+                  </dd>
+                )}
+              </div>
+            )}
             <div>
               <dt className="text-[13px] text-ink-2">Quiet hours</dt>
               <dd className="mt-0.5 font-semibold tabular-nums text-ink">{quietLabel(data.quiet)}</dd>
@@ -438,21 +491,26 @@ export function CreatorVaultClient({
             <div>
               <dt className="text-[13px] text-ink-2">Joined</dt>
               <dd className="mt-0.5 font-semibold text-ink">{format(new Date(creator.createdAt), "d MMM yyyy")}</dd>
-              <dd className="text-[13px] text-ink-2" suppressHydrationWarning>
-                {creator.lastLoginAt ? `last seen ${ago(creator.lastLoginAt)}` : "not signed in yet"}
-              </dd>
+              {may.activity && (
+                <dd className="text-[13px] text-ink-2" suppressHydrationWarning>
+                  {creator.lastLoginAt ? `last seen ${ago(creator.lastLoginAt)}` : "not signed in yet"}
+                </dd>
+              )}
             </div>
           </dl>
+          {(creator.email || creator.phone) && (
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-2">
-            <button
-              type="button"
-              onClick={() => copy(creator.email, "Email")}
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-sm hover:text-ink focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              {creator.email}
-              <Copy className="size-3.5 text-icon" aria-hidden="true" />
-              <span className="sr-only">Copy email</span>
-            </button>
+            {creator.email && (
+              <button
+                type="button"
+                onClick={() => copy(creator.email!, "Email")}
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-sm hover:text-ink focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                {creator.email}
+                <Copy className="size-3.5 text-icon" aria-hidden="true" />
+                <span className="sr-only">Copy email</span>
+              </button>
+            )}
             {creator.phone && (
               <button
                 type="button"
@@ -465,13 +523,17 @@ export function CreatorVaultClient({
               </button>
             )}
           </div>
-          <p className="mt-4 text-[15px] text-ink" suppressHydrationWarning>
-            {summary}
-          </p>
+          )}
+          {may.requests && (
+            <p className="mt-4 text-[15px] text-ink" suppressHydrationWarning>
+              {summary}
+            </p>
+          )}
         </div>
 
+        {hasAside && (
         <div className="flex flex-col gap-2 lg:border-l lg:border-line lg:pl-6">
-          {!archived && (
+          {!archived && may.request && (
             <Button asChild>
               <Link href={`/dashboard/requests/new?creatorId=${creator.id}`}>
                 <Plus aria-hidden="true" />
@@ -479,14 +541,16 @@ export function CreatorVaultClient({
               </Link>
             </Button>
           )}
-          <Button asChild variant="outline">
-            <Link href={threadHref}>
-              <MessageSquare aria-hidden="true" />
-              Message {first}
-              <UnreadCount n={unread} />
-            </Link>
-          </Button>
-          {canManage && !archived && creator.invite && (
+          {may.message && (
+            <Button asChild variant="outline">
+              <Link href={threadHref}>
+                <MessageSquare aria-hidden="true" />
+                Message {first}
+                <UnreadCount n={unread} />
+              </Link>
+            </Button>
+          )}
+          {may.invites && !archived && creator.invite && (
             <div className="mt-3">
               <CreatorInviteActions
                 variant="panel"
@@ -498,7 +562,7 @@ export function CreatorVaultClient({
               />
             </div>
           )}
-          {canManage && !archived && (
+          {may.pause && !archived && (
             <div className="mt-3">
               <p className="mb-1.5 text-[13px] text-ink-2" id="pause-label">
                 {pause.paused
@@ -534,11 +598,15 @@ export function CreatorVaultClient({
               )}
             </div>
           )}
+          {(may.edit || moreMenu) && (
           <div className="mt-auto flex gap-2 pt-3">
-            <Button variant="outline" className="flex-1" onClick={() => setEditOpen(true)}>
-              <Edit2 aria-hidden="true" />
-              Edit profile
-            </Button>
+            {may.edit && (
+              <Button variant="outline" className="flex-1" onClick={() => setEditOpen(true)}>
+                <Edit2 aria-hidden="true" />
+                Edit profile
+              </Button>
+            )}
+            {moreMenu && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label={`More for ${creator.name}`}>
@@ -546,33 +614,41 @@ export function CreatorVaultClient({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                {data.active.length > 0 && (
+                {data.active.length > 0 && may.remind && (
                   <DropdownMenuItem disabled={!!reminding} onClick={() => sendReminder(data.active.map((r) => r.id), "all")}>
                     <Bell aria-hidden="true" />
                     {data.active.length > 1 ? `Remind about all ${data.active.length}` : "Send a reminder"}
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => setContactOpen(true)}>
-                  <Send aria-hidden="true" />
-                  Contact by email or SMS
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportContent}>
-                  <Download aria-hidden="true" />
-                  Export upload list
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {archived ? (
-                  <DropdownMenuItem onClick={unarchive}>
-                    <RefreshCw aria-hidden="true" />
-                    Restore creator
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => setArchiveOpen(true)} className="text-late focus:text-late">
-                    <Archive aria-hidden="true" />
-                    Archive creator
+                {may.contact && (
+                  <DropdownMenuItem onClick={() => setContactOpen(true)}>
+                    <Send aria-hidden="true" />
+                    Contact by email or SMS
                   </DropdownMenuItem>
                 )}
-                {canDelete && (
+                {may.content && (
+                  <DropdownMenuItem onClick={exportContent}>
+                    <Download aria-hidden="true" />
+                    Export upload list
+                  </DropdownMenuItem>
+                )}
+                {may.archive && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {archived ? (
+                      <DropdownMenuItem onClick={unarchive}>
+                        <RefreshCw aria-hidden="true" />
+                        Restore creator
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => setArchiveOpen(true)} className="text-late focus:text-late">
+                        <Archive aria-hidden="true" />
+                        Archive creator
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
+                {may.archive && (
                   <DropdownMenuItem
                     onClick={() => {
                       setDeleteText("");
@@ -586,11 +662,15 @@ export function CreatorVaultClient({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            )}
           </div>
+          )}
         </div>
+        )}
       </section>
       <p ref={liveRef} className="sr-only" aria-live="polite" />
 
+      {may.requests && (
       <Shelf
         title="Active"
         sub={
@@ -603,7 +683,7 @@ export function CreatorVaultClient({
         empty={
           <EmptyLine>
             Nothing is open for {first}.{" "}
-            {!archived && (
+            {!archived && may.request && (
               <Link className="font-medium text-ink underline underline-offset-[3px]" href={`/dashboard/requests/new?creatorId=${creator.id}`}>
                 Send a new request
               </Link>
@@ -628,7 +708,7 @@ export function CreatorVaultClient({
                       <Link href={`/dashboard/requests/${r.id}`}>Review {n}</Link>
                     </Button>
                   )}
-                  {canManage && countState(r.fields, "waiting", "overdue", "changes") > 0 && (
+                  {may.remind && countState(r.fields, "waiting", "overdue", "changes") > 0 && (
                     <Button size="sm" variant="outline" disabled={reminding === r.id} onClick={() => sendReminder([r.id], r.id)}>
                       {reminding === r.id ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Bell aria-hidden="true" />}
                       Remind
@@ -640,9 +720,13 @@ export function CreatorVaultClient({
           );
         })}
       </Shelf>
+      )}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <section aria-labelledby="finished-h" className="min-w-0">
+      {(may.requests || may.message) && (
+      <div className={cn("grid gap-8", may.requests && "lg:grid-cols-[minmax(0,1fr)_400px]")}>
+        <section aria-labelledby={may.requests ? "finished-h" : "msgs-h"} className="min-w-0">
+          {may.requests && (
+          <>
           <SectionHead
             id="finished-h"
             title="Finished"
@@ -672,16 +756,21 @@ export function CreatorVaultClient({
                   >
                     {r.status === "CANCELLED" ? "Cancelled" : r.daysEarly != null ? fmtDays(r.daysEarly) : "No due date"}
                   </span>
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={`/dashboard/templates/new?fromRequest=${r.id}`} aria-label={`Use ${r.title} as a template`}>
-                      Use as template
-                    </Link>
-                  </Button>
+                  {may.template && (
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`/dashboard/templates/new?fromRequest=${r.id}`} aria-label={`Use ${r.title} as a template`}>
+                        Use as template
+                      </Link>
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
           )}
-          <div className="mt-8">
+          </>
+          )}
+          {may.message && (
+          <div className={cn(may.requests && "mt-8")}>
             <section aria-labelledby="msgs-h">
               <SectionHead id="msgs-h" title="Latest messages" sub={unread ? `${unread} unread` : undefined} />
               <Panel className="space-y-4">
@@ -714,8 +803,10 @@ export function CreatorVaultClient({
               </Panel>
             </section>
           </div>
+          )}
         </section>
 
+        {may.requests && (
         <div className="space-y-8">
           <section aria-labelledby="ontime-h">
             <SectionHead id="ontime-h" title="On time" />
@@ -740,7 +831,9 @@ export function CreatorVaultClient({
           </section>
 
         </div>
+        )}
       </div>
+      )}
 
       <Tabs
         value={tab}
@@ -751,32 +844,41 @@ export function CreatorVaultClient({
         className="space-y-5"
       >
         <TabsList aria-label={`More about ${first}`}>
-          <TabsTrigger value="uploads">Uploads</TabsTrigger>
-          <TabsTrigger value="contact">Contact and notes</TabsTrigger>
+          {may.content && <TabsTrigger value="uploads">Uploads</TabsTrigger>}
+          {(may.preferences || may.notes) && (
+            <TabsTrigger value="contact">
+              {may.preferences && may.notes ? "Contact and notes" : may.notes ? "Notes" : "Contact"}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="analytics">Upload figures</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+          {may.activity && <TabsTrigger value="activity">Activity</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="uploads">
-          <CreatorUploads creatorId={creator.id} creatorName={creator.name} initial={data.uploads} />
-        </TabsContent>
+        {may.content && (
+          <TabsContent value="uploads">
+            <CreatorUploads creatorId={creator.id} creatorName={creator.name} initial={data.uploads} />
+          </TabsContent>
+        )}
 
         <TabsContent value="contact" className="grid gap-6 lg:grid-cols-2">
+          {may.preferences && (
           <Panel>
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-[17px] font-semibold text-ink">How {first} likes to be reached</h3>
                 <p className="text-sm text-ink-2">Used when you contact them from here.</p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={showPrefsForm ? "Close contact preferences" : "Edit contact preferences"}
-                aria-pressed={showPrefsForm}
-                onClick={() => setShowPrefsForm((s) => !s)}
-              >
-                <Settings aria-hidden="true" />
-              </Button>
+              {may.edit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={showPrefsForm ? "Close contact preferences" : "Edit contact preferences"}
+                  aria-pressed={showPrefsForm}
+                  onClick={() => setShowPrefsForm((s) => !s)}
+                >
+                  <Settings aria-hidden="true" />
+                </Button>
+              )}
             </div>
             {showPrefsForm ? (
               <CommunicationPreferencesForm
@@ -794,10 +896,12 @@ export function CreatorVaultClient({
                 preferences={prefs}
                 creatorName={creator.name}
                 onContactClick={() => setContactOpen(true)}
-                showQuickActions
+                showQuickActions={may.contact}
               />
             )}
           </Panel>
+          )}
+          {may.notes && (
           <NotesPanel
             entityType="creator"
             entityId={creator.id}
@@ -819,6 +923,7 @@ export function CreatorVaultClient({
               )
             }
           />
+          )}
         </TabsContent>
 
         <TabsContent value="analytics">
@@ -833,6 +938,7 @@ export function CreatorVaultClient({
           />
         </TabsContent>
 
+        {may.activity && (
         <TabsContent value="activity">
           <ActivityTimelineWidget
             title={`${first}'s activity`}
@@ -844,6 +950,7 @@ export function CreatorVaultClient({
             viewAllHref={`/dashboard/activity?entityType=Creator&entityId=${creator.id}`}
           />
         </TabsContent>
+        )}
       </Tabs>
 
       <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>

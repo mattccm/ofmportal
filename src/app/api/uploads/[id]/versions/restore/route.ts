@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 
 /**
@@ -12,19 +11,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission to restore versions
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role || "")) {
-      return NextResponse.json(
-        { error: "Insufficient permissions to restore versions" },
-        { status: 403 }
-      );
-    }
+    // Restoring a version decides which file stands for the upload
+    const gate = await requireAccess("review.restore");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id } = await params;
     const body = await req.json();
@@ -41,9 +31,7 @@ export async function POST(
     const currentUpload = await db.upload.findFirst({
       where: {
         id,
-        request: {
-          agencyId: session.user.agencyId,
-        },
+        request: requestWhere(access),
       },
     });
 

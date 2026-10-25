@@ -1,4 +1,6 @@
+import type { Prisma } from "@prisma/client";
 import { db } from "./db";
+import { creatorWhere, requestWhere, type Access } from "./access/server";
 import {
   startOfDay,
   endOfDay,
@@ -10,6 +12,22 @@ import {
   eachDayOfInterval,
   format,
 } from "date-fns";
+
+/**
+ * Whose numbers: an agency id (every creator) or a staff member's access,
+ * which limits every count to the creators inside their creator scope.
+ */
+export type AnalyticsScope = string | Pick<Access, "agencyId" | "creatorScope">;
+
+/** Requests inside the scope */
+export function scopeRequests(scope: AnalyticsScope): Prisma.ContentRequestWhereInput {
+  return typeof scope === "string" ? { agencyId: scope } : requestWhere(scope);
+}
+
+/** Creators inside the scope */
+export function scopeCreators(scope: AnalyticsScope): Prisma.CreatorWhereInput {
+  return typeof scope === "string" ? { agencyId: scope } : creatorWhere(scope);
+}
 
 export type DateRange = "7d" | "30d" | "90d" | "custom";
 
@@ -50,7 +68,7 @@ export interface WeeklyActivity {
 export interface CreatorStats {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   avatar: string | null;
   uploadCount: number;
   approvalRate: number;
@@ -117,7 +135,7 @@ function getPreviousDateRange(start: Date, end: Date): { start: Date; end: Date 
 }
 
 export async function getOverviewStats(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams,
   creatorId?: string
 ): Promise<OverviewStats> {
@@ -140,7 +158,7 @@ export async function getOverviewStats(
     // Total uploads in period
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: scopeRequests(scope),
         uploadedAt: { gte: start, lte: end },
         ...creatorFilter,
       },
@@ -148,7 +166,7 @@ export async function getOverviewStats(
     // Approved uploads in period
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: scopeRequests(scope),
         status: "APPROVED",
         updatedAt: { gte: start, lte: end },
         ...creatorFilter,
@@ -158,7 +176,7 @@ export async function getOverviewStats(
     // matching getApprovalMetrics and staying <= 100%)
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: scopeRequests(scope),
         status: "REJECTED",
         updatedAt: { gte: start, lte: end },
         ...creatorFilter,
@@ -167,7 +185,7 @@ export async function getOverviewStats(
     // Total requests created in period
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...scopeRequests(scope),
         createdAt: { gte: start, lte: end },
         ...requestCreatorFilter,
       },
@@ -176,7 +194,7 @@ export async function getOverviewStats(
     db.upload.groupBy({
       by: ["creatorId"],
       where: {
-        request: { agencyId },
+        request: scopeRequests(scope),
         uploadedAt: { gte: start, lte: end },
         ...creatorFilter,
       },
@@ -184,7 +202,7 @@ export async function getOverviewStats(
     // Completed requests for turnaround calculation
     db.contentRequest.findMany({
       where: {
-        agencyId,
+        ...scopeRequests(scope),
         status: "APPROVED",
         reviewedAt: { gte: start, lte: end },
         ...requestCreatorFilter,
@@ -207,14 +225,14 @@ export async function getOverviewStats(
     await Promise.all([
       db.upload.count({
         where: {
-          request: { agencyId },
+          request: scopeRequests(scope),
           uploadedAt: { gte: prevStart, lte: prevEnd },
           ...creatorFilter,
         },
       }),
       db.upload.count({
         where: {
-          request: { agencyId },
+          request: scopeRequests(scope),
           status: "APPROVED",
           updatedAt: { gte: prevStart, lte: prevEnd },
           ...creatorFilter,
@@ -222,7 +240,7 @@ export async function getOverviewStats(
       }),
       db.upload.count({
         where: {
-          request: { agencyId },
+          request: scopeRequests(scope),
           status: "REJECTED",
           updatedAt: { gte: prevStart, lte: prevEnd },
           ...creatorFilter,
@@ -230,7 +248,7 @@ export async function getOverviewStats(
       }),
       db.contentRequest.count({
         where: {
-          agencyId,
+          ...scopeRequests(scope),
           createdAt: { gte: prevStart, lte: prevEnd },
           ...requestCreatorFilter,
         },
@@ -238,7 +256,7 @@ export async function getOverviewStats(
       db.upload.groupBy({
         by: ["creatorId"],
         where: {
-          request: { agencyId },
+          request: scopeRequests(scope),
           uploadedAt: { gte: prevStart, lte: prevEnd },
           ...creatorFilter,
         },
@@ -266,7 +284,7 @@ export async function getOverviewStats(
   // Previous period turnaround
   const prevCompletedRequests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...scopeRequests(scope),
       status: "APPROVED",
       reviewedAt: { gte: prevStart, lte: prevEnd },
       ...requestCreatorFilter,
@@ -308,7 +326,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export async function getRequestStatusBreakdown(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams,
   creatorId?: string
 ): Promise<StatusBreakdown[]> {
@@ -318,7 +336,7 @@ export async function getRequestStatusBreakdown(
   const statusCounts = await db.contentRequest.groupBy({
     by: ["status"],
     where: {
-      agencyId,
+      ...scopeRequests(scope),
       createdAt: { gte: start, lte: end },
       ...creatorFilter,
     },
@@ -336,7 +354,7 @@ export async function getRequestStatusBreakdown(
 }
 
 export async function getWeeklyActivity(
-  agencyId: string,
+  scope: AnalyticsScope,
   weeks: number = 8,
   creatorId?: string
 ): Promise<WeeklyActivity[]> {
@@ -352,14 +370,14 @@ export async function getWeeklyActivity(
     const [uploads, approvals, requests] = await Promise.all([
       db.upload.count({
         where: {
-          request: { agencyId },
+          request: scopeRequests(scope),
           uploadedAt: { gte: weekStart, lte: weekEnd },
           ...creatorFilter,
         },
       }),
       db.upload.count({
         where: {
-          request: { agencyId },
+          request: scopeRequests(scope),
           status: "APPROVED",
           updatedAt: { gte: weekStart, lte: weekEnd },
           ...creatorFilter,
@@ -367,7 +385,7 @@ export async function getWeeklyActivity(
       }),
       db.contentRequest.count({
         where: {
-          agencyId,
+          ...scopeRequests(scope),
           createdAt: { gte: weekStart, lte: weekEnd },
           ...requestCreatorFilter,
         },
@@ -387,7 +405,7 @@ export async function getWeeklyActivity(
 }
 
 export async function getCreatorLeaderboard(
-  agencyId: string,
+  scope: AnalyticsScope,
   limit: number = 10
 ): Promise<CreatorStats[]> {
   const thirtyDaysAgo = subDays(new Date(), 30);
@@ -396,7 +414,7 @@ export async function getCreatorLeaderboard(
   // Rank all creators by 30-day upload count first, then load stats for the top N
   const top = await db.upload.groupBy({
     by: ["creatorId"],
-    where: { request: { agencyId }, uploadedAt: { gte: thirtyDaysAgo } },
+    where: { request: scopeRequests(scope), uploadedAt: { gte: thirtyDaysAgo } },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },
     take: limit,
@@ -406,7 +424,7 @@ export async function getCreatorLeaderboard(
 
   // Get creators with upload stats
   const creators = await db.creator.findMany({
-    where: { agencyId, id: { in: topIds } },
+    where: { AND: [scopeCreators(scope), { id: { in: topIds } }] },
     include: {
       uploads: {
         where: {
@@ -489,7 +507,7 @@ export async function getCreatorLeaderboard(
 }
 
 export async function getApprovalMetrics(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams
 ): Promise<ApprovalMetrics> {
   const { start, end } = getDateRange(dateRangeParams);
@@ -497,21 +515,21 @@ export async function getApprovalMetrics(
   const [approved, rejected, pending] = await Promise.all([
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: scopeRequests(scope),
         status: "APPROVED",
         updatedAt: { gte: start, lte: end },
       },
     }),
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: scopeRequests(scope),
         status: "REJECTED",
         updatedAt: { gte: start, lte: end },
       },
     }),
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: scopeRequests(scope),
         status: "PENDING",
         createdAt: { gte: start, lte: end },
       },
@@ -525,7 +543,7 @@ export async function getApprovalMetrics(
   // Get average review time
   const reviewedUploads = await db.upload.findMany({
     where: {
-      request: { agencyId },
+      request: scopeRequests(scope),
       status: { in: ["APPROVED", "REJECTED"] },
       updatedAt: { gte: start, lte: end },
     },
@@ -554,7 +572,7 @@ export async function getApprovalMetrics(
 }
 
 export async function getTurnaroundMetrics(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams
 ): Promise<TurnaroundMetrics> {
   const { start, end } = getDateRange(dateRangeParams);
@@ -562,7 +580,7 @@ export async function getTurnaroundMetrics(
   // Get completed requests with urgency
   const completedRequests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...scopeRequests(scope),
       status: "APPROVED",
       reviewedAt: { gte: start, lte: end },
     },
@@ -623,7 +641,7 @@ export async function getTurnaroundMetrics(
 }
 
 export async function getDailyActivity(
-  agencyId: string,
+  scope: AnalyticsScope,
   days: number = 90,
   creatorId?: string
 ): Promise<DailyActivity[]> {
@@ -634,7 +652,7 @@ export async function getDailyActivity(
   // Get all uploads in the range grouped by day
   const uploads = await db.upload.findMany({
     where: {
-      request: { agencyId },
+      request: scopeRequests(scope),
       uploadedAt: { gte: start, lte: end },
       ...creatorFilter,
     },
@@ -682,18 +700,18 @@ export async function getDailyActivity(
 }
 
 export async function getAnalyticsSummary(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams,
   creatorId?: string
 ) {
   const [overview, statusBreakdown, weeklyActivity, leaderboard, dailyActivity] =
     await Promise.all([
-      getOverviewStats(agencyId, dateRangeParams, creatorId),
-      getRequestStatusBreakdown(agencyId, dateRangeParams, creatorId),
-      getWeeklyActivity(agencyId, 8, creatorId),
+      getOverviewStats(scope, dateRangeParams, creatorId),
+      getRequestStatusBreakdown(scope, dateRangeParams, creatorId),
+      getWeeklyActivity(scope, 8, creatorId),
       // Only show leaderboard when viewing all creators
-      creatorId ? Promise.resolve([]) : getCreatorLeaderboard(agencyId, 5),
-      getDailyActivity(agencyId, 90, creatorId),
+      creatorId ? Promise.resolve([]) : getCreatorLeaderboard(scope, 5),
+      getDailyActivity(scope, 90, creatorId),
     ]);
 
   return {

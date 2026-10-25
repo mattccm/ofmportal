@@ -381,7 +381,7 @@ function MatchDetails({
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Attempted by:</span>
             <span className="font-medium">{attempt.creator.name}</span>
-            <span className="text-muted-foreground">({attempt.creator.email})</span>
+            {attempt.creator.email && <span className="text-muted-foreground">({attempt.creator.email})</span>}
           </div>
         </div>
       )}

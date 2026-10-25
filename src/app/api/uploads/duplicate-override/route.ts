@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { forbidden, getAccess, requireAccess, requestWhere } from "@/lib/access/server";
 import { z } from "zod";
 
 // Schema for override request
@@ -66,7 +67,13 @@ export async function POST(req: NextRequest) {
     let hasAccess = false;
 
     if (session?.user?.agencyId) {
-      hasAccess = upload.request.agencyId === session.user.agencyId;
+      const access = await getAccess(session);
+      if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      // Uploading anyway is part of uploading on a creator's behalf
+      if (!access.has("requests.upload")) return forbidden("requests.upload");
+      hasAccess =
+        upload.request.agencyId === access.agencyId &&
+        (await db.upload.count({ where: { id: upload.id, request: requestWhere(access) } })) > 0;
       overrideBy = session.user.id;
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
@@ -192,7 +199,12 @@ export async function GET(req: NextRequest) {
     let hasAccess = false;
 
     if (session?.user?.agencyId) {
-      hasAccess = upload.request.agencyId === session.user.agencyId;
+      const access = await getAccess(session);
+      if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!access.has("review.view")) return forbidden("review.view");
+      hasAccess =
+        upload.request.agencyId === access.agencyId &&
+        (await db.upload.count({ where: { id: upload.id, request: requestWhere(access) } })) > 0;
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {
@@ -249,12 +261,10 @@ export async function GET(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
     // Only agency users can delete overrides
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.upload");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const uploadId = searchParams.get("uploadId");
@@ -281,8 +291,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    if (upload.request.agencyId !== session.user.agencyId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    if (
+      upload.request.agencyId !== access.agencyId ||
+      (await db.upload.count({ where: { id: upload.id, request: requestWhere(access) } })) === 0
+    ) {
+      return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
     // Remove override from metadata

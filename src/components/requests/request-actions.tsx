@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAccess } from "@/lib/access/client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,7 +42,7 @@ interface Request {
   creator: {
     id: string;
     name: string;
-    email: string;
+    email?: string;
   };
   uploads: Array<{ id: string; status: string }>;
 }
@@ -80,13 +81,22 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
     status?: string;
   }>({ open: false, action: null });
 
-  const isDraft = request.status === "DRAFT";
-  const canSubmit = request.status === "IN_PROGRESS" && request.uploads.length > 0;
-  const canApprove = request.status === "SUBMITTED" || request.status === "UNDER_REVIEW";
-  const canCancel = request.status !== "CANCELLED" && request.status !== "APPROVED" && request.status !== "ARCHIVED";
+  const { can } = useAccess();
+  // Status changes go through the bulk route, which checks the key for each status
+  const statusAllowed = (status: string) =>
+    status === "APPROVED" ? can("review.approve") : status === "NEEDS_REVISION" ? can("review.requestChanges") : status === "ARCHIVED" ? can("requests.archive") : can("requests.edit");
+  const isDraft = request.status === "DRAFT" && can("requests.create");
+  const canSubmit = request.status === "IN_PROGRESS" && request.uploads.length > 0 && can("requests.edit");
+  const canApprove = (request.status === "SUBMITTED" || request.status === "UNDER_REVIEW") && can("review.approve");
+  const canCancel = request.status !== "CANCELLED" && request.status !== "APPROVED" && request.status !== "ARCHIVED" && can("requests.edit");
   const isArchived = request.status === "ARCHIVED";
-  const canArchive = !isArchived && request.status !== "DRAFT";
-  const canSendReminder = ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(request.status);
+  const canRestore = isArchived && can("requests.edit");
+  const canArchive = !isArchived && request.status !== "DRAFT" && can("requests.archive");
+  const canSendReminder = ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(request.status) && can("requests.remind");
+  const canDownload = request.uploads.length > 0 && can("review.download");
+  const statusChoices = STATUS_OPTIONS.filter((s) => statusAllowed(s.value));
+  const menuHasItems =
+    can("requests.edit") || (!hideCloneButton && can("requests.create")) || statusChoices.length > 0 || canArchive || can("requests.delete");
 
   const handleAction = async (action: "submit" | "approve" | "cancel" | "archive" | "publish" | "sendReminder" | "delete") => {
     if (loading) return;
@@ -269,7 +279,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
     <>
       <div className="flex gap-2 flex-wrap">
         {/* Restore from Archive button */}
-        {isArchived && (
+        {canRestore && (
           <Button
             onClick={() => handleQuickAction("changeStatus", { status: "PENDING" })}
             disabled={loading}
@@ -306,7 +316,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
           </Button>
         )}
 
-        {request.uploads.length > 0 && (
+        {canDownload && (
           <Button
             variant="outline"
             onClick={handleBulkDownload}
@@ -332,6 +342,7 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
           </Button>
         )}
 
+        {menuHasItems && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button aria-label="More request actions" variant="outline" size="icon">
@@ -339,14 +350,16 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem asChild>
-              <Link href={`/dashboard/requests/${request.id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit request
-              </Link>
-            </DropdownMenuItem>
+            {can("requests.edit") && (
+              <DropdownMenuItem asChild>
+                <Link href={`/dashboard/requests/${request.id}/edit`}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit request
+                </Link>
+              </DropdownMenuItem>
+            )}
 
-            {!hideCloneButton && (
+            {!hideCloneButton && can("requests.create") && (
               <DropdownMenuItem
                 onClick={onCloneClick}
                 className="text-foreground dark:text-foreground"
@@ -365,16 +378,17 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
               </DropdownMenuItem>
             )}
 
-            <DropdownMenuSeparator />
+            {(statusChoices.length > 0 || can("requests.edit")) && <DropdownMenuSeparator />}
 
             {/* Change Status submenu */}
+            {statusChoices.length > 0 && (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <FileEdit className="mr-2 h-4 w-4" />
                 Change status
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                {STATUS_OPTIONS.map((status) => (
+                {statusChoices.map((status) => (
                   <DropdownMenuItem
                     key={status.value}
                     onClick={() => {
@@ -400,8 +414,10 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                 ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            )}
 
             {/* Change Priority submenu */}
+            {can("requests.edit") && (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <Bell className="mr-2 h-4 w-4" />
@@ -420,10 +436,11 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
                 ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            )}
 
-            <DropdownMenuSeparator />
+            {(canRestore || canArchive || canCancel) && <DropdownMenuSeparator />}
 
-            {isArchived ? (
+            {canRestore ? (
               <DropdownMenuItem
                 onClick={() => handleQuickAction("changeStatus", { status: "PENDING" })}
               >
@@ -449,17 +466,21 @@ export function RequestActions({ request, onCloneClick, hideCloneButton = false 
               </DropdownMenuItem>
             )}
 
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              className="text-late focus:text-late"
-              onClick={() => setConfirmDialog({ open: true, action: "delete" })}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete permanently
-            </DropdownMenuItem>
+            {can("requests.delete") && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-late focus:text-late"
+                  onClick={() => setConfirmDialog({ open: true, action: "delete" })}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete permanently
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
 
       {/* Confirmation Dialog */}

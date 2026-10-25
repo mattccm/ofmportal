@@ -45,6 +45,10 @@ interface TemplateCardProps {
   groups?: { id: string; name: string }[];
   /** Move to a group (null for Ungrouped) */
   onMove?: (groupId: string | null) => void;
+  /** False hides Edit and makes the card open nothing (templates.edit) */
+  canEdit?: boolean;
+  /** False hides Send (requests.create) */
+  canSend?: boolean;
   /** Show the group's name after the title (off on a group's own shelf) */
   showGroup?: boolean;
 }
@@ -72,6 +76,8 @@ export function TemplateCard({
   onDelete,
   groups,
   onMove,
+  canEdit = true,
+  canSend = true,
   showGroup = false,
 }: TemplateCardProps) {
   const [confirm, setConfirm] = React.useState(false);
@@ -104,6 +110,7 @@ export function TemplateCard({
     }
   };
 
+  const hasMenu = canEdit || !!onDuplicate || !!onDelete || (!!onMove && !!groups?.length);
   const aside = [showGroup ? category?.name : null, !isActive ? "Switched off" : null].filter(Boolean).join(" · ");
 
   return (
@@ -115,13 +122,13 @@ export function TemplateCard({
         description={plain(description)}
         fields={fields}
         foot={fieldCount ? `${fieldCount} ${fieldCount === 1 ? "field" : "fields"}` : "No fields yet"}
-        href={`/dashboard/templates/${id}/edit`}
-        ariaLabel={`Edit ${name}`}
+        href={canEdit ? `/dashboard/templates/${id}/edit` : undefined}
+        ariaLabel={canEdit ? `Edit ${name}` : undefined}
         muted={!isActive}
         aside={aside ? <span> · {aside}</span> : null}
         actions={
           <>
-            {isActive && (
+            {isActive && canSend && (
               <Button asChild size="sm" variant="outline">
                 <Link href={`/dashboard/requests/new?templateId=${id}`}>
                   <Send className="size-4" aria-hidden="true" />
@@ -129,6 +136,7 @@ export function TemplateCard({
                 </Link>
               </Button>
             )}
+            {hasMenu && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="icon-sm" variant="ghost" aria-label={`More for ${name}`} disabled={!!busy}>
@@ -136,12 +144,14 @@ export function TemplateCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem asChild>
-                  <Link href={`/dashboard/templates/${id}/edit`}>
-                    <Pencil className="size-4" aria-hidden="true" />
-                    Edit
-                  </Link>
-                </DropdownMenuItem>
+                {canEdit && (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/templates/${id}/edit`}>
+                      <Pencil className="size-4" aria-hidden="true" />
+                      Edit
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 {onMove && groups && groups.length > 0 && (
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
@@ -172,7 +182,7 @@ export function TemplateCard({
                 )}
                 {onDelete && (
                   <>
-                    <DropdownMenuSeparator />
+                    {(canEdit || !!onDuplicate || (!!onMove && !!groups?.length)) && <DropdownMenuSeparator />}
                     <DropdownMenuItem className="text-late focus:text-late" onClick={() => setConfirm(true)}>
                       <Trash2 className="size-4" aria-hidden="true" />
                       Delete
@@ -181,6 +191,7 @@ export function TemplateCard({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            )}
           </>
         }
       />

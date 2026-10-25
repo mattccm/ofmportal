@@ -34,7 +34,8 @@ import Link from "next/link";
 export interface GroupMember {
   id: string;
   name: string;
-  email: string;
+  /** Absent when the viewer's role can't see creators' email */
+  email?: string;
   avatar: string | null;
   inviteStatus: string;
   sortOrder: number;
@@ -55,9 +56,13 @@ interface GroupCardProps {
   group: CreatorGroup;
   onEdit: (group: CreatorGroup) => void;
   onDelete: (groupId: string) => void;
+  /** creators.groups: edit and delete */
+  canManage?: boolean;
+  /** requests.create: send the group a request */
+  canRequest?: boolean;
 }
 
-export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
+export function GroupCard({ group, onEdit, onDelete, canManage = true, canRequest = true }: GroupCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -114,6 +119,7 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
               </div>
             </div>
 
+            {(canManage || canRequest) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button aria-label={`More actions for ${group.name}`}
@@ -125,26 +131,35 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => onEdit(group)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Group
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/dashboard/requests/new?groupId=${group.id}`}>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Request
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Group
-                </DropdownMenuItem>
+                {canManage && (
+                  <DropdownMenuItem onClick={() => onEdit(group)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Group
+                  </DropdownMenuItem>
+                )}
+                {canRequest && (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/requests/new?groupId=${group.id}`}>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Request
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {canManage && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Group
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
+            )}
           </div>
         </CardHeader>
 
@@ -186,7 +201,9 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
           )}
 
           {/* Quick actions */}
+          {(canManage || canRequest) && (
           <div className="flex gap-2 pt-2">
+            {canManage && (
             <Button
               variant="outline"
               size="sm"
@@ -196,6 +213,8 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
               <Edit className="mr-2 h-3.5 w-3.5" />
               Edit
             </Button>
+            )}
+            {canRequest && (
             <Button
               variant="default"
               size="sm"
@@ -207,7 +226,9 @@ export function GroupCard({ group, onEdit, onDelete }: GroupCardProps) {
                 Send Request
               </Link>
             </Button>
+            )}
           </div>
+          )}
         </CardContent>
       </Card>
 

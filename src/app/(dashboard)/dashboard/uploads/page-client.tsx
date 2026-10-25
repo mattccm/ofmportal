@@ -48,11 +48,12 @@ import { toast } from "sonner";
 import { loadUploadsPage } from "./actions";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { useAccess } from "@/lib/access/client";
 
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
 }
 
 interface RequestTemplate {
@@ -102,6 +103,11 @@ export function UploadsPageClient({
   pagination,
   initialFilters,
 }: UploadsPageClientProps) {
+  const { can } = useAccess();
+  // Selecting uploads only helps when the role can act on a selection
+  const canSelect =
+    ["review.approve", "review.requestChanges", "review.delete", "review.download", "requests.export"].some((k) => can(k)) ||
+    (can("requests.bulk") && can("requests.edit"));
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -449,10 +455,12 @@ export function UploadsPageClient({
               : `${stats.total} ${stats.total === 1 ? "upload" : "uploads"}: ${stats.pending} waiting for review, ${stats.approved} approved, ${stats.rejected} sent back.`}
           </p>
         </div>
-        <Button variant="outline" aria-pressed={showPreviews} onClick={() => setShowPreviews((v) => !v)}>
-          {showPreviews ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-          {showPreviews ? "Hide previews" : "Show previews"}
-        </Button>
+        {can("review.reveal") && (
+          <Button variant="outline" aria-pressed={showPreviews} onClick={() => setShowPreviews((v) => !v)}>
+            {showPreviews ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            {showPreviews ? "Hide previews" : "Show previews"}
+          </Button>
+        )}
       </div>
 
       {/* Status views with their counts */}
@@ -483,7 +491,8 @@ export function UploadsPageClient({
         onApplyFilter={refreshData}
       />
 
-      {/* Bulk Actions Bar */}
+      {/* Bulk Actions Bar: only when the role can act on a selection */}
+      {canSelect && (
       <BulkActionsBar
         selectedIds={selectedIds}
         totalCount={uploads.length}
@@ -497,6 +506,7 @@ export function UploadsPageClient({
         onExportCsv={handleExportCsv}
         isProcessing={isProcessing}
       />
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -574,7 +584,7 @@ export function UploadsPageClient({
         </Button>
 
         {/* Bulk Tag Button */}
-        {selectedIds.size > 0 && (
+        {selectedIds.size > 0 && can("requests.bulk") && can("requests.edit") && (
           <Button
             variant="outline"
             size="sm"
@@ -719,7 +729,7 @@ export function UploadsPageClient({
                 key={upload.id}
                 upload={upload}
                 isSelected={selectedIds.has(upload.id)}
-                onSelect={handleSelect}
+                onSelect={canSelect ? handleSelect : undefined}
                 onReviewComplete={refreshData}
                 viewMode="grid"
                 revealed={showPreviews}
@@ -736,7 +746,7 @@ export function UploadsPageClient({
                 key={upload.id}
                 upload={upload}
                 isSelected={selectedIds.has(upload.id)}
-                onSelect={handleSelect}
+                onSelect={canSelect ? handleSelect : undefined}
                 onReviewComplete={refreshData}
                 viewMode="list"
                 revealed={showPreviews}

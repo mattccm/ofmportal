@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, staffWhere, forbidden } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -37,18 +36,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Verify request belongs to the agency
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
     });
 
     if (!request) {
@@ -56,8 +50,9 @@ export async function GET(
     }
 
     // Get all watchers with user details
+    // Only teammates inside this person's team scope (they always see themselves)
     const watchers = await db.requestWatcher.findMany({
-      where: { requestId: id },
+      where: { requestId: id, user: staffWhere(access) },
       include: {
         user: {
           select: {
@@ -92,33 +87,30 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = addWatcherSchema.parse(body);
 
     // Verify request belongs to the agency
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
     });
 
     if (!request) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    // Verify user belongs to the same agency
+    // Adding someone else is an edit to the request; watching it yourself is not
+    if (validatedData.userId !== session.user.id && !access.has("requests.edit")) {
+      return forbidden("requests.edit");
+    }
+
+    // Verify user is a teammate this person can see
     const user = await db.user.findFirst({
-      where: {
-        id: validatedData.userId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [staffWhere(access), { id: validatedData.userId }] },
     });
 
     if (!user) {
@@ -203,21 +195,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = removeWatcherSchema.parse(body);
 
     // Verify request belongs to the agency
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
     });
 
     if (!request) {
@@ -257,9 +244,9 @@ export async function DELETE(
       );
     }
 
-    // Only allow removing self or if user is manager/admin
-    const canRemoveOthers = ["OWNER", "ADMIN", "MANAGER"].includes(session.user.role);
-    if (watcherToDelete.userId !== session.user.id && !canRemoveOthers) {
+    // Taking someone else off has its own key (managers and up by default);
+    // unwatching yourself is always allowed
+    if (watcherToDelete.userId !== session.user.id && !access.has("requests.watchers")) {
       return NextResponse.json(
         { error: "You can only remove yourself from watching" },
         { status: 403 }
@@ -311,21 +298,16 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = updatePreferencesSchema.parse(body);
 
     // Verify request belongs to the agency
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
     });
 
     if (!request) {

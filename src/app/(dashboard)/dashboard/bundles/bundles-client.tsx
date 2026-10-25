@@ -5,6 +5,7 @@ import { useState, useCallback } from "react";
 import { BundleManager } from "@/components/bundles/bundle-manager";
 import { BundleExecutor } from "@/components/bundles/bundle-executor";
 import { toast } from "sonner";
+import { useAccess } from "@/lib/access/client";
 import type {
   RequestBundle,
   BundleExecutionConfig,
@@ -27,7 +28,8 @@ interface Template {
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  /** Left out when the person's role hides creators' email */
+  email?: string;
 }
 
 interface BundleWithTemplates extends RequestBundle {
@@ -47,6 +49,7 @@ export function BundlesClient({
   availableTemplates,
   creators,
 }: BundlesClientProps) {
+  const { can } = useAccess();
   const [bundles, setBundles] = useState<BundleWithTemplates[]>(initialBundles);
   const [executingBundle, setExecutingBundle] = useState<BundleWithTemplates | null>(null);
   const [showExecutor, setShowExecutor] = useState(false);
@@ -180,7 +183,8 @@ export function BundlesClient({
         onUpdateBundle={handleUpdateBundle}
         onDeleteBundle={handleDeleteBundle}
         onDuplicateBundle={handleDuplicateBundle}
-        onExecuteBundle={handleExecuteBundle}
+        onExecuteBundle={can("bundles.run") ? handleExecuteBundle : undefined}
+        canEdit={can("bundles.edit")}
       />
 
       <BundleExecutor

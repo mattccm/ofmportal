@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorScopeWhere, creatorWhere, redactCreatorsIn, requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import type {
   DuplicateAttemptListResponse,
@@ -30,28 +29,21 @@ const querySchema = z.object({
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admins and owners can view duplicate attempts
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to view duplicate attempts" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { searchParams } = new URL(req.url);
     const params = querySchema.parse(Object.fromEntries(searchParams));
 
     const agencyId = session.user.agencyId;
+    // Only attempts by creators inside this person's creator scope
+    const inScope = access.creatorScope.type === "all" ? {} : { creator: creatorScopeWhere(access) };
 
     // Build where clause
     const whereClause: Record<string, unknown> = {
       agencyId,
+      ...inScope,
     };
 
     if (params.creatorId) {
@@ -83,7 +75,9 @@ export async function GET(req: NextRequest) {
         { attemptedFileName: { contains: params.search, mode: "insensitive" } },
         { originalFileName: { contains: params.search, mode: "insensitive" } },
         { creator: { name: { contains: params.search, mode: "insensitive" } } },
-        { creator: { email: { contains: params.search, mode: "insensitive" } } },
+        ...(access.has("creatorInfo.email")
+          ? [{ creator: { email: { contains: params.search, mode: "insensitive" } } }]
+          : []),
       ];
     }
 
@@ -118,18 +112,18 @@ export async function GET(req: NextRequest) {
       repeatOffenders,
     ] = await Promise.all([
       db.duplicateAttempt.count({
-        where: { agencyId, action: "BLOCKED" },
+        where: { agencyId, ...inScope, action: "BLOCKED" },
       }),
       db.duplicateAttempt.count({
-        where: { agencyId, action: "WARNED" },
+        where: { agencyId, ...inScope, action: "WARNED" },
       }),
       db.duplicateAttempt.groupBy({
         by: ["creatorId"],
-        where: { agencyId },
+        where: { agencyId, ...inScope },
       }).then((results) => results.length),
       db.duplicateAttempt.groupBy({
         by: ["creatorId"],
-        where: { agencyId },
+        where: { agencyId, ...inScope },
         _count: { creatorId: true },
         orderBy: { _count: { creatorId: "desc" } },
         having: { creatorId: { _count: { gt: 2 } } },
@@ -141,7 +135,7 @@ export async function GET(req: NextRequest) {
     const [creators, matchTypes, actions] = await Promise.all([
       db.creator.findMany({
         where: {
-          agencyId,
+          ...creatorWhere(access),
           duplicateAttempts: { some: {} },
         },
         select: {
@@ -153,11 +147,11 @@ export async function GET(req: NextRequest) {
       }),
       db.duplicateAttempt.groupBy({
         by: ["matchType"],
-        where: { agencyId },
+        where: { agencyId, ...inScope },
       }).then((results) => results.map((r) => r.matchType as DuplicateMatchTypeEnum)),
       db.duplicateAttempt.groupBy({
         by: ["action"],
-        where: { agencyId },
+        where: { agencyId, ...inScope },
       }).then((results) => results.map((r) => r.action as DuplicateActionEnum)),
     ]);
 
@@ -217,7 +211,8 @@ export async function GET(req: NextRequest) {
       },
     };
 
-    return NextResponse.json(response);
+    // Creator details under attempts[].creator and filters.creators
+    return NextResponse.json(redactCreatorsIn(access, response));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -242,18 +237,9 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to override duplicates" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const { attemptId, reason } = z.object({
@@ -266,6 +252,7 @@ export async function POST(req: NextRequest) {
     // Find and update the attempt
     const attempt = await db.duplicateAttempt.findFirst({
       where: {
+          ...(access.creatorScope.type === "all" ? {} : { creator: creatorScopeWhere(access) }),
         id: attemptId,
         agencyId,
       },

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import {
   getOversightStats,
   getRecentActivity,
@@ -11,27 +10,21 @@ import {
   getKeywordAlerts,
   getOversightKeywords,
   saveOversightKeywords,
+  oversightScope,
   type OversightKeyword,
 } from "@/lib/oversight";
 
-// Oversight is a management feature - restricted to elevated roles.
-const OVERSIGHT_ROLES = ["OWNER", "ADMIN", "MANAGER"];
+// Oversight is a management feature: the "Oversight" permission, limited to
+// the creators and teammates inside the viewer's role scopes.
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("settings.oversight");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!OVERSIGHT_ROLES.includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Forbidden: oversight access required" },
-        { status: 403 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
+    const scope = oversightScope(access);
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get("type") || "summary";
 
@@ -41,11 +34,11 @@ export async function GET(request: NextRequest) {
         const keywords = await getOversightKeywords(agencyId);
         const [stats, activity, keywordAlerts, conversations, staff] =
           await Promise.all([
-            getOversightStats(agencyId, keywords),
-            getRecentActivity(agencyId),
-            getKeywordAlerts(agencyId, keywords),
-            getMessageOversight(agencyId, keywords),
-            getStaffMetrics(agencyId),
+            getOversightStats(scope, keywords),
+            getRecentActivity(scope),
+            getKeywordAlerts(scope, keywords),
+            getMessageOversight(scope, keywords),
+            getStaffMetrics(scope),
           ]);
         return NextResponse.json({
           stats,
@@ -57,23 +50,23 @@ export async function GET(request: NextRequest) {
       }
 
       case "activity": {
-        const activity = await getRecentActivity(agencyId);
+        const activity = await getRecentActivity(scope);
         return NextResponse.json({ activity });
       }
 
       case "staff": {
-        const staff = await getStaffMetrics(agencyId);
+        const staff = await getStaffMetrics(scope);
         return NextResponse.json({ staff });
       }
 
       case "creators": {
-        const creators = await getCreatorCommunications(agencyId);
+        const creators = await getCreatorCommunications(scope);
         return NextResponse.json({ creators });
       }
 
       case "messages": {
         const keywords = await getOversightKeywords(agencyId);
-        const conversations = await getMessageOversight(agencyId, keywords);
+        const conversations = await getMessageOversight(scope, keywords);
         return NextResponse.json({ conversations });
       }
 
@@ -85,7 +78,7 @@ export async function GET(request: NextRequest) {
             { status: 400 }
           );
         }
-        const thread = await getConversationThread(agencyId, conversationId);
+        const thread = await getConversationThread(scope, conversationId);
         if (!thread) {
           return NextResponse.json(
             { error: "Conversation not found" },
@@ -97,7 +90,7 @@ export async function GET(request: NextRequest) {
 
       case "keywords": {
         const keywords = await getOversightKeywords(agencyId);
-        const alerts = await getKeywordAlerts(agencyId, keywords);
+        const alerts = await getKeywordAlerts(scope, keywords);
         return NextResponse.json({ keywords, alerts });
       }
 
@@ -119,18 +112,10 @@ export async function GET(request: NextRequest) {
 // Update the monitored-keyword configuration (Agency.settings.oversight.keywords).
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    // Only OWNER/ADMIN can change monitoring configuration.
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Forbidden: admin access required" },
-        { status: 403 }
-      );
-    }
+    // Changing what is monitored has its own key (admins by default)
+    const gate = await requireAccess("settings.oversightKeywords");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await request.json();
     const keywords = body?.keywords;
@@ -142,7 +127,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const saved = await saveOversightKeywords(
-      session.user.agencyId,
+      access.agencyId,
       keywords as OversightKeyword[]
     );
     return NextResponse.json({ keywords: saved });

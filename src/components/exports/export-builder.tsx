@@ -23,6 +23,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
+import type { PermissionKey } from "@/lib/access/catalogue";
 import {
   Download,
   FileText,
@@ -46,7 +48,8 @@ import {
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  /** Absent when the role can't see creators' email */
+  email?: string;
 }
 
 interface Request {
@@ -184,6 +187,20 @@ const STATUS_OPTIONS = [
   "DRAFT", "PENDING", "IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW", "NEEDS_REVISION", "APPROVED", "CANCELLED", "ARCHIVED"
 ];
 
+/** Creator information fields and the permission each needs (the server drops them too) */
+const FIELD_PERMS: Partial<Record<EntityType, Record<string, PermissionKey>>> = {
+  creators: {
+    email: "creatorInfo.email",
+    phone: "creatorInfo.phone",
+    preferredContact: "creatorInfo.preferences",
+    timezone: "creatorInfo.location",
+    lastLoginAt: "creatorInfo.activity",
+    inviteStatus: "creatorInfo.invite",
+  },
+  requests: { creatorEmail: "creatorInfo.email" },
+  uploads: { creatorEmail: "creatorInfo.email" },
+};
+
 export function ExportBuilder({
   creators,
   onExport,
@@ -191,13 +208,22 @@ export function ExportBuilder({
   isLoading,
   onConfigChange,
 }: ExportBuilderProps) {
+  const { can } = useAccess();
+  const fieldsFor = useCallback(
+    (e: EntityType) => ENTITY_FIELDS[e].filter((f) => {
+      const perm = FIELD_PERMS[e]?.[f.key];
+      return !perm || can(perm);
+    }),
+    [can]
+  );
+
   // Current step
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Configuration state
   const [entity, setEntity] = useState<EntityType>("creators");
   const [selectedFields, setSelectedFields] = useState<string[]>(() =>
-    ENTITY_FIELDS.creators.slice(0, 5).map((f) => f.key)
+    fieldsFor("creators").slice(0, 5).map((f) => f.key)
   );
   const [format, setFormat] = useState<ExportFormat>("csv");
 
@@ -212,14 +238,14 @@ export function ExportBuilder({
   const [draggedField, setDraggedField] = useState<string | null>(null);
 
   // Available fields for current entity
-  const availableFields = useMemo(() => ENTITY_FIELDS[entity], [entity]);
+  const availableFields = useMemo(() => fieldsFor(entity), [entity, fieldsFor]);
 
   // Initialize with some default fields when entity changes
   const [prevEntity, setPrevEntity] = useState(entity);
 
   if (entity !== prevEntity) {
     setPrevEntity(entity);
-    setSelectedFields(ENTITY_FIELDS[entity].slice(0, 5).map((f) => f.key));
+    setSelectedFields(fieldsFor(entity).slice(0, 5).map((f) => f.key));
     setFilterConditions([]);
     setSelectedCreators([]);
     setSelectedStatuses([]);
@@ -573,9 +599,11 @@ export function ExportBuilder({
                     }}
                   />
                   <span className="text-sm">{creator.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    ({creator.email})
-                  </span>
+                  {creator.email && (
+                    <span className="text-xs text-muted-foreground">
+                      ({creator.email})
+                    </span>
+                  )}
                 </label>
               ))}
             </div>

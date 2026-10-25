@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validateCreatorSession, staffFirstName, isCreatorPseudoEmail } from "@/lib/portal-auth";
 import { excludePseudoUsers } from "@/lib/staff";
+import { recipientsWhoCanSee } from "@/lib/access/server";
 import { broadcastConversationMessage } from "@/lib/realtime-broadcast";
 import { notifyTeam, NotificationType } from "@/lib/notifications";
 
@@ -208,11 +209,17 @@ export async function POST(request: NextRequest) {
         },
         select: { id: true },
       });
-      if (staff.length > 0) {
+      // Only staff whose role sees creator conversations and this creator
+      const recipients = await recipientsWhoCanSee(
+        creator.agencyId,
+        staff.map((s) => s.id),
+        { creatorId: creator.id, keys: ["messages.creators"] }
+      );
+      if (recipients.length > 0) {
         const preview =
           content.length > 80 ? content.slice(0, 77) + "..." : content;
         await notifyTeam(
-          staff.map((s) => s.id),
+          recipients,
           NotificationType.MESSAGE_RECEIVED,
           `New message from ${creator.name}`,
           preview,

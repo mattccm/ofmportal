@@ -32,6 +32,8 @@ import {
 import { TitleCard, arrive, formatDay, type FieldSummary } from "@/components/title-wall";
 import { MentionInput } from "@/components/mentions/mention-input";
 import { textToMentionSegments } from "@/lib/mention-parser";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 // ---------------------------------------------------------------- types
 
@@ -63,8 +65,10 @@ interface Msg {
 }
 
 interface Details {
-  creator: { id: string; name: string; preferredContact: string; timezone: string; lastLoginAt: string | null };
-  quiet: QuietHours;
+  /** Fields the viewer's role can't see are left out by the server */
+  creator: { id: string; name: string; preferredContact?: string; timezone?: string; lastLoginAt?: string | null };
+  /** null when the role can't see the creator's time zone */
+  quiet: QuietHours | null;
   active: { id: string; title: string; due: string | null; fields: FieldSummary[] }[];
   delivery: DeliverySummary;
 }
@@ -106,7 +110,22 @@ function short(iso: string | null): string {
 // ---------------------------------------------------------------- page
 
 export default function MessagesPage() {
+  const { canAny, roleName } = useAccess();
+  if (!canAny(["messages.creators", "messages.team"])) {
+    return <NoAccess what="messages" roleName={roleName} />;
+  }
+  return <Messages />;
+}
+
+function Messages() {
   const router = useRouter();
+  const { can } = useAccess();
+  const canCreators = can("messages.creators");
+  const canTeam = can("messages.team");
+  const canReply = can("messages.reply");
+  const canGroups = can("messages.groups");
+  // Creators and Team filters only when the role sees both kinds
+  const views = VIEWS.filter((v) => (v.key === "creator" || v.key === "team" ? canCreators && canTeam : true));
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const me = session?.user?.id ?? "";
@@ -522,16 +541,22 @@ export default function MessagesPage() {
         title="Messages"
         lede={lede}
         actions={
-          <div className="flex gap-2 max-sm:w-full max-sm:[&>*]:flex-1">
-            <Button variant="outline" onClick={() => setGroupOpen(true)}>
-              <Users aria-hidden="true" />
-              New group
-            </Button>
-            <Button variant="light" onClick={() => setNewOpen(true)}>
-              <Plus aria-hidden="true" />
-              New conversation
-            </Button>
-          </div>
+          (canGroups || canReply || canTeam) && (
+            <div className="flex gap-2 max-sm:w-full max-sm:[&>*]:flex-1">
+              {canGroups && (
+                <Button variant="outline" onClick={() => setGroupOpen(true)}>
+                  <Users aria-hidden="true" />
+                  New group
+                </Button>
+              )}
+              {(canReply || canTeam) && (
+                <Button variant="light" onClick={() => setNewOpen(true)}>
+                  <Plus aria-hidden="true" />
+                  New conversation
+                </Button>
+              )}
+            </div>
+          )
         }
         className={cn(region !== "list" && "max-lg:hidden")}
       />
@@ -554,7 +579,7 @@ export default function MessagesPage() {
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search messages" className="pl-9" type="search" />
             </label>
             <div role="group" aria-label="Show" className="flex gap-0.5 overflow-x-auto">
-              {VIEWS.map((v) => (
+              {views.map((v) => (
                 <button
                   key={v.key}
                   type="button"
@@ -597,7 +622,9 @@ export default function MessagesPage() {
                   ? `Nothing matches “${query.trim()}”.`
                   : view === "unread"
                     ? "Everything is read."
-                    : "No conversations here yet. Start one with New conversation, or message a creator from their profile."}
+                    : canReply || canTeam
+                      ? "No conversations here yet. Start one with New conversation, or message a creator from their profile."
+                      : "No conversations here yet."}
               </p>
             ) : (
               <ul ref={listRef} className="space-y-0.5">
@@ -691,10 +718,8 @@ export default function MessagesPage() {
                   <p className="truncate text-[13px] text-ink-2" suppressHydrationWarning>
                     {selected.members
                       ? memberLine(selected.members, me)
-                      : details
-                      ? `Prefers ${contactLabel(details.creator.preferredContact)} · ${
-                          details.creator.lastLoginAt ? `last seen ${ago(details.creator.lastLoginAt)}` : "not signed in yet"
-                        }`
+                      : details && detailsLine(details)
+                      ? detailsLine(details)
                       : selected.type === "CREATOR"
                         ? "Creator"
                         : selected.type === "GROUP"
@@ -741,7 +766,9 @@ export default function MessagesPage() {
                     </button>
                   </EmptyLine>
                 ) : messages.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-ink-2">No messages yet. Say hello below.</p>
+                  <p className="py-8 text-center text-sm text-ink-2">
+                    {selected.type === "CREATOR" && !canReply ? "No messages yet." : "No messages yet. Say hello below."}
+                  </p>
                 ) : (
                   <ol className="space-y-3">
                     {messages.map((m, i) => {
@@ -796,6 +823,11 @@ export default function MessagesPage() {
                 )}
               </div>
 
+              {selected.type === "CREATOR" && !canReply ? (
+                <p className="border-t border-line px-4 py-3 text-[13px] text-ink-2">
+                  You can read this conversation. Your role doesn&rsquo;t include messaging creators.
+                </p>
+              ) : (
               <form
                 className="border-t border-line p-3 sm:p-4"
                 onSubmit={(e) => {
@@ -856,6 +888,7 @@ export default function MessagesPage() {
                   </Button>
                 </div>
               </form>
+              )}
             </>
           )}
         </section>
@@ -893,18 +926,37 @@ export default function MessagesPage() {
         </aside>
       </div>
 
-      <NewConversationDialog open={newOpen} onOpenChange={setNewOpen} onCreate={createConversation} currentUserId={me} />
-      <NewGroupDialog
-        open={groupOpen}
-        onOpenChange={setGroupOpen}
-        onCreate={(ids, name) => createConversation(ids, name)}
-        currentUserId={me}
-      />
+      {(canReply || canTeam) && (
+        <NewConversationDialog
+          open={newOpen}
+          onOpenChange={setNewOpen}
+          onCreate={createConversation}
+          currentUserId={me}
+          kinds={[...(canReply ? (["creators"] as const) : []), ...(canTeam ? (["team"] as const) : [])]}
+        />
+      )}
+      {canGroups && (
+        <NewGroupDialog
+          open={groupOpen}
+          onOpenChange={setGroupOpen}
+          onCreate={(ids, name) => createConversation(ids, name)}
+          currentUserId={me}
+        />
+      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------- details column
+
+/** "Prefers email · last seen 2h ago", from whichever fields the role can see */
+function detailsLine(details: Details): string {
+  const c = details.creator;
+  const parts: string[] = [];
+  if (c.preferredContact !== undefined) parts.push(`Prefers ${contactLabel(c.preferredContact)}`);
+  if (c.lastLoginAt !== undefined) parts.push(c.lastLoginAt ? `last seen ${ago(c.lastLoginAt)}` : "not signed in yet");
+  return parts.join(" · ");
+}
 
 function ThreadDetails({ selected, details }: { selected: Convo | null; details: Details | null }) {
   if (!selected) return null;
@@ -947,16 +999,18 @@ function ThreadDetails({ selected, details }: { selected: Convo | null; details:
           {c.name}
         </h3>
         <dl className="divide-y divide-line text-sm">
-          {[
-            ["Prefers", contactLabel(c.preferredContact)],
-            ["Time zone", cityOf(c.timezone)],
-            ["Quiet hours", quietLabel(details.quiet)],
-            ["Last seen", c.lastLoginAt ? ago(c.lastLoginAt) : "Not yet"],
+          {(
             [
-              "Finished",
-              details.delivery.finished ? `${details.delivery.onTime} of ${details.delivery.finished} on time` : "None yet",
-            ],
-          ].map(([k, v]) => (
+              c.preferredContact !== undefined && ["Prefers", contactLabel(c.preferredContact)],
+              c.timezone !== undefined && ["Time zone", cityOf(c.timezone)],
+              c.timezone !== undefined && details.quiet && ["Quiet hours", quietLabel(details.quiet)],
+              c.lastLoginAt !== undefined && ["Last seen", c.lastLoginAt ? ago(c.lastLoginAt) : "Not yet"],
+              [
+                "Finished",
+                details.delivery.finished ? `${details.delivery.onTime} of ${details.delivery.finished} on time` : "None yet",
+              ],
+            ].filter(Boolean) as [string, string][]
+          ).map(([k, v]) => (
             <div key={k} className="flex justify-between gap-3 py-2">
               <dt className="text-ink-2">{k}</dt>
               <dd className="text-right font-medium tabular-nums text-ink" suppressHydrationWarning>
@@ -995,14 +1049,18 @@ function NewConversationDialog({
   onOpenChange,
   onCreate,
   currentUserId,
+  kinds,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreate: (participantIds: string[], name?: string, creatorId?: string) => Promise<boolean>;
   currentUserId: string;
+  /** Who this person may start a conversation with (their role decides) */
+  kinds: ("creators" | "team")[];
 }) {
+  const firstKind = kinds[0] ?? "team";
   const [query, setQuery] = React.useState("");
-  const [kind, setKind] = React.useState<"team" | "creators">("creators");
+  const [kind, setKind] = React.useState<"team" | "creators">(firstKind);
   const [results, setResults] = React.useState<Person[]>([]);
   const [picked, setPicked] = React.useState<Person[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -1040,7 +1098,7 @@ function NewConversationDialog({
   const reset = () => {
     setPicked([]);
     setQuery("");
-    setKind("creators");
+    setKind(firstKind);
   };
 
   const creator = picked.find((p) => p.isCreator);
@@ -1064,7 +1122,13 @@ function NewConversationDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New conversation</DialogTitle>
-          <DialogDescription>Message a creator, or one person on the team. For several teammates, use New group.</DialogDescription>
+          <DialogDescription>
+            {kinds.length > 1
+              ? "Message a creator, or one person on the team. For several teammates, use New group."
+              : kinds[0] === "creators"
+                ? "Message a creator."
+                : "Message one person on the team. For several teammates, use New group."}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           {picked.length > 0 && (
@@ -1084,9 +1148,9 @@ function NewConversationDialog({
               ))}
             </ul>
           )}
-          {!creator && (
+          {!creator && kinds.length > 1 && (
             <div role="group" aria-label="Who" className="inline-flex rounded-[8px] bg-well p-0.5">
-              {(["creators", "team"] as const).map((k) => (
+              {kinds.map((k) => (
                 <button
                   key={k}
                   type="button"
@@ -1431,7 +1495,7 @@ function NewGroupDialog({
 
   const people = (team ?? []).filter((p) => p.id !== currentUserId);
   const q = query.trim().toLowerCase();
-  const shown = q ? people.filter((p) => p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)) : people;
+  const shown = q ? people.filter((p) => p.name.toLowerCase().includes(q) || (p.email ?? "").toLowerCase().includes(q)) : people;
   const trimmed = name.replace(/\s+/g, " ").trim();
   const nameMissing = tried && !trimmed;
   const tooFew = tried && picked.length < 2;

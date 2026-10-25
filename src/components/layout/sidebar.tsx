@@ -19,7 +19,8 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSearch } from "@/components/search";
 import { useCreatorMessagesCount } from "@/hooks/use-creator-messages";
-import { STAFF_NAV, isNavActive, type StaffNavItem } from "./staff-nav";
+import { STAFF_NAV, isNavActive, navItemVisible, type StaffNavItem } from "./staff-nav";
+import { useAccess } from "@/lib/access/client";
 import { Bell, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings, Shield } from "lucide-react";
 
 const EXPANDED_KEY = "ccm-rail-expanded";
@@ -193,10 +194,10 @@ function SidebarComponent() {
     }
   };
 
-  const role = user?.role;
+  const { canAny } = useAccess();
   const groups = STAFF_NAV.map((g) => ({
     ...g,
-    items: g.items.filter((i) => !i.roles || (role ? i.roles.includes(role) : false)),
+    items: g.items.filter((i) => navItemVisible(i, canAny)),
   })).filter((g) => g.items.length > 0);
 
   return (

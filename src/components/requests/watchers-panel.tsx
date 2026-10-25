@@ -57,6 +57,8 @@ export interface WatchersPanelProps {
   watchers: Watcher[];
   currentUserId: string;
   canManageWatchers?: boolean;
+  /** Take other people off (defaults to canManageWatchers) */
+  canRemoveWatchers?: boolean;
   onWatchersChange?: (watchers: Watcher[]) => void;
   compact?: boolean;
 }
@@ -68,6 +70,7 @@ export function WatchersPanel({
   watchers: initialWatchers,
   currentUserId,
   canManageWatchers = true,
+  canRemoveWatchers = canManageWatchers,
   onWatchersChange,
   compact = false,
 }: WatchersPanelProps) {
@@ -250,7 +253,7 @@ export function WatchersPanel({
                 key={watcher.id}
                 watcher={watcher}
                 isCurrentUser={watcher.userId === currentUserId}
-                canRemove={canManageWatchers || watcher.userId === currentUserId}
+                canRemove={canRemoveWatchers || watcher.userId === currentUserId}
                 onRemove={() => removeWatcher(watcher.id, watcher.user.name)}
                 loading={loading}
               />

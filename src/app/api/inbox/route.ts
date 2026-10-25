@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { formatMentionsForDisplay } from "@/lib/mention-parser";
-import { cleanGroupName, staffIdsInAgency } from "@/lib/conversation-access";
+import {
+  INBOX_KEYS,
+  cleanGroupName,
+  staffIdsInAgency,
+  visibleConversationWhere,
+} from "@/lib/conversation-access";
 import { excludePseudoUsers } from "@/lib/staff";
+import { creatorWhere, forbidden, redactCreatorsIn, requireAccess } from "@/lib/access/server";
 
 // GET /api/inbox - List conversations for current user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type"); // "all" | "creator" | "team"
@@ -20,10 +24,10 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     const userId = session.user.id;
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
 
-    // Build where clause
-    const where: Record<string, unknown> = {
+    // Build where clause: a participant, this agency, and threads this role may see
+    const where: Prisma.ConversationWhereInput = {
       participants: {
         some: { userId },
       },
@@ -31,6 +35,7 @@ export async function GET(request: NextRequest) {
         { agencyId },
         { agencyId: null }, // Legacy conversations without agency
       ],
+      AND: [visibleConversationWhere(access)],
     };
 
     if (type === "creator") {
@@ -147,7 +152,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      conversations: conversationsWithUnread,
+      conversations: redactCreatorsIn(access, conversationsWithUnread),
       total,
       limit,
       offset,
@@ -165,16 +170,15 @@ export async function GET(request: NextRequest) {
 // POST /api/inbox - Create a new conversation
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await request.json();
     const { type, creatorId, participantIds, name, initialMessage } = body;
 
     const userId = session.user.id;
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
 
     // Validate type
     if (!["DIRECT", "GROUP", "CREATOR"].includes(type)) {
@@ -184,7 +188,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For CREATOR type, verify the creator exists and belongs to agency
+    // Team threads need team chats; a group needs "Create group chats"
+    if (type === "DIRECT" && !access.has("messages.team")) return forbidden("messages.team");
+    if (type === "GROUP" && !access.has("messages.groups")) return forbidden("messages.groups");
+    if (type === "CREATOR" && !access.has("messages.creators")) return forbidden("messages.creators");
+
+    // For CREATOR type, verify the creator exists, belongs to agency and is in scope
     if (type === "CREATOR") {
       if (!creatorId) {
         return NextResponse.json(
@@ -194,7 +203,8 @@ export async function POST(request: NextRequest) {
       }
 
       const creator = await db.creator.findFirst({
-        where: { id: creatorId, agencyId },
+        where: { AND: [creatorWhere(access), { id: String(creatorId) }] },
+        select: { id: true },
       });
 
       if (!creator) {
@@ -226,6 +236,9 @@ export async function POST(request: NextRequest) {
           existing: true,
         });
       }
+
+      // Starting a new thread with a creator is messaging them
+      if (!access.has("messages.reply")) return forbidden("messages.reply");
     }
 
     // Team threads: every other participant must be real staff of this agency
@@ -236,7 +249,8 @@ export async function POST(request: NextRequest) {
       requested = Array.isArray(participantIds)
         ? Array.from(new Set((participantIds as unknown[]).filter((id): id is string => typeof id === "string" && id !== userId)))
         : [];
-      const valid = await staffIdsInAgency(requested, agencyId);
+      // Only teammates inside this person's team scope can be picked
+      const valid = await staffIdsInAgency(requested, agencyId, access);
       if (valid.length !== requested.length) {
         return NextResponse.json(
           { error: "Only people on your team can be added" },
@@ -351,7 +365,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      conversation,
+      conversation: redactCreatorsIn(access, conversation),
       existing: false,
     });
   } catch (error) {

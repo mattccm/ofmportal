@@ -19,6 +19,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { PERMISSIONS } from "@/lib/access/catalogue";
 
 /**
  * Every staff destination, in one place, for the rail (desktop) and the menu
@@ -28,8 +29,8 @@ export interface StaffNavItem {
   name: string;
   href: string;
   icon: LucideIcon;
-  /** Only these roles see the item */
-  roles?: string[];
+  /** Shown only to people with any of these permissions (see src/lib/access/catalogue.ts) */
+  perm?: string[];
   /** Which live count to show */
   badge?: "comments";
   /** Only in the phone menu (the desktop reaches it from the account menu) */
@@ -41,38 +42,43 @@ export interface StaffNavGroup {
   items: StaffNavItem[];
 }
 
-const ELEVATED = ["OWNER", "ADMIN", "MANAGER"];
-const ADMIN = ["OWNER", "ADMIN"];
+/** Any agency setting opens the Settings hub (personal settings are always reachable from the account menu) */
+const ANY_SETTING = [
+  "roles.manage",
+  "templates.groups",
+  "reminders.rules",
+  ...PERMISSIONS.filter((p) => p.area === "settings").map((p) => p.key),
+];
 
 export const STAFF_NAV: StaffNavGroup[] = [
   {
     name: "Work",
     items: [
-      { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-      { name: "Requests", href: "/dashboard/requests", icon: FileText },
-      { name: "Creators", href: "/dashboard/creators", icon: Users },
-      { name: "Uploads", href: "/dashboard/uploads", icon: Upload },
-      { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
-      { name: "Comments", href: "/dashboard/creator-messages", icon: MessageCircle, badge: "comments" },
-      { name: "Templates", href: "/dashboard/templates", icon: LayoutTemplate },
+      { name: "Overview", href: "/dashboard", icon: LayoutDashboard, perm: ["overview.view"] },
+      { name: "Requests", href: "/dashboard/requests", icon: FileText, perm: ["requests.view"] },
+      { name: "Creators", href: "/dashboard/creators", icon: Users, perm: ["creators.view"] },
+      { name: "Uploads", href: "/dashboard/uploads", icon: Upload, perm: ["review.view"] },
+      { name: "Messages", href: "/dashboard/messages", icon: MessageSquare, perm: ["messages.creators", "messages.team"] },
+      { name: "Comments", href: "/dashboard/creator-messages", icon: MessageCircle, badge: "comments", perm: ["requests.view"] },
+      { name: "Templates", href: "/dashboard/templates", icon: LayoutTemplate, perm: ["templates.view"] },
     ],
   },
   {
     name: "Tools",
     items: [
-      { name: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
-      { name: "Recurring requests", href: "/dashboard/recurring-requests", icon: Repeat },
-      { name: "Reminders", href: "/dashboard/reminders", icon: Bell },
-      { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-      { name: "Exports", href: "/dashboard/exports", icon: Download },
-      { name: "Oversight", href: "/dashboard/oversight", icon: Eye, roles: ELEVATED },
+      { name: "Calendar", href: "/dashboard/calendar", icon: CalendarDays, perm: ["calendar.view"] },
+      { name: "Recurring requests", href: "/dashboard/recurring-requests", icon: Repeat, perm: ["recurring.view"] },
+      { name: "Reminders", href: "/dashboard/reminders", icon: Bell, perm: ["reminders.view"] },
+      { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3, perm: ["analytics.view", "reports.view"] },
+      { name: "Exports", href: "/dashboard/exports", icon: Download, perm: ["exports.data"] },
+      { name: "Oversight", href: "/dashboard/oversight", icon: Eye, perm: ["settings.oversight"] },
     ],
   },
   {
     name: "Administration",
     items: [
-      { name: "Team", href: "/dashboard/team", icon: UserCog, roles: ADMIN },
-      { name: "Settings", href: "/dashboard/settings", icon: Settings, roles: ADMIN },
+      { name: "Team", href: "/dashboard/team", icon: UserCog, perm: ["team.view"] },
+      { name: "Settings", href: "/dashboard/settings", icon: Settings, perm: ANY_SETTING },
     ],
   },
 ];
@@ -80,9 +86,14 @@ export const STAFF_NAV: StaffNavGroup[] = [
 /** Extra rows for the phone menu (desktop reaches these from the account menu). */
 export const STAFF_PHONE_EXTRAS: StaffNavItem[] = [
   { name: "Notifications", href: "/dashboard/notifications", icon: BellRing },
-  { name: "Appearance", href: "/dashboard/settings/appearance", icon: Sun, roles: ADMIN },
+  { name: "Appearance", href: "/dashboard/settings/appearance", icon: Sun },
   { name: "Help", href: "/dashboard/help", icon: HelpCircle },
 ];
+
+/** Whether a nav item shows for someone, given `canAny` from useAccess() */
+export function navItemVisible(item: StaffNavItem, canAny: (keys: string[]) => boolean): boolean {
+  return !item.perm || canAny(item.perm);
+}
 
 export function isNavActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";

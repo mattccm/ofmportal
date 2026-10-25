@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { excludePseudoUsers } from "@/lib/staff";
+import {
+  activityWhere,
+  creatorWhere,
+  redactCreator,
+  requestWhere,
+  requireAccess,
+  staffWhere,
+  type Access,
+} from "@/lib/access/server";
 import {
   startOfDay,
   endOfDay,
@@ -74,21 +80,19 @@ function getDateRangeFromPreset(
 
 // Creator Performance Report
 async function generateCreatorPerformanceReport(
-  agencyId: string,
+  access: Access,
   start: Date,
   end: Date,
   filters?: ReportFilters
 ) {
-  const whereClause: Record<string, unknown> = {
-    agencyId,
-  };
-
-  if (filters?.creatorIds && filters.creatorIds.length > 0) {
-    whereClause.id = { in: filters.creatorIds };
-  }
-
+  // Only creators inside this person's creator scope
   const creators = await db.creator.findMany({
-    where: whereClause,
+    where: {
+      AND: [
+        creatorWhere(access),
+        filters?.creatorIds && filters.creatorIds.length > 0 ? { id: { in: filters.creatorIds } } : {},
+      ],
+    },
     include: {
       uploads: {
         where: {
@@ -111,7 +115,7 @@ async function generateCreatorPerformanceReport(
     },
   });
 
-  const reportData = creators.map((creator) => {
+  const rows = creators.map((creator) => {
     const totalUploads = creator.uploads.length;
     const approvedUploads = creator.uploads.filter((u) => u.status === "APPROVED").length;
     const rejectedUploads = creator.uploads.filter((u) => u.status === "REJECTED").length;
@@ -151,6 +155,9 @@ async function generateCreatorPerformanceReport(
     };
   });
 
+  // Each row is a creator: drop the creator fields this role can't see (email)
+  const reportData = redactCreator(access, rows);
+
   // Calculate summary metrics (averages only over creators with uploads in range)
   const active = reportData.filter((c) => c.totalUploads > 0);
   const summary = {
@@ -180,14 +187,14 @@ const isCompleted = (r: { status: string; reviewedAt: Date | null }) =>
 
 // Content Delivery Report
 async function generateContentDeliveryReport(
-  agencyId: string,
+  access: Access,
   start: Date,
   end: Date,
   groupBy: GroupBy
 ) {
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...requestWhere(access),
       createdAt: { gte: start, lte: end },
     },
     include: {
@@ -264,14 +271,14 @@ async function generateContentDeliveryReport(
 
 // Request Summary Report
 async function generateRequestSummaryReport(
-  agencyId: string,
+  access: Access,
   start: Date,
   end: Date,
   groupBy: GroupBy
 ) {
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...requestWhere(access),
       createdAt: { gte: start, lte: end },
     },
     include: {
@@ -344,13 +351,14 @@ async function generateRequestSummaryReport(
 
 // Team Activity Report
 async function generateTeamActivityReport(
-  agencyId: string,
+  access: Access,
   start: Date,
   end: Date,
   filters?: ReportFilters
 ) {
   const whereClause: Record<string, unknown> = {
-    user: { agencyId },
+    // Only teammates inside this person's team scope
+    ...activityWhere(access),
     createdAt: { gte: start, lte: end },
   };
 
@@ -439,13 +447,9 @@ async function generateTeamActivityReport(
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("reports.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const body = (await request.json()) as ReportParams;
 
     const { reportType, dateRange, startDate, endDate, groupBy, filters } = body;
@@ -460,16 +464,16 @@ export async function POST(request: NextRequest) {
 
     switch (reportType) {
       case "creator_performance":
-        result = await generateCreatorPerformanceReport(agencyId, start, end, filters);
+        result = await generateCreatorPerformanceReport(access, start, end, filters);
         break;
       case "content_delivery":
-        result = await generateContentDeliveryReport(agencyId, start, end, groupBy);
+        result = await generateContentDeliveryReport(access, start, end, groupBy);
         break;
       case "request_summary":
-        result = await generateRequestSummaryReport(agencyId, start, end, groupBy);
+        result = await generateRequestSummaryReport(access, start, end, groupBy);
         break;
       case "team_activity":
-        result = await generateTeamActivityReport(agencyId, start, end, filters);
+        result = await generateTeamActivityReport(access, start, end, filters);
         break;
       default:
         return NextResponse.json({ error: "Invalid report type" }, { status: 400 });
@@ -497,24 +501,22 @@ export async function POST(request: NextRequest) {
 // GET endpoint for fetching available filter options
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("reports.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
-
-    // Get creators for filter dropdown
-    const creators = await db.creator.findMany({
-      where: { agencyId },
+    // Get creators for filter dropdown (only those in scope, fields redacted)
+    const scoped = await db.creator.findMany({
+      where: creatorWhere(access),
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
     });
 
-    // Get team members for filter dropdown
+    const creators = redactCreator(access, scoped);
+
+    // Get team members for filter dropdown (only those in team scope)
     const teamMembers = await db.user.findMany({
-      where: { agencyId, ...excludePseudoUsers },
+      where: staffWhere(access),
       select: { id: true, name: true, email: true, role: true },
       orderBy: { name: "asc" },
     });

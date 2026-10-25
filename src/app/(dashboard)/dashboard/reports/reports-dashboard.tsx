@@ -47,11 +47,13 @@ import {
   Play,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAccess } from "@/lib/access/client";
 
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  /** Absent when the role can't see creators' email */
+  email?: string;
 }
 
 interface TeamMember {
@@ -176,6 +178,8 @@ const GROUP_BY_OPTIONS = [
 ];
 
 export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProps) {
+  const { can } = useAccess();
+  const canExport = can("reports.export");
   // Report builder state
   const [reportType, setReportType] = useState<ReportType>("creator_performance");
   const [dateRange, setDateRange] = useState<DateRangePreset>("this_month");
@@ -597,9 +601,11 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                                 }}
                               />
                               <span className="text-sm">{creator.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                ({creator.email})
-                              </span>
+                              {creator.email && (
+                                <span className="text-xs text-muted-foreground">
+                                  ({creator.email})
+                                </span>
+                              )}
                             </label>
                           ))
                         )}
@@ -682,6 +688,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
               Generate Report
             </Button>
 
+            {canExport && (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -710,6 +717,7 @@ export function ReportsDashboard({ creators, teamMembers }: ReportsDashboardProp
                 </Badge>
               </Button>
             </div>
+            )}
 
             <div className="flex items-center gap-2 ml-auto">
               <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
@@ -22,19 +21,10 @@ const testReminderSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("reminders.send");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check user role - only OWNER, ADMIN, or MANAGER can send test reminders
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
 
     const body = await req.json();
     const { channel, creatorId, testEmail, testPhone } = testReminderSchema.parse(body);
@@ -66,18 +56,17 @@ export async function POST(req: NextRequest) {
     // If testing with a specific creator
     if (creatorId) {
       const creator = await db.creator.findFirst({
-        where: {
-          id: creatorId,
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [creatorWhere(access), { id: creatorId }] },
         select: { name: true, email: true, phone: true },
       });
 
-      if (creator) {
-        recipientEmail = creator.email;
-        recipientPhone = creator.phone;
-        recipientName = creator.name;
+      if (!creator) {
+        return NextResponse.json({ error: "Creator not found" }, { status: 404 });
       }
+
+      recipientEmail = creator.email;
+      recipientPhone = creator.phone;
+      recipientName = creator.name;
     }
 
     // Create test data
@@ -85,6 +74,12 @@ export async function POST(req: NextRequest) {
     const testDueDate = format(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), "MMMM d, yyyy");
     const testDaysUntilDue = 3;
     const testPortalLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL}/portal/test`;
+
+    // A creator's address or number is only echoed back to people who may see it
+    const hideRecipient =
+      !!creatorId &&
+      (channel === "EMAIL" ? !access.has("creatorInfo.email") : !access.has("creatorInfo.phone"));
+    const shownRecipient = channel === "EMAIL" ? recipientEmail : (recipientPhone || "No phone");
 
     const result: {
       success: boolean;
@@ -94,7 +89,7 @@ export async function POST(req: NextRequest) {
     } = {
       success: false,
       channel,
-      recipient: channel === "EMAIL" ? recipientEmail : (recipientPhone || "No phone"),
+      recipient: hideRecipient ? recipientName : shownRecipient,
     };
 
     try {

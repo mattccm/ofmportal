@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
 import { sendCreatorInviteEmail } from "@/lib/email";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
@@ -35,11 +34,8 @@ const CSV_TEMPLATE_COLUMNS = [
 // GET - Download CSV template
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("creators.import");
+    if (gate.error) return gate.error;
 
     // Generate CSV template content
     const headerRow = CSV_TEMPLATE_COLUMNS.join(",");
@@ -72,11 +68,9 @@ export async function GET() {
 // POST - Parse and validate CSV data
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("creators.import");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const contentType = req.headers.get("content-type") || "";
 
@@ -126,6 +120,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validatedData = importRequestSchema.parse(body);
 
+    // Updating existing creators is editing them
+    if (validatedData.duplicateHandling === "update" && !access.has("creators.edit")) {
+      return forbidden("creators.edit");
+    }
+    // Creators outside their scope are skipped, never updated
+    const inScope = new Set(
+      (await db.creator.findMany({ where: creatorWhere(access), select: { id: true } })).map((c) => c.id)
+    );
+
     // Get existing creators in agency for duplicate checking
     const existingCreators = await db.creator.findMany({
       where: { agencyId: session.user.agencyId },
@@ -161,14 +164,25 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
-          // Update existing creator
+          if (!inScope.has(existingId)) {
+            results.skipped.push({
+              name: creatorData.name,
+              email: creatorData.email,
+              reason: "Email already exists",
+            });
+            continue;
+          }
+
+          // Update existing creator (only the details this person may see)
           await db.creator.update({
             where: { id: existingId },
             data: {
               name: creatorData.name,
-              phone: creatorData.phone || null,
-              preferredContact: creatorData.preferredContact || "EMAIL",
-              notes: creatorData.notes || null,
+              ...(access.has("creatorInfo.phone") ? { phone: creatorData.phone || null } : {}),
+              ...(access.has("creatorInfo.preferences")
+                ? { preferredContact: creatorData.preferredContact || "EMAIL" }
+                : {}),
+              ...(access.has("creatorInfo.notes") ? { notes: creatorData.notes || null } : {}),
             },
           });
 

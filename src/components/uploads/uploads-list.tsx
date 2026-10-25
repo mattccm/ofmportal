@@ -29,6 +29,7 @@ import { formatStamp } from "@/components/title-wall/time";
 import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
+import { useAccess } from "@/lib/access/client";
 
 interface Upload {
   id: string;
@@ -89,6 +90,10 @@ function getStatusBadge(status: string) {
 }
 
 export function UploadsList({ uploads, requestId, fields, onStatusChange, readOnly = false }: UploadsListProps) {
+  const { can } = useAccess();
+  const canApprove = can("review.approve");
+  const canSendBack = can("review.requestChanges");
+  const canDecide = canApprove || canSendBack;
   const [selectedUploads, setSelectedUploads] = useState<Set<string>>(new Set());
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -292,7 +297,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
     );
   }
 
-  const pendingCount = readOnly ? 0 : uploads.filter((u) => u.status === "PENDING").length;
+  const pendingCount = readOnly || !canDecide ? 0 : uploads.filter((u) => u.status === "PENDING").length;
 
   return (
     <div className="space-y-4">
@@ -312,6 +317,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
           </div>
           {selectedUploads.size > 0 && (
             <div className="flex gap-2">
+              {canApprove && (
               <Button
                 size="sm"
                 variant="outline"
@@ -325,6 +331,8 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
                 )}
                 Approve selected
               </Button>
+              )}
+              {canSendBack && (
               <Button
                 size="sm"
                 variant="outline"
@@ -334,6 +342,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
                 <X className="h-4 w-4 mr-1" />
                 Send back selected
               </Button>
+              )}
             </div>
           )}
         </div>
@@ -362,7 +371,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
                   key={upload.id}
                   className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 transition-colors duration-150 hover:bg-tile-hi"
                 >
-                  {upload.status === "PENDING" && !readOnly && (
+                  {upload.status === "PENDING" && !readOnly && canDecide && (
                     <Checkbox
                       checked={selectedUploads.has(upload.id)}
                       onCheckedChange={() => toggleUpload(upload.id)}
@@ -388,28 +397,33 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
                   <div className="ml-auto flex items-center gap-1">
                     <span className="mr-1 hidden sm:inline-flex">{getStatusBadge(upload.status)}</span>
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handlePreview(upload, uploads.indexOf(upload))}
-                      title="Open full view"
-                      aria-label={`Open ${upload.originalName} in full view`}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    {can("review.reveal") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handlePreview(upload, uploads.indexOf(upload))}
+                        title="Open full view"
+                        aria-label={`Open ${upload.originalName} in full view`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDownload(upload)}
-                      title="Download"
-                      aria-label={`Download ${upload.originalName}`}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    {can("review.download") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDownload(upload)}
+                        title="Download"
+                        aria-label={`Download ${upload.originalName}`}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
 
                     {upload.status === "PENDING" && !readOnly && (
                       <>
+                        {canApprove && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -420,6 +434,8 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
                         >
                           <Check className="h-4 w-4" />
                         </Button>
+                        )}
+                        {canSendBack && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -433,10 +449,11 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
                         >
                           <X className="h-4 w-4" />
                         </Button>
+                        )}
                       </>
                     )}
 
-                    {(upload.status === "APPROVED" || upload.status === "REJECTED") && !readOnly && (
+                    {(upload.status === "APPROVED" || upload.status === "REJECTED") && !readOnly && canDecide && (
                       <Button
                         variant="ghost"
                         size="icon"

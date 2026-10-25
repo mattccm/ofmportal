@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { cache, cacheKeys, cacheTTL } from "@/lib/cache";
 import { excludePseudoUsers } from "@/lib/staff";
+import { requireAccess, staffWhere } from "@/lib/access/server";
+import { ACTIVITY_KEYS, activityFeedSql, activityScopeOf, redactActivityMetadata } from "@/lib/activity-scope";
 
 // Activity types for filtering
 export const ACTIVITY_TYPES = {
@@ -18,11 +18,9 @@ export const ACTIVITY_TYPES = {
 // GET - Fetch paginated activity log with filtering
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(ACTIVITY_KEYS);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const url = new URL(req.url);
     const limit = url.searchParams.get("limit");
@@ -36,8 +34,11 @@ export async function GET(req: NextRequest) {
     const dateTo = url.searchParams.get("dateTo");
     const search = url.searchParams.get("search");
 
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
     const skip = (page - 1) * pageSize;
+    // Only this role's creators and teammates
+    const scope = await activityScopeOf(access);
+    const feedWhere = activityFeedSql(agencyId, scope);
 
     // Search is applied in SQL so pagination and totals reflect all matches
     const searchFilter = search ? (() => {
@@ -83,21 +84,7 @@ export async function GET(req: NextRequest) {
           u.name as "userName", u.avatar as "userAvatar", u.email as "userEmail"
         FROM "ActivityLog" a
         LEFT JOIN "User" u ON a."userId" = u.id
-        WHERE (
-          (a."entityType" = 'Upload' AND EXISTS (
-            SELECT 1 FROM "Upload" up
-            JOIN "ContentRequest" cr ON up."requestId" = cr.id
-            WHERE up.id = a."entityId" AND cr."agencyId" = ${agencyId}
-          ))
-          OR (a."entityType" = 'ContentRequest' AND EXISTS (
-            SELECT 1 FROM "ContentRequest" cr
-            WHERE cr.id = a."entityId" AND cr."agencyId" = ${agencyId}
-          ))
-          OR (a."entityType" = 'Creator' AND EXISTS (
-            SELECT 1 FROM "Creator" c
-            WHERE c.id = a."entityId" AND c."agencyId" = ${agencyId}
-          ))
-        )
+        WHERE ${feedWhere}
         ${type ? getTypeFilter(type) : Prisma.empty}
         ${userId ? Prisma.sql`AND a."userId" = ${userId}` : Prisma.empty}
         ${entityId && entityType ? Prisma.sql`AND a."entityId" = ${entityId} AND a."entityType" = ${entityType}` : Prisma.empty}
@@ -115,21 +102,7 @@ export async function GET(req: NextRequest) {
       Prisma.sql`
         SELECT COUNT(*) as count
         FROM "ActivityLog" a
-        WHERE (
-          (a."entityType" = 'Upload' AND EXISTS (
-            SELECT 1 FROM "Upload" up
-            JOIN "ContentRequest" cr ON up."requestId" = cr.id
-            WHERE up.id = a."entityId" AND cr."agencyId" = ${agencyId}
-          ))
-          OR (a."entityType" = 'ContentRequest' AND EXISTS (
-            SELECT 1 FROM "ContentRequest" cr
-            WHERE cr.id = a."entityId" AND cr."agencyId" = ${agencyId}
-          ))
-          OR (a."entityType" = 'Creator' AND EXISTS (
-            SELECT 1 FROM "Creator" c
-            WHERE c.id = a."entityId" AND c."agencyId" = ${agencyId}
-          ))
-        )
+        WHERE ${feedWhere}
         ${type ? getTypeFilter(type) : Prisma.empty}
         ${userId ? Prisma.sql`AND a."userId" = ${userId}` : Prisma.empty}
         ${entityId && entityType ? Prisma.sql`AND a."entityId" = ${entityId} AND a."entityType" = ${entityType}` : Prisma.empty}
@@ -185,7 +158,7 @@ export async function GET(req: NextRequest) {
 
     // Format activities
     const formattedActivities = activitiesRaw.map((activity) => {
-      const metadata = (activity.metadata as Record<string, unknown>) || {};
+      const metadata = redactActivityMetadata(access, (activity.metadata as Record<string, unknown>) || {});
       let entityDetails: Record<string, unknown> = {};
 
       try {
@@ -221,7 +194,8 @@ export async function GET(req: NextRequest) {
               creatorId: creator.id,
               creatorName: creator.name,
               creatorAvatar: creator.avatar,
-              creatorEmail: creator.email,
+              // Only for roles that may see creators' email
+              ...(access.has("creatorInfo.email") ? { creatorEmail: creator.email } : {}),
             };
           }
         }
@@ -251,20 +225,20 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // Get unique users for filter dropdown (cached for 5 minutes - rarely changes)
+    // Get unique users for filter dropdown (cached for 5 minutes - rarely changes).
+    // A limited team scope is per person, so it skips the shared cache.
+    const loadUsers = () =>
+      db.user.findMany({
+        where: { AND: [staffWhere(access), excludePseudoUsers] },
+        select: { id: true, name: true, avatar: true },
+        orderBy: { name: "asc" },
+        take: 100,
+      });
     const usersCacheKey = `${cacheKeys.agencyCreators(agencyId)}:activity-users`;
-    const users = await cache.getOrSet(
-      usersCacheKey,
-      async () => {
-        return db.user.findMany({
-          where: { agencyId, ...excludePseudoUsers },
-          select: { id: true, name: true, avatar: true },
-          orderBy: { name: "asc" },
-          take: 100,
-        });
-      },
-      { ttl: cacheTTL.LONG } // 5 minutes - team members rarely change
-    );
+    const users =
+      access.teamScope.type === "all"
+        ? await cache.getOrSet(usersCacheKey, loadUsers, { ttl: cacheTTL.LONG }) // 5 minutes - team members rarely change
+        : await loadUsers();
 
     return NextResponse.json({
       activities: formattedActivities,

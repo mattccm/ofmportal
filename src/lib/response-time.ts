@@ -14,7 +14,7 @@ import {
   eachDayOfInterval,
 } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import type { DateRangeParams } from "./analytics";
+import { scopeCreators, scopeRequests, type AnalyticsScope, type DateRangeParams } from "./analytics";
 
 // A request is only complete once approved/archived; reviewedAt is also set on NEEDS_REVISION
 const isCompleted = (r: { status: string; reviewedAt: Date | null }) =>
@@ -223,7 +223,7 @@ function getDateRange(params: DateRangeParams): { start: Date; end: Date } {
  * Get response time metrics for an agency
  */
 export async function getResponseTimeMetrics(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams,
   creatorId?: string
 ): Promise<ResponseTimeMetrics> {
@@ -233,7 +233,7 @@ export async function getResponseTimeMetrics(
   // Get all requests with their uploads
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...scopeRequests(scope),
       createdAt: { gte: start, lte: end },
       ...creatorFilter,
     },
@@ -338,7 +338,7 @@ export async function getResponseTimeMetrics(
  * Get SLA compliance metrics for an agency
  */
 export async function getSLAComplianceMetrics(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams,
   creatorId?: string
 ): Promise<SLAComplianceMetrics> {
@@ -347,7 +347,7 @@ export async function getSLAComplianceMetrics(
 
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...scopeRequests(scope),
       createdAt: { gte: start, lte: end },
       ...creatorFilter,
     },
@@ -460,7 +460,7 @@ export async function getSLAComplianceMetrics(
  * Get response times grouped by creator
  */
 export async function getResponseTimeByCreator(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams
 ): Promise<ResponseTimeByCreator[]> {
   const { start, end } = getDateRange(dateRangeParams);
@@ -468,7 +468,7 @@ export async function getResponseTimeByCreator(
   const prevStart = subDays(start, daysDiff);
 
   const creators = await db.creator.findMany({
-    where: { agencyId },
+    where: scopeCreators(scope),
     select: {
       id: true,
       name: true,
@@ -575,7 +575,7 @@ export async function getResponseTimeByCreator(
  * Get response times grouped by request type (based on template name)
  */
 export async function getResponseTimeByRequestType(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams,
   creatorId?: string
 ): Promise<ResponseTimeByRequestType[]> {
@@ -584,7 +584,7 @@ export async function getResponseTimeByRequestType(
 
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...scopeRequests(scope),
       createdAt: { gte: start, lte: end },
       ...creatorFilter,
     },
@@ -667,7 +667,7 @@ export async function getResponseTimeByRequestType(
  * Get response time trends over time
  */
 export async function getResponseTimeTrends(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams,
   creatorId?: string
 ): Promise<ResponseTimeTrend[]> {
@@ -676,7 +676,7 @@ export async function getResponseTimeTrends(
 
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...scopeRequests(scope),
       createdAt: { gte: start, lte: end },
       ...creatorFilter,
     },
@@ -773,17 +773,17 @@ export async function getResponseTimeTrends(
  * Get comprehensive response time analytics
  */
 export async function getResponseTimeAnalytics(
-  agencyId: string,
+  scope: AnalyticsScope,
   dateRangeParams: DateRangeParams,
   creatorId?: string
 ) {
   const [metrics, slaCompliance, byCreator, byRequestType, trends] = await Promise.all([
-    getResponseTimeMetrics(agencyId, dateRangeParams, creatorId),
-    getSLAComplianceMetrics(agencyId, dateRangeParams, creatorId),
+    getResponseTimeMetrics(scope, dateRangeParams, creatorId),
+    getSLAComplianceMetrics(scope, dateRangeParams, creatorId),
     // Only show by-creator breakdown when viewing all creators
-    creatorId ? Promise.resolve([]) : getResponseTimeByCreator(agencyId, dateRangeParams),
-    getResponseTimeByRequestType(agencyId, dateRangeParams, creatorId),
-    getResponseTimeTrends(agencyId, dateRangeParams, creatorId),
+    creatorId ? Promise.resolve([]) : getResponseTimeByCreator(scope, dateRangeParams),
+    getResponseTimeByRequestType(scope, dateRangeParams, creatorId),
+    getResponseTimeTrends(scope, dateRangeParams, creatorId),
   ]);
 
   return {

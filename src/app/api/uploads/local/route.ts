@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { forbidden, getAccess, requestWhere, type Access } from "@/lib/access/server";
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
@@ -36,8 +37,13 @@ export async function POST(req: NextRequest) {
     let creatorId: string | undefined;
     let creatorArchivedAt: Date | null = null;
 
+    let access: Access | null = null;
     if (session?.user?.agencyId) {
-      agencyId = session.user.agencyId;
+      // Staff uploading on a creator's behalf changes the request
+      access = await getAccess(session);
+      if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!access.has("requests.upload")) return forbidden("requests.upload");
+      agencyId = access.agencyId;
       // creatorId will be set from contentRequest below
     } else if (creatorToken) {
       const creator = await findCreatorForUpload(creatorToken);
@@ -101,12 +107,9 @@ export async function POST(req: NextRequest) {
 
     // Verify request belongs to the creator/agency
     const contentRequest = await db.contentRequest.findFirst({
-      where: {
-        id: requestId,
-        ...(session?.user?.agencyId
-          ? { agencyId: session.user.agencyId }
-          : { creatorId }),
-      },
+      where: access
+        ? { AND: [requestWhere(access), { id: requestId }] }
+        : { id: requestId, creatorId },
     });
 
     if (!contentRequest) {

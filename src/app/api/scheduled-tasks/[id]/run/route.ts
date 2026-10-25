@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { forbidden, requireAccess } from "@/lib/access/server";
+import { TASK_TYPE_KEY, targetsInScope } from "../../../recurring-requests/scope";
 import { db } from "@/lib/db";
 import { addDays, format } from "date-fns";
 import { sendContentRequestEmail } from "@/lib/email";
@@ -262,11 +262,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.edit");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id } = await params;
 
@@ -278,12 +276,16 @@ export async function POST(
       },
     });
 
-    if (!task) {
+    if (!task || !(await targetsInScope(access, task))) {
       return NextResponse.json(
         { error: "Scheduled task not found" },
         { status: 404 }
       );
     }
+
+    // Running it does the task's action, so that permission is needed too
+    const actionKey = TASK_TYPE_KEY[task.taskType];
+    if (actionKey && !access.has(actionKey)) return forbidden(actionKey);
 
     // Execute the task
     const result = await executeTask(task, session.user);

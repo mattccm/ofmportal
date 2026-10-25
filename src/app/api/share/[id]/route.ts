@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, requestWhere, uploadWhere, type Access } from "@/lib/access/server";
+
+/** The shared resource is inside this person's creator scope */
+async function resourceVisible(access: Access, link: { resourceType: string; resourceId: string }) {
+  if (link.resourceType === "UPLOAD") {
+    return (await db.upload.count({ where: { AND: [uploadWhere(access), { id: link.resourceId }] } })) > 0;
+  }
+  if (link.resourceType === "REQUEST") {
+    return (await db.contentRequest.count({ where: { AND: [requestWhere(access), { id: link.resourceId }] } })) > 0;
+  }
+  return true;
+}
 import { getShareAnalytics } from "@/lib/share";
 
 // GET - Get share link details and analytics
@@ -10,11 +20,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.share");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id } = await params;
     const agencyId = session.user.agencyId;
@@ -26,7 +34,7 @@ export async function GET(
       },
     });
 
-    if (!shareLink) {
+    if (!shareLink || !(await resourceVisible(access, shareLink))) {
       return NextResponse.json({ error: "Share link not found" }, { status: 404 });
     }
 
@@ -48,11 +56,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId || !session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.share");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id } = await params;
     const agencyId = session.user.agencyId;
@@ -65,7 +71,7 @@ export async function PATCH(
       },
     });
 
-    if (!shareLink) {
+    if (!shareLink || !(await resourceVisible(access, shareLink))) {
       return NextResponse.json({ error: "Share link not found" }, { status: 404 });
     }
 
@@ -118,11 +124,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId || !session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.share");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id } = await params;
     const agencyId = session.user.agencyId;
@@ -135,18 +139,14 @@ export async function DELETE(
       },
     });
 
-    if (!shareLink) {
+    if (!shareLink || !(await resourceVisible(access, shareLink))) {
       return NextResponse.json({ error: "Share link not found" }, { status: 404 });
     }
 
     // Only the creator or admin can deactivate
     if (shareLink.createdById !== userId) {
-      const user = await db.user.findUnique({
-        where: { id: userId },
-        select: { role: true },
-      });
-
-      if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
+      // Turning off someone else's link has its own key (admins by default)
+      if (!access.has("review.shareManage")) {
         return NextResponse.json(
           { error: "Not authorized to deactivate this share link" },
           { status: 403 }

@@ -29,6 +29,7 @@ import {
   Loader2,
   AlertTriangle,
   Trash2,
+  EyeOff,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
 import { DiscreetPreview } from "@/components/title-wall";
 import { TagList } from "@/components/tags/tag-badge";
+import { useAccess } from "@/lib/access/client";
 
 export interface UploadTag {
   id: string;
@@ -83,6 +85,19 @@ interface UploadReviewCardProps {
   viewMode?: "grid" | "list";
   /** Page-level "Show previews". Each preview can also be peeked or toggled on its own. */
   revealed?: boolean;
+}
+
+/**
+ * For roles without "Reveal previews": the tile shows the file's kind only,
+ * with no reveal control, and no image is ever requested.
+ */
+function LockedPreview({ caption, aspect, className }: { caption?: string; aspect: string; className?: string }) {
+  return (
+    <span className={cn("tw-preview", className)} data-revealed="false" style={{ aspectRatio: aspect }}>
+      <EyeOff className="tw-preview-eye" aria-hidden="true" strokeWidth={1.5} />
+      {caption && <span className="tw-preview-kind">{caption}</span>}
+    </span>
+  );
 }
 
 // Keeps a hidden preview a reveal button while its signed link loads
@@ -167,6 +182,12 @@ export function UploadReviewCard({
   viewMode = "grid",
   revealed,
 }: UploadReviewCardProps) {
+  const { can } = useAccess();
+  const canReveal = can("review.reveal");
+  const canApprove = can("review.approve");
+  const canSendBack = can("review.requestChanges");
+  const canDownload = can("review.download");
+  const canDelete = can("review.delete");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -190,7 +211,7 @@ export function UploadReviewCard({
 
   // Fetch thumbnail URL on mount for images and videos if not provided
   React.useEffect(() => {
-    if (!thumbnailUrl && (isImage || isVideo) && !thumbnailLoading && !thumbnailError) {
+    if (canReveal && !thumbnailUrl && (isImage || isVideo) && !thumbnailLoading && !thumbnailError) {
       setThumbnailLoading(true);
       fetch(`/api/uploads/${upload.id}/thumbnail`)
         .then((res) => res.json())
@@ -206,7 +227,7 @@ export function UploadReviewCard({
           setThumbnailLoading(false);
         });
     }
-  }, [upload.id, thumbnailUrl, isImage, isVideo, thumbnailLoading, thumbnailError]);
+  }, [canReveal, upload.id, thumbnailUrl, isImage, isVideo, thumbnailLoading, thumbnailError]);
 
   const handlePreview = async () => {
     setLoadingPreview(true);
@@ -338,15 +359,23 @@ export function UploadReviewCard({
           data-selected={isSelected || undefined}
         >
           {/* Hidden until revealed: no image is requested before that */}
-          <DiscreetPreview
-            src={thumbnailUrl ?? (isImage || isVideo ? HIDDEN_SRC : null)}
-            label={upload.originalName}
-            kind={isVideo ? "video" : isImage ? "photo" : "text"}
-            caption={isVideo ? "Video" : isImage ? "Photo" : isAudio ? "Audio" : "File"}
-            revealed={revealed}
-            aspect="4 / 3"
-            className="w-full rounded-none"
-          />
+          {canReveal ? (
+            <DiscreetPreview
+              src={thumbnailUrl ?? (isImage || isVideo ? HIDDEN_SRC : null)}
+              label={upload.originalName}
+              kind={isVideo ? "video" : isImage ? "photo" : "text"}
+              caption={isVideo ? "Video" : isImage ? "Photo" : isAudio ? "Audio" : "File"}
+              revealed={revealed}
+              aspect="4 / 3"
+              className="w-full rounded-none"
+            />
+          ) : (
+            <LockedPreview
+              caption={isVideo ? "Video" : isImage ? "Photo" : isAudio ? "Audio" : "File"}
+              aspect="4 / 3"
+              className="w-full rounded-none"
+            />
+          )}
 
           {isPending && onSelect && (
             <div className="absolute left-2.5 top-2.5 z-10 rounded-[4px] bg-ground/80 p-1">
@@ -391,41 +420,47 @@ export function UploadReviewCard({
             ) : null}
 
             <div className="flex items-center gap-1 pt-1">
-              {isPending && (
-                <>
-                  <Button size="sm" variant="outline" onClick={() => setApproveDialogOpen(true)}>
-                    <Check className="size-4" />
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setRejectDialogOpen(true)}>
-                    Send back
-                  </Button>
-                </>
+              {isPending && canApprove && (
+                <Button size="sm" variant="outline" onClick={() => setApproveDialogOpen(true)}>
+                  <Check className="size-4" />
+                  Approve
+                </Button>
+              )}
+              {isPending && canSendBack && (
+                <Button size="sm" variant="ghost" onClick={() => setRejectDialogOpen(true)}>
+                  Send back
+                </Button>
               )}
               <span className="ml-auto flex">
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={handlePreview}
-                  disabled={loadingPreview}
-                  aria-label={`Open ${upload.originalName} in full view`}
-                  title="Full view"
-                >
-                  {loadingPreview ? <Loader2 className="size-4 animate-spin" /> : <Maximize2 className="size-4" />}
-                </Button>
-                <Button size="icon-sm" variant="ghost" onClick={handleDownload} aria-label={`Download ${upload.originalName}`} title="Download">
-                  <Download className="size-4" />
-                </Button>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className="hover:text-late"
-                  onClick={() => setDeleteDialogOpen(true)}
-                  aria-label={`Delete ${upload.originalName}`}
-                  title="Delete"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                {canReveal && (
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={handlePreview}
+                    disabled={loadingPreview}
+                    aria-label={`Open ${upload.originalName} in full view`}
+                    title="Full view"
+                  >
+                    {loadingPreview ? <Loader2 className="size-4 animate-spin" /> : <Maximize2 className="size-4" />}
+                  </Button>
+                )}
+                {canDownload && (
+                  <Button size="icon-sm" variant="ghost" onClick={handleDownload} aria-label={`Download ${upload.originalName}`} title="Download">
+                    <Download className="size-4" />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    className="hover:text-late"
+                    onClick={() => setDeleteDialogOpen(true)}
+                    aria-label={`Delete ${upload.originalName}`}
+                    title="Delete"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
               </span>
             </div>
           </div>
@@ -661,14 +696,18 @@ export function UploadReviewCard({
           />
         )}
 
-        <DiscreetPreview
-          src={thumbnailUrl ?? (isImage || isVideo ? HIDDEN_SRC : null)}
-          label={upload.originalName}
-          kind={isVideo ? "video" : isImage ? "photo" : "text"}
-          revealed={revealed}
-          aspect="1 / 1"
-          className="w-16 shrink-0"
-        />
+        {canReveal ? (
+          <DiscreetPreview
+            src={thumbnailUrl ?? (isImage || isVideo ? HIDDEN_SRC : null)}
+            label={upload.originalName}
+            kind={isVideo ? "video" : isImage ? "photo" : "text"}
+            revealed={revealed}
+            aspect="1 / 1"
+            className="w-16 shrink-0"
+          />
+        ) : (
+          <LockedPreview aspect="1 / 1" className="w-16 shrink-0" />
+        )}
 
         {/* File Info */}
         <div className="flex-1 min-w-0">
@@ -723,62 +762,68 @@ export function UploadReviewCard({
 
         {/* Quick Actions */}
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handlePreview}
-            disabled={loadingPreview}
-            title="Full view"
-            aria-label={`Open ${upload.originalName} in full view`}
-          >
-            {loadingPreview ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDownload}
-            title="Download"
-            aria-label={`Download ${upload.originalName}`}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-
-          {isPending && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setApproveDialogOpen(true)}
-                title="Approve"
-                aria-label={`Approve ${upload.originalName}`}
-              >
-                <Check className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setRejectDialogOpen(true)}
-                title="Send back"
-                aria-label={`Send ${upload.originalName} back`}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </>
+          {canReveal && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePreview}
+              disabled={loadingPreview}
+              title="Full view"
+              aria-label={`Open ${upload.originalName} in full view`}
+            >
+              {loadingPreview ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hover:text-late"
-            onClick={() => setDeleteDialogOpen(true)}
-            title="Delete"
-            aria-label={`Delete ${upload.originalName}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {canDownload && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDownload}
+              title="Download"
+              aria-label={`Download ${upload.originalName}`}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
+
+          {isPending && canApprove && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setApproveDialogOpen(true)}
+              title="Approve"
+              aria-label={`Approve ${upload.originalName}`}
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+          )}
+          {isPending && canSendBack && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setRejectDialogOpen(true)}
+              title="Send back"
+              aria-label={`Send ${upload.originalName} back`}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:text-late"
+              onClick={() => setDeleteDialogOpen(true)}
+              title="Delete"
+              aria-label={`Delete ${upload.originalName}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 

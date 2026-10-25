@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, forbidden } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import {
@@ -48,15 +47,21 @@ interface NotificationGroup {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["review.approve", "review.requestChanges", "review.delete"]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = bulkReviewSchema.parse(body);
     const { uploadIds, action, rating, notes, rejectTemplateId, individualReviews } = validatedData;
+    const actionKey =
+      action === "approve" ? "review.approve" : action === "reject" ? "review.requestChanges" : "review.delete";
+    if (!access.has(actionKey)) return forbidden(actionKey);
+    const actionKeys = { approve: "review.approve", reject: "review.requestChanges", skip: null } as const;
+    for (const r of individualReviews ?? []) {
+      const k = actionKeys[r.action];
+      if (k && !access.has(k)) return forbidden(k);
+    }
 
     const operationId = generateOperationId();
     const undoExpiresAt = createUndoWindow(30);
@@ -75,16 +80,12 @@ export async function POST(req: NextRequest) {
     const whereClause = action === "delete"
       ? {
           id: { in: uploadIds },
-          request: {
-            agencyId: session.user.agencyId,
-          },
+          request: requestWhere(access),
         }
       : {
           id: { in: uploadIds },
           status: "PENDING" as const,
-          request: {
-            agencyId: session.user.agencyId,
-          },
+          request: requestWhere(access),
         };
 
     const uploads = await db.upload.findMany({

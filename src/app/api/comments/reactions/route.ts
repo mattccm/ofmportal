@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, requestWhere, uploadWhere, type Access } from "@/lib/access/server";
+
+/** Comments on requests / uploads this person may see */
+function visibleComment(access: Access, id: string) {
+  return { AND: [{ OR: [{ request: requestWhere(access) }, { upload: uploadWhere(access) }] }, { id }] };
+}
 import { z } from "zod";
 
 // SCHEMAS
@@ -15,18 +19,16 @@ const reactionSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.comment");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const { commentId, emoji } = reactionSchema.parse(body);
 
     // Fetch the comment
-    const comment = await db.comment.findUnique({
-      where: { id: commentId },
+    const comment = await db.comment.findFirst({
+      where: visibleComment(access, commentId),
       include: {
         request: {
           select: { agencyId: true },
@@ -119,11 +121,9 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const commentId = searchParams.get("commentId");
@@ -135,8 +135,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const comment = await db.comment.findUnique({
-      where: { id: commentId },
+    const comment = await db.comment.findFirst({
+      where: visibleComment(access, commentId),
       select: { reactions: true },
     });
 

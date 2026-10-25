@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, redactCreator } from "@/lib/access/server";
 import {
   getOverviewStats,
   getRequestStatusBreakdown,
@@ -16,16 +15,11 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("analytics.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // Every count is limited to the creators this person may see
+    const scope = access;
     const searchParams = request.nextUrl.searchParams;
 
     // Parse date range parameters
@@ -44,45 +38,45 @@ export async function GET(request: NextRequest) {
     switch (type) {
       case "summary": {
         // Get all analytics data in one call
-        const data = await getAnalyticsSummary(agencyId, dateRangeParams);
-        return NextResponse.json(data);
+        const data = await getAnalyticsSummary(scope, dateRangeParams);
+        return NextResponse.json({ ...data, leaderboard: redactCreator(access, data.leaderboard) });
       }
 
       case "overview": {
-        const data = await getOverviewStats(agencyId, dateRangeParams);
+        const data = await getOverviewStats(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "status-breakdown": {
-        const data = await getRequestStatusBreakdown(agencyId, dateRangeParams);
+        const data = await getRequestStatusBreakdown(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "weekly-activity": {
         const weeks = parseInt(searchParams.get("weeks") || "8", 10);
-        const data = await getWeeklyActivity(agencyId, weeks);
+        const data = await getWeeklyActivity(scope, weeks);
         return NextResponse.json(data);
       }
 
       case "leaderboard": {
         const limit = parseInt(searchParams.get("limit") || "10", 10);
-        const data = await getCreatorLeaderboard(agencyId, limit);
-        return NextResponse.json(data);
+        const data = await getCreatorLeaderboard(scope, limit);
+        return NextResponse.json(redactCreator(access, data));
       }
 
       case "approval-metrics": {
-        const data = await getApprovalMetrics(agencyId, dateRangeParams);
+        const data = await getApprovalMetrics(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "turnaround-metrics": {
-        const data = await getTurnaroundMetrics(agencyId, dateRangeParams);
+        const data = await getTurnaroundMetrics(scope, dateRangeParams);
         return NextResponse.json(data);
       }
 
       case "daily-activity": {
         const days = parseInt(searchParams.get("days") || "90", 10);
-        const data = await getDailyActivity(agencyId, days);
+        const data = await getDailyActivity(scope, days);
         return NextResponse.json(data);
       }
 
@@ -104,16 +98,11 @@ export async function GET(request: NextRequest) {
 // POST endpoint for custom date range queries
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("analytics.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // Every count is limited to the creators this person may see
+    const scope = access;
     const body = await request.json();
 
     const { types, dateRange } = body as {
@@ -134,25 +123,25 @@ export async function POST(request: NextRequest) {
     const promises = types.map(async (type) => {
       switch (type) {
         case "overview":
-          results.overview = await getOverviewStats(agencyId, dateRange);
+          results.overview = await getOverviewStats(scope, dateRange);
           break;
         case "status-breakdown":
-          results.statusBreakdown = await getRequestStatusBreakdown(agencyId, dateRange);
+          results.statusBreakdown = await getRequestStatusBreakdown(scope, dateRange);
           break;
         case "weekly-activity":
-          results.weeklyActivity = await getWeeklyActivity(agencyId, 8);
+          results.weeklyActivity = await getWeeklyActivity(scope, 8);
           break;
         case "leaderboard":
-          results.leaderboard = await getCreatorLeaderboard(agencyId, 10);
+          results.leaderboard = redactCreator(access, await getCreatorLeaderboard(scope, 10));
           break;
         case "approval-metrics":
-          results.approvalMetrics = await getApprovalMetrics(agencyId, dateRange);
+          results.approvalMetrics = await getApprovalMetrics(scope, dateRange);
           break;
         case "turnaround-metrics":
-          results.turnaroundMetrics = await getTurnaroundMetrics(agencyId, dateRange);
+          results.turnaroundMetrics = await getTurnaroundMetrics(scope, dateRange);
           break;
         case "daily-activity":
-          results.dailyActivity = await getDailyActivity(agencyId, 90);
+          results.dailyActivity = await getDailyActivity(scope, 90);
           break;
       }
     });

@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
 import {
   MoreHorizontal,
   Edit2,
@@ -57,7 +58,10 @@ export function NoteCard({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { can } = useAccess();
   const isAuthor = note.authorId === currentUserId;
+  // Anyone deletes their own notes; notes.moderate deletes anyone's
+  const canDelete = isAuthor || can("notes.moderate");
   const wasEdited = note.updatedAt !== note.createdAt;
 
   const handleSaveEdit = async () => {
@@ -191,13 +195,15 @@ export function NoteCard({
                   <Copy className="h-4 w-4 mr-2" />
                   Copy
                 </DropdownMenuItem>
-                {isAuthor && (
+                {canDelete && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                      <Edit2 className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
+                    {isAuthor && (
+                      <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={() => setDeleteDialogOpen(true)}
                       className="text-late focus:text-late"

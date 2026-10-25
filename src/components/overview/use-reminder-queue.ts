@@ -17,19 +17,19 @@ export type ReminderState = "queued" | "sending" | "sent" | "failed";
 interface Job {
   key: string;
   requestIds: string[];
-  channel: "EMAIL" | "SMS" | "BOTH";
   name: string;
   timer: number;
 }
 
 const HOLD_MS = 5000;
 
-async function post(requestId: string, channel: Job["channel"], keepalive = false): Promise<boolean> {
+// The server picks the channel (the creator's preferred contact method)
+async function post(requestId: string, keepalive = false): Promise<boolean> {
   try {
     const res = await fetch("/api/reminders/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, channel }),
+      body: JSON.stringify({ requestId }),
       keepalive,
     });
     return res.ok;
@@ -57,7 +57,7 @@ export function useReminderQueue() {
     async (job: Job) => {
       jobs.current.delete(job.key);
       mark(job.requestIds, "sending");
-      const results = await Promise.all(job.requestIds.map((id) => post(id, job.channel)));
+      const results = await Promise.all(job.requestIds.map((id) => post(id)));
       const failed = job.requestIds.filter((_, i) => !results[i]);
       const sent = job.requestIds.filter((_, i) => results[i]);
       if (sent.length) mark(sent, "sent");
@@ -75,7 +75,7 @@ export function useReminderQueue() {
 
   /** Hold a reminder for a few seconds with Undo, then send it */
   const remind = useCallback(
-    (opts: { key: string; requestIds: string[]; name: string; channel: Job["channel"] }) => {
+    (opts: { key: string; requestIds: string[]; name: string }) => {
       if (jobs.current.has(opts.key) || opts.requestIds.length === 0) return;
       const job: Job = { ...opts, timer: 0 };
       job.timer = window.setTimeout(() => void deliver(job), HOLD_MS);
@@ -106,7 +106,7 @@ export function useReminderQueue() {
     const flush = () => {
       for (const j of live.values()) {
         window.clearTimeout(j.timer);
-        for (const id of j.requestIds) void post(id, j.channel, true);
+        for (const id of j.requestIds) void post(id, true);
       }
       live.clear();
     };

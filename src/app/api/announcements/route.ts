@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { forbidden, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -41,28 +40,20 @@ const dismissAnnouncementSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Banners (forDisplay) reach every staff member; the full list is for managing them
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
     const forDisplay = searchParams.get("forDisplay") === "true";
+    if (!forDisplay && !access.has("settings.announcements")) return forbidden("settings.announcements");
 
-    // Get user info for role-based filtering
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true, agencyId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
+    const user = { agencyId: access.agencyId };
     const now = new Date();
-    const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
+    // "Admins" banners: the owner and people on the Admin role
+    const isAdmin = access.isOwner || access.role.id === "admin";
 
     // Build where clause
     const whereClause: Record<string, unknown> = {};
@@ -83,20 +74,15 @@ export async function GET(req: NextRequest) {
       whereClause.isActive = true;
     }
 
-    // Filter by agency if user belongs to one (or show system-wide)
-    if (user.agencyId) {
-      whereClause.OR = [
-        ...(whereClause.OR ? (whereClause.OR as Array<Record<string, unknown>>) : []),
-        { agencyId: user.agencyId },
-        { agencyId: null }, // System-wide announcements
-      ];
-    }
+    // Only this agency's announcements, or system-wide ones (kept apart from
+    // the end-date OR above, which this used to merge into)
+    whereClause.AND = [{ OR: [{ agencyId: user.agencyId }, { agencyId: null }] }];
 
     // Get user's dismissed announcements
     const dismissedIds = forDisplay
       ? (
           await db.announcementDismissal.findMany({
-            where: { userId: session.user.id },
+            where: { userId: access.userId },
             select: { announcementId: true },
           })
         ).map((d) => d.announcementId)
@@ -154,21 +140,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true, agencyId: true },
-    });
-
-    if (!user || (user.role !== "OWNER" && user.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const gate = await requireAccess("settings.announcements");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    const user = { agencyId: access.agencyId };
 
     const body = await req.json();
     const validatedData = createAnnouncementSchema.parse(body);
@@ -177,7 +152,7 @@ export async function POST(req: NextRequest) {
       data: {
         ...validatedData,
         agencyId: user.agencyId,
-        createdById: session.user.id,
+        createdById: access.userId,
       },
       include: {
         _count: {
@@ -223,21 +198,10 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true, agencyId: true },
-    });
-
-    if (!user || (user.role !== "OWNER" && user.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const gate = await requireAccess("settings.announcements");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    const user = { agencyId: access.agencyId };
 
     const body = await req.json();
     const validatedData = updateAnnouncementSchema.parse(body);
@@ -309,11 +273,9 @@ export async function PUT(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await req.json();
     const { announcementId } = dismissAnnouncementSchema.parse(body);
@@ -335,12 +297,12 @@ export async function PATCH(req: NextRequest) {
       where: {
         announcementId_userId: {
           announcementId,
-          userId: session.user.id,
+          userId: access.userId,
         },
       },
       create: {
         announcementId,
-        userId: session.user.id,
+        userId: access.userId,
       },
       update: {}, // No update needed, just ensure it exists
     });
@@ -369,21 +331,10 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true, agencyId: true },
-    });
-
-    if (!user || (user.role !== "OWNER" && user.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const gate = await requireAccess("settings.announcements");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    const user = { agencyId: access.agencyId };
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

@@ -49,7 +49,7 @@ import { ExportBuilder } from "@/components/exports/export-builder";
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
 }
 
 interface Request {

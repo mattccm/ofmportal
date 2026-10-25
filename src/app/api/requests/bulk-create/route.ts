@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, creatorWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import {
   bulkRequestSchema,
@@ -25,11 +24,9 @@ interface BulkRequestResult {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.create");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = bulkRequestSchema.parse(body);
@@ -50,10 +47,7 @@ export async function POST(req: NextRequest) {
     // Get all creators to validate and fetch details
     const creatorIds = [...new Set(validatedData.requests.map((r) => r.creatorId))];
     const creators = await db.creator.findMany({
-      where: {
-        id: { in: creatorIds },
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: { in: creatorIds } }] },
     });
 
     const creatorMap = new Map(creators.map((c) => [c.id, c]));
@@ -137,7 +131,8 @@ export async function POST(req: NextRequest) {
             const tokenData = {
               creator: {
                 name: creator.name,
-                email: creator.email,
+                // A hidden email never reaches a title through a token
+                email: access.has("creatorInfo.email") ? creator.email : "",
               },
               due_date: requestData.dueDate || "",
               ...validatedData.personalization.tokens,
@@ -283,11 +278,9 @@ export async function POST(req: NextRequest) {
 // Undo bulk request creation
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.create");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { operationId, requestIds } = await req.json();
 
@@ -325,8 +318,8 @@ export async function DELETE(req: NextRequest) {
     // Delete the created requests
     const deleteResult = await db.contentRequest.deleteMany({
       where: {
+        ...requestWhere(access),
         id: { in: requestIds },
-        agencyId: session.user.agencyId,
         status: "PENDING", // Only delete pending requests
       },
     });

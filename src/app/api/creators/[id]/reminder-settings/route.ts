@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, redactCreatorsIn, requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import { scheduleRemindersForAgency } from "@/lib/auto-reminder-scheduler";
 
@@ -34,19 +33,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id: creatorId } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: creatorId }] },
       select: {
         id: true,
         name: true,
@@ -97,7 +91,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({
+    return NextResponse.json(redactCreatorsIn(access, {
       creator: {
         id: creator.id,
         name: creator.name,
@@ -115,7 +109,7 @@ export async function GET(
         escalateToSms: false,
         disableReminders: false,
       },
-    });
+    }));
   } catch (error) {
     console.error("Error fetching creator reminder settings:", error);
     return NextResponse.json(
@@ -132,27 +126,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.pauseReminders");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id: creatorId } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission (OWNER, ADMIN, or MANAGER)
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: creatorId }] },
     });
 
     if (!creator) {
@@ -276,27 +257,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.pauseReminders");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id: creatorId } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission (OWNER, ADMIN, or MANAGER)
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: creatorId }] },
     });
 
     if (!creator) {

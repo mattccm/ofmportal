@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { creatorWhere, getPageAccess, redactCreator } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { BundlesClient } from "./bundles-client";
 
 // DATA FETCHING
@@ -131,14 +131,16 @@ async function getTemplates(agencyId: string) {
   });
 }
 
-async function getCreators(agencyId: string) {
+// Only creators inside this person's creator scope; email only for roles
+// that may see it (never even loaded otherwise)
+async function getCreators(where: Prisma.CreatorWhereInput, withEmail: boolean) {
   const creators = await db.creator.findMany({
-    where: { agencyId },
+    where,
     orderBy: { name: "asc" },
     select: {
       id: true,
       name: true,
-      email: true,
+      email: withEmail,
     },
   });
 
@@ -160,11 +162,9 @@ async function getBundleStats(agencyId: string) {
 export const metadata: Metadata = { title: "Bundles" };
 
 export default async function BundlesPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
-  const agencyId = session.user.agencyId;
+  const access = await getPageAccess();
+  if (!access.has("bundles.view")) return <NoAccess what="bundles" roleName={access.role.name} />;
+  const agencyId = access.agencyId;
 
   let bundles: Awaited<ReturnType<typeof getBundles>>;
   let templates: Awaited<ReturnType<typeof getTemplates>>;
@@ -174,7 +174,7 @@ export default async function BundlesPage() {
     [bundles, templates, creators, stats] = await Promise.all([
       getBundles(agencyId),
       getTemplates(agencyId),
-      getCreators(agencyId),
+      access.has("bundles.run") ? getCreators(creatorWhere(access), access.has("creatorInfo.email")) : Promise.resolve([]),
       getBundleStats(agencyId),
     ]);
   } catch (error) {
@@ -204,7 +204,7 @@ export default async function BundlesPage() {
       <BundlesClient
         initialBundles={bundles}
         availableTemplates={templates}
-        creators={creators}
+        creators={redactCreator(access, creators)}
       />
     </div>
   );

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EmptyLine, Initials, PageHead } from "@/components/creators/people-ui";
 import { ago, plural } from "@/components/creators/insights";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 interface CreatorMessage {
   id: string;
@@ -35,6 +37,13 @@ const STATE: Record<string, string> = {
 };
 
 export default function CreatorMessagesPage() {
+  const { can, roleName } = useAccess();
+  // Comments live on requests: the Comments nav item needs "See requests"
+  if (!can("requests.view")) return <NoAccess what="creator comments" roleName={roleName} />;
+  return <CreatorComments />;
+}
+
+function CreatorComments() {
   const [messages, setMessages] = useState<CreatorMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

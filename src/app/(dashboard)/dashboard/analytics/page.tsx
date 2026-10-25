@@ -1,6 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getPageAccess, creatorWhere, redactCreator } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { Suspense } from "react";
 import {
   getAnalyticsSummary,
@@ -20,25 +20,22 @@ interface PageProps {
 }
 
 async function AnalyticsContent({ dateRangeParams, creatorId }: { dateRangeParams: DateRangeParams; creatorId?: string }) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
+  const access = await getPageAccess();
 
   let data: Awaited<ReturnType<typeof getAnalyticsSummary>>;
   let responseTimeData: Awaited<ReturnType<typeof getResponseTimeAnalytics>>;
   let creators: { id: string; name: string; avatar: string | null }[];
   try {
     [data, responseTimeData, creators] = await Promise.all([
-      getAnalyticsSummary(session.user.agencyId, dateRangeParams, creatorId),
-      getResponseTimeAnalytics(session.user.agencyId, dateRangeParams, creatorId),
+      getAnalyticsSummary(access, dateRangeParams, creatorId),
+      getResponseTimeAnalytics(access, dateRangeParams, creatorId),
       db.creator.findMany({
-        where: { agencyId: session.user.agencyId, inviteStatus: "ACCEPTED" },
+        where: { ...creatorWhere(access), inviteStatus: "ACCEPTED" },
         select: { id: true, name: true, avatar: true },
         orderBy: { name: "asc" },
       }),
     ]);
+    data = { ...data, leaderboard: redactCreator(access, data.leaderboard) };
   } catch (error) {
     console.error("Failed to fetch analytics data:", error);
     data = {
@@ -100,6 +97,12 @@ function AnalyticsSkeleton() {
 }
 
 export default async function AnalyticsPage({ searchParams }: PageProps) {
+  const access = await getPageAccess();
+  if (!access.has("analytics.view")) {
+    // The Analytics nav item also opens for people who only see reports
+    if (access.has("reports.view")) redirect("/dashboard/reports");
+    return <NoAccess what="analytics" roleName={access.role.name} />;
+  }
   const params = await searchParams;
   const range = (params.range as DateRange) || "30d";
   const creatorId = params.creatorId;

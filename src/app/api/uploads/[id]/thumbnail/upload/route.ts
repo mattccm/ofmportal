@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { forbidden, getAccess, requestWhere } from "@/lib/access/server";
 import { uploadToStorage } from "@/lib/storage";
 
 /**
@@ -36,9 +37,13 @@ export async function POST(
 
     // Verify authorization
     if (session?.user?.agencyId) {
-      if (upload.request.agencyId !== session.user.agencyId) {
+      const access = await getAccess(session);
+      if (!access || upload.request.agencyId !== access.agencyId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      if (!access.has("review.view")) return forbidden("review.view");
+      const visible = await db.upload.count({ where: { id, request: requestWhere(access) } });
+      if (!visible) return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {

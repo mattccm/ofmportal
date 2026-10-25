@@ -48,7 +48,7 @@ export type BulkActionType =
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
 }
 
 interface RequestTemplate {

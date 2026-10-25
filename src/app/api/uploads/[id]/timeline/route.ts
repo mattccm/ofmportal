@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { getUploadTimeline } from "@/lib/upload-review";
 
@@ -9,11 +8,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
 
@@ -21,9 +18,7 @@ export async function GET(
     const upload = await db.upload.findFirst({
       where: {
         id,
-        request: {
-          agencyId: session.user.agencyId,
-        },
+        request: requestWhere(access),
       },
     });
 
@@ -33,7 +28,7 @@ export async function GET(
 
     const timeline = await getUploadTimeline(id);
 
-    return NextResponse.json({ timeline });
+    return NextResponse.json({ timeline: redactCreatorsIn(access, timeline) });
   } catch (error) {
     console.error("Error fetching timeline:", error);
     return NextResponse.json(

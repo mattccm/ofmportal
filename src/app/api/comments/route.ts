@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { notifyMention } from "@/lib/notifications";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
-import { excludePseudoUsers } from "@/lib/staff";
+import { recipientsWhoCanSee, requireAccess, requestWhere, uploadWhere, staffWhere, type Access } from "@/lib/access/server";
 
 // SCHEMAS
 
@@ -48,12 +46,12 @@ function extractMentions(message: string): string[] {
  */
 async function filterMentionsToAgency(
   userIds: string[],
-  agencyId: string
+  access: Access
 ): Promise<string[]> {
   if (userIds.length === 0) return [];
 
   const users = await db.user.findMany({
-    where: { id: { in: userIds }, agencyId, ...excludePseudoUsers },
+    where: { AND: [staffWhere(access), { id: { in: userIds } }] },
     select: { id: true },
   });
 
@@ -73,8 +71,19 @@ async function sendMentionNotifications(
   agencyId: string,
   commentId: string
 ) {
-  // Don't notify yourself
-  const usersToNotify = mentionedUserIds.filter((id) => id !== currentUserId);
+  // Don't notify yourself, and only tell people whose role can see this
+  // request (its creator inside their scope)
+  const creatorId = requestId
+    ? (await db.contentRequest.findFirst({ where: { id: requestId, agencyId }, select: { creatorId: true } }))?.creatorId
+    : uploadId
+      ? (await db.upload.findFirst({ where: { id: uploadId, request: { agencyId } }, select: { request: { select: { creatorId: true } } } }))?.request.creatorId
+      : null;
+  if ((requestId || uploadId) && !creatorId) return;
+  const usersToNotify = await recipientsWhoCanSee(
+    agencyId,
+    mentionedUserIds.filter((id) => id !== currentUserId),
+    { creatorId, keys: ["requests.view"] }
+  );
 
   // Get preview of message (remove mention markup)
   const cleanMessage = message.replace(/@\[([^\]]+)\]\([^)]+\)/g, "@$1");
@@ -160,11 +169,9 @@ async function parseFormData(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get("requestId");
@@ -182,15 +189,26 @@ export async function GET(req: NextRequest) {
     // Verify access
     if (requestId) {
       const request = await db.contentRequest.findFirst({
-        where: {
-          id: requestId,
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [requestWhere(access), { id: requestId }] },
       });
 
       if (!request) {
         return NextResponse.json(
           { error: "Request not found" },
+          { status: 404 }
+        );
+      }
+    }
+
+    if (uploadId) {
+      const upload = await db.upload.findFirst({
+        where: { AND: [uploadWhere(access), { id: uploadId }] },
+        select: { id: true },
+      });
+
+      if (!upload) {
+        return NextResponse.json(
+          { error: "Upload not found" },
           { status: 404 }
         );
       }
@@ -254,11 +272,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.comment");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Check content type to determine how to parse
     const contentType = req.headers.get("content-type") || "";
@@ -277,10 +293,7 @@ export async function POST(req: NextRequest) {
     // Verify access to the request/upload
     if (validatedData.requestId) {
       const request = await db.contentRequest.findFirst({
-        where: {
-          id: validatedData.requestId,
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [requestWhere(access), { id: validatedData.requestId }] },
       });
 
       if (!request) {
@@ -293,12 +306,7 @@ export async function POST(req: NextRequest) {
 
     if (validatedData.uploadId) {
       const upload = await db.upload.findFirst({
-        where: {
-          id: validatedData.uploadId,
-          request: {
-            agencyId: session.user.agencyId,
-          },
-        },
+        where: { AND: [uploadWhere(access), { id: validatedData.uploadId }] },
       });
 
       if (!upload) {
@@ -330,7 +338,7 @@ export async function POST(req: NextRequest) {
     // Extract mentions from message, keeping only users in the sender's agency
     const mentionedUserIds = await filterMentionsToAgency(
       extractMentions(validatedData.message),
-      session.user.agencyId
+      access
     );
 
     // Create comment
@@ -401,11 +409,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.comment");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Check content type
     const contentType = req.headers.get("content-type") || "";
@@ -443,7 +449,7 @@ export async function PATCH(req: NextRequest) {
     // Extract mentions from new message, keeping only users in the sender's agency
     const mentionedUserIds = await filterMentionsToAgency(
       extractMentions(validatedData.message),
-      session.user.agencyId
+      access
     );
 
     // Merge attachments (keep existing, add new)
@@ -507,11 +513,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.comment");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(req.url);
     const commentId = searchParams.get("id");

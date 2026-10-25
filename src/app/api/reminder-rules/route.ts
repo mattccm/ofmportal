@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { scheduleRemindersForAgency } from "@/lib/auto-reminder-scheduler";
@@ -54,11 +53,9 @@ const bulkUpdateSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("reminders.view");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const rules = await db.reminderRule.findMany({
       where: {
@@ -100,19 +97,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("reminders.rules");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission (OWNER or ADMIN only)
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
 
     const body = await req.json();
     const validatedData = createRuleSchema.parse(body);
@@ -189,19 +177,10 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("reminders.rules");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission (OWNER or ADMIN only)
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
 
     const body = await req.json();
 
@@ -296,19 +275,10 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("reminders.rules");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission (OWNER or ADMIN only)
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

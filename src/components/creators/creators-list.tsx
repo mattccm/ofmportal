@@ -21,7 +21,8 @@ import { CreatorInviteActions, type CreatorInviteUiState } from "./creator-invit
 export interface CreatorTile {
   id: string;
   name: string;
-  email: string;
+  /** null when the viewer's role can't see it */
+  email: string | null;
   phone: string | null;
   archived: boolean;
   inviteStatus: string;
@@ -58,7 +59,27 @@ const SORTS: { key: SortKey; label: string; cmp: (a: CreatorTile, b: CreatorTile
   { key: "name", label: "Name A to Z", cmp: (a, b) => a.name.localeCompare(b.name) },
 ];
 
-export function CreatorsList({ creators, canManageInvites = false }: { creators: CreatorTile[]; canManageInvites?: boolean }) {
+export function CreatorsList({
+  creators,
+  canManageInvites = false,
+  canInvite = true,
+  canMessage = true,
+  canRequest = true,
+  seeEmail = true,
+  seeActivity = true,
+}: {
+  creators: CreatorTile[];
+  canManageInvites?: boolean;
+  /** The actions this person's role allows (the server checks them too) */
+  canInvite?: boolean;
+  canMessage?: boolean;
+  canRequest?: boolean;
+  /** Whether the role can see creators' email (search matches it only then) */
+  seeEmail?: boolean;
+  /** Whether the role can see when creators last signed in (the sort by it shows only then) */
+  seeActivity?: boolean;
+}) {
+  const sorts = SORTS.filter((s) => seeActivity || s.key !== "seen");
   const [view, setView] = React.useState<"active" | "archived">("active");
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<SortKey>("chase");
@@ -71,7 +92,7 @@ export function CreatorsList({ creators, canManageInvites = false }: { creators:
   const inView = creators.filter((c) => (view === "archived" ? c.archived : !c.archived));
   const q = query.trim().toLowerCase();
   const shown = inView
-    .filter((c) => !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
+    .filter((c) => !q || c.name.toLowerCase().includes(q) || (c.email ?? "").toLowerCase().includes(q))
     .sort(SORTS.find((s) => s.key === sort)!.cmp);
 
   // "/" focuses the search, like the other lists
@@ -93,7 +114,7 @@ export function CreatorsList({ creators, canManageInvites = false }: { creators:
     <div className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <label className="relative block w-full md:max-w-[360px]">
-          <span className="sr-only">Search creators by name or email</span>
+          <span className="sr-only">{seeEmail ? "Search creators by name or email" : "Search creators by name"}</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-icon" aria-hidden="true" />
           <Input
             ref={searchRef}
@@ -102,7 +123,7 @@ export function CreatorsList({ creators, canManageInvites = false }: { creators:
               capture();
               setQuery(e.target.value);
             }}
-            placeholder="Search by name or email"
+            placeholder={seeEmail ? "Search by name or email" : "Search by name"}
             className="pl-9"
             type="search"
           />
@@ -139,7 +160,7 @@ export function CreatorsList({ creators, canManageInvites = false }: { creators:
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SORTS.map((s) => (
+              {sorts.map((s) => (
                 <SelectItem key={s.key} value={s.key}>
                   {s.label}
                 </SelectItem>
@@ -181,14 +202,20 @@ export function CreatorsList({ creators, canManageInvites = false }: { creators:
           <EmptyLine>No archived creators. Archiving a creator from their profile moves them here, and it can be undone.</EmptyLine>
         ) : (
           <EmptyLine>
-            No creators yet. <Link className="font-medium text-ink underline underline-offset-[3px]" href="/dashboard/creators/invite">Invite a creator</Link> to send them their first request, or import a list from a CSV.
+            {canInvite ? (
+              <>
+                No creators yet. <Link className="font-medium text-ink underline underline-offset-[3px]" href="/dashboard/creators/invite">Invite a creator</Link> to send them their first request, or import a list from a CSV.
+              </>
+            ) : (
+              "No creators to show yet. Creators your role covers appear here once they are added."
+            )}
           </EmptyLine>
         )
       ) : (
         <ul ref={gridRef} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">
           {shown.map((c) => (
             <li key={c.id} data-creator={c.id}>
-              <CreatorCard c={c} canManageInvites={canManageInvites} />
+              <CreatorCard c={c} canManageInvites={canManageInvites} canMessage={canMessage} canRequest={canRequest} />
             </li>
           ))}
         </ul>
@@ -197,7 +224,17 @@ export function CreatorsList({ creators, canManageInvites = false }: { creators:
   );
 }
 
-function CreatorCard({ c, canManageInvites }: { c: CreatorTile; canManageInvites: boolean }) {
+function CreatorCard({
+  c,
+  canManageInvites,
+  canMessage,
+  canRequest,
+}: {
+  c: CreatorTile;
+  canManageInvites: boolean;
+  canMessage: boolean;
+  canRequest: boolean;
+}) {
   // Until they accept, the card's second action is the invite (copy, email, new link, cancel)
   const showInvite = !c.archived && !!c.invite && canManageInvites;
 
@@ -217,7 +254,7 @@ function CreatorCard({ c, canManageInvites }: { c: CreatorTile; canManageInvites
               {c.name}
             </Link>
           </h2>
-          <p className="mt-1 text-[13px] text-ink-2">{c.meta}</p>
+          {c.meta && <p className="mt-1 text-[13px] text-ink-2">{c.meta}</p>}
         </div>
         <Initials name={c.name} />
       </div>
@@ -225,17 +262,20 @@ function CreatorCard({ c, canManageInvites }: { c: CreatorTile; canManageInvites
       <div>
         <Pill tone={c.status.tone}>{c.status.label}</Pill>
       </div>
+      {(canMessage || (showInvite && c.invite) || (!c.archived && canRequest)) && (
       <div className="relative z-[1] mt-auto flex flex-wrap gap-2 pt-1">
-        <Button asChild variant="outline" size="sm">
-          <Link
-            href={`/dashboard/messages?creatorId=${c.id}`}
-            aria-label={`Message ${c.name}${c.unread ? `, ${c.unread} unread` : ""}`}
-          >
-            <MessageSquare aria-hidden="true" />
-            Message
-            <UnreadCount n={c.unread} />
-          </Link>
-        </Button>
+        {canMessage && (
+          <Button asChild variant="outline" size="sm">
+            <Link
+              href={`/dashboard/messages?creatorId=${c.id}`}
+              aria-label={`Message ${c.name}${c.unread ? `, ${c.unread} unread` : ""}`}
+            >
+              <MessageSquare aria-hidden="true" />
+              Message
+              <UnreadCount n={c.unread} />
+            </Link>
+          </Button>
+        )}
         {showInvite && c.invite ? (
           <CreatorInviteActions
             creatorId={c.id}
@@ -245,7 +285,8 @@ function CreatorCard({ c, canManageInvites }: { c: CreatorTile; canManageInvites
             expiresAt={c.invite.expiresAt}
           />
         ) : (
-          !c.archived && (
+          !c.archived &&
+          canRequest && (
             <Button asChild variant="outline" size="sm">
               <Link href={`/dashboard/requests/new?creatorId=${c.id}`} aria-label={`New request for ${c.name}`}>
                 <Plus aria-hidden="true" />
@@ -255,6 +296,7 @@ function CreatorCard({ c, canManageInvites }: { c: CreatorTile; canManageInvites
           )
         )}
       </div>
+      )}
     </article>
   );
 }

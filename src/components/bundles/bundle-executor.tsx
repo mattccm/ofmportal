@@ -70,7 +70,8 @@ interface Template {
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  /** Left out when the person's role hides creators' email */
+  email?: string;
 }
 
 interface BundleWithTemplates extends RequestBundle {
@@ -146,7 +147,7 @@ export function BundleExecutor({
     return creators.filter(
       (c) =>
         c.name.toLowerCase().includes(query) ||
-        c.email.toLowerCase().includes(query)
+        (c.email ?? "").toLowerCase().includes(query)
     );
   }, [creators, searchQuery]);
 
@@ -330,9 +331,11 @@ export function BundleExecutor({
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{creator.name}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {creator.email}
-                      </p>
+                      {creator.email && (
+                        <p className="text-sm text-muted-foreground truncate">
+                          {creator.email}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}

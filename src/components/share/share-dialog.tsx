@@ -58,6 +58,8 @@ interface ExistingShareLink {
   viewCount: number;
   isActive: boolean;
   createdAt: string;
+  /** False for someone else's link without review.shareManage */
+  canDeactivate?: boolean;
 }
 
 export function ShareDialog({
@@ -521,14 +523,16 @@ function ExistingLinkItem({ link, onDeactivate }: ExistingLinkItemProps) {
             <Copy className="h-3.5 w-3.5" />
           )}
         </Button>
-        <Button aria-label="Deactivate link"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-red-500 hover:text-red-600"
-          onClick={onDeactivate}
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
+        {link.canDeactivate !== false && (
+          <Button aria-label="Deactivate link"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-red-500 hover:text-red-600"
+            onClick={onDeactivate}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
     </div>
   );

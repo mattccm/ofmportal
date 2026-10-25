@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { getDownloadPresignedUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
@@ -18,18 +17,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.download");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Get request with uploads
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
       include: {
         uploads: {
           where: {
@@ -97,7 +91,7 @@ export async function GET(
     // Return URLs - client handles the downloads directly from R2
     // This uses ZERO Vercel bandwidth for file transfer
     return NextResponse.json(
-      {
+      redactCreatorsIn(access, {
         success: true,
         message: "Download URLs generated. Files will download directly from storage.",
         request: {
@@ -109,7 +103,7 @@ export async function GET(
         totalFiles: downloadFiles.length,
         totalSize: downloadFiles.reduce((acc, f) => acc + f.fileSize, 0),
         totalSizeFormatted: formatBytes(downloadFiles.reduce((acc, f) => acc + f.fileSize, 0)),
-      },
+      }),
       { headers: { "Cache-Control": SIGNED_URL_NO_STORE } }
     );
   } catch (error) {

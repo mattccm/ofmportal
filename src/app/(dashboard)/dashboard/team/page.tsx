@@ -1,14 +1,15 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { excludePseudoUsers } from "@/lib/staff";
 import { listOpenStaffInvites, type StaffInviteRow } from "@/lib/staff-invites";
-import TeamClient from "./team-client";
+import { NoAccess } from "@/components/access/no-access";
+import { getPageAccess, staffWhere, type Access } from "@/lib/access/server";
+import { loadRoles, roleIdOf } from "@/lib/access/roles";
+import { withCounts } from "@/lib/access/role-input";
+import { canGrant } from "@/lib/access/assign";
+import TeamClient, { type TeamRole } from "./team-client";
 
-async function getTeamMembers(agencyId: string) {
+async function getTeamMembers(access: Access, presetRowIds: Record<string, string>) {
   const members = await db.user.findMany({
-    where: { agencyId, ...excludePseudoUsers },
+    where: staffWhere(access),
     select: {
       id: true,
       name: true,
@@ -19,16 +20,6 @@ async function getTeamMembers(agencyId: string) {
       createdAt: true,
       twoFactorEnabled: true,
       customRoleId: true,
-      customRole: {
-        select: {
-          id: true,
-          name: true,
-          color: true,
-          description: true,
-        },
-      },
-      permissionOverrides: true,
-      assignedCreatorIds: true,
       activityLogs: {
         take: 10,
         orderBy: { createdAt: "desc" },
@@ -42,84 +33,65 @@ async function getTeamMembers(agencyId: string) {
         },
       },
     },
-    orderBy: [
-      { role: "asc" },
-      { name: "asc" },
-    ],
+    orderBy: [{ role: "asc" }, { name: "asc" }],
   });
 
-  // Calculate online status for each member (active within last 5 minutes)
-  const membersWithStatus = members.map((member) => {
-    const isOnline = member.lastActiveAt
-      ? new Date().getTime() - new Date(member.lastActiveAt).getTime() < 5 * 60 * 1000
-      : false;
-
-    return {
-      ...member,
-      isOnline,
-      lastActiveAt: member.lastActiveAt?.toISOString() || null,
-      createdAt: member.createdAt.toISOString(),
-      customRole: member.customRole ? {
-        ...member.customRole,
-      } : null,
-      permissionOverrides: (member.permissionOverrides as unknown[]) || [],
-      assignedCreatorIds: (member.assignedCreatorIds as unknown[]) || [],
-      activityLogs: member.activityLogs.map((log) => ({
-        ...log,
-        metadata: (log.metadata as Record<string, unknown>) || {},
-        createdAt: log.createdAt.toISOString(),
-      })),
-    };
-  });
-
-  return membersWithStatus;
-}
-
-async function getCustomRoles(agencyId: string) {
-  const roles = await db.customRole.findMany({
-    where: { agencyId },
-    select: {
-      id: true,
-      name: true,
-      color: true,
-      description: true,
-    },
-    orderBy: { name: "asc" },
-  });
-
-  return roles;
+  return members.map((member) => ({
+    ...member,
+    roleId: roleIdOf(member, presetRowIds as Record<string, "admin" | "manager" | "member">),
+    // Active within the last 5 minutes
+    isOnline: member.lastActiveAt ? Date.now() - new Date(member.lastActiveAt).getTime() < 5 * 60 * 1000 : false,
+    lastActiveAt: member.lastActiveAt?.toISOString() || null,
+    createdAt: member.createdAt.toISOString(),
+    activityLogs: member.activityLogs.map((log) => ({
+      ...log,
+      metadata: (log.metadata as Record<string, unknown>) || {},
+      createdAt: log.createdAt.toISOString(),
+    })),
+  }));
 }
 
 export default async function TeamPage() {
-  const session = await getServerSession(authOptions);
+  const access = await getPageAccess();
+  if (!access.has("team.view")) return <NoAccess what="the team page" roleName={access.role.name} />;
 
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
-
-  const canInvite = ["OWNER", "ADMIN"].includes(session.user.role);
-  let members: Awaited<ReturnType<typeof getTeamMembers>>;
-  let customRoles: Awaited<ReturnType<typeof getCustomRoles>>;
+  const canInvite = access.has("team.invite");
+  let members: Awaited<ReturnType<typeof getTeamMembers>> = [];
+  let roles: TeamRole[] = [];
   let invites: StaffInviteRow[] = [];
   try {
-    [members, customRoles, invites] = await Promise.all([
-      getTeamMembers(session.user.agencyId),
-      getCustomRoles(session.user.agencyId),
-      canInvite ? listOpenStaffInvites(session.user.agencyId) : Promise.resolve([]),
+    const all = await withCounts(access.agencyId, await loadRoles(access.agencyId));
+    const presetRowIds = Object.fromEntries(all.filter((r) => r.kind === "preset" && r.dbId).map((r) => [r.dbId!, r.preset!]));
+    roles = all.map((r) => ({
+      id: r.id,
+      name: r.name,
+      kind: r.kind,
+      color: r.color,
+      description: r.description,
+      memberCount: r.memberCount,
+      grantable: canGrant(access, r),
+    }));
+    [members, invites] = await Promise.all([
+      getTeamMembers(access, presetRowIds),
+      canInvite ? listOpenStaffInvites(access.agencyId) : Promise.resolve([]),
     ]);
   } catch (error) {
     console.error("Failed to fetch team data:", error);
-    members = [];
-    customRoles = [];
   }
 
   return (
     <TeamClient
       initialMembers={members}
-      customRoles={customRoles}
+      roles={roles}
       initialInvites={invites}
-      currentUserRole={session.user.role}
-      currentUserId={session.user.id}
+      currentUserId={access.userId}
+      can={{
+        invite: canInvite,
+        changeRoles: access.has("team.changeRoles"),
+        remove: access.has("team.remove"),
+        manageRoles: access.has("roles.manage"),
+        isOwner: access.isOwner,
+      }}
     />
   );
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, uploadWhere } from "@/lib/access/server";
 import { getPublicFileUrl, getViewPresignedUrl, SIGNED_URL_NO_STORE } from "@/lib/storage";
 
 /**
@@ -14,14 +13,14 @@ import { getPublicFileUrl, getViewPresignedUrl, SIGNED_URL_NO_STORE } from "@/li
  * poster frame, and have no preview without one.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.agencyId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // A preview is only signed for someone who may reveal previews
+  const gate = await requireAccess("review.reveal");
+  if (gate.error) return gate.error;
+  const { access } = gate;
   const { id } = await params;
   try {
     const upload = await db.upload.findFirst({
-      where: { id, request: { agencyId: session.user.agencyId } },
+      where: { AND: [uploadWhere(access), { id }] },
       select: { storageKey: true, thumbnailKey: true, fileType: true },
     });
     if (!upload) return NextResponse.json({ error: "Upload not found" }, { status: 404 });

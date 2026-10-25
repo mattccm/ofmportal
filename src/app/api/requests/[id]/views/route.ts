@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { db } from "@/lib/db";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere } from "@/lib/access/server";
 
 /**
  * GET /api/requests/[id]/views
@@ -12,26 +11,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
 
     // Get the request with view tracking data
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agency: {
-          users: {
-            some: {
-              id: session.user.id,
-            },
-          },
-        },
-      },
+      where: { AND: [requestWhere(access), { id }] },
       include: {
         creator: {
           select: {
@@ -76,7 +64,7 @@ export async function GET(
         ? {
             id: request.creator.id,
             name: request.creator.name,
-            email: request.creator.email,
+            ...(access.has("creatorInfo.email") ? { email: request.creator.email } : {}),
           }
         : null,
       viewTrackingAvailable: true,
@@ -99,26 +87,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
 
     // Verify request exists and user has access
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agency: {
-          users: {
-            some: {
-              id: session.user.id,
-            },
-          },
-        },
-      },
+      where: { AND: [requestWhere(access), { id }] },
     });
 
     if (!request) {

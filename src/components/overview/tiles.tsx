@@ -109,11 +109,13 @@ export function MessageButton({
   size = "sm",
   quiet = false,
 }: {
-  href: string;
+  /** null when the viewer's role can't see creator conversations */
+  href: string | null;
   name: string;
   size?: "sm" | "default" | "lg";
   quiet?: boolean;
 }) {
+  if (!href) return null;
   return (
     <Button asChild size={size} variant={quiet ? "ghost" : "outline"}>
       <Link href={href} aria-label={`Message ${name}`}>
@@ -145,7 +147,7 @@ export function RequestTile({
   reminder: ReminderState | null;
   onRemind: () => void;
   canRemind: boolean;
-  messageHref: string;
+  messageHref: string | null;
 }) {
   const fields = toSummary(r.fields);
   const ready = r.counts.ready;
@@ -228,7 +230,7 @@ export function CreatorTile({
   reminder: ReminderState | null;
   onRemind: () => void;
   canRemind: boolean;
-  messageHref: string;
+  messageHref: string | null;
 }) {
   const n = c.owed.length;
   const changes = c.owed.filter(({ field }) => field.state === "changes").length;

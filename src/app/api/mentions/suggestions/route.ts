@@ -1,40 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { excludePseudoUsers } from "@/lib/staff";
+import { requireAccess, staffWhere } from "@/lib/access/server";
 import type { MentionSuggestion } from "@/types/mentions";
 
 // GET /api/mentions/suggestions - Get mention suggestions
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q") || "";
     const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 20);
 
-    // Get the current user's agency to filter team members
-    const currentUser = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { agencyId: true },
-    });
-
-    if (!currentUser?.agencyId) {
-      return NextResponse.json({ suggestions: [] });
-    }
-
-    // Build where clause for filtering users
+    // Team members this person may see (staffWhere also drops creator
+    // pseudo-users), minus themselves
     const where: Record<string, unknown> = {
-      agencyId: currentUser.agencyId,
-      // Exclude the current user from suggestions
+      ...staffWhere(access),
       NOT: { id: session.user.id },
-      // Exclude creator-comment pseudo-users
-      ...excludePseudoUsers,
     };
 
     // Add search filter if query provided

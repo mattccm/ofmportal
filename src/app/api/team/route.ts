@@ -1,28 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { excludePseudoUsers } from "@/lib/staff";
 import { Prisma, UserRole } from "@prisma/client";
+import { requireAccess, staffWhere } from "@/lib/access/server";
 
-// GET - List all team members for the current agency
+// GET - The team page's list: teammates this person may see ("team.view", team scope applied)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("team.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
     const search = searchParams.get("search");
 
     // Build the where clause
-    const where: Prisma.UserWhereInput = {
-      agencyId: session.user.agencyId,
-      ...excludePseudoUsers,
-    };
+    const where: Prisma.UserWhereInput = staffWhere(access);
 
     if (role && role !== "ALL" && Object.values(UserRole).includes(role as UserRole)) {
       where.role = role as UserRole;
@@ -55,11 +48,6 @@ export async function GET(request: NextRequest) {
             description: true,
           },
         },
-        permissionOverrides: true,
-        assignedCreatorIds: true,
-        templateVisibility: true,
-        allowedCategoryIds: true,
-        activityRestrictions: true,
         activityLogs: {
           take: 10,
           orderBy: { createdAt: "desc" },

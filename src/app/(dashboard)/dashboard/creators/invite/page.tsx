@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Mail, Link2 } from "lucide-react";
@@ -17,6 +17,8 @@ import {
   OnboardingBundleSelector,
   PostInviteBundleApply,
 } from "@/components/bundles/onboarding-bundle-selector";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 const EMPTY = {
   name: "",
@@ -36,9 +38,57 @@ interface Invited {
   emailWanted: boolean;
   /** The email actually went out */
   emailed: boolean;
+  /** False when the role sees only chosen creators (an admin adds them) */
+  visibleToYou: boolean;
 }
 
 export default function InviteCreatorPage() {
+  const { can, roleName, creatorScope } = useAccess();
+  if (!can("creators.invite")) return <NoAccess what="inviting creators" roleName={roleName} />;
+  return (
+    <InviteCreatorForm
+      see={{
+        phone: can("creatorInfo.phone"),
+        preferences: can("creatorInfo.preferences"),
+        notes: can("creatorInfo.notes"),
+      }}
+      canBundle={can("bundles.run")}
+      creatorScope={creatorScope}
+    />
+  );
+}
+
+interface GroupOption {
+  id: string;
+  name: string;
+  inScope?: boolean;
+}
+
+/** Details this role can't see are not asked for (the server ignores them too) */
+function InviteCreatorForm({
+  see,
+  canBundle,
+  creatorScope,
+}: {
+  see: { phone: boolean; preferences: boolean; notes: boolean };
+  canBundle: boolean;
+  /** "groups": the new creator must go in one of the role's groups to stay visible */
+  creatorScope: "all" | "groups" | "creators";
+}) {
+  const needsGroup = creatorScope === "groups";
+  const [groups, setGroups] = useState<GroupOption[] | null>(null);
+  const [groupId, setGroupId] = useState("");
+  useEffect(() => {
+    if (!needsGroup) return;
+    fetch("/api/creators/groups")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((all: GroupOption[]) => {
+        const mine = all.filter((g) => g.inScope);
+        setGroups(mine);
+        if (mine.length === 1) setGroupId(mine[0].id);
+      })
+      .catch(() => setGroups([]));
+  }, [needsGroup]);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [invited, setInvited] = useState<Invited | null>(null);
@@ -58,7 +108,7 @@ export default function InviteCreatorPage() {
       const response = await fetch("/api/creators", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, sendInvite: sendEmail }),
+        body: JSON.stringify({ ...formData, sendInvite: sendEmail, ...(groupId ? { groupId } : {}) }),
       });
 
       const data = await response.json();
@@ -76,6 +126,7 @@ export default function InviteCreatorPage() {
         expiresAt: data.inviteExpiresAt ?? null,
         emailWanted: sendEmail,
         emailed: !!data.emailed,
+        visibleToYou: data.visibleToYou !== false,
       });
       toast.success(sendEmail && data.emailed ? "Invite emailed" : "Invite link ready");
     } catch {
@@ -102,6 +153,13 @@ export default function InviteCreatorPage() {
         <Panel className="space-y-5">
           <InviteLinkBox link={invited.link} expiresAt={invited.expiresAt} primary />
 
+          {!invited.visibleToYou && (
+            <p className="text-sm text-ink-2">
+              Your role sees only chosen creators, so {first} won&apos;t appear in your lists until an admin adds them to
+              your role.
+            </p>
+          )}
+
           {invited.creatorId && selectedBundleId && (
             <PostInviteBundleApply
               creatorId={invited.creatorId}
@@ -111,7 +169,7 @@ export default function InviteCreatorPage() {
           )}
 
           <div className="flex flex-col gap-2 border-t border-line pt-5 sm:flex-row">
-            {invited.creatorId && (
+            {invited.creatorId && invited.visibleToYou && (
               <Button asChild variant="outline">
                 <Link href={`/dashboard/creators/${invited.creatorId}`}>Open {first}&apos;s profile</Link>
               </Button>
@@ -123,6 +181,7 @@ export default function InviteCreatorPage() {
                 setSelectedBundleId(null);
                 setSendEmail(true);
                 setFormData(EMPTY);
+                setGroupId(groups?.length === 1 ? groups[0].id : "");
               }}
             >
               Invite another creator
@@ -176,7 +235,9 @@ export default function InviteCreatorPage() {
             </div>
           </div>
 
+          {(see.phone || see.preferences) && (
           <div className="grid gap-4 md:grid-cols-2">
+            {see.phone && (
             <div className="space-y-2">
               <Label htmlFor="phone">Phone (optional)</Label>
               <Input
@@ -194,6 +255,8 @@ export default function InviteCreatorPage() {
                 Needed for SMS reminders
               </p>
             </div>
+            )}
+            {see.preferences && (
             <div className="space-y-2">
               <Label htmlFor="preferredContact">Preferred contact</Label>
               <Select
@@ -210,8 +273,47 @@ export default function InviteCreatorPage() {
                 </SelectContent>
               </Select>
             </div>
+            )}
           </div>
+          )}
 
+          {needsGroup && (
+            <div className="space-y-2">
+              <Label htmlFor="group">Group</Label>
+              {groups && groups.length === 0 ? (
+                <p id="group" className="text-sm text-ink-2">
+                  Your role sees creators in chosen groups, and none is chosen yet. Ask an admin to add a group to your role.
+                </p>
+              ) : (
+                <>
+                  <Select value={groupId} onValueChange={setGroupId}>
+                    <SelectTrigger id="group" disabled={loading || !groups} aria-describedby="group-hint">
+                      <SelectValue placeholder={groups ? "Choose a group" : "Loading groups…"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(groups ?? []).map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p id="group-hint" className="text-[13px] text-ink-2">
+                    Your role sees creators in your groups, so they go in one of them.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {creatorScope === "creators" && (
+            <p className="text-[13px] text-ink-2">
+              Your role sees only chosen creators. After you add this creator, an admin adds them to your role before
+              they show in your lists.
+            </p>
+          )}
+
+          {see.notes && (
           <div className="space-y-2">
             <Label htmlFor="notes">Notes for the team (optional)</Label>
             <Textarea
@@ -224,14 +326,17 @@ export default function InviteCreatorPage() {
               disabled={loading}
             />
           </div>
+          )}
 
-          <div className="border-t border-line pt-5 empty:hidden">
-            <OnboardingBundleSelector
-              selectedBundleId={selectedBundleId}
-              onBundleSelect={setSelectedBundleId}
-              disabled={loading}
-            />
-          </div>
+          {canBundle && (
+            <div className="border-t border-line pt-5 empty:hidden">
+              <OnboardingBundleSelector
+                selectedBundleId={selectedBundleId}
+                onBundleSelect={setSelectedBundleId}
+                disabled={loading}
+              />
+            </div>
+          )}
         </Panel>
 
         <Panel className="space-y-4">
@@ -259,7 +364,7 @@ export default function InviteCreatorPage() {
           </p>
 
           <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || (needsGroup && !groupId)}>
               {loading ? (
                 <Loader2 className="animate-spin" aria-hidden="true" />
               ) : sendEmail ? (

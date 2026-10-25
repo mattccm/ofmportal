@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 
@@ -31,11 +30,10 @@ export interface SavedReportConfig {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Saved reports are the person's own, but only for people who see reports
+    const gate = await requireAccess("reports.view");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const user = await db.user.findUnique({
       where: { id: session.user.id },
@@ -54,11 +52,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Saved reports are the person's own, but only for people who see reports
+    const gate = await requireAccess("reports.view");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await request.json();
     const { name, reportType, dateRange, groupBy, filters, schedule } = body;
@@ -113,11 +110,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Saved reports are the person's own, but only for people who see reports
+    const gate = await requireAccess("reports.view");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await request.json();
     const { id, name, reportType, dateRange, groupBy, filters, schedule } = body;
@@ -172,11 +168,10 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Saved reports are the person's own, but only for people who see reports
+    const gate = await requireAccess("reports.view");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

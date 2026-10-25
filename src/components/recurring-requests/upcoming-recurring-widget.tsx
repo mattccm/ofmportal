@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAccess } from "@/lib/access/client";
 import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
 import Link from "next/link";
 import {
@@ -40,7 +41,7 @@ function UpcomingItem({
   onRunNow,
 }: {
   recurringRequest: RecurringRequest;
-  onRunNow: () => void;
+  onRunNow?: () => void;
 }) {
   const nextRunAt = recurringRequest.nextRunAt
     ? new Date(recurringRequest.nextRunAt)
@@ -89,18 +90,20 @@ function UpcomingItem({
           <span>{totalCreators} creator{totalCreators !== 1 ? "s" : ""}</span>
         </div>
       </div>
-      <Button aria-label="Run now"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        onClick={(e) => {
-          e.stopPropagation();
-          onRunNow();
-        }}
-        title="Run now"
-      >
-        <Play className="h-4 w-4" />
-      </Button>
+      {onRunNow && (
+        <Button aria-label="Run now"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRunNow();
+          }}
+          title="Run now"
+        >
+          <Play className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }
@@ -125,6 +128,7 @@ export function UpcomingRecurringWidget({
   className,
   limit = 5,
 }: UpcomingRecurringWidgetProps) {
+  const { can } = useAccess();
   const [recurringRequests, setRecurringRequests] = React.useState<
     RecurringRequest[]
   >([]);
@@ -246,7 +250,7 @@ export function UpcomingRecurringWidget({
               <UpcomingItem
                 key={rr.id}
                 recurringRequest={rr}
-                onRunNow={() => handleRunNow(rr)}
+                onRunNow={can("recurring.edit") ? () => handleRunNow(rr) : undefined}
               />
             ))}
             {recurringRequests.length >= limit && (

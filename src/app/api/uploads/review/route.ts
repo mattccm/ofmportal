@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, forbidden } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import {
@@ -18,22 +17,20 @@ const reviewSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["review.approve", "review.requestChanges"]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const { uploadId, action, rating, notes } = reviewSchema.parse(body);
+    if (action === "approve" && !access.has("review.approve")) return forbidden("review.approve");
+    if (action === "reject" && !access.has("review.requestChanges")) return forbidden("review.requestChanges");
 
     // Verify upload belongs to agency
     const upload = await db.upload.findFirst({
       where: {
         id: uploadId,
-        request: {
-          agencyId: session.user.agencyId,
-        },
+        request: requestWhere(access),
       },
       include: {
         creator: true,

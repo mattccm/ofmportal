@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useState, useEffect } from "react";
+import { useAccess } from "@/lib/access/client";
 import {
   Package,
   Layers,
@@ -47,7 +48,14 @@ interface OnboardingBundleSelectorProps {
 
 // MAIN COMPONENT
 
-export function OnboardingBundleSelector({
+/** Shown only to people who may send bundles (bundles.run) */
+export function OnboardingBundleSelector(props: OnboardingBundleSelectorProps) {
+  const { can } = useAccess();
+  if (!can("bundles.run")) return null;
+  return <BundleSelector {...props} />;
+}
+
+function BundleSelector({
   onBundleSelect,
   selectedBundleId,
   disabled = false,

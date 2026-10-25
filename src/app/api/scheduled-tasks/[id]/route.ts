@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
+import { creatorGroupWhere, targetsInScope } from "../../recurring-requests/scope";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -26,11 +26,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id } = await params;
 
@@ -41,7 +39,7 @@ export async function GET(
       },
     });
 
-    if (!task) {
+    if (!task || !(await targetsInScope(access, task))) {
       return NextResponse.json(
         { error: "Scheduled task not found" },
         { status: 404 }
@@ -85,11 +83,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["recurring.edit", "recurring.pause"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id } = await params;
     const body = await req.json();
@@ -103,11 +99,35 @@ export async function PUT(
       },
     });
 
-    if (!existingTask) {
+    if (!existingTask || !(await targetsInScope(access, existingTask))) {
       return NextResponse.json(
         { error: "Scheduled task not found" },
         { status: 404 }
       );
+    }
+
+    // Cancelling or re-opening a task is pausing; every other change needs edit
+    const { status: nextStatus, ...rest } = validatedData;
+    const pauses = nextStatus !== undefined && nextStatus !== existingTask.status;
+    const edits = Object.values(rest).some((v) => v !== undefined);
+    if (pauses && !access.has("recurring.pause")) return forbidden("recurring.pause");
+    if (edits && !access.has("recurring.edit")) return forbidden("recurring.edit");
+
+    if (validatedData.creatorIds?.length) {
+      const n = await db.creator.count({
+        where: { AND: [creatorWhere(access), { id: { in: validatedData.creatorIds } }] },
+      });
+      if (n !== new Set(validatedData.creatorIds).size) {
+        return NextResponse.json({ error: "One or more creators not found" }, { status: 404 });
+      }
+    }
+    if (validatedData.creatorGroupIds?.length) {
+      const n = await db.creatorGroup.count({
+        where: { AND: [creatorGroupWhere(access), { id: { in: validatedData.creatorGroupIds } }] },
+      });
+      if (n !== new Set(validatedData.creatorGroupIds).size) {
+        return NextResponse.json({ error: "One or more creator groups not found" }, { status: 404 });
+      }
     }
 
     // Build update data
@@ -225,11 +245,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.delete");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id } = await params;
 
@@ -241,7 +259,7 @@ export async function DELETE(
       },
     });
 
-    if (!task) {
+    if (!task || !(await targetsInScope(access, task))) {
       return NextResponse.json(
         { error: "Scheduled task not found" },
         { status: 404 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
@@ -22,17 +21,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.create");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id } = await params;
     const agencyId = session.user.agencyId;
 
     const existing = await db.contentRequest.findFirst({
-      where: { id, agencyId },
+      where: { AND: [requestWhere(access), { id }] },
       include: { creator: true },
     });
 

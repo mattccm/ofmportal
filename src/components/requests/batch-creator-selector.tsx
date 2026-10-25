@@ -26,7 +26,7 @@ import {
 export interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone?: string | null;
   avatar?: string | null;
   inviteStatus?: string;
@@ -72,7 +72,7 @@ export function BatchCreatorSelector({
       const matchesSearch =
         !search ||
         creator.name.toLowerCase().includes(searchLower) ||
-        creator.email.toLowerCase().includes(searchLower);
+        (creator.email ?? "").toLowerCase().includes(searchLower);
 
       // Status filter
       const matchesStatus =

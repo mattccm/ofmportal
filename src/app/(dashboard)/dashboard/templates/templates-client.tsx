@@ -11,6 +11,7 @@ import {
   Trash2,
   FolderPlus,
 } from "lucide-react";
+import { useAccess } from "@/lib/access/client";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -90,6 +91,8 @@ export function TemplatesClient({
   canManageGroups = false,
   startCreating = false,
 }: TemplatesClientProps) {
+  const { can } = useAccess();
+  const canEdit = can("templates.edit");
   const [templates, setTemplates] = React.useState(initialTemplates);
   const [groups, setGroups] = React.useState(
     [...initialGroups].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
@@ -366,10 +369,12 @@ export function TemplatesClient({
       lastUsedAt={template.lastUsedAt}
       isActive={template.isActive}
       updatedAt={template.updatedAt}
-      onDuplicate={() => handleDuplicate(template.id)}
-      onDelete={() => handleDelete(template.id)}
+      onDuplicate={can("templates.create") ? () => handleDuplicate(template.id) : undefined}
+      onDelete={can("templates.delete") ? () => handleDelete(template.id) : undefined}
       groups={groupOptions}
-      onMove={(groupId) => void moveTemplate(template.id, groupId)}
+      onMove={canEdit ? (groupId) => void moveTemplate(template.id, groupId) : undefined}
+      canEdit={canEdit}
+      canSend={can("requests.create")}
     />
   );
 
@@ -385,7 +390,7 @@ export function TemplatesClient({
   };
 
   const shelfDrag = (key: string, groupId: string | null) => ({
-    draggable: groupOptions.length > 0,
+    draggable: canEdit && groupOptions.length > 0,
     onCardDragStart: (id: string) => setDragId(id),
     onCardDragEnd: () => {
       setDragId(null);
@@ -610,7 +615,7 @@ export function TemplatesClient({
                   ) : null
                 }
                 empty={emptyShelf(
-                  canManageGroups || groupOptions.length > 0
+                  canManageGroups || (canEdit && groupOptions.length > 0)
                     ? "Nothing in this group yet. Drag a template here, or use Move to group on a template's menu."
                     : "Nothing in this group yet."
                 )}

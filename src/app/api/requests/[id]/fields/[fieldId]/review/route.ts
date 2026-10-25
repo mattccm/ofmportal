@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, forbidden } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import { getRequiredFileFieldIds } from "@/lib/upload-finalize";
@@ -26,11 +25,9 @@ export async function POST(
 ) {
   try {
     const { id, fieldId } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["review.approve", "review.requestChanges"]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const { action, feedback } = body;
@@ -49,12 +46,12 @@ export async function POST(
       );
     }
 
+    const actionKey = action === "approve" ? "review.approve" : "review.requestChanges";
+    if (!access.has(actionKey)) return forbidden(actionKey);
+
     // Find the request
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
       include: {
         creator: { select: { id: true, name: true, email: true, phone: true, preferredContact: true } },
       },

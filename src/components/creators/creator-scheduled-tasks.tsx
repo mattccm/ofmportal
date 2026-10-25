@@ -22,6 +22,7 @@ import {
   Repeat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -151,6 +152,9 @@ const TimelineView: React.FC<TimelineViewProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const { can } = useAccess();
+  const canEdit = can("recurring.edit");
+  const canDelete = can("recurring.delete");
   // Group tasks by date
   const groupedTasks = React.useMemo(() => {
     const groups: Record<string, ScheduledTask[]> = {};
@@ -306,6 +310,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                           )}
                         </div>
                       </div>
+                      {(canEdit || canDelete) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button aria-label={`More actions for ${task.name}`} variant="ghost" size="icon" className="h-8 w-8">
@@ -313,26 +318,31 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {task.status === "pending" && (
+                          {canEdit && task.status === "pending" && (
                             <DropdownMenuItem onClick={() => onRunNow(task)}>
                               <Play className="h-4 w-4 mr-2" />
                               Run Now
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onClick={() => onEdit(task)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => onDelete(task)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
+                          {canEdit && (
+                            <DropdownMenuItem onClick={() => onEdit(task)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canEdit && canDelete && <DropdownMenuSeparator />}
+                          {canDelete && (
+                            <DropdownMenuItem
+                              onClick={() => onDelete(task)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      )}
                     </div>
 
                     {/* Results preview for completed tasks */}
@@ -378,6 +388,7 @@ export function CreatorScheduledTasks({
   templates,
   onScheduleNew,
 }: CreatorScheduledTasksProps) {
+  const canCreate = useAccess().can("recurring.create");
   const [tasks, setTasks] = React.useState<ScheduledTask[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [filter, setFilter] = React.useState<"upcoming" | "past" | "all">("upcoming");
@@ -479,10 +490,12 @@ export function CreatorScheduledTasks({
               Automated tasks scheduled for {creatorName}
             </CardDescription>
           </div>
-          <Button size="sm" onClick={onScheduleNew}>
-            <Plus className="h-4 w-4 mr-2" />
-            Schedule
-          </Button>
+          {canCreate && (
+            <Button size="sm" onClick={onScheduleNew}>
+              <Plus className="h-4 w-4 mr-2" />
+              Schedule
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>

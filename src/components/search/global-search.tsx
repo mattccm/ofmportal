@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
+import type { PermissionKey } from "@/lib/access/catalogue";
 import { sanitizeHtml } from "@/components/ui/html-content";
 import {
   Search,
@@ -46,6 +48,8 @@ interface QuickAction {
   icon: React.ReactNode;
   href?: string;
   action?: () => void;
+  /** Shown only to roles with this permission */
+  perm?: PermissionKey;
 }
 
 interface GlobalSearchProps {
@@ -64,13 +68,14 @@ const CATEGORY_CONFIG: Record<CategoryFilter, { label: string; icon: React.Compo
   messages: { label: "Messages", icon: MessageSquare },
 };
 
-const QUICK_ACTIONS: QuickAction[] = [
+const ALL_QUICK_ACTIONS: QuickAction[] = [
   {
     id: "create-request",
     title: "Create New Request",
     subtitle: "Start a new content request",
     icon: <Plus className="h-4 w-4" />,
     href: "/dashboard/requests/new",
+    perm: "requests.create",
   },
   {
     id: "invite-creator",
@@ -78,6 +83,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     subtitle: "Add a new creator to your portal",
     icon: <UserPlus className="h-4 w-4" />,
     href: "/dashboard/creators?action=invite",
+    perm: "creators.invite",
   },
   {
     id: "create-template",
@@ -85,6 +91,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     subtitle: "Create a new request template",
     icon: <LayoutTemplate className="h-4 w-4" />,
     href: "/dashboard/templates/new",
+    perm: "templates.create",
   },
 ];
 
@@ -123,6 +130,8 @@ function clearRecentSearches() {
 }
 
 export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
+  const { can } = useAccess();
+  const QUICK_ACTIONS = React.useMemo(() => ALL_QUICK_ACTIONS.filter((a) => !a.perm || can(a.perm)), [can]);
   const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
@@ -199,7 +208,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     }
 
     return items;
-  }, [query, results, recentSearches]);
+  }, [query, results, recentSearches, QUICK_ACTIONS]);
 
   const selectableItems = getSelectableItems();
 

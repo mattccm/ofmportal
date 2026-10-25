@@ -24,8 +24,6 @@ export interface OverviewRequest {
   creatorId: string;
   creatorName: string;
   creatorLastSeen: string | null;
-  /** How the creator prefers to be reached: the reminder channel */
-  creatorContact: "EMAIL" | "SMS" | "BOTH";
   /** Template name */
   kind: string | null;
   /** Past due while the creator still owes content */

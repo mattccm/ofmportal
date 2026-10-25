@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import {
   DEFAULT_BRANDING,
@@ -34,14 +33,12 @@ const BUCKET_NAME = process.env.R2_BUCKET_NAME || "upload-portal";
 // GET - Fetch current branding settings
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.branding");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const agency = await db.agency.findUnique({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       select: {
         id: true,
         name: true,
@@ -79,19 +76,9 @@ export async function GET(request: NextRequest) {
 // PUT - Update branding settings
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only OWNER and ADMIN can update branding
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.branding");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await request.json();
     const updates: Partial<BrandingSettings> = {};
@@ -197,7 +184,7 @@ export async function PUT(request: NextRequest) {
 
     // Get current agency settings
     const agency = await db.agency.findUnique({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       select: { settings: true, logo: true },
     });
 
@@ -222,7 +209,7 @@ export async function PUT(request: NextRequest) {
     };
 
     const updatedAgency = await db.agency.update({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       data: {
         settings: JSON.parse(JSON.stringify(settingsUpdate)),
         // Also update main logo field if logoLight is provided
@@ -246,19 +233,9 @@ export async function PUT(request: NextRequest) {
 // POST - Upload branding asset (logo)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only OWNER and ADMIN can upload branding assets
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.branding");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -295,7 +272,7 @@ export async function POST(request: NextRequest) {
 
     // Generate storage key
     const key = generateBrandingAssetKey(
-      session.user.agencyId,
+      access.agencyId,
       assetType,
       file.name
     );
@@ -327,7 +304,7 @@ export async function POST(request: NextRequest) {
 
     // Update agency branding with new logo URL
     const agency = await db.agency.findUnique({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       select: { settings: true },
     });
 
@@ -344,7 +321,7 @@ export async function POST(request: NextRequest) {
     };
 
     await db.agency.update({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       data: {
         settings: JSON.parse(JSON.stringify(newSettings)),
         // Also update main logo field if logoLight
@@ -369,14 +346,12 @@ export async function POST(request: NextRequest) {
 // DELETE - Reset branding to defaults
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.branding");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     // Only OWNER can reset branding
-    if (session.user.role !== "OWNER") {
+    if (!access.isOwner) {
       return NextResponse.json(
         { error: "Only agency owners can reset branding" },
         { status: 403 }
@@ -384,7 +359,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const agency = await db.agency.findUnique({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       select: { settings: true },
     });
 
@@ -397,7 +372,7 @@ export async function DELETE(request: NextRequest) {
     };
 
     await db.agency.update({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       data: {
         settings: JSON.parse(JSON.stringify(resetSettings)),
         logo: null,

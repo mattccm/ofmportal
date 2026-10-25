@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { sendReminderEmail } from "@/lib/email";
 import { format, differenceInDays } from "date-fns";
 import { getAppUrl } from "@/lib/app-url";
@@ -17,28 +16,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Match the permission model used by /api/reminders/send
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("reminders.send");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id } = await params;
 
     // Scope the creator to the caller's agency
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
     });
 
     if (!creator) {

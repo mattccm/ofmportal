@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { validateCreatorSession } from "@/lib/portal-auth";
 import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
@@ -76,18 +75,15 @@ export async function DELETE(
     }
 
     // Fall back to team member auth
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.delete");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     // Find the upload and verify agency access
     const upload = await db.upload.findFirst({
       where: {
         id,
-        request: {
-          agencyId: session.user.agencyId,
-        },
+        request: requestWhere(access),
       },
     });
 

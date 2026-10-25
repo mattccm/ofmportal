@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -138,14 +137,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.automations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
-    const automations = await getAutomations(session.user.agencyId);
+    const automations = await getAutomations(access.agencyId);
     const automation = automations.find((a) => a.id === id);
 
     if (!automation) {
@@ -172,25 +169,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check user role
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role || "")) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.automations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
     const body = await request.json();
     const validatedData = updateAutomationSchema.parse(body);
 
-    const automations = await getAutomations(session.user.agencyId);
+    const automations = await getAutomations(access.agencyId);
     const automationIndex = automations.findIndex((a) => a.id === id);
 
     if (automationIndex === -1) {
@@ -231,7 +218,7 @@ export async function PATCH(
     };
 
     automations[automationIndex] = updatedAutomation;
-    await saveAutomations(session.user.agencyId, automations);
+    await saveAutomations(access.agencyId, automations);
 
     return NextResponse.json(updatedAutomation);
   } catch (error) {
@@ -257,11 +244,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.automations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
     const body = await request.json();
@@ -273,7 +258,7 @@ export async function POST(
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    const automations = await getAutomations(session.user.agencyId);
+    const automations = await getAutomations(access.agencyId);
     const automation = automations.find((a) => a.id === id);
 
     if (!automation) {
@@ -311,7 +296,7 @@ export async function POST(
 
     // Log the test for analytics
     console.log(
-      `[Automation Test] Agency: ${session.user.agencyId}, Automation: ${id}, User: ${session.user.id}`
+      `[Automation Test] Agency: ${access.agencyId}, Automation: ${id}, User: ${access.userId}`
     );
 
     return NextResponse.json(testResults);
@@ -338,22 +323,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check user role
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role || "")) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.automations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
-    const automations = await getAutomations(session.user.agencyId);
+    const automations = await getAutomations(access.agencyId);
     const automationIndex = automations.findIndex((a) => a.id === id);
 
     if (automationIndex === -1) {
@@ -367,7 +342,7 @@ export async function DELETE(
 
     // Remove the automation
     automations.splice(automationIndex, 1);
-    await saveAutomations(session.user.agencyId, automations);
+    await saveAutomations(access.agencyId, automations);
 
     return NextResponse.json({
       message: "Automation deleted successfully",

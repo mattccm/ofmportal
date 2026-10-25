@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import {
@@ -68,16 +67,14 @@ const resetTemplateSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.emailTemplates");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     // Get custom templates from database
     const customTemplates = await db.emailTemplate.findMany({
       where: {
-        agencyId: session.user.agencyId,
+        agencyId: access.agencyId,
       },
     });
 
@@ -139,11 +136,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.emailTemplates");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await req.json();
     const validatedData = updateTemplateSchema.parse(body);
@@ -154,7 +149,7 @@ export async function POST(req: NextRequest) {
     const template = await db.emailTemplate.upsert({
       where: {
         agencyId_type: {
-          agencyId: session.user.agencyId,
+          agencyId: access.agencyId,
           type: validatedData.type,
         },
       },
@@ -167,7 +162,7 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date(),
       },
       create: {
-        agencyId: session.user.agencyId,
+        agencyId: access.agencyId,
         type: validatedData.type,
         name: config.name,
         description: config.description,
@@ -213,11 +208,9 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.emailTemplates");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await req.json();
     const validatedData = resetTemplateSchema.parse(body);
@@ -225,7 +218,7 @@ export async function PUT(req: NextRequest) {
     // Delete the custom template if it exists
     await db.emailTemplate.deleteMany({
       where: {
-        agencyId: session.user.agencyId,
+        agencyId: access.agencyId,
         type: validatedData.type,
       },
     });
@@ -267,11 +260,9 @@ export async function PUT(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.emailTemplates");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await req.json();
     const validatedData = testSendSchema.parse(body);
@@ -280,7 +271,7 @@ export async function PATCH(req: NextRequest) {
     const customTemplate = await db.emailTemplate.findUnique({
       where: {
         agencyId_type: {
-          agencyId: session.user.agencyId,
+          agencyId: access.agencyId,
           type: validatedData.type,
         },
       },
@@ -304,7 +295,7 @@ export async function PATCH(req: NextRequest) {
     // The template body is a full, user-authored HTML document, so it isn't
     // wrapped in the branded shell; brand the sender instead so the test send
     // comes from the agency, matching every other outgoing email.
-    const branding = await loadEmailBranding(session.user.agencyId);
+    const branding = await loadEmailBranding(access.agencyId);
 
     // Send the test email
     const result = await sendEmail({

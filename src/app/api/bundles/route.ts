@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -36,11 +35,9 @@ const updateBundleSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("bundles.view");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(req.url);
     const isOnboardingOnly = searchParams.get("onboarding") === "true";
@@ -151,11 +148,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("bundles.edit");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
     const validatedData = createBundleSchema.parse(body);
@@ -224,11 +219,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("bundles.edit");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
     const { id, ...updateData } = body;
@@ -315,11 +308,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("bundles.edit");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

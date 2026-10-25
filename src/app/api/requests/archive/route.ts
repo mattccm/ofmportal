@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
@@ -25,11 +24,9 @@ const permanentDeleteSchema = z.object({
 // GET - List archived requests
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
@@ -40,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     // Build where clause
     const where: Record<string, unknown> = {
-      agencyId: session.user.agencyId,
+      ...requestWhere(access),
       status: "ARCHIVED",
     };
 
@@ -53,7 +50,10 @@ export async function GET(req: NextRequest) {
         { title: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
         { creator: { name: { contains: search, mode: "insensitive" } } },
-        { creator: { email: { contains: search, mode: "insensitive" } } },
+        // Searching by email only when this person may see creator emails
+        ...(access.has("creatorInfo.email")
+          ? [{ creator: { email: { contains: search, mode: "insensitive" } } }]
+          : []),
       ];
     }
 
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     // Get archive count for sidebar
     const archiveCount = await db.contentRequest.count({
       where: {
-        agencyId: session.user.agencyId,
+        ...requestWhere(access),
         status: "ARCHIVED",
       },
     });
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
       reviewedAt: request.reviewedAt?.toISOString() || null,
     }));
 
-    return NextResponse.json({
+    return NextResponse.json(redactCreatorsIn(access, {
       requests: serializedRequests,
       pagination: {
         page,
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
       archiveCount,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching archived requests:", error);
     return NextResponse.json(
@@ -119,11 +119,9 @@ export async function GET(req: NextRequest) {
 // POST - Archive requests
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.archive");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = archiveSchema.parse(body);
@@ -132,7 +130,7 @@ export async function POST(req: NextRequest) {
     const requests = await db.contentRequest.findMany({
       where: {
         id: { in: validatedData.requestIds },
-        agencyId: session.user.agencyId,
+        ...requestWhere(access),
         status: { not: "ARCHIVED" },
       },
     });
@@ -196,11 +194,9 @@ export async function POST(req: NextRequest) {
 // PUT - Restore requests from archive
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.archive");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = restoreSchema.parse(body);
@@ -209,7 +205,7 @@ export async function PUT(req: NextRequest) {
     const requests = await db.contentRequest.findMany({
       where: {
         id: { in: validatedData.requestIds },
-        agencyId: session.user.agencyId,
+        ...requestWhere(access),
         status: "ARCHIVED",
       },
     });
@@ -290,11 +286,9 @@ export async function PUT(req: NextRequest) {
 // DELETE - Permanently delete archived requests
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.delete");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = permanentDeleteSchema.parse(body);
@@ -303,7 +297,7 @@ export async function DELETE(req: NextRequest) {
     const requests = await db.contentRequest.findMany({
       where: {
         id: { in: validatedData.requestIds },
-        agencyId: session.user.agencyId,
+        ...requestWhere(access),
         status: "ARCHIVED",
       },
     });

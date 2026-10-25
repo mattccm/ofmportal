@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import type { MediaType } from "@prisma/client";
@@ -27,19 +26,19 @@ function mimeToMediaType(mime: string): MediaType {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // The library is the creators' content, so it also needs "Their content library"
+    if (!access.has("creatorInfo.content")) return forbidden("creatorInfo.content");
 
     const body = await req.json();
     const data = importSchema.parse(body);
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
 
     // Verify creator belongs to the caller's agency
     const creator = await db.creator.findFirst({
-      where: { id: data.creatorId, agencyId },
+      where: { AND: [creatorWhere(access), { id: data.creatorId }] },
       select: { id: true },
     });
 
@@ -134,7 +133,7 @@ export async function POST(req: NextRequest) {
     await db.activityLog
       .create({
         data: {
-          userId: session.user.id,
+          userId: access.userId,
           action: "media.imported",
           entityType: "MediaItem",
           entityId: data.creatorId,

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, requestWhere } from "@/lib/access/server";
 
 interface ReadByEntry {
   userId: string;
@@ -11,26 +10,23 @@ interface ReadByEntry {
 // GET /api/comments/unread - Get unread comment counts
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(request.url);
     const requestId = searchParams.get("requestId");
     const groupBy = searchParams.get("groupBy"); // "request" to get per-request counts
 
     const userId = session.user.id;
-    const agencyId = session.user.agencyId;
 
     // Build where clause
     const where: Record<string, unknown> = {
       // Only count non-internal comments not authored by the current user
       userId: { not: userId },
       isInternal: false,
-      request: {
-        agencyId,
-      },
+      // Only requests whose creator this person may see
+      request: requestWhere(access),
     };
 
     if (requestId) {

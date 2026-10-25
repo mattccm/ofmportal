@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { activityWhere, creatorWhere, requestWhere, requireAccess, type Access } from "@/lib/access/server";
 import {
   startOfDay,
   endOfDay,
@@ -88,18 +87,16 @@ const isCompleted = (r: { status: string; reviewedAt: Date | null }) =>
   !!r.reviewedAt && (r.status === "APPROVED" || r.status === "ARCHIVED");
 
 async function generateCreatorPerformanceCSV(
-  agencyId: string,
+  access: Access,
   start: Date,
   end: Date,
   creatorIds?: string[]
 ): Promise<string> {
-  const whereClause: Record<string, unknown> = { agencyId };
-  if (creatorIds && creatorIds.length > 0) {
-    whereClause.id = { in: creatorIds };
-  }
-
+  // Only creators inside this person's creator scope
   const creators = await db.creator.findMany({
-    where: whereClause,
+    where: {
+      AND: [creatorWhere(access), creatorIds && creatorIds.length > 0 ? { id: { in: creatorIds } } : {}],
+    },
     include: {
       uploads: {
         where: {
@@ -168,17 +165,25 @@ async function generateCreatorPerformanceCSV(
     ];
   });
 
+  // A role that can't see creators' email gets no Email column at all
+  if (!access.has("creatorInfo.email")) {
+    const i = headers.indexOf("Email");
+    return arrayToCSV(
+      headers.filter((_, j) => j !== i),
+      rows.map((r) => r.filter((_, j) => j !== i))
+    );
+  }
   return arrayToCSV(headers, rows);
 }
 
 async function generateContentDeliveryCSV(
-  agencyId: string,
+  access: Access,
   start: Date,
   end: Date
 ): Promise<string> {
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...requestWhere(access),
       createdAt: { gte: start, lte: end },
     },
     include: {
@@ -235,13 +240,13 @@ async function generateContentDeliveryCSV(
 }
 
 async function generateRequestSummaryCSV(
-  agencyId: string,
+  access: Access,
   start: Date,
   end: Date
 ): Promise<string> {
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...requestWhere(access),
       createdAt: { gte: start, lte: end },
     },
     include: {
@@ -280,13 +285,14 @@ async function generateRequestSummaryCSV(
 }
 
 async function generateTeamActivityCSV(
-  agencyId: string,
+  access: Access,
   start: Date,
   end: Date,
   teamMemberIds?: string[]
 ): Promise<string> {
   const whereClause: Record<string, unknown> = {
-    user: { agencyId },
+    // Only teammates inside this person's team scope
+    ...activityWhere(access),
     createdAt: { gte: start, lte: end },
   };
 
@@ -362,13 +368,9 @@ async function generateTeamActivityCSV(
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("reports.export");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const body = (await request.json()) as ExportParams;
 
     const { reportType, dateRange, startDate, endDate, format: exportFormat, creatorIds, teamMemberIds } = body;
@@ -392,19 +394,19 @@ export async function POST(request: NextRequest) {
 
     switch (reportType) {
       case "creator_performance":
-        csv = await generateCreatorPerformanceCSV(agencyId, start, end, creatorIds);
+        csv = await generateCreatorPerformanceCSV(access, start, end, creatorIds);
         filename = `creator-performance-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
         break;
       case "content_delivery":
-        csv = await generateContentDeliveryCSV(agencyId, start, end);
+        csv = await generateContentDeliveryCSV(access, start, end);
         filename = `content-delivery-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
         break;
       case "request_summary":
-        csv = await generateRequestSummaryCSV(agencyId, start, end);
+        csv = await generateRequestSummaryCSV(access, start, end);
         filename = `request-summary-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
         break;
       case "team_activity":
-        csv = await generateTeamActivityCSV(agencyId, start, end, teamMemberIds);
+        csv = await generateTeamActivityCSV(access, start, end, teamMemberIds);
         filename = `team-activity-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
         break;
       default:

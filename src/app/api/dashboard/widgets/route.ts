@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, requestWhere, requireAccess, type Access } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import {
   startOfDay,
@@ -28,14 +27,10 @@ interface WidgetConfig {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
-    const userId = session.user.id;
+    const gate = await requireAccess("overview.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    const userId = access.userId;
     const { searchParams } = new URL(request.url);
     const widget = searchParams.get("widget");
 
@@ -46,25 +41,25 @@ export async function GET(request: NextRequest) {
 
     // Special case: fetch all widget data in one request to reduce connection usage
     if (widget === "all") {
-      return await getAllWidgetData(agencyId);
+      return await getAllWidgetData(access);
     }
 
     // Fetch data for specific widget
     switch (widget) {
       case "pending-requests":
-        return await getPendingRequests(agencyId);
+        return await getPendingRequests(access);
       case "recent-uploads":
-        return await getRecentUploads(agencyId);
+        return await getRecentUploads(access);
       case "upcoming-deadlines":
-        return await getUpcomingDeadlines(agencyId);
+        return await getUpcomingDeadlines(access);
       case "top-creators":
-        return await getTopCreators(agencyId);
+        return await getTopCreators(access);
       case "quick-stats":
-        return await getQuickStats(agencyId);
+        return await getQuickStats(access);
       case "activity-feed":
-        return await getActivityFeed(agencyId);
+        return await getActivityFeed(access);
       case "reminder-summary":
-        return await getReminderSummary(agencyId);
+        return await getReminderSummary(access);
       default:
         return NextResponse.json({ error: "Unknown widget" }, { status: 400 });
     }
@@ -87,13 +82,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.user.id;
+    const gate = await requireAccess("overview.view");
+    if (gate.error) return gate.error;
+    const userId = gate.access.userId;
     const body = await request.json();
     const { layout } = body as { layout: WidgetConfig[] };
 
@@ -149,10 +140,10 @@ async function getWidgetLayout(userId: string) {
 
 // WIDGET DATA FETCHERS
 
-async function getPendingRequests(agencyId: string) {
+async function getPendingRequests(access: Access) {
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...requestWhere(access),
       status: { in: ["PENDING", "IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW", "NEEDS_REVISION"] },
     },
     orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
@@ -176,10 +167,10 @@ async function getPendingRequests(agencyId: string) {
   });
 }
 
-async function getRecentUploads(agencyId: string) {
+async function getRecentUploads(access: Access) {
   const uploads = await db.upload.findMany({
     where: {
-      request: { agencyId },
+      request: requestWhere(access),
       uploadStatus: "COMPLETED",
     },
     orderBy: { uploadedAt: "desc" },
@@ -208,14 +199,14 @@ async function getRecentUploads(agencyId: string) {
   });
 }
 
-async function getUpcomingDeadlines(agencyId: string) {
+async function getUpcomingDeadlines(access: Access) {
   const now = new Date();
   const twoWeeksFromNow = addDays(now, 14);
 
   // Get both upcoming and overdue
   const requests = await db.contentRequest.findMany({
     where: {
-      agencyId,
+      ...requestWhere(access),
       status: { notIn: ["APPROVED", "CANCELLED", "ARCHIVED"] },
       dueDate: { lte: endOfDay(twoWeeksFromNow) },
     },
@@ -239,14 +230,14 @@ async function getUpcomingDeadlines(agencyId: string) {
   });
 }
 
-async function getTopCreators(agencyId: string) {
+async function getTopCreators(access: Access) {
   const monthStart = startOfMonth(new Date());
   const monthEnd = endOfMonth(new Date());
 
   // Fetch all creators with their upload stats in a single query using groupBy
   // This eliminates the N+1 query problem
   const creators = await db.creator.findMany({
-    where: { agencyId, inviteStatus: "ACCEPTED" },
+    where: { ...creatorWhere(access), inviteStatus: "ACCEPTED" },
     select: {
       id: true,
       name: true,
@@ -318,7 +309,7 @@ async function getTopCreators(agencyId: string) {
   return NextResponse.json({ creators: performances.slice(0, 10) });
 }
 
-async function getQuickStats(agencyId: string) {
+async function getQuickStats(access: Access) {
   const now = new Date();
   const weekFromNow = addDays(now, 7);
   const lastWeek = subDays(now, 7);
@@ -335,43 +326,43 @@ async function getQuickStats(agencyId: string) {
     prevPendingRequests,
     prevAwaitingReview,
   ] = await Promise.all([
-    db.creator.count({ where: { agencyId, inviteStatus: "ACCEPTED" } }),
+    db.creator.count({ where: { ...creatorWhere(access), inviteStatus: "ACCEPTED" } }),
     db.contentRequest.count({
-      where: { agencyId, status: { in: ["PENDING", "IN_PROGRESS"] } },
+      where: { ...requestWhere(access), status: { in: ["PENDING", "IN_PROGRESS"] } },
     }),
     db.upload.count({
-      where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
+      where: { request: requestWhere(access), status: "PENDING", uploadStatus: "COMPLETED" },
     }),
     // Distinct requests that have at least one completed upload awaiting a
     // decision — grouped so the number of rows equals the requests-needing-review count.
     db.upload.groupBy({
       by: ["requestId"],
-      where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
+      where: { request: requestWhere(access), status: "PENDING", uploadStatus: "COMPLETED" },
     }),
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { notIn: ["APPROVED", "CANCELLED"] },
         dueDate: { gte: startOfDay(now), lte: endOfDay(weekFromNow) },
       },
     }),
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { notIn: ["APPROVED", "CANCELLED"] },
         dueDate: { lt: startOfDay(now) },
       },
     }),
     // Previous period (for trends)
     db.creator.count({
-      where: { agencyId, inviteStatus: "ACCEPTED", createdAt: { lt: lastWeek } },
+      where: { ...creatorWhere(access), inviteStatus: "ACCEPTED", createdAt: { lt: lastWeek } },
     }),
     db.contentRequest.count({
-      where: { agencyId, status: { in: ["PENDING", "IN_PROGRESS"] }, createdAt: { lt: lastWeek } },
+      where: { ...requestWhere(access), status: { in: ["PENDING", "IN_PROGRESS"] }, createdAt: { lt: lastWeek } },
     }),
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: requestWhere(access),
         status: "PENDING",
         uploadStatus: "COMPLETED",
         createdAt: { lt: lastWeek },
@@ -402,7 +393,7 @@ async function getQuickStats(agencyId: string) {
   });
 }
 
-async function getActivityFeed(agencyId: string) {
+async function getActivityFeed(access: Access) {
   const activities: Array<{
     id: string;
     type: string;
@@ -418,7 +409,7 @@ async function getActivityFeed(agencyId: string) {
 
   // Get recent uploads
   const recentUploads = await db.upload.findMany({
-    where: { request: { agencyId }, uploadedAt: { gte: since } },
+    where: { request: requestWhere(access), uploadedAt: { gte: since } },
     orderBy: { uploadedAt: "desc" },
     take: 10,
     include: {
@@ -443,7 +434,7 @@ async function getActivityFeed(agencyId: string) {
 
   // Get recent comments
   const recentComments = await db.comment.findMany({
-    where: { request: { agencyId }, createdAt: { gte: since }, isInternal: false },
+    where: { request: requestWhere(access), createdAt: { gte: since }, isInternal: false },
     orderBy: { createdAt: "desc" },
     take: 8,
     include: {
@@ -467,13 +458,13 @@ async function getActivityFeed(agencyId: string) {
 
   // Get new creators
   const newCreators = await db.creator.findMany({
-    where: { agencyId, inviteStatus: "ACCEPTED", lastLoginAt: { gte: since } },
+    where: { ...creatorWhere(access), inviteStatus: "ACCEPTED", lastLoginAt: { gte: since } },
     orderBy: { lastLoginAt: "desc" },
     take: 5,
     select: { id: true, name: true, avatar: true, lastLoginAt: true },
   });
 
-  for (const creator of newCreators) {
+  for (const creator of access.has("creatorInfo.activity") ? newCreators : []) {
     activities.push({
       id: `creator-${creator.id}`,
       type: "creator_signup",
@@ -489,7 +480,7 @@ async function getActivityFeed(agencyId: string) {
   // Get recent approvals/rejections
   const recentReviews = await db.upload.findMany({
     where: {
-      request: { agencyId },
+      request: requestWhere(access),
       status: { in: ["APPROVED", "REJECTED"] },
       updatedAt: { gte: since },
     },
@@ -522,7 +513,7 @@ async function getActivityFeed(agencyId: string) {
   return NextResponse.json({ activities: activities.slice(0, 15) });
 }
 
-async function getReminderSummary(agencyId: string) {
+async function getReminderSummary(access: Access) {
   const now = new Date();
   const startOfToday = startOfDay(now);
   const endOfToday = endOfDay(now);
@@ -530,7 +521,7 @@ async function getReminderSummary(agencyId: string) {
   // Get pending reminders
   const pendingReminders = await db.reminder.findMany({
     where: {
-      request: { agencyId },
+      request: requestWhere(access),
       status: "PENDING",
     },
     orderBy: { scheduledAt: "asc" },
@@ -548,17 +539,17 @@ async function getReminderSummary(agencyId: string) {
 
   // Count stats
   const [pendingCount, sentTodayCount, failedCount] = await Promise.all([
-    db.reminder.count({ where: { request: { agencyId }, status: "PENDING" } }),
+    db.reminder.count({ where: { request: requestWhere(access), status: "PENDING" } }),
     db.reminder.count({
       where: {
-        request: { agencyId },
+        request: requestWhere(access),
         status: "SENT",
         sentAt: { gte: startOfToday, lte: endOfToday },
       },
     }),
     db.reminder.count({
       where: {
-        request: { agencyId },
+        request: requestWhere(access),
         status: "FAILED",
         createdAt: { gte: subDays(now, 7) },
       },
@@ -589,7 +580,7 @@ async function getReminderSummary(agencyId: string) {
 // BATCHED WIDGET DATA - Fetches all widgets in one request
 // This significantly reduces database connection usage
 
-async function getAllWidgetData(agencyId: string) {
+async function getAllWidgetData(access: Access) {
   const now = new Date();
   const since = subDays(now, 7);
   const weekFromNow = addDays(now, 7);
@@ -632,42 +623,42 @@ async function getAllWidgetData(agencyId: string) {
     failedReminderCount,
   ] = await Promise.all([
     // Quick stats queries
-    db.creator.count({ where: { agencyId, inviteStatus: "ACCEPTED" } }),
+    db.creator.count({ where: { ...creatorWhere(access), inviteStatus: "ACCEPTED" } }),
     db.contentRequest.count({
-      where: { agencyId, status: { in: ["PENDING", "IN_PROGRESS"] } },
+      where: { ...requestWhere(access), status: { in: ["PENDING", "IN_PROGRESS"] } },
     }),
     db.upload.count({
-      where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
+      where: { request: requestWhere(access), status: "PENDING", uploadStatus: "COMPLETED" },
     }),
     // Distinct requests that have at least one completed upload awaiting a
     // decision — grouped so the row count equals the requests-needing-review total.
     db.upload.groupBy({
       by: ["requestId"],
-      where: { request: { agencyId }, status: "PENDING", uploadStatus: "COMPLETED" },
+      where: { request: requestWhere(access), status: "PENDING", uploadStatus: "COMPLETED" },
     }),
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { notIn: ["APPROVED", "CANCELLED"] },
         dueDate: { gte: startOfDay(now), lte: endOfDay(weekFromNow) },
       },
     }),
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { notIn: ["APPROVED", "CANCELLED"] },
         dueDate: { lt: startOfDay(now) },
       },
     }),
     db.creator.count({
-      where: { agencyId, inviteStatus: "ACCEPTED", createdAt: { lt: lastWeek } },
+      where: { ...creatorWhere(access), inviteStatus: "ACCEPTED", createdAt: { lt: lastWeek } },
     }),
     db.contentRequest.count({
-      where: { agencyId, status: { in: ["PENDING", "IN_PROGRESS"] }, createdAt: { lt: lastWeek } },
+      where: { ...requestWhere(access), status: { in: ["PENDING", "IN_PROGRESS"] }, createdAt: { lt: lastWeek } },
     }),
     db.upload.count({
       where: {
-        request: { agencyId },
+        request: requestWhere(access),
         status: "PENDING",
         uploadStatus: "COMPLETED",
         createdAt: { lt: lastWeek },
@@ -675,7 +666,7 @@ async function getAllWidgetData(agencyId: string) {
     }),
     // Recent uploads
     db.upload.findMany({
-      where: { request: { agencyId }, uploadStatus: "COMPLETED" },
+      where: { request: requestWhere(access), uploadStatus: "COMPLETED" },
       orderBy: { uploadedAt: "desc" },
       take: 15,
       include: {
@@ -686,7 +677,7 @@ async function getAllWidgetData(agencyId: string) {
     // Upcoming deadlines
     db.contentRequest.findMany({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { notIn: ["APPROVED", "CANCELLED", "ARCHIVED"] },
         dueDate: { lte: endOfDay(twoWeeksFromNow) },
       },
@@ -699,7 +690,7 @@ async function getAllWidgetData(agencyId: string) {
     // Pending requests
     db.contentRequest.findMany({
       where: {
-        agencyId,
+        ...requestWhere(access),
         status: { in: ["PENDING", "IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW", "NEEDS_REVISION"] },
       },
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
@@ -711,7 +702,7 @@ async function getAllWidgetData(agencyId: string) {
     }),
     // Top creators
     db.creator.findMany({
-      where: { agencyId, inviteStatus: "ACCEPTED" },
+      where: { ...creatorWhere(access), inviteStatus: "ACCEPTED" },
       select: {
         id: true,
         name: true,
@@ -735,7 +726,7 @@ async function getAllWidgetData(agencyId: string) {
     }),
     // Activity feed - uploads
     db.upload.findMany({
-      where: { request: { agencyId }, uploadedAt: { gte: since } },
+      where: { request: requestWhere(access), uploadedAt: { gte: since } },
       orderBy: { uploadedAt: "desc" },
       take: 10,
       include: {
@@ -745,7 +736,7 @@ async function getAllWidgetData(agencyId: string) {
     }),
     // Activity feed - comments
     db.comment.findMany({
-      where: { request: { agencyId }, createdAt: { gte: since }, isInternal: false },
+      where: { request: requestWhere(access), createdAt: { gte: since }, isInternal: false },
       orderBy: { createdAt: "desc" },
       take: 8,
       include: {
@@ -755,7 +746,7 @@ async function getAllWidgetData(agencyId: string) {
     }),
     // Activity feed - new creators
     db.creator.findMany({
-      where: { agencyId, inviteStatus: "ACCEPTED", lastLoginAt: { gte: since } },
+      where: { ...creatorWhere(access), inviteStatus: "ACCEPTED", lastLoginAt: { gte: since } },
       orderBy: { lastLoginAt: "desc" },
       take: 5,
       select: { id: true, name: true, avatar: true, lastLoginAt: true },
@@ -763,7 +754,7 @@ async function getAllWidgetData(agencyId: string) {
     // Activity feed - reviews
     db.upload.findMany({
       where: {
-        request: { agencyId },
+        request: requestWhere(access),
         status: { in: ["APPROVED", "REJECTED"] },
         updatedAt: { gte: since },
       },
@@ -776,7 +767,7 @@ async function getAllWidgetData(agencyId: string) {
     }),
     // Reminder summary
     db.reminder.findMany({
-      where: { request: { agencyId }, status: "PENDING" },
+      where: { request: requestWhere(access), status: "PENDING" },
       orderBy: { scheduledAt: "asc" },
       take: 10,
       include: {
@@ -789,17 +780,17 @@ async function getAllWidgetData(agencyId: string) {
         },
       },
     }),
-    db.reminder.count({ where: { request: { agencyId }, status: "PENDING" } }),
+    db.reminder.count({ where: { request: requestWhere(access), status: "PENDING" } }),
     db.reminder.count({
       where: {
-        request: { agencyId },
+        request: requestWhere(access),
         status: "SENT",
         sentAt: { gte: startOfToday, lte: endOfToday },
       },
     }),
     db.reminder.count({
       where: {
-        request: { agencyId },
+        request: requestWhere(access),
         status: "FAILED",
         createdAt: { gte: subDays(now, 7) },
       },
@@ -949,7 +940,7 @@ async function getAllWidgetData(agencyId: string) {
     });
   }
 
-  for (const creator of newCreators) {
+  for (const creator of access.has("creatorInfo.activity") ? newCreators : []) {
     activities.push({
       id: `creator-${creator.id}`,
       type: "creator_signup",

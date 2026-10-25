@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, redactCreatorsIn, uploadWhere } from "@/lib/access/server";
 import { z } from "zod";
 
 // VALIDATION SCHEMAS
@@ -30,11 +29,9 @@ interface RouteParams {
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Check collection exists and belongs to agency
     const collection = await db.collection.findFirst({
@@ -58,7 +55,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const uploadIds = items.map((i: any) => i.uploadId);
     const uploads = uploadIds.length > 0
       ? await db.upload.findMany({
-          where: { id: { in: uploadIds } },
+          where: { AND: [uploadWhere(access), { id: { in: uploadIds } }] },
           include: {
             creator: {
               select: {
@@ -107,7 +104,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }).filter((item: any) => item.upload !== null);
 
-    return NextResponse.json({ items: serializedItems });
+    return NextResponse.json(redactCreatorsIn(access, { items: serializedItems }));
   } catch (error) {
     console.error("Error fetching collection items:", error);
     return NextResponse.json(
@@ -122,11 +119,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Check collection exists and belongs to agency
     const collection = await db.collection.findFirst({
@@ -145,12 +140,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     // Verify uploads exist and belong to agency
     const uploads = await db.upload.findMany({
-      where: {
-        id: { in: validatedData.uploadIds },
-        request: {
-          agencyId: session.user.agencyId,
-        },
-      },
+      where: { AND: [uploadWhere(access), { id: { in: validatedData.uploadIds } }] },
       select: { id: true },
     });
 
@@ -239,11 +229,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     // Check collection exists and belongs to agency
     const collection = await db.collection.findFirst({
@@ -297,11 +285,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     // Check collection exists and belongs to agency
     const collection = await db.collection.findFirst({

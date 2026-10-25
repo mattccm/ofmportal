@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAccess } from "@/lib/access/client";
 import { formatDistanceToNow } from "date-fns";
 import {
   Repeat,
@@ -262,10 +263,11 @@ function RecurringRequestCard({
   onViewHistory,
 }: {
   recurringRequest: RecurringRow;
-  onEdit: () => void;
-  onToggle: () => void;
-  onRunNow: () => void;
-  onDelete: () => void;
+  /** Each action is left out when the person's role doesn't include it */
+  onEdit?: () => void;
+  onToggle?: () => void;
+  onRunNow?: () => void;
+  onDelete?: () => void;
   onViewHistory: () => void;
 }) {
   const settings = recurringRequest.requestSettings as RequestSettings;
@@ -371,42 +373,52 @@ function RecurringRequestCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={onEdit}>
-                <Edit className="size-4" aria-hidden="true" />
-                Edit
-              </DropdownMenuItem>
+              {onEdit && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Edit className="size-4" aria-hidden="true" />
+                  Edit
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={onViewHistory}>
                 <History className="size-4" aria-hidden="true" />
                 Run history
               </DropdownMenuItem>
-              {recurringRequest.isActive && (
+              {recurringRequest.isActive && onRunNow && (
                 <DropdownMenuItem onClick={onRunNow}>
                   <Play className="size-4" aria-hidden="true" />
                   Run now
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onToggle}>
-                {recurringRequest.isActive ? (
-                  <>
-                    <Pause className="size-4" aria-hidden="true" />
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <Play className="size-4" aria-hidden="true" />
-                    Resume
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={onDelete}
-                className="text-late focus:text-late focus:bg-late/10"
-              >
-                <Trash2 className="size-4" aria-hidden="true" />
-                Delete
-              </DropdownMenuItem>
+              {onToggle && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onToggle}>
+                    {recurringRequest.isActive ? (
+                      <>
+                        <Pause className="size-4" aria-hidden="true" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="size-4" aria-hidden="true" />
+                        Resume
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                </>
+              )}
+              {onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={onDelete}
+                    className="text-late focus:text-late focus:bg-late/10"
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -427,6 +439,7 @@ export function RecurringRequestsList({
   creators,
   creatorGroups,
 }: RecurringRequestsListProps) {
+  const { can } = useAccess();
   const [recurringRequests, setRecurringRequests] = React.useState<RecurringRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -587,15 +600,17 @@ export function RecurringRequestsList({
                 }; ${totalRuns} ${totalRuns === 1 ? "run" : "runs"} so far.`}
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingRequest(null);
-            setIsModalOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New schedule
-        </Button>
+        {can("recurring.create") && (
+          <Button
+            onClick={() => {
+              setEditingRequest(null);
+              setIsModalOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New schedule
+          </Button>
+        )}
       </header>
 
       {/* Filters */}
@@ -660,7 +675,7 @@ export function RecurringRequestsList({
               ? "Clear the search or the filters to see every schedule."
               : "Pick the templates, the creators and how often. Each run sends a fresh request per template with its own due date, and you can pause it at any time."}
           </p>
-          {!searchQuery && statusFilter === "all" && frequencyFilter === "all" && (
+          {!searchQuery && statusFilter === "all" && frequencyFilter === "all" && can("recurring.create") && (
             <Button
               onClick={() => {
                 setEditingRequest(null);
@@ -680,10 +695,10 @@ export function RecurringRequestsList({
             <RecurringRequestCard
               key={rr.id}
               recurringRequest={rr}
-              onEdit={() => handleEdit(rr)}
-              onToggle={() => handleToggle(rr)}
-              onRunNow={() => handleRunNow(rr)}
-              onDelete={() => handleDelete(rr)}
+              onEdit={can("recurring.edit") ? () => handleEdit(rr) : undefined}
+              onToggle={can("recurring.pause") ? () => handleToggle(rr) : undefined}
+              onRunNow={can("recurring.edit") ? () => handleRunNow(rr) : undefined}
+              onDelete={can("recurring.delete") ? () => handleDelete(rr) : undefined}
               onViewHistory={() => setHistoryRequest(rr)}
             />
           ))}

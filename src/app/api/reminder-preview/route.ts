@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { canSeeCreator, requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import { previewScheduleForNewRequest } from "@/lib/auto-reminder-scheduler";
 import { format } from "date-fns";
@@ -17,14 +16,16 @@ const previewSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["requests.create", "reminders.view"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const { creatorId, urgency, dueDate } = previewSchema.parse(body);
+
+    if (!(await canSeeCreator(access, creatorId))) {
+      return NextResponse.json({ error: "Creator not found" }, { status: 404 });
+    }
 
     const parsedDueDate = new Date(dueDate);
     if (isNaN(parsedDueDate.getTime())) {

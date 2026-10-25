@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { sendPasswordResetEmail } from "@/lib/email";
 import crypto from "crypto";
 import { getAppUrl } from "@/lib/app-url";
@@ -12,27 +11,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.resetAccess");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission (OWNER or ADMIN only)
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Only Owners and Admins can send password reset links" },
-        { status: 403 }
-      );
-    }
 
     // Find the creator
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
       include: {
         agency: {
           select: {

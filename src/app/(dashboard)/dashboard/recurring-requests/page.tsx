@@ -1,7 +1,8 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { creatorWhere, getPageAccess, redactCreator } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
+import { creatorGroupWhere } from "@/app/api/recurring-requests/scope";
 import { RecurringRequestsList } from "@/components/recurring-requests";
 
 async function getTemplates(agencyId: string) {
@@ -19,21 +20,23 @@ async function getTemplates(agencyId: string) {
   });
 }
 
-async function getCreators(agencyId: string) {
+// Only creators and groups inside this person's creator scope; email only
+// for roles that may see it (never even loaded otherwise)
+async function getCreators(where: Prisma.CreatorWhereInput, withEmail: boolean) {
   return db.creator.findMany({
-    where: { agencyId },
+    where,
     select: {
       id: true,
       name: true,
-      email: true,
+      email: withEmail,
     },
     orderBy: { name: "asc" },
   });
 }
 
-async function getCreatorGroups(agencyId: string) {
+async function getCreatorGroups(where: Prisma.CreatorGroupWhereInput) {
   return db.creatorGroup.findMany({
-    where: { agencyId },
+    where,
     select: {
       id: true,
       name: true,
@@ -46,10 +49,9 @@ async function getCreatorGroups(agencyId: string) {
 }
 
 export default async function RecurringRequestsPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.agencyId) {
-    redirect("/login");
+  const access = await getPageAccess();
+  if (!access.has("recurring.view")) {
+    return <NoAccess what="recurring requests" roleName={access.role.name} />;
   }
 
   let templates: Awaited<ReturnType<typeof getTemplates>>;
@@ -57,9 +59,9 @@ export default async function RecurringRequestsPage() {
   let creatorGroups: Awaited<ReturnType<typeof getCreatorGroups>>;
   try {
     [templates, creators, creatorGroups] = await Promise.all([
-      getTemplates(session.user.agencyId),
-      getCreators(session.user.agencyId),
-      getCreatorGroups(session.user.agencyId),
+      getTemplates(access.agencyId),
+      getCreators(creatorWhere(access), access.has("creatorInfo.email")),
+      getCreatorGroups(creatorGroupWhere(access)),
     ]);
   } catch (error) {
     console.error("Failed to fetch recurring requests data:", error);
@@ -78,7 +80,7 @@ export default async function RecurringRequestsPage() {
   return (
     <RecurringRequestsList
       templates={templates}
-      creators={creators}
+      creators={redactCreator(access, creators)}
       creatorGroups={formattedGroups}
     />
   );

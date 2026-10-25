@@ -1,7 +1,6 @@
 import { Metadata } from "next";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getPageAccess } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { BulkOperationsCenter } from "@/components/bulk-operations";
 
 export const metadata: Metadata = {
@@ -10,11 +9,8 @@ export const metadata: Metadata = {
 };
 
 export default async function BulkOperationsPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
+  const access = await getPageAccess();
+  if (!access.has("requests.bulk")) return <NoAccess what="bulk actions" roleName={access.role.name} />;
 
   return (
     <div className="space-y-6">

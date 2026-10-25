@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { requireAccess } from "@/lib/access/server";
 import { RequestStatus } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 
@@ -30,16 +29,11 @@ interface StorageBreakdown {
 // GET - Fetch storage stats, retention policy, or jobs
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("settings.data");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get("type") || "storage";
 
@@ -228,24 +222,11 @@ export async function GET(request: NextRequest) {
 // PUT - Update retention policy
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("settings.data");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    // Check if user has permission (owner or admin only)
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
     const body = await request.json();
     const { type, policy } = body;
 
@@ -286,7 +267,7 @@ export async function PUT(request: NextRequest) {
     // Log the action
     await db.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         action: "settings.retention_policy.updated",
         entityType: "Agency",
         entityId: agencyId,
@@ -314,16 +295,11 @@ export async function PUT(request: NextRequest) {
 // POST - Preview policy, run cleanup, or request export
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("settings.data");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
     const body = await request.json();
     const { type } = body;
 
@@ -435,13 +411,6 @@ export async function POST(request: NextRequest) {
       }
 
       case "cleanup": {
-        // Check if user has permission
-        if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-          return NextResponse.json(
-            { error: "Insufficient permissions" },
-            { status: 403 }
-          );
-        }
 
         const { cleanupType } = body;
 
@@ -451,7 +420,7 @@ export async function POST(request: NextRequest) {
         // Log the cleanup action
         await db.activityLog.create({
           data: {
-            userId: session.user.id,
+            userId: access.userId,
             action: "data.cleanup.started",
             entityType: "Agency",
             entityId: agencyId,
@@ -489,7 +458,7 @@ export async function POST(request: NextRequest) {
         // Log the export request
         await db.activityLog.create({
           data: {
-            userId: session.user.id,
+            userId: access.userId,
             action: "data.export.requested",
             entityType: "Agency",
             entityId: agencyId,
@@ -533,24 +502,19 @@ export async function POST(request: NextRequest) {
 // DELETE - Delete all data
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const gate = await requireAccess("settings.data");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     // Only owner can delete all data
-    if (session.user.role !== "OWNER") {
+    if (!access.isOwner) {
       return NextResponse.json(
         { error: "Only the account owner can delete all data" },
         { status: 403 }
       );
     }
 
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
     const body = await request.json();
     const { confirmText } = body;
 
@@ -564,7 +528,7 @@ export async function DELETE(request: NextRequest) {
     // Log the deletion request before proceeding
     await db.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         action: "data.delete_all.requested",
         entityType: "Agency",
         entityId: agencyId,
@@ -685,7 +649,7 @@ export async function DELETE(request: NextRequest) {
     // Log completion
     await db.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         action: "data.delete_all.completed",
         entityType: "Agency",
         entityId: agencyId,

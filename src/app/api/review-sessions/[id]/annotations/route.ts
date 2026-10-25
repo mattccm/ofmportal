@@ -2,7 +2,7 @@
 // GET /api/review-sessions/[id]/annotations - Get annotations for session
 // DELETE /api/review-sessions/[id]/annotations - Clear all annotations (host only)
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess, uploadWhere, type Access } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { broadcastSessionAnnotation } from "@/lib/realtime-broadcast";
@@ -13,6 +13,14 @@ import {
   AnnotationEvent,
 } from "@/types/review-session";
 
+
+/** Upload ids among these whose creator is inside the person's scope */
+async function uploadsInScope(access: Access, uploadIds: string[]): Promise<Set<string>> {
+  const ids = [...new Set(uploadIds.filter(Boolean))];
+  if (ids.length === 0) return new Set();
+  const rows = await db.upload.findMany({ where: { AND: [uploadWhere(access), { id: { in: ids } }] }, select: { id: true } });
+  return new Set(rows.map((r) => r.id));
+}
 
 // In-memory annotation store (in production, use database)
 const annotationStore = new Map<string, SessionAnnotation[]>();
@@ -87,9 +95,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const body = await request.json();
 
     // Validate required fields
@@ -142,6 +150,11 @@ export async function POST(
       );
     }
 
+    // The upload must belong to a creator inside the person's scope
+    if (!(await uploadsInScope(gate.access, [body.uploadId])).has(body.uploadId)) {
+      return NextResponse.json({ error: "Upload not found" }, { status: 404 });
+    }
+
     // Get user info
     const user = await db.user.findUnique({
       where: { id: userId },
@@ -189,9 +202,9 @@ export async function GET(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { agencyId } = gate.access;
     const { searchParams } = new URL(request.url);
     const uploadId = searchParams.get("uploadId");
 
@@ -221,6 +234,9 @@ export async function GET(
     if (uploadId) {
       annotations = annotations.filter((a) => a.uploadId === uploadId);
     }
+    // Only annotations on uploads whose creator is inside the person's scope
+    const inScope = await uploadsInScope(gate.access, annotations.map((a) => a.uploadId));
+    annotations = annotations.filter((a) => inScope.has(a.uploadId));
 
     // Get user info for annotations
     const userIds = [...new Set(annotations.map((a) => a.userId))];
@@ -251,9 +267,9 @@ export async function DELETE(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const { searchParams } = new URL(request.url);
     const annotationId = searchParams.get("annotationId");
     const uploadId = searchParams.get("uploadId");
@@ -341,9 +357,9 @@ export async function PUT(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const body = await request.json();
 
     if (!body.annotationId || !body.data) {

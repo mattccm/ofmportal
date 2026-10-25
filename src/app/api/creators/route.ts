@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendCreatorInviteEmail } from "@/lib/email";
@@ -10,6 +8,9 @@ import {
 } from "@/lib/pagination";
 import { invalidateCache } from "@/lib/cache";
 import { creatorInviteLink, inviteExpiry, newInviteToken } from "@/lib/invites";
+import { canSeeCreator, creatorWhere, redactCreator, requireAccess } from "@/lib/access/server";
+import type { Prisma } from "@prisma/client";
+import { CREATOR_PICKER_KEYS } from "./creator-access";
 
 const createCreatorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -19,6 +20,9 @@ const createCreatorSchema = z.object({
   notes: z.string().optional(),
   // false: make the invite link only (staff share it themselves), no email
   sendInvite: z.boolean().default(true),
+  // Put the new creator in this group. Required when the role sees only
+  // creators in chosen groups, so the person can still see who they added.
+  groupId: z.string().optional(),
 });
 
 // Optimized select for list view (reduced payload)
@@ -41,11 +45,11 @@ const creatorListSelect = {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Creator pickers across the app use this list too, so any key that
+    // involves choosing creators is enough; scope + redaction still apply.
+    const gate = await requireAccess(CREATOR_PICKER_KEYS);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const pagination = parsePaginationParams(searchParams);
@@ -57,23 +61,26 @@ export async function GET(req: NextRequest) {
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
     // Build where clause
-    const where: Record<string, unknown> = {
-      agencyId: session.user.agencyId,
-    };
+    const where: Prisma.CreatorWhereInput = { ...creatorWhere(access) };
 
     if (search) {
+      // Matching on a hidden field would reveal it, so only search what they can see
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
+        ...(access.has("creatorInfo.email")
+          ? [{ email: { contains: search, mode: "insensitive" as const } }]
+          : []),
       ];
     }
 
-    if (status && status !== "all") {
-      where.inviteStatus = status;
+    if (status && status !== "all" && access.has("creatorInfo.invite")) {
+      where.inviteStatus = status as Prisma.CreatorWhereInput["inviteStatus"];
     }
 
-    // Build orderBy
-    const validSortFields = ["createdAt", "name", "lastLoginAt"];
+    // Build orderBy (sorting by last sign-in would reveal it)
+    const validSortFields = access.has("creatorInfo.activity")
+      ? ["createdAt", "name", "lastLoginAt"]
+      : ["createdAt", "name"];
     const orderByField = validSortFields.includes(sortBy) ? sortBy : "createdAt";
     const orderBy = { [orderByField]: sortOrder === "asc" ? "asc" : "desc" };
 
@@ -97,7 +104,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json(
-      createPaginatedResponse(transformedCreators, total, pagination)
+      createPaginatedResponse(redactCreator(access, transformedCreators), total, pagination)
     );
   } catch (error) {
     console.error("Error fetching creators:", error);
@@ -110,14 +117,33 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("creators.invite");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const validatedData = createCreatorSchema.parse(body);
+    // Details this role can't see can't be set either
+    if (!access.has("creatorInfo.phone")) validatedData.phone = undefined;
+    if (!access.has("creatorInfo.notes")) validatedData.notes = undefined;
+    if (!access.has("creatorInfo.preferences")) validatedData.preferredContact = "EMAIL";
+
+    // A role that sees only creators in chosen groups puts the new creator
+    // in one of those groups; anyone else may choose a group too
+    const scope = access.creatorScope;
+    let groupId: string | null = null;
+    if (validatedData.groupId) {
+      const group = await db.creatorGroup.findFirst({
+        where: { id: validatedData.groupId, agencyId: access.agencyId },
+        select: { id: true },
+      });
+      if (!group || (scope.type === "groups" && !scope.groupIds.includes(group.id))) {
+        return NextResponse.json({ error: "Choose one of your groups for this creator" }, { status: 400 });
+      }
+      groupId = group.id;
+    } else if (scope.type === "groups") {
+      return NextResponse.json({ error: "Choose one of your groups for this creator" }, { status: 400 });
+    }
 
     // Check if creator already exists in this agency
     const existingCreator = await db.creator.findUnique({
@@ -127,11 +153,19 @@ export async function POST(req: NextRequest) {
           email: validatedData.email.toLowerCase(),
         },
       },
+      select: { id: true },
     });
 
     if (existingCreator) {
+      // Say so only when the person can see that creator; otherwise a generic
+      // refusal, so the portal doesn't reveal who else the agency works with
+      const visible = await canSeeCreator(access, existingCreator.id);
       return NextResponse.json(
-        { error: "A creator with this email already exists in your agency" },
+        {
+          error: visible
+            ? "A creator with this email already exists in your agency"
+            : "Couldn't add this creator. Ask an admin to add them for you.",
+        },
         { status: 400 }
       );
     }
@@ -153,8 +187,11 @@ export async function POST(req: NextRequest) {
         inviteStatus: "PENDING",
         // When the link was issued: it works for 7 days from here
         inviteSentAt: issuedAt,
+        ...(groupId ? { groupMemberships: { create: { groupId } } } : {}),
       },
     });
+    // A role that sees only chosen creators won't see this one until an admin adds it
+    const visibleToYou = scope.type !== "creators";
 
     const inviteLink = creatorInviteLink(inviteToken);
 
@@ -203,10 +240,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        creator: safeCreator,
+        // The link itself is theirs to share (creators.invite)
+        creator: redactCreator(access, safeCreator),
         inviteLink,
         inviteExpiresAt: inviteExpiry(issuedAt).toISOString(),
         emailed,
+        visibleToYou,
         message: "Creator invited successfully",
       },
       { status: 201 }

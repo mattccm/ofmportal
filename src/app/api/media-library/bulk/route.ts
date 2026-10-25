@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { forbidden, requireAccess } from "@/lib/access/server";
+import { mediaScope } from "@/app/api/media-library/_scope";
 import { db } from "@/lib/db";
 import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 import { z } from "zod";
@@ -21,11 +21,11 @@ const bulkSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // The library is the creators' content, so it also needs "Their content library"
+    if (!access.has("creatorInfo.content")) return forbidden("creatorInfo.content");
 
     const body = await req.json();
     const data = bulkSchema.parse(body);
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const items = await db.mediaItem.findMany({
       where: {
         id: { in: data.itemIds },
-        agencyId: session.user.agencyId,
+        ...(await mediaScope(access)),
       },
       select: { id: true, folderId: true, tags: true, creatorId: true, storageKey: true, thumbnailKey: true },
     });
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       // Verify the destination folder belongs to the agency.
       if (targetFolderId) {
         const target = await db.mediaFolder.findFirst({
-          where: { id: targetFolderId, agencyId: session.user.agencyId },
+          where: { id: targetFolderId, agencyId: access.agencyId },
           select: { id: true },
         });
         if (!target) {

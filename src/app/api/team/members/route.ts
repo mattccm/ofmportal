@@ -1,26 +1,19 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { excludePseudoUsers } from "@/lib/staff";
+import { requireAccess, staffWhere } from "@/lib/access/server";
 
 /**
  * GET - List all team members for the current agency
- * Simplified endpoint for watchers and quick team member lookups
+ * Simplified endpoint for watchers and quick team member lookups.
+ * Any staff member; only teammates inside their team scope are listed.
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
 
     const members = await db.user.findMany({
-      where: {
-        agencyId: session.user.agencyId,
-        ...excludePseudoUsers,
-      },
+      where: staffWhere(gate.access),
       select: {
         id: true,
         name: true,

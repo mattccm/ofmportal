@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, requestWhere, uploadWhere } from "@/lib/access/server";
 
 // POST /api/comments/read - Mark comments as read
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
+    // Only comments on requests / uploads this person may see
+    const visible = { OR: [{ request: requestWhere(access) }, { upload: uploadWhere(access) }] };
 
     const body = await request.json();
     const { commentIds, requestId } = body;
@@ -22,12 +22,12 @@ export async function POST(request: NextRequest) {
 
     if (commentIds && Array.isArray(commentIds)) {
       commentsToMark = await db.comment.findMany({
-        where: { id: { in: commentIds } },
+        where: { AND: [visible, { id: { in: commentIds } }] },
         select: { id: true, userId: true, requestId: true },
       });
     } else if (requestId) {
       commentsToMark = await db.comment.findMany({
-        where: { requestId },
+        where: { AND: [visible, { requestId }] },
         select: { id: true, userId: true, requestId: true },
       });
     }

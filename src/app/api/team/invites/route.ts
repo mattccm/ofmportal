@@ -1,47 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { parseJsonBody } from "@/lib/api";
 import {
   INVITABLE_ROLES,
-  STAFF_ROLE_LABEL,
   hashInviteToken,
   inviteExpiry,
   newInviteToken,
   staffInviteLink,
 } from "@/lib/invites";
 import { emailStaffInvite, listOpenStaffInvites, toInviteRow } from "@/lib/staff-invites";
+import { requireAccess } from "@/lib/access/server";
+import { BUILT_IN_FOR_ENUM } from "@/lib/access/catalogue";
+import { assignmentData, loadRole } from "@/lib/access/roles";
+import { canGrant } from "@/lib/access/assign";
 
 /**
- * Staff invites (Team page). Only owners and admins invite, and nobody can be
- * invited as an owner. The link token is returned once, when it is made; only
- * its SHA-256 is stored. Raw tokens and links are never logged.
+ * Staff invites (Team page). Needs "team.invite". Nobody can be invited as an
+ * owner, and an invite can only carry a role with no more access than the
+ * inviter's own unless they can manage roles (lib/access/assign.ts). The link
+ * token is returned once, when it is made; only its SHA-256 is stored. Raw
+ * tokens and links are never logged.
  */
 
 const createSchema = z
   .object({
+    /** "admin" | "manager" | "member" | a custom role id */
+    roleId: z.string().min(1).optional(),
+    /** Older clients: a built-in role or a custom role id */
     role: z.enum(INVITABLE_ROLES).optional(),
     customRoleId: z.string().min(1).optional(),
     name: z.string().trim().max(120).optional(),
     email: z.string().trim().toLowerCase().email("Enter a valid email address").optional().or(z.literal("")),
     sendEmail: z.boolean().default(false),
   })
-  .refine((d) => d.role || d.customRoleId, { message: "Choose a role" })
+  .refine((d) => d.roleId || d.role || d.customRoleId, { message: "Choose a role" })
   .refine((d) => !d.sendEmail || !!d.email, { message: "Add their email address to send the invite by email" });
 
 async function staffSession() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.agencyId) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) } as const;
-  }
-  if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-    return {
-      error: NextResponse.json({ error: "Only owners and admins can invite teammates" }, { status: 403 }),
-    } as const;
-  }
-  return { session } as const;
+  const gate = await requireAccess("team.invite");
+  if (gate.error) return { error: gate.error } as const;
+  return { session: gate.session, access: gate.access } as const;
 }
 
 export async function GET() {
@@ -69,21 +68,25 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Check the invite details" }, { status: 400 });
     }
-    const { customRoleId, sendEmail } = parsed.data;
+    const { sendEmail } = parsed.data;
     const email = parsed.data.email || null;
     const name = parsed.data.name || null;
 
-    let customRole: { id: string; name: string } | null = null;
-    if (customRoleId) {
-      customRole = await db.customRole.findFirst({
-        where: { id: customRoleId, agencyId },
-        select: { id: true, name: true },
-      });
-      if (!customRole) return NextResponse.json({ error: "That role no longer exists" }, { status: 400 });
+    const roleId = parsed.data.roleId ?? parsed.data.customRoleId ?? BUILT_IN_FOR_ENUM[parsed.data.role!];
+    const target = await loadRole(agencyId, roleId);
+    if (!target) return NextResponse.json({ error: "That role no longer exists" }, { status: 400 });
+    if (target.kind === "owner") {
+      return NextResponse.json({ error: "Owners can't be invited. Make someone an owner after they join." }, { status: 400 });
     }
-    // A custom role rides on the MEMBER base role, as everywhere else in the app
-    const role = customRole ? "MEMBER" : parsed.data.role!;
-    const roleLabel = customRole?.name ?? STAFF_ROLE_LABEL[role];
+    if (!canGrant(r.access, target)) {
+      return NextResponse.json(
+        { error: `You can't invite someone as ${target.name}: it has more access than your own role` },
+        { status: 403 }
+      );
+    }
+    const { role, customRoleId } = assignmentData(target);
+    const customRole = customRoleId ? { id: customRoleId, name: target.name } : null;
+    const roleLabel = target.name;
 
     if (email) {
       if (email.endsWith(".internal")) {

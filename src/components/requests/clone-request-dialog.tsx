@@ -42,7 +42,7 @@ import { format, addDays } from "date-fns";
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
 }
 
 interface TemplateField {

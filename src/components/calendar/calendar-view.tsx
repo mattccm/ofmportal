@@ -294,7 +294,7 @@ export function CalendarView({
     return (
       <div
         key={event.id}
-        draggable
+        draggable={!!onEventReschedule}
         onDragStart={(e) => handleDragStart(e, event)}
         onTouchStart={(e) => handleTouchStart(e, event)}
         onTouchMove={handleTouchMove}
@@ -469,7 +469,7 @@ export function CalendarView({
                         return (
                           <div
                             key={event.id}
-                            draggable
+                            draggable={!!onEventReschedule}
                             onDragStart={(e) => handleDragStart(e, event)}
                             onClick={(e) => {
                               e.stopPropagation();

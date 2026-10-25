@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { parseJsonBody } from "@/lib/api";
 import { hashInviteToken, inviteExpiry, newInviteToken, staffInviteLink } from "@/lib/invites";
 import { emailStaffInvite, getStaffInvite, toInviteRow } from "@/lib/staff-invites";
+import { requireAccess } from "@/lib/access/server";
 
 /**
  * One staff invite.
@@ -12,21 +11,16 @@ import { emailStaffInvite, getStaffInvite, toInviteRow } from "@/lib/staff-invit
  *   POST { action: "email" }   email the invite again; tokens are stored hashed,
  *                              so this also makes a new link
  *   DELETE                     cancel: the link stops working
+ * All need "team.invite".
  */
 
 type Params = { params: Promise<{ inviteId: string }> };
 
 async function load(params: Params["params"]) {
-  const session = await getServerSession(authOptions);
+  const gate = await requireAccess("team.invite");
+  if (gate.error) return { error: gate.error } as const;
+  const { session } = gate;
   const { inviteId } = await params;
-  if (!session?.user?.agencyId) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) } as const;
-  }
-  if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-    return {
-      error: NextResponse.json({ error: "Only owners and admins can manage invites" }, { status: 403 }),
-    } as const;
-  }
   const invite = await getStaffInvite(session.user.agencyId, inviteId);
   if (!invite) return { error: NextResponse.json({ error: "Invite not found" }, { status: 404 }) } as const;
   if (invite.acceptedAt) {

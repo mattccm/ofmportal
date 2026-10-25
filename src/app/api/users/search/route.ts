@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { excludePseudoUsers } from "@/lib/staff";
+import { requireAccess, staffWhere } from "@/lib/access/server";
 
 /**
  * GET /api/users/search
@@ -14,10 +12,11 @@ import { excludePseudoUsers } from "@/lib/staff";
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // A staff picker (team chats, mentions): any signed-in staff member,
+    // limited to the teammates inside their team scope
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q")?.trim();
@@ -33,8 +32,8 @@ export async function GET(request: NextRequest) {
         AND: [
           // Exclude current user
           { id: { not: session.user.id } },
-          // Exclude creator-comment pseudo-users
-          excludePseudoUsers,
+          // Same agency, no creator-comment pseudo-users, inside the team scope
+          staffWhere(access),
           // Match the search query
           {
             OR: [
@@ -42,10 +41,6 @@ export async function GET(request: NextRequest) {
               { email: { contains: query, mode: "insensitive" } },
             ],
           },
-          // Only search within same agency (if user belongs to one)
-          ...(session.user.agencyId
-            ? [{ agencyId: session.user.agencyId }]
-            : []),
         ],
       },
       select: {

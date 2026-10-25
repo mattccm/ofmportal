@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, creatorWhere, forbidden } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendReminderEmail } from "@/lib/email";
@@ -37,22 +36,41 @@ const bulkActionSchema = z.object({
   ]).optional(),
 });
 
+/** The permission a bulk action needs on top of requests.bulk */
+function bulkActionKey(action: z.infer<typeof bulkActionSchema>["action"], status?: string): string {
+  if (action === "archive") return "requests.archive";
+  if (action === "delete") return "requests.delete";
+  if (action === "sendReminders") return "requests.remind";
+  if (action === "changeStatus") {
+    if (status === "APPROVED") return "review.approve";
+    if (status === "NEEDS_REVISION") return "review.requestChanges";
+    if (status === "ARCHIVED") return "requests.archive";
+  }
+  return "requests.edit";
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = bulkActionSchema.parse(body);
 
-    // Verify all requests belong to this agency
+    // The list's row menu acts on one request through this route too: one
+    // request needs only the action's own key, several need bulk actions.
+    if (validatedData.requestIds.length > 1 && !access.has("requests.bulk")) return forbidden("requests.bulk");
+
+    // Each bulk action also needs the permission for the action itself
+    const actionKey = bulkActionKey(validatedData.action, validatedData.status);
+    if (!access.has(actionKey)) return forbidden(actionKey);
+
+    // Verify all requests belong to this agency and are inside this person's creator scope
     const requests = await db.contentRequest.findMany({
       where: {
+        ...requestWhere(access),
         id: { in: validatedData.requestIds },
-        agencyId: session.user.agencyId,
       },
       include: {
         creator: true,
@@ -269,10 +287,7 @@ export async function POST(req: NextRequest) {
 
         // Verify creator belongs to this agency
         const creator = await db.creator.findFirst({
-          where: {
-            id: validatedData.creatorId,
-            agencyId: session.user.agencyId,
-          },
+          where: { AND: [creatorWhere(access), { id: validatedData.creatorId }] },
         });
 
         if (!creator) {

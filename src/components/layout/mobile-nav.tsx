@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,8 @@ import { ChevronLeft, ChevronRight, LogOut, RefreshCw, Settings } from "lucide-r
 import { signOut } from "next-auth/react";
 import { clearRememberToken, setSignedOutFlag } from "@/lib/remember-token";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { STAFF_NAV, STAFF_PHONE_EXTRAS, isNavActive, type StaffNavItem } from "./staff-nav";
+import { STAFF_NAV, STAFF_PHONE_EXTRAS, isNavActive, navItemVisible, type StaffNavItem } from "./staff-nav";
+import { useAccess } from "@/lib/access/client";
 
 // The four main destinations, in swipe order (an edge swipe moves between them)
 const mainNavItems = [
@@ -172,20 +173,29 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
 
   const { count: creatorMessagesCount } = useCreatorMessagesCount();
-  const role = user?.role;
-  const visible = (i: StaffNavItem) => !i.roles || (role ? i.roles.includes(role) : false);
+  const { canAny } = useAccess();
+  const visible = (i: StaffNavItem) => navItemVisible(i, canAny);
+  // An edge swipe only moves between main destinations this person can open
+  const swipeItems = useMemo(
+    () =>
+      mainNavItems.filter((m) => {
+        const item = STAFF_NAV.flatMap((g) => g.items).find((i) => i.href === m.href);
+        return !item || navItemVisible(item, canAny);
+      }),
+    [canAny]
+  );
 
   const isActive = useCallback((href: string) => isNavActive(pathname, href), [pathname]);
 
   // Current main destination, for swipe navigation
   const getCurrentNavIndex = useCallback(() => {
-    for (let i = 0; i < mainNavItems.length; i++) {
-      if (isActive(mainNavItems[i].href)) {
+    for (let i = 0; i < swipeItems.length; i++) {
+      if (isActive(swipeItems[i].href)) {
         return i;
       }
     }
     return -1;
-  }, [isActive]);
+  }, [isActive, swipeItems]);
 
   // Pull-to-refresh handler
   const handleTouchStart = useCallback((e: TouchEvent) => {
@@ -232,12 +242,12 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
         const currentIndex = getCurrentNavIndex();
         if (deltaX > 0 && currentIndex > 0) {
           setSwipeHint("left");
-        } else if (deltaX < 0 && currentIndex < mainNavItems.length - 1) {
+        } else if (deltaX < 0 && currentIndex < swipeItems.length - 1) {
           setSwipeHint("right");
         }
       }
     },
-    [isRefreshing, getCurrentNavIndex]
+    [isRefreshing, getCurrentNavIndex, swipeItems]
   );
 
   const handleTouchEnd = useCallback(
@@ -270,11 +280,11 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
         if (deltaX > 0 && currentIndex > 0) {
           // Swipe right - go to previous
           triggerHaptic("medium");
-          router.push(mainNavItems[currentIndex - 1].href);
-        } else if (deltaX < 0 && currentIndex < mainNavItems.length - 1) {
+          router.push(swipeItems[currentIndex - 1].href);
+        } else if (deltaX < 0 && currentIndex < swipeItems.length - 1) {
           // Swipe left - go to next
           triggerHaptic("medium");
-          router.push(mainNavItems[currentIndex + 1].href);
+          router.push(swipeItems[currentIndex + 1].href);
         }
       }
 
@@ -283,7 +293,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
       setSwipeHint(null);
       touchStartRef.current = null;
     },
-    [pullProgress, getCurrentNavIndex, router]
+    [pullProgress, getCurrentNavIndex, router, swipeItems]
   );
 
   // Set up touch event listeners

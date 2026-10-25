@@ -93,6 +93,8 @@ interface BundleManagerProps {
   onDeleteBundle: (id: string) => Promise<void>;
   onDuplicateBundle: (id: string) => Promise<void>;
   onExecuteBundle?: (bundleId: string) => void;
+  /** False hides New bundle, Edit, Duplicate and Delete (bundles.edit) */
+  canEdit?: boolean;
   className?: string;
 }
 
@@ -113,6 +115,7 @@ interface BundleCardProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onExecute?: () => void;
+  canEdit?: boolean;
 }
 
 function BundleCard({
@@ -121,6 +124,7 @@ function BundleCard({
   onDuplicate,
   onDelete,
   onExecute,
+  canEdit = true,
 }: BundleCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -187,6 +191,7 @@ function BundleCard({
                 </Badge>
               )}
 
+              {(onExecute || canEdit) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button aria-label={`More actions for ${bundle.name}`}
@@ -204,27 +209,32 @@ function BundleCard({
                         <Play className="h-4 w-4 mr-2" />
                         Send bundle
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
+                      {canEdit && <DropdownMenuSeparator />}
                     </>
                   )}
-                  <DropdownMenuItem onClick={onEdit}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Bundle
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onDuplicate}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Duplicate
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
+                  {canEdit && (
+                    <>
+                      <DropdownMenuItem onClick={onEdit}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Bundle
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onDuplicate}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setShowDeleteConfirm(true)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -789,7 +799,7 @@ function BundleEditor({
 
 // EMPTY STATE
 
-function EmptyBundles({ onCreateClick }: { onCreateClick: () => void }) {
+function EmptyBundles({ onCreateClick }: { onCreateClick?: () => void }) {
   return (
     <div className="rounded-[var(--tw-r-tile)] bg-tile-dim px-6 py-8">
       <h3 className="text-[17px] font-semibold">No bundles yet</h3>
@@ -798,10 +808,12 @@ function EmptyBundles({ onCreateClick }: { onCreateClick: () => void }) {
         photos, an intro clip and a monthly set. Send the bundle and each template becomes its own
         request, with its own due date.
       </p>
-      <Button onClick={onCreateClick} variant="outline" className="mt-4">
-        <Plus className="h-4 w-4 mr-2" />
-        Make a bundle
-      </Button>
+      {onCreateClick && (
+        <Button onClick={onCreateClick} variant="outline" className="mt-4">
+          <Plus className="h-4 w-4 mr-2" />
+          Make a bundle
+        </Button>
+      )}
     </div>
   );
 }
@@ -816,6 +828,7 @@ export function BundleManager({
   onDeleteBundle,
   onDuplicateBundle,
   onExecuteBundle,
+  canEdit = true,
   className,
 }: BundleManagerProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -893,16 +906,18 @@ export function BundleManager({
           </Select>
         </div>
 
-        <Button onClick={handleCreateClick}>
-          <Plus className="h-4 w-4 mr-2" />
-          New bundle
-        </Button>
+        {canEdit && (
+          <Button onClick={handleCreateClick}>
+            <Plus className="h-4 w-4 mr-2" />
+            New bundle
+          </Button>
+        )}
       </div>
 
       {/* Bundle List */}
       {filteredBundles.length === 0 ? (
         bundles.length === 0 ? (
-          <EmptyBundles onCreateClick={handleCreateClick} />
+          <EmptyBundles onCreateClick={canEdit ? handleCreateClick : undefined} />
         ) : (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No bundles match your filters</p>
@@ -918,6 +933,7 @@ export function BundleManager({
               onDuplicate={() => onDuplicateBundle(bundle.id)}
               onDelete={() => onDeleteBundle(bundle.id)}
               onExecute={onExecuteBundle ? () => onExecuteBundle(bundle.id) : undefined}
+              canEdit={canEdit}
             />
           ))}
         </div>

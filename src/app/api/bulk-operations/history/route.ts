@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, activityWhere } from "@/lib/access/server";
 import {
   type BulkOperationHistoryEntry,
   type BulkOperationType,
@@ -11,11 +10,9 @@ import {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.bulk");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") as BulkOperationType | null;
@@ -24,7 +21,9 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Build query filters
-    const whereClause: Record<string, unknown> = {
+    // Bulk operations by staff in this agency that this person may see
+    const whereClause = {
+      ...activityWhere(access),
       action: {
         startsWith: "bulk",
       },

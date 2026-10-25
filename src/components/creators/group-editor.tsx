@@ -25,12 +25,13 @@ import {
 import { toast } from "sonner";
 import type { CreatorGroup, GroupMember } from "./group-card";
 
+// email and inviteStatus are absent when the viewer's role can't see them
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   avatar: string | null;
-  inviteStatus: string;
+  inviteStatus?: string;
 }
 
 interface GroupEditorProps {
@@ -164,7 +165,7 @@ export function GroupEditor({
         name: creator.name,
         email: creator.email,
         avatar: creator.avatar,
-        inviteStatus: creator.inviteStatus,
+        inviteStatus: creator.inviteStatus ?? "",
         sortOrder: selectedMembers.length,
       };
       setSelectedMembers([...selectedMembers, newMember]);
@@ -205,7 +206,7 @@ export function GroupEditor({
   const filteredCreators = allCreators.filter(
     (creator) =>
       creator.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      creator.email.toLowerCase().includes(searchQuery.toLowerCase())
+      (creator.email ?? "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (

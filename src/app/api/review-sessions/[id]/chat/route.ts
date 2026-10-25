@@ -1,7 +1,7 @@
 // POST /api/review-sessions/[id]/chat - Send a chat message
 // GET /api/review-sessions/[id]/chat - Get chat messages
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -17,9 +17,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const body: ChatRequest = await request.json();
 
     if (!body.message || body.message.trim().length === 0) {
@@ -135,9 +135,9 @@ export async function GET(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { agencyId } = gate.access;
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const before = searchParams.get("before"); // Cursor for pagination

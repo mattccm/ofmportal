@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { WEBHOOK_EVENTS, type WebhookEventType } from "@/lib/webhooks";
@@ -38,15 +37,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("settings.integrations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id } = await params;
 
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const webhook = await db.webhook.findFirst({
-      where: { id, agencyId: session.user.agencyId },
+      where: { id, agencyId: access.agencyId },
       include: {
         deliveries: {
           orderBy: { createdAt: "desc" },
@@ -97,20 +94,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("settings.integrations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     // Verify ownership
     const existing = await db.webhook.findFirst({
-      where: { id, agencyId: session.user.agencyId },
+      where: { id, agencyId: access.agencyId },
     });
 
     if (!existing) {
@@ -164,20 +155,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("settings.integrations");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     // Verify ownership
     const existing = await db.webhook.findFirst({
-      where: { id, agencyId: session.user.agencyId },
+      where: { id, agencyId: access.agencyId },
     });
 
     if (!existing) {

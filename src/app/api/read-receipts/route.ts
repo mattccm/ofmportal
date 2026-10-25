@@ -1,7 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { forbidden, requestWhere, requireAccess, type Access } from "@/lib/access/server";
+import { INBOX_KEYS, visibleConversationWhere } from "@/lib/conversation-access";
+
+/** Messages in threads this person is in and their role lets them see */
+function myMessagesWhere(access: Access): Prisma.MessageWhereInput {
+  return {
+    conversation: {
+      AND: [
+        { participants: { some: { userId: access.userId } } },
+        { OR: [{ agencyId: access.agencyId }, { agencyId: null }] },
+        visibleConversationWhere(access),
+      ],
+    },
+  };
+}
+
+/** Per-target permission: messages need a messages key, requests and comments need "See requests" */
+function targetDenied(access: Access, target: { messageId?: unknown; requestId?: unknown; commentId?: unknown }) {
+  if (target.messageId && !access.hasAny([...INBOX_KEYS])) return forbidden([...INBOX_KEYS]);
+  if (!target.messageId && (target.requestId || target.commentId) && !access.has("requests.view")) {
+    return forbidden("requests.view");
+  }
+  return null;
+}
 import {
   MarkAsReadRequest,
   MarkAsReadResponse,
@@ -15,11 +38,9 @@ import {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body: MarkAsReadRequest = await req.json();
     const { messageId, requestId, commentId, deviceType } = body;
@@ -31,14 +52,16 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    const denied = targetDenied(access, body);
+    if (denied) return denied;
 
     const userId = session.user.id;
     const now = new Date();
 
     // Handle message read receipt
     if (messageId) {
-      const message = await db.message.findUnique({
-        where: { id: messageId },
+      const message = await db.message.findFirst({
+        where: { AND: [{ id: messageId }, myMessagesWhere(access)] },
         include: {
           conversation: {
             include: {
@@ -105,8 +128,8 @@ export async function POST(req: NextRequest) {
 
     // Handle request read receipt
     if (requestId) {
-      const request = await db.contentRequest.findUnique({
-        where: { id: requestId },
+      const request = await db.contentRequest.findFirst({
+        where: { AND: [requestWhere(access), { id: requestId }] },
       });
 
       if (!request) {
@@ -140,8 +163,8 @@ export async function POST(req: NextRequest) {
 
     // Handle comment read receipt
     if (commentId) {
-      const comment = await db.comment.findUnique({
-        where: { id: commentId },
+      const comment = await db.comment.findFirst({
+        where: { id: commentId, request: requestWhere(access) },
       });
 
       if (!comment) {
@@ -180,23 +203,23 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get("messageId");
     const requestId = searchParams.get("requestId");
     const commentId = searchParams.get("commentId");
+    const denied = targetDenied(access, { messageId, requestId, commentId });
+    if (denied) return denied;
 
     const userId = session.user.id;
 
     // Get read receipts for a message
     if (messageId) {
-      const message = await db.message.findUnique({
-        where: { id: messageId },
+      const message = await db.message.findFirst({
+        where: { AND: [{ id: messageId }, myMessagesWhere(access)] },
         include: {
           conversation: {
             include: {
@@ -256,8 +279,8 @@ export async function GET(req: NextRequest) {
 
     // Get read receipts for a request
     if (requestId) {
-      const request = await db.contentRequest.findUnique({
-        where: { id: requestId },
+      const request = await db.contentRequest.findFirst({
+        where: { AND: [requestWhere(access), { id: requestId }] },
         include: {
           creator: {
             select: {
@@ -283,7 +306,8 @@ export async function GET(req: NextRequest) {
           requestId,
           userId: request.creator.id,
           userName: request.creator.name || "Unknown",
-          userEmail: request.creator.email || undefined,
+          // The creator's email only for roles that may see it
+          userEmail: access.has("creatorInfo.email") ? request.creator.email || undefined : undefined,
           userAvatar: request.creator.avatar || undefined,
           readAt: request.viewedAt,
         });
@@ -299,8 +323,8 @@ export async function GET(req: NextRequest) {
 
     // Get read receipts for a comment (placeholder - implement based on your schema)
     if (commentId) {
-      const comment = await db.comment.findUnique({
-        where: { id: commentId },
+      const comment = await db.comment.findFirst({
+        where: { id: commentId, request: requestWhere(access) },
       });
 
       if (!comment) {
@@ -335,22 +359,23 @@ export async function GET(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get("messageId");
     const requestId = searchParams.get("requestId");
+    if (!messageId && requestId && !access.has("requests.edit")) return forbidden("requests.edit");
+    const denied = targetDenied(access, { messageId, requestId });
+    if (denied) return denied;
 
     const userId = session.user.id;
 
     // Remove read receipt from a message
     if (messageId) {
-      const message = await db.message.findUnique({
-        where: { id: messageId },
+      const message = await db.message.findFirst({
+        where: { AND: [{ id: messageId }, myMessagesWhere(access)] },
       });
 
       if (!message) {
@@ -376,8 +401,8 @@ export async function DELETE(req: NextRequest) {
 
     // Remove view from a request
     if (requestId) {
-      const request = await db.contentRequest.findUnique({
-        where: { id: requestId },
+      const request = await db.contentRequest.findFirst({
+        where: { AND: [requestWhere(access), { id: requestId }] },
       });
 
       if (!request) {

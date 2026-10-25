@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getPageAccess } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { OversightView } from "@/components/oversight/oversight-view";
 
 export const metadata = {
@@ -8,17 +7,11 @@ export const metadata = {
   description: "Monitor staff and creator activity across your agency",
 };
 
-// Oversight is a management feature - restricted to elevated roles.
-const OVERSIGHT_ROLES = ["OWNER", "ADMIN", "MANAGER"];
-
+// Oversight is a management feature: the "Oversight" permission
 export default async function OversightPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
-  if (!OVERSIGHT_ROLES.includes(session.user.role)) {
-    redirect("/dashboard");
+  const access = await getPageAccess();
+  if (!access.has("settings.oversight")) {
+    return <NoAccess what="oversight" roleName={access.role.name} />;
   }
 
   return (

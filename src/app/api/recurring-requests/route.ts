@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, redactCreatorsIn, requireAccess } from "@/lib/access/server";
+import { creatorGroupWhere, filterTargetsInScope } from "./scope";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { calculateNextRunDate } from "@/types/recurring-requests";
@@ -40,11 +40,9 @@ const createRecurringRequestSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { searchParams } = new URL(req.url);
     const isActive = searchParams.get("active");
@@ -66,15 +64,17 @@ export async function GET(req: NextRequest) {
       where.frequency = frequency;
     }
 
-    const recurringRequests = await db.recurringRequest.findMany({
+    // Only schedules whose creators and groups are all inside this person's creator scope
+    const allRows = await db.recurringRequest.findMany({
       where,
       orderBy: [
         { isActive: "desc" },
         { nextRunAt: "asc" },
         { createdAt: "desc" },
       ],
-      take: limit,
+      take: access.creatorScope.type === "all" ? limit : undefined,
     });
+    const recurringRequests = (await filterTargetsInScope(access, allRows)).slice(0, limit);
 
     // Fetch related data
     const templateIdsByRow = new Map(recurringRequests.map(r => [r.id, resolveTemplateIds(r)]));
@@ -84,18 +84,18 @@ export async function GET(req: NextRequest) {
 
     const [templates, creators, groups] = await Promise.all([
       db.requestTemplate.findMany({
-        where: { id: { in: templateIds } },
+        where: { id: { in: templateIds }, agencyId: session.user.agencyId },
         select: { id: true, name: true, description: true },
       }),
       allCreatorIds.length > 0
         ? db.creator.findMany({
-            where: { id: { in: allCreatorIds } },
+            where: { AND: [creatorWhere(access), { id: { in: allCreatorIds } }] },
             select: { id: true, name: true, email: true },
           })
         : [],
       allGroupIds.length > 0
         ? db.creatorGroup.findMany({
-            where: { id: { in: allGroupIds } },
+            where: { AND: [creatorGroupWhere(access), { id: { in: allGroupIds } }] },
             select: {
               id: true,
               name: true,
@@ -124,7 +124,11 @@ export async function GET(req: NextRequest) {
         .filter(Boolean),
       creatorIds: rr.creatorIds,
       creatorGroupIds: rr.creatorGroupIds,
-      creators: (rr.creatorIds as string[]).map(id => creatorMap.get(id)).filter(Boolean),
+      // A fresh object per row: rows share creators, and each copy is redacted on its own
+      creators: (rr.creatorIds as string[]).flatMap(id => {
+        const c = creatorMap.get(id);
+        return c ? [{ ...c }] : [];
+      }),
       creatorGroups: (rr.creatorGroupIds as string[]).map(id => groupMap.get(id)).filter(Boolean),
       frequency: rr.frequency,
       dayOfWeek: rr.dayOfWeek,
@@ -145,7 +149,7 @@ export async function GET(req: NextRequest) {
       updatedAt: rr.updatedAt,
     }));
 
-    return NextResponse.json(serialized);
+    return NextResponse.json(redactCreatorsIn(access, serialized));
   } catch (error) {
     console.error("Error fetching recurring requests:", error);
     return NextResponse.json(
@@ -159,11 +163,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.create");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
     const validatedData = createRecurringRequestSchema.parse(body);
@@ -193,10 +195,8 @@ export async function POST(req: NextRequest) {
     // Validate creators
     if (validatedData.creatorIds.length > 0) {
       const creators = await db.creator.findMany({
-        where: {
-          id: { in: validatedData.creatorIds },
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [creatorWhere(access), { id: { in: validatedData.creatorIds } }] },
+        select: { id: true },
       });
 
       if (creators.length !== validatedData.creatorIds.length) {
@@ -210,10 +210,8 @@ export async function POST(req: NextRequest) {
     // Validate creator groups
     if (validatedData.creatorGroupIds.length > 0) {
       const groups = await db.creatorGroup.findMany({
-        where: {
-          id: { in: validatedData.creatorGroupIds },
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [creatorGroupWhere(access), { id: { in: validatedData.creatorGroupIds } }] },
+        select: { id: true },
       });
 
       if (groups.length !== validatedData.creatorGroupIds.length) {

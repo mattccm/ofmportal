@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { sendCreatorInviteEmail } from "@/lib/email";
 import { creatorInvite, creatorInviteLink, newInviteToken } from "@/lib/invites";
 
@@ -11,27 +10,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(["creators.invite", "creators.resetAccess"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions to resend invites" },
-        { status: 403 }
-      );
-    }
 
     // Find the creator
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
       include: {
         agency: {
           select: {

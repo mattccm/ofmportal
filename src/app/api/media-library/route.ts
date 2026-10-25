@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
+import { mediaScope } from "@/app/api/media-library/_scope";
 import { db } from "@/lib/db";
 import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
 import { z } from "zod";
@@ -71,21 +71,18 @@ const queryParamsSchema = z.object({
 // GET - List media items with filters
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // The library is the creators' content, so it also needs "Their content library"
+    if (!access.has("creatorInfo.content")) return forbidden("creatorInfo.content");
 
     const { searchParams } = new URL(req.url);
     const params = queryParamsSchema.parse(Object.fromEntries(searchParams));
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: params.creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: params.creatorId }] },
     });
 
     if (!creator) {
@@ -95,7 +92,7 @@ export async function GET(req: NextRequest) {
     // Build where clause
     const where: Record<string, unknown> = {
       creatorId: params.creatorId,
-      agencyId: session.user.agencyId,
+      agencyId: access.agencyId,
     };
 
     if (params.folderId !== undefined) {
@@ -177,11 +174,11 @@ export async function GET(req: NextRequest) {
 // POST - Create new media item
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // The library is the creators' content, so it also needs "Their content library"
+    if (!access.has("creatorInfo.content")) return forbidden("creatorInfo.content");
 
     const body = await req.json();
     const data = createMediaItemSchema.parse(body);
@@ -201,10 +198,7 @@ export async function POST(req: NextRequest) {
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: data.creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: data.creatorId }] },
     });
 
     if (!creator) {
@@ -229,7 +223,7 @@ export async function POST(req: NextRequest) {
     const mediaItem = await db.mediaItem.create({
       data: {
         id: uuidv4(),
-        agencyId: session.user.agencyId,
+        agencyId: access.agencyId,
         creatorId: data.creatorId,
         name: resolvedName,
         fileName: data.fileName,
@@ -261,7 +255,7 @@ export async function POST(req: NextRequest) {
     // Log activity
     await db.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         action: "media.created",
         entityType: "MediaItem",
         entityId: mediaItem.id,
@@ -299,11 +293,11 @@ export async function POST(req: NextRequest) {
 // PATCH - Update media item
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // The library is the creators' content, so it also needs "Their content library"
+    if (!access.has("creatorInfo.content")) return forbidden("creatorInfo.content");
 
     const { searchParams } = new URL(req.url);
     const itemId = searchParams.get("id");
@@ -319,7 +313,7 @@ export async function PATCH(req: NextRequest) {
     const existingItem = await db.mediaItem.findFirst({
       where: {
         id: itemId,
-        agencyId: session.user.agencyId,
+        ...(await mediaScope(access)),
       },
     });
 
@@ -406,11 +400,11 @@ export async function PATCH(req: NextRequest) {
 // DELETE - Delete media item
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // The library is the creators' content, so it also needs "Their content library"
+    if (!access.has("creatorInfo.content")) return forbidden("creatorInfo.content");
 
     const { searchParams } = new URL(req.url);
     const itemId = searchParams.get("id");
@@ -423,7 +417,7 @@ export async function DELETE(req: NextRequest) {
     const existingItem = await db.mediaItem.findFirst({
       where: {
         id: itemId,
-        agencyId: session.user.agencyId,
+        ...(await mediaScope(access)),
       },
     });
 
@@ -451,7 +445,7 @@ export async function DELETE(req: NextRequest) {
     // Log activity
     await db.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         action: "media.deleted",
         entityType: "MediaItem",
         entityId: itemId,

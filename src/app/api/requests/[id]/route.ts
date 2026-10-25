@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, forbidden, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { invalidateCache } from "@/lib/cache";
@@ -63,17 +62,32 @@ const updateRequestSchema = z.object({
   richContent: richContentSchema,
 });
 
+/**
+ * Permissions a PATCH needs: approving or asking for changes are review
+ * actions, archiving and restoring are archive actions, anything else is an edit.
+ */
+function patchKeys(data: z.infer<typeof updateRequestSchema>, currentStatus: string): string[] {
+  const keys = new Set<string>();
+  const { status, ...rest } = data;
+  if (Object.values(rest).some((v) => v !== undefined)) keys.add("requests.edit");
+  if (status !== undefined && status !== currentStatus) {
+    if (status === "APPROVED") keys.add("review.approve");
+    else if (status === "NEEDS_REVISION") keys.add("review.requestChanges");
+    else if (status === "ARCHIVED" || currentStatus === "ARCHIVED") keys.add("requests.archive");
+    else keys.add("requests.edit");
+  }
+  return [...keys];
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     // Parse pagination params for uploads/comments
     const url = new URL(req.url);
@@ -83,10 +97,7 @@ export async function GET(
     // Use separate queries for counts to enable proper pagination
     const [contentRequest, uploadsCount, commentsCount] = await Promise.all([
       db.contentRequest.findFirst({
-        where: {
-          id,
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [requestWhere(access), { id }] },
         include: {
           creator: {
             select: {
@@ -147,7 +158,7 @@ export async function GET(
       },
     };
 
-    return NextResponse.json(serializedRequest);
+    return NextResponse.json(redactCreatorsIn(access, serializedRequest));
   } catch (error) {
     console.error("Error fetching request:", error);
     return NextResponse.json(
@@ -163,18 +174,13 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["requests.edit", "requests.archive", "review.approve", "review.requestChanges"]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Verify request belongs to this agency
     const existingRequest = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
     });
 
     if (!existingRequest) {
@@ -183,6 +189,11 @@ export async function PATCH(
 
     const body = await req.json();
     const validatedData = updateRequestSchema.parse(body);
+
+    // Each kind of change needs its own permission
+    const needed = patchKeys(validatedData, existingRequest.status);
+    const missing = needed.find((k) => !access.has(k));
+    if (missing) return forbidden(missing);
 
     // Build update data object
     const updateData: Record<string, unknown> = {};
@@ -313,7 +324,7 @@ export async function PATCH(
       }).catch(() => {});
     }
 
-    return NextResponse.json(updatedRequest);
+    return NextResponse.json(redactCreatorsIn(access, updatedRequest));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -336,18 +347,13 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.delete");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     // Verify request belongs to this agency
     const existingRequest = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
     });
 
     if (!existingRequest) {

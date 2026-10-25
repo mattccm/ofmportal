@@ -1,16 +1,24 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useAccess } from "@/lib/access/client";
 
 interface UseCreatorMessagesCountReturn {
   count: number;
   refresh: () => Promise<void>;
 }
 
+/**
+ * Unread creator comments, for the Comments badge. Only asked for when the
+ * role can see requests (the API answers 403 otherwise); the API counts only
+ * comments on requests inside the person's creator scope.
+ */
 export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
   const [count, setCount] = useState(0);
+  const allowed = useAccess().can("requests.view");
 
   const refresh = useCallback(async () => {
+    if (!allowed) return;
     try {
       const response = await fetch("/api/creator-messages?limit=1");
       if (response.ok) {
@@ -21,9 +29,10 @@ export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
     } catch (error) {
       console.error("Failed to fetch creator messages count:", error);
     }
-  }, []);
+  }, [allowed]);
 
   useEffect(() => {
+    if (!allowed) return;
     queueMicrotask(refresh);
 
     // Refresh promptly when comments are marked read elsewhere (the Comments
@@ -44,7 +53,7 @@ export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
       window.removeEventListener("focus", onRead);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [refresh]);
+  }, [refresh, allowed]);
 
-  return { count, refresh };
+  return { count: allowed ? count : 0, refresh };
 }

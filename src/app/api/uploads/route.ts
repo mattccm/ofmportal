@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const searchParams = req.nextUrl.searchParams;
     const status = searchParams.get("status");
@@ -20,9 +17,7 @@ export async function GET(req: NextRequest) {
 
     // Build where clause
     const where: Record<string, unknown> = {
-      request: {
-        agencyId: session.user.agencyId,
-      },
+      request: requestWhere(access),
     };
 
     if (status) {
@@ -81,7 +76,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json({
-      uploads: transformedUploads,
+      uploads: redactCreatorsIn(access, transformedUploads),
       total,
       limit,
       offset,

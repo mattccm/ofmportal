@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { forbidden, getAccess, requestWhere } from "@/lib/access/server";
 import { z } from "zod";
 import {
   generateStorageKey,
@@ -44,18 +45,18 @@ export async function POST(req: NextRequest) {
     let creatorId: string;
 
     if (session?.user?.agencyId) {
-      // Agency user
-      agencyId = session.user.agencyId;
+      // Agency user: uploading on a creator's behalf changes the request
+      const access = await getAccess(session);
+      if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!access.has("requests.upload")) return forbidden("requests.upload");
+      agencyId = access.agencyId;
       const body = await parseJsonBody(req);
       if (!body.ok) return body.response;
       const validatedData = presignRequestSchema.parse(body.data);
 
       // Get request to verify it belongs to agency
       const contentRequest = await db.contentRequest.findFirst({
-        where: {
-          id: validatedData.requestId,
-          agencyId,
-        },
+        where: { AND: [requestWhere(access), { id: validatedData.requestId }] },
       });
 
       if (!contentRequest) {

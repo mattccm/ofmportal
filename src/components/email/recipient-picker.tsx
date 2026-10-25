@@ -33,7 +33,8 @@ import { cn } from "@/lib/utils";
 export interface Creator {
   id: string;
   name: string;
-  email: string;
+  /** Absent when the role can't see creators' email */
+  email?: string;
   phone?: string | null;
   inviteStatus: "PENDING" | "ACCEPTED" | "EXPIRED";
   tags?: { id: string; name: string; color: string }[];
@@ -84,7 +85,7 @@ export function RecipientPicker({
         const searchLower = search.toLowerCase();
         const matchesSearch =
           creator.name.toLowerCase().includes(searchLower) ||
-          creator.email.toLowerCase().includes(searchLower);
+          (creator.email ?? "").toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
 
@@ -384,10 +385,12 @@ function CreatorRow({
           <span className="font-medium truncate">{creator.name}</span>
           {getStatusIcon()}
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="h-3 w-3" />
-          <span className="truncate">{creator.email}</span>
-        </div>
+        {creator.email && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="h-3 w-3" />
+            <span className="truncate">{creator.email}</span>
+          </div>
+        )}
       </div>
       {creator.tags && creator.tags.length > 0 && (
         <div className="hidden sm:flex items-center gap-1">

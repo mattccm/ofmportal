@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorScopeWhere, forbidden, getAccess, requestWhere, type Access } from "@/lib/access/server";
 import { z } from "zod";
 import type {
   DuplicateCheckResult,
@@ -86,15 +87,16 @@ export async function POST(req: NextRequest) {
     const validatedData = checkDuplicateSchema.parse(body);
 
     // Authenticate and get context
+    let access: Access | null = null;
     if (session?.user?.agencyId) {
       // Agency user
-      agencyId = session.user.agencyId;
+      access = await getAccess(session);
+      if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!access.has("review.view")) return forbidden("review.view");
+      agencyId = access.agencyId;
 
       const contentRequest = await db.contentRequest.findFirst({
-        where: {
-          id: validatedData.requestId,
-          agencyId,
-        },
+        where: { AND: [requestWhere(access), { id: validatedData.requestId }] },
       });
 
       if (!contentRequest) {
@@ -225,6 +227,8 @@ export async function POST(req: NextRequest) {
       where: {
         agencyId,
         ...scopeConditions,
+        // Staff only match content from creators they may see
+        ...(access && { creator: creatorScopeWhere(access) }),
       },
       include: {
         upload: {
@@ -522,9 +526,13 @@ export async function GET(req: NextRequest) {
 
     let agencyId: string;
     let creatorId: string | undefined;
+    let access: Access | null = null;
 
     if (session?.user?.agencyId) {
-      agencyId = session.user.agencyId;
+      access = await getAccess(session);
+      if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!access.has("review.view")) return forbidden("review.view");
+      agencyId = access.agencyId;
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {
@@ -553,6 +561,7 @@ export async function GET(req: NextRequest) {
       where: {
         agencyId,
         ...(creatorId && { creatorId }),
+        ...(access && { creator: creatorScopeWhere(access) }),
         fileHash: hash,
       },
       include: {

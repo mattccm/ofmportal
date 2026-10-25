@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, creatorWhere, requestWhere, uploadWhere, redactCreator } from "@/lib/access/server";
 import { z } from "zod";
 
 // VALIDATION SCHEMAS
@@ -16,11 +15,9 @@ const favoriteSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
@@ -69,7 +66,7 @@ export async function GET(req: NextRequest) {
     const [creators, requests, templates, uploads] = await Promise.all([
       creatorIds.length > 0
         ? db.creator.findMany({
-            where: { id: { in: creatorIds } },
+            where: { AND: [creatorWhere(access), { id: { in: creatorIds } }] },
             select: {
               id: true,
               name: true,
@@ -84,7 +81,7 @@ export async function GET(req: NextRequest) {
         : [],
       requestIds.length > 0
         ? db.contentRequest.findMany({
-            where: { id: { in: requestIds } },
+            where: { AND: [requestWhere(access), { id: { in: requestIds } }] },
             select: {
               id: true,
               title: true,
@@ -103,7 +100,7 @@ export async function GET(req: NextRequest) {
         : [],
       templateIds.length > 0
         ? db.requestTemplate.findMany({
-            where: { id: { in: templateIds } },
+            where: { id: { in: templateIds }, agencyId: access.agencyId },
             select: {
               id: true,
               name: true,
@@ -118,7 +115,7 @@ export async function GET(req: NextRequest) {
         : [],
       uploadIds.length > 0
         ? db.upload.findMany({
-            where: { id: { in: uploadIds } },
+            where: { AND: [uploadWhere(access), { id: { in: uploadIds } }] },
             select: {
               id: true,
               fileName: true,
@@ -140,7 +137,8 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Create lookup maps
-    const creatorMap = new Map(creators.map((c) => [c.id, c]));
+    // Favourite creators carry contact and invite fields: hide what this role can't see
+    const creatorMap = new Map(redactCreator(access, creators).map((c) => [c.id, c]));
     const requestMap = new Map(requests.map((r) => [r.id, r]));
     const templateMap = new Map(templates.map((t) => [t.id, t]));
     const uploadMap = new Map(uploads.map((u) => [u.id, u]));
@@ -222,11 +220,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = favoriteSchema.parse(body);
@@ -236,19 +232,13 @@ export async function POST(req: NextRequest) {
     switch (validatedData.itemType) {
       case "CREATOR":
         const creator = await db.creator.findFirst({
-          where: {
-            id: validatedData.itemId,
-            agencyId: session.user.agencyId,
-          },
+          where: { AND: [creatorWhere(access), { id: validatedData.itemId }] },
         });
         itemExists = !!creator;
         break;
       case "REQUEST":
         const request = await db.contentRequest.findFirst({
-          where: {
-            id: validatedData.itemId,
-            agencyId: session.user.agencyId,
-          },
+          where: { AND: [requestWhere(access), { id: validatedData.itemId }] },
         });
         itemExists = !!request;
         break;
@@ -263,12 +253,7 @@ export async function POST(req: NextRequest) {
         break;
       case "UPLOAD":
         const upload = await db.upload.findFirst({
-          where: {
-            id: validatedData.itemId,
-            creator: {
-              agencyId: session.user.agencyId,
-            },
-          },
+          where: { AND: [uploadWhere(access), { id: validatedData.itemId }] },
         });
         itemExists = !!upload;
         break;
@@ -349,11 +334,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
     const validatedData = favoriteSchema.parse(body);

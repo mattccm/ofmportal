@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { getAppUrl } from "@/lib/app-url";
 import { BRAND } from "@/lib/brand";
@@ -14,16 +13,15 @@ import { quietOf } from "@/components/creators/insights";
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("reminders.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const agencyId = session.user.agencyId;
 
     const [agency, creators, overrides] = await Promise.all([
       db.agency.findUnique({ where: { id: agencyId }, select: { name: true, settings: true } }),
       db.creator.findMany({
-        where: { agencyId, archivedAt: null },
+        where: { ...creatorWhere(access), archivedAt: null },
         orderBy: { name: "asc" },
         select: { id: true, name: true, preferredContact: true, timezone: true, phone: true },
       }),
@@ -45,19 +43,23 @@ export async function GET() {
     const branding = (settings.branding as { emailFromName?: string } | undefined) || {};
     const sender = (branding.emailFromName && branding.emailFromName.trim()) || agency?.name || BRAND.name;
 
+    const seePrefs = access.has("creatorInfo.preferences");
+    const seeLocation = access.has("creatorInfo.location");
+    const seePhone = access.has("creatorInfo.phone");
     const byCreator = new Map(overrides.map((o) => [o.creatorId, o]));
     return NextResponse.json({
       sender,
       // src/lib/reminders.ts builds links from APP_URL
       portalBase: `${(process.env.APP_URL || getAppUrl()).replace(/\/+$/, "")}/portal/`,
+      // Contact preference, time zone and phone follow the creator-information keys
       creators: creators.map((c) => {
         const o = byCreator.get(c.id);
         return {
           id: c.id,
           name: c.name,
-          preferredContact: c.preferredContact,
-          timezone: c.timezone,
-          hasPhone: !!c.phone,
+          ...(seePrefs ? { preferredContact: c.preferredContact } : {}),
+          ...(seeLocation ? { timezone: c.timezone } : {}),
+          ...(seePhone ? { hasPhone: !!c.phone } : {}),
           quiet: quietOf(o),
           paused: !!o?.isPaused,
           disabled: !!o?.disableReminders,

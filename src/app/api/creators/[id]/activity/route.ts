@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
 
 // GET - Fetch activity timeline for a creator
 export async function GET(
@@ -9,19 +8,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("creators.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // The timeline is what the creator did and when they last signed in
+    if (!access.has("creatorInfo.activity")) return forbidden("creatorInfo.activity");
 
     // Verify creator belongs to agency
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
       select: { id: true, lastLoginAt: true },
     });
 
@@ -143,7 +139,8 @@ export async function GET(
 
     // Format activities for the timeline
     const formattedActivities = activities.map((activity) => {
-      const metadata = activity.metadata as Record<string, unknown>;
+      const metadata = { ...((activity.metadata as Record<string, unknown>) ?? {}) };
+      if (!access.has("creatorInfo.email")) delete metadata.creatorEmail;
 
       return {
         id: activity.id,

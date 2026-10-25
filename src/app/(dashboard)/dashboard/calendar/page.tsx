@@ -1,26 +1,27 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { creatorWhere, getPageAccess, requestWhere } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { Bell, CalendarDays, Flag, Sparkles, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CalendarClient } from "./calendar-client";
 
 // DATA FETCHING
 
-async function getCreators(agencyId: string) {
+// Creators in this person's scope, for the filter: name only
+async function getCreators(where: Prisma.CreatorWhereInput) {
   return db.creator.findMany({
-    where: { agencyId },
+    where,
     select: {
       id: true,
       name: true,
-      email: true,
     },
     orderBy: { name: "asc" },
   });
 }
 
-async function getCalendarStats(agencyId: string) {
+// Counts cover only requests whose creator is in this person's scope
+async function getCalendarStats(scope: Prisma.ContentRequestWhereInput, withReminders: boolean) {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfToday = new Date(startOfToday);
@@ -42,7 +43,7 @@ async function getCalendarStats(agencyId: string) {
     // Deadlines due today
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...scope,
         dueDate: {
           gte: startOfToday,
           lte: endOfToday,
@@ -55,7 +56,7 @@ async function getCalendarStats(agencyId: string) {
     // Deadlines this week
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...scope,
         dueDate: {
           gte: startOfWeek,
           lte: endOfWeek,
@@ -68,7 +69,7 @@ async function getCalendarStats(agencyId: string) {
     // Overdue requests
     db.contentRequest.count({
       where: {
-        agencyId,
+        ...scope,
         dueDate: {
           lt: startOfToday,
         },
@@ -78,14 +79,14 @@ async function getCalendarStats(agencyId: string) {
       },
     }),
     // Pending reminders
-    db.reminder.count({
-      where: {
-        status: "PENDING",
-        request: {
-          agencyId,
-        },
-      },
-    }),
+    withReminders
+      ? db.reminder.count({
+          where: {
+            status: "PENDING",
+            request: scope,
+          },
+        })
+      : Promise.resolve(0),
   ]);
 
   return {
@@ -99,20 +100,16 @@ async function getCalendarStats(agencyId: string) {
 // PAGE COMPONENT
 
 export default async function CalendarPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
-
-  const agencyId = session.user.agencyId;
+  const access = await getPageAccess();
+  if (!access.has("calendar.view")) return <NoAccess what="the calendar" roleName={access.role.name} />;
+  const seesReminders = access.has("reminders.view");
 
   let creators: Awaited<ReturnType<typeof getCreators>>;
   let stats: Awaited<ReturnType<typeof getCalendarStats>>;
   try {
     [creators, stats] = await Promise.all([
-      getCreators(agencyId),
-      getCalendarStats(agencyId),
+      getCreators(creatorWhere(access)),
+      getCalendarStats(requestWhere(access), seesReminders),
     ]);
   } catch (error) {
     console.error("Failed to fetch calendar data:", error);
@@ -144,7 +141,7 @@ export default async function CalendarPage() {
           { n: stats.todayDeadlines, label: "Due today", Icon: Flag, late: false },
           { n: stats.weekDeadlines, label: "Due this week", Icon: CalendarDays, late: false },
           { n: stats.overdueRequests, label: "Overdue", Icon: TriangleAlert, late: stats.overdueRequests > 0 },
-          { n: stats.pendingReminders, label: "Reminders scheduled", Icon: Bell, late: false },
+          ...(seesReminders ? [{ n: stats.pendingReminders, label: "Reminders scheduled", Icon: Bell, late: false }] : []),
         ].map(({ n, label, Icon, late }) => (
           <div key={label} className="rounded-xl bg-tile p-4">
             <div className="flex items-center gap-3">

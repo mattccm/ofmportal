@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -99,13 +98,11 @@ async function autoDetectTaskCompletion(
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id: userId, agencyId } = session.user;
+    const { userId, agencyId } = access;
 
     // Get user preferences to check for stored checklist state
     const user = await db.user.findUnique({
@@ -169,13 +166,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id: userId, agencyId } = session.user;
+    const { userId, agencyId } = access;
     const body = await req.json();
     const { taskId } = markTaskCompleteSchema.parse(body);
 
@@ -301,13 +296,11 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id: userId } = session.user;
+    const { userId } = access;
     const body = await req.json();
     const { dismissed } = dismissChecklistSchema.parse(body);
 
@@ -387,11 +380,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     // Only allow in development
     if (process.env.NODE_ENV !== "development") {
@@ -401,7 +392,7 @@ export async function DELETE() {
       );
     }
 
-    const { id: userId } = session.user;
+    const { userId } = access;
 
     // Get current user preferences
     const user = await db.user.findUnique({

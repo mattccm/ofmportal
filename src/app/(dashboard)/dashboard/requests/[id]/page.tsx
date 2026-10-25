@@ -1,16 +1,15 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { getPageAccess, requestWhere, creatorWhere, staffWhere, redactCreator, redactCreatorsIn, type Access } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
 import { RequestDetailClient } from "@/components/requests/request-detail-client";
 import { type Note } from "@/lib/notes-utils";
 
-async function getRequest(requestId: string, agencyId: string) {
+async function getRequest(requestId: string, access: Access) {
   return db.contentRequest.findFirst({
-    where: {
-      id: requestId,
-      agencyId,
-    },
+    where: { AND: [requestWhere(access), { id: requestId }] },
     include: {
       creator: true,
       template: true,
@@ -33,6 +32,7 @@ async function getRequest(requestId: string, agencyId: string) {
         take: 20,
       },
       watchers: {
+        where: { user: staffWhere(access) },
         include: {
           user: {
             select: {
@@ -49,11 +49,9 @@ async function getRequest(requestId: string, agencyId: string) {
   });
 }
 
-async function getCreators(agencyId: string) {
+async function getCreators(access: Access) {
   return db.creator.findMany({
-    where: {
-      agencyId,
-    },
+    where: creatorWhere(access),
     select: {
       id: true,
       name: true,
@@ -70,16 +68,15 @@ export default async function RequestDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const access = await getPageAccess();
+  if (!access.has("requests.view")) return <NoAccess what="requests" roleName={access.role.name} />;
   const session = await getServerSession(authOptions);
-  if (!session?.user?.agencyId) {
-    redirect("/login");
-  }
 
   let request, creators;
   try {
     [request, creators] = await Promise.all([
-      getRequest(id, session.user.agencyId),
-      getCreators(session.user.agencyId),
+      getRequest(id, access),
+      getCreators(access),
     ]);
   } catch (error) {
     console.error("Failed to fetch request data:", error);
@@ -115,14 +112,14 @@ export default async function RequestDetailPage({
 
   return (
     <RequestDetailClient
-      request={serializedRequest as unknown as Parameters<typeof RequestDetailClient>[0]['request']}
-      creators={creators}
+      request={redactCreatorsIn(access, serializedRequest) as unknown as Parameters<typeof RequestDetailClient>[0]['request']}
+      creators={redactCreator(access, creators)}
       initialNotes={internalNotes}
-      currentUserId={session.user.id}
+      currentUserId={access.userId}
       currentUser={{
-        id: session.user.id,
-        name: session.user.name || "Unknown",
-        role: session.user.role,
+        id: access.userId,
+        name: session?.user?.name || "Unknown",
+        role: session?.user?.role ?? "MEMBER",
       }}
     />
   );

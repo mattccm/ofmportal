@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import type { PermissionKey } from "@/lib/access/catalogue";
+import { creatorWhere, requestWhere, requireAccess, uploadWhere, type Access } from "@/lib/access/server";
 
 // Types
 interface ExportFilters {
@@ -148,6 +148,30 @@ const CONDITION_FIELDS: Record<EntityType, Record<string, string[]>> = {
 
 class UnsupportedFilterError extends Error {}
 
+/**
+ * Export fields that carry creator information, and the creatorInfo key each
+ * needs. A role without the key gets no such column (dropped, not blanked)
+ * and can't filter on it either.
+ */
+const CREATOR_INFO_FIELDS: Record<EntityType, Record<string, PermissionKey>> = {
+  creators: {
+    email: "creatorInfo.email",
+    phone: "creatorInfo.phone",
+    preferredContact: "creatorInfo.preferences",
+    timezone: "creatorInfo.location",
+    lastLoginAt: "creatorInfo.activity",
+    inviteStatus: "creatorInfo.invite",
+  },
+  requests: { creatorEmail: "creatorInfo.email" },
+  uploads: { creatorEmail: "creatorInfo.email" },
+  analytics: {},
+};
+
+function hiddenExportFields(access: Access, entity: EntityType): Set<string> {
+  const map = CREATOR_INFO_FIELDS[entity] || {};
+  return new Set(Object.keys(map).filter((f) => !access.has(map[f])));
+}
+
 // Helper function to build where clause from filters
 function buildWhereClause(
   filters: ExportFilters,
@@ -247,16 +271,18 @@ function buildConditionWhere(condition: FilterCondition): unknown {
 // Fetch data based on entity type
 async function fetchEntityData(
   entity: EntityType,
-  agencyId: string,
+  access: Access,
   filters: ExportFilters,
   fields: string[]
 ): Promise<Record<string, unknown>[]> {
-  const where = buildWhereClause(filters, entity, agencyId);
+  const where = buildWhereClause(filters, entity, access.agencyId);
+  // Only creators inside this person's creator scope, and their requests and uploads
+  const reqScope = requestWhere(access);
 
   switch (entity) {
     case "creators": {
       const creators = await db.creator.findMany({
-        where: { ...where, agencyId },
+        where: { AND: [creatorWhere(access), where] },
         include: {
           _count: {
             select: { requests: true, uploads: true },
@@ -283,7 +309,7 @@ async function fetchEntityData(
 
     case "requests": {
       const requests = await db.contentRequest.findMany({
-        where: { ...where, agencyId },
+        where: { AND: [reqScope, where] },
         include: {
           creator: { select: { name: true, email: true } },
           _count: {
@@ -313,10 +339,7 @@ async function fetchEntityData(
 
     case "uploads": {
       const uploads = await db.upload.findMany({
-        where: {
-          ...where,
-          request: { agencyId },
-        },
+        where: { AND: [uploadWhere(access), where] },
         include: {
           creator: { select: { name: true, email: true } },
           request: { select: { title: true } },
@@ -372,53 +395,53 @@ async function fetchEntityData(
       ] = await Promise.all([
         db.contentRequest.count({
           where: {
-            agencyId,
+            ...reqScope,
             createdAt: dateFilter.gte || dateFilter.lte ? dateFilter : undefined,
           },
         }),
         db.contentRequest.count({
           where: {
-            agencyId,
+            ...reqScope,
             status: "APPROVED",
             createdAt: dateFilter.gte || dateFilter.lte ? dateFilter : undefined,
           },
         }),
         db.contentRequest.count({
           where: {
-            agencyId,
+            ...reqScope,
             status: "PENDING",
             createdAt: dateFilter.gte || dateFilter.lte ? dateFilter : undefined,
           },
         }),
         db.upload.count({
           where: {
-            request: { agencyId },
+            request: reqScope,
             createdAt: dateFilter.gte || dateFilter.lte ? dateFilter : undefined,
           },
         }),
         db.upload.count({
           where: {
-            request: { agencyId },
+            request: reqScope,
             status: "APPROVED",
             createdAt: dateFilter.gte || dateFilter.lte ? dateFilter : undefined,
           },
         }),
         db.upload.count({
           where: {
-            request: { agencyId },
+            request: reqScope,
             status: "REJECTED",
             createdAt: dateFilter.gte || dateFilter.lte ? dateFilter : undefined,
           },
         }),
         db.creator.count({
           where: {
-            agencyId,
+            ...creatorWhere(access),
             lastLoginAt: { gte: startDate },
           },
         }),
         db.creator.count({
           where: {
-            agencyId,
+            ...creatorWhere(access),
             createdAt: dateFilter.gte || dateFilter.lte ? dateFilter : undefined,
           },
         }),
@@ -453,13 +476,9 @@ async function fetchEntityData(
 // GET endpoint for fetching export history and scheduled exports
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("exports.data");
+    if (gate.error) return gate.error;
+    const agencyId = gate.access.agencyId;
     const type = request.nextUrl.searchParams.get("type");
 
     if (type === "history") {
@@ -482,17 +501,10 @@ export async function GET(request: NextRequest) {
 // POST endpoint for generating exports and creating schedules
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("exports.data");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    const agencyId = access.agencyId;
     const body = await request.json();
 
     // Handle scheduled export creation
@@ -532,8 +544,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Creator information this role can't see: no column, and no filtering on it
+    const hidden = hiddenExportFields(access, entity);
+    const blocked = (filters?.conditions || []).find((c) => hidden.has(c.field));
+    if (blocked) {
+      return NextResponse.json({ error: "Your role can't filter on " + blocked.field + "." }, { status: 403 });
+    }
+    const allowedFields = fields.filter((f) => !hidden.has(f));
+    if (allowedFields.length === 0) {
+      return NextResponse.json({ error: "Your role can't export any of the chosen fields." }, { status: 403 });
+    }
+
     // Fetch data
-    const data = await fetchEntityData(entity, agencyId, filters || {}, fields);
+    const data = await fetchEntityData(entity, access, filters || {}, allowedFields);
 
     // Convert to requested format
     let content: string;
@@ -542,30 +565,30 @@ export async function POST(request: NextRequest) {
 
     switch (format) {
       case "csv":
-        content = toCSV(data, fields);
+        content = toCSV(data, allowedFields);
         contentType = "text/csv";
         fileExtension = "csv";
         break;
       case "excel":
         // For Excel, we'll use CSV format with proper encoding
         // In production, use a library like xlsx
-        content = toCSV(data, fields);
+        content = toCSV(data, allowedFields);
         contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         fileExtension = "xlsx";
         break;
       case "json":
-        content = toJSON(data, fields);
+        content = toJSON(data, allowedFields);
         contentType = "application/json";
         fileExtension = "json";
         break;
       case "pdf":
         // For PDF, return JSON data (in production, use a PDF library)
-        content = toJSON(data, fields);
+        content = toJSON(data, allowedFields);
         contentType = "application/json";
         fileExtension = "json";
         break;
       default:
-        content = toCSV(data, fields);
+        content = toCSV(data, allowedFields);
         contentType = "text/csv";
         fileExtension = "csv";
     }
@@ -605,13 +628,9 @@ export async function POST(request: NextRequest) {
 // PATCH endpoint for updating scheduled exports
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("exports.data");
+    if (gate.error) return gate.error;
+    const agencyId = gate.access.agencyId;
     const { id, isActive } = await request.json();
 
     const schedules = scheduledExports.get(agencyId) || [];
@@ -634,13 +653,9 @@ export async function PATCH(request: NextRequest) {
 // DELETE endpoint for deleting scheduled exports
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const agencyId = session.user.agencyId;
+    const gate = await requireAccess("exports.data");
+    if (gate.error) return gate.error;
+    const agencyId = gate.access.agencyId;
     const id = request.nextUrl.searchParams.get("id");
     const type = request.nextUrl.searchParams.get("type");
 

@@ -1,6 +1,6 @@
 // GET /api/review-sessions/[id]/history - Get complete session history/recording
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess, uploadWhere } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -19,9 +19,9 @@ export async function GET(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { agencyId } = gate.access;
     const { searchParams } = new URL(request.url);
     const includeAnalytics = searchParams.get("analytics") === "true";
 
@@ -74,7 +74,7 @@ export async function GET(
     // Fetch upload info
     const uploadIds = session.uploadIds as string[];
     const uploads = await db.upload.findMany({
-      where: { id: { in: uploadIds } },
+      where: { AND: [uploadWhere(gate.access), { id: { in: uploadIds } }] },
       include: {
         creator: { select: { id: true, name: true } },
         request: { select: { id: true, title: true } },

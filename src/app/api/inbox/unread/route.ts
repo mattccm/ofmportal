@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess } from "@/lib/access/server";
+import { INBOX_KEYS, visibleConversationWhere } from "@/lib/conversation-access";
 
 // GET /api/inbox/unread - Get total unread message count
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const userId = session.user.id;
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
 
     // Get all conversations user participates in
     const conversations = await db.conversation.findMany({
@@ -24,6 +23,8 @@ export async function GET() {
           { agencyId },
           { agencyId: null },
         ],
+        // Only threads this role may see
+        AND: [visibleConversationWhere(access)],
       },
       select: {
         id: true,

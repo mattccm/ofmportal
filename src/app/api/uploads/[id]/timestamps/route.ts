@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, type Access } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -24,13 +23,11 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-async function verifyUploadAccess(uploadId: string, agencyId: string) {
+async function verifyUploadAccess(uploadId: string, access: Access) {
   const upload = await db.upload.findFirst({
     where: {
       id: uploadId,
-      request: {
-        agencyId,
-      },
+      request: requestWhere(access),
     },
     include: {
       request: {
@@ -46,16 +43,14 @@ async function verifyUploadAccess(uploadId: string, agencyId: string) {
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id: uploadId } = await params;
 
     // Verify access
-    const upload = await verifyUploadAccess(uploadId, session.user.agencyId);
+    const upload = await verifyUploadAccess(uploadId, access);
     if (!upload) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
@@ -109,16 +104,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.comment");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id: uploadId } = await params;
 
     // Verify access
-    const upload = await verifyUploadAccess(uploadId, session.user.agencyId);
+    const upload = await verifyUploadAccess(uploadId, access);
     if (!upload) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
@@ -172,16 +165,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.comment");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id: uploadId } = await params;
 
     // Verify access
-    const upload = await verifyUploadAccess(uploadId, session.user.agencyId);
+    const upload = await verifyUploadAccess(uploadId, access);
     if (!upload) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
@@ -302,11 +293,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.comment");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { id: uploadId } = await params;
     const { searchParams } = new URL(req.url);
@@ -320,7 +309,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     }
 
     // Verify access
-    const upload = await verifyUploadAccess(uploadId, session.user.agencyId);
+    const upload = await verifyUploadAccess(uploadId, access);
     if (!upload) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import type { WhitelistedContent } from "@/types/content-fingerprint";
 
@@ -14,19 +13,9 @@ const whitelistCategorySchema = z.enum(["branding", "stock", "template", "other"
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admins and owners can view whitelist
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to view the whitelist" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const agencyId = session.user.agencyId;
     const { searchParams } = new URL(req.url);
@@ -104,19 +93,9 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admins and owners can add to whitelist
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to modify the whitelist" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const agencyId = session.user.agencyId;
     const formData = await req.formData();

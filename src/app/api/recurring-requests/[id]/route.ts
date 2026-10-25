@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, forbidden, redactCreatorsIn, requireAccess } from "@/lib/access/server";
+import { creatorGroupWhere, targetsInScope } from "../scope";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { calculateNextRunDate } from "@/types/recurring-requests";
@@ -41,11 +41,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.view");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id } = await params;
 
@@ -62,7 +60,7 @@ export async function GET(
       },
     });
 
-    if (!recurringRequest) {
+    if (!recurringRequest || !(await targetsInScope(access, recurringRequest))) {
       return NextResponse.json(
         { error: "Recurring request not found" },
         { status: 404 }
@@ -78,13 +76,13 @@ export async function GET(
       }),
       (recurringRequest.creatorIds as string[]).length > 0
         ? db.creator.findMany({
-            where: { id: { in: recurringRequest.creatorIds as string[] } },
+            where: { AND: [creatorWhere(access), { id: { in: recurringRequest.creatorIds as string[] } }] },
             select: { id: true, name: true, email: true },
           })
         : [],
       (recurringRequest.creatorGroupIds as string[]).length > 0
         ? db.creatorGroup.findMany({
-            where: { id: { in: recurringRequest.creatorGroupIds as string[] } },
+            where: { AND: [creatorGroupWhere(access), { id: { in: recurringRequest.creatorGroupIds as string[] } }] },
             select: {
               id: true,
               name: true,
@@ -99,7 +97,7 @@ export async function GET(
     ]);
 
     const templateMap = new Map(templateRows.map((t) => [t.id, t]));
-    return NextResponse.json({
+    return NextResponse.json(redactCreatorsIn(access, {
       ...recurringRequest,
       templateIds,
       template: templateMap.get(recurringRequest.templateId) ?? null,
@@ -107,7 +105,7 @@ export async function GET(
       creators,
       creatorGroups: groups.map(g => ({ ...g, memberCount: g._count.members })),
       createdBy,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching recurring request:", error);
     return NextResponse.json(
@@ -124,11 +122,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["recurring.edit", "recurring.pause"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id } = await params;
     const body = await req.json();
@@ -142,11 +138,36 @@ export async function PUT(
       },
     });
 
-    if (!existing) {
+    if (!existing || !(await targetsInScope(access, existing))) {
       return NextResponse.json(
         { error: "Recurring request not found" },
         { status: 404 }
       );
+    }
+
+    // Pausing and resuming is its own permission; every other change needs edit
+    const { isActive: nextActive, ...rest } = validatedData;
+    const pauses = nextActive !== undefined && nextActive !== existing.isActive;
+    const edits = Object.values(rest).some((v) => v !== undefined);
+    if (pauses && !access.has("recurring.pause")) return forbidden("recurring.pause");
+    if (edits && !access.has("recurring.edit")) return forbidden("recurring.edit");
+
+    // New creators and groups must be inside this person's creator scope
+    if (validatedData.creatorIds?.length) {
+      const n = await db.creator.count({
+        where: { AND: [creatorWhere(access), { id: { in: validatedData.creatorIds } }] },
+      });
+      if (n !== new Set(validatedData.creatorIds).size) {
+        return NextResponse.json({ error: "One or more creators not found" }, { status: 404 });
+      }
+    }
+    if (validatedData.creatorGroupIds?.length) {
+      const n = await db.creatorGroup.count({
+        where: { AND: [creatorGroupWhere(access), { id: { in: validatedData.creatorGroupIds } }] },
+      });
+      if (n !== new Set(validatedData.creatorGroupIds).size) {
+        return NextResponse.json({ error: "One or more creator groups not found" }, { status: 404 });
+      }
     }
 
     // Validate templates if changing
@@ -295,11 +316,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("recurring.delete");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id } = await params;
 
@@ -311,7 +330,7 @@ export async function DELETE(
       },
     });
 
-    if (!existing) {
+    if (!existing || !(await targetsInScope(access, existing))) {
       return NextResponse.json(
         { error: "Recurring request not found" },
         { status: 404 }

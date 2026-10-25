@@ -1,227 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import { db } from "@/lib/db";
+import { parseJsonBody } from "@/lib/api";
+import { requireAccess, staffWhere } from "@/lib/access/server";
+import { canGrant, changeMemberRole } from "@/lib/access/assign";
+import { BUILT_IN_FOR_ENUM } from "@/lib/access/catalogue";
+import { loadRoles, roleIdOf } from "@/lib/access/roles";
 
-// PATCH - Update team member role
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ memberId: string }> }
-) {
+/**
+ * One teammate.
+ *   PATCH { roleId }  move them to a role ("owner", "admin", "manager",
+ *                     "member" or a custom role id); { role: "ADMIN" } still
+ *                     works. Needs "team.changeRoles"; see lib/access/assign.ts.
+ *   DELETE            remove them. Needs "team.remove".
+ */
+
+const patchSchema = z
+  .object({ roleId: z.string().min(1).optional(), role: z.enum(["OWNER", "ADMIN", "MANAGER", "MEMBER"]).optional() })
+  .refine((d) => d.roleId || d.role, { message: "Choose a role" });
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ memberId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("team.changeRoles");
+    if (gate.error) return gate.error;
     const { memberId } = await params;
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const body = await parseJsonBody(request);
+    if (!body.ok) return body.response;
+    const parsed = patchSchema.safeParse(body.data);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Choose a role" }, { status: 400 });
+    const roleId = parsed.data.roleId ?? BUILT_IN_FOR_ENUM[parsed.data.role!];
 
-    // Only OWNER and ADMIN can update team members
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to update team members" },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-    const { role } = body;
-
-    if (!role) {
-      return NextResponse.json(
-        { error: "Role is required" },
-        { status: 400 }
-      );
-    }
-
-    // Validate role
-    const validRoles = ["OWNER", "ADMIN", "MANAGER", "MEMBER"];
-    if (!validRoles.includes(role)) {
-      return NextResponse.json(
-        { error: "Invalid role" },
-        { status: 400 }
-      );
-    }
-
-    // Get the member to update
-    const member = await db.user.findUnique({
-      where: { id: memberId },
-      select: { id: true, role: true, agencyId: true, name: true },
-    });
-
-    if (!member) {
-      return NextResponse.json(
-        { error: "Member not found" },
-        { status: 404 }
-      );
-    }
-
-    // Ensure member belongs to the same agency
-    if (member.agencyId !== session.user.agencyId) {
-      return NextResponse.json(
-        { error: "Member not found" },
-        { status: 404 }
-      );
-    }
-
-    // ADMINs cannot change the role of OWNERs or other ADMINs (mirrors DELETE)
-    if (session.user.role === "ADMIN" && ["OWNER", "ADMIN"].includes(member.role)) {
-      return NextResponse.json(
-        { error: "Admins cannot change the role of owners or other admins" },
-        { status: 403 }
-      );
-    }
-
-    // Prevent demoting the last OWNER
-    if (member.role === "OWNER" && role !== "OWNER") {
-      const ownerCount = await db.user.count({
-        where: {
-          agencyId: session.user.agencyId,
-          role: "OWNER",
-        },
-      });
-
-      if (ownerCount <= 1) {
-        return NextResponse.json(
-          { error: "Cannot change the role of the last owner. Assign another owner first." },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Only OWNER can assign OWNER role
-    if (role === "OWNER" && session.user.role !== "OWNER") {
-      return NextResponse.json(
-        { error: "Only owners can assign the owner role" },
-        { status: 403 }
-      );
-    }
-
-    // Update the member's role
-    const updatedMember = await db.user.update({
-      where: { id: memberId },
-      data: { role },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-      },
-    });
-
-    // Log the activity
-    await db.activityLog.create({
-      data: {
-        userId: session.user.id,
-        action: "team.role_updated",
-        entityType: "User",
-        entityId: memberId,
-        metadata: {
-          memberName: member.name,
-          previousRole: member.role,
-          newRole: role,
-          updatedBy: session.user.name,
-        },
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      member: updatedMember,
-    });
+    const result = await changeMemberRole(gate.access, memberId, roleId);
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json({ success: true, member: result.member, role: { id: result.next.id, name: result.next.name } });
   } catch (error) {
-    console.error("Error updating team member:", error);
-    return NextResponse.json(
-      { error: "Failed to update team member" },
-      { status: 500 }
-    );
+    console.error("Error updating team member:", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: "Failed to update team member" }, { status: 500 });
   }
 }
 
-// DELETE - Remove team member
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ memberId: string }> }
-) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ memberId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("team.remove");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
     const { memberId } = await params;
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only OWNER and ADMIN can remove team members
-    if (!["OWNER", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to remove team members" },
-        { status: 403 }
-      );
-    }
-
-    // Get the member to delete
-    const member = await db.user.findUnique({
-      where: { id: memberId },
-      select: { id: true, role: true, agencyId: true, name: true, email: true },
+    const member = await db.user.findFirst({
+      where: { AND: [staffWhere(access), { id: memberId }] },
+      select: { id: true, role: true, customRoleId: true, name: true, email: true },
     });
+    if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
 
-    if (!member) {
-      return NextResponse.json(
-        { error: "Member not found" },
-        { status: 404 }
-      );
+    if (member.id === access.userId) {
+      return NextResponse.json({ error: "You cannot remove yourself from the team" }, { status: 400 });
     }
-
-    // Ensure member belongs to the same agency
-    if (member.agencyId !== session.user.agencyId) {
-      return NextResponse.json(
-        { error: "Member not found" },
-        { status: 404 }
-      );
-    }
-
-    // Cannot remove yourself
-    if (member.id === session.user.id) {
-      return NextResponse.json(
-        { error: "You cannot remove yourself from the team" },
-        { status: 400 }
-      );
-    }
-
-    // Prevent removing the last OWNER
     if (member.role === "OWNER") {
-      const ownerCount = await db.user.count({
-        where: {
-          agencyId: session.user.agencyId,
-          role: "OWNER",
-        },
-      });
-
-      if (ownerCount <= 1) {
-        return NextResponse.json(
-          { error: "Cannot remove the last owner" },
-          { status: 400 }
-        );
+      if (!access.isOwner) return NextResponse.json({ error: "Only an owner can remove an owner" }, { status: 403 });
+      const owners = await db.user.count({ where: { agencyId: access.agencyId, role: "OWNER" } });
+      if (owners <= 1) return NextResponse.json({ error: "Cannot remove the last owner" }, { status: 400 });
+    }
+    if (!access.isOwner) {
+      const roles = await loadRoles(access.agencyId);
+      const presetRowIds = Object.fromEntries(roles.filter((r) => r.kind === "preset" && r.dbId).map((r) => [r.dbId!, r.preset!]));
+      const current = roles.find((r) => r.id === roleIdOf(member, presetRowIds));
+      if (current?.keys.includes("roles.manage")) {
+        return NextResponse.json({ error: "Only an owner can remove someone who manages roles" }, { status: 403 });
+      }
+      if (current && !canGrant(access, current)) {
+        return NextResponse.json({ error: `${member.name} has more access than you, so you can't remove them` }, { status: 403 });
       }
     }
 
-    // ADMINs cannot remove OWNERs or other ADMINs
-    if (session.user.role === "ADMIN" && ["OWNER", "ADMIN"].includes(member.role)) {
-      return NextResponse.json(
-        { error: "Admins cannot remove owners or other admins" },
-        { status: 403 }
-      );
-    }
+    await db.user.delete({ where: { id: memberId } });
 
-    // Delete the member
-    await db.user.delete({
-      where: { id: memberId },
-    });
-
-    // Log the activity
     await db.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         action: "team.member_removed",
         entityType: "User",
         entityId: memberId,
@@ -234,15 +90,9 @@ export async function DELETE(
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Team member removed successfully",
-    });
+    return NextResponse.json({ success: true, message: "Team member removed successfully" });
   } catch (error) {
-    console.error("Error removing team member:", error);
-    return NextResponse.json(
-      { error: "Failed to remove team member" },
-      { status: 500 }
-    );
+    console.error("Error removing team member:", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: "Failed to remove team member" }, { status: 500 });
   }
 }

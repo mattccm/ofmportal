@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { type KeywordAlert } from "@/types/oversight";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
 
 interface ConfiguredKeyword {
   keyword: string;
@@ -74,6 +75,7 @@ function getPriorityColor(priority: string): string {
 }
 
 export function KeywordAlerts() {
+  const canEditKeywords = useAccess().can("settings.oversightKeywords");
   const [isLoading, setIsLoading] = React.useState(true);
   const [alerts, setAlerts] = React.useState<KeywordAlert[]>([]);
   const [keywords, setKeywords] = React.useState<ConfiguredKeyword[]>([]);
@@ -205,10 +207,12 @@ export function KeywordAlerts() {
             />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={openConfig}>
-            <Settings className="h-4 w-4 mr-2" />
-            Configure Keywords
-          </Button>
+          {canEditKeywords && (
+            <Button variant="outline" size="sm" onClick={openConfig}>
+              <Settings className="h-4 w-4 mr-2" />
+              Configure Keywords
+            </Button>
+          )}
         </div>
       </div>
 

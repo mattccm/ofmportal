@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { sendEmail, buildBulkEmailVariables, renderBulkEmail } from "@/lib/email";
 import { z } from "zod";
@@ -34,23 +33,16 @@ const sendEmailSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Members are view/comment only
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role || "")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const gate = await requireAccess("messages.email");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = sendEmailSchema.parse(body);
 
     // Get agency details
     const agency = await db.agency.findUnique({
-      where: { id: session.user.agencyId },
+      where: { id: access.agencyId },
       select: { name: true },
     });
 
@@ -60,16 +52,14 @@ export async function POST(req: NextRequest) {
 
     // Get sender details
     const sender = await db.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: access.userId },
       select: { name: true, email: true },
     });
 
     // Get recipients
     const creators = await db.creator.findMany({
-      where: {
-        id: { in: validatedData.recipientIds },
-        agencyId: session.user.agencyId,
-      },
+      // Only creators inside this person's creator scope
+      where: { AND: [creatorWhere(access), { id: { in: validatedData.recipientIds } }] },
       select: {
         id: true,
         name: true,
@@ -100,8 +90,8 @@ export async function POST(req: NextRequest) {
     // Create bulk email record
     const bulkEmail = await db.bulkEmail.create({
       data: {
-        agencyId: session.user.agencyId,
-        senderId: session.user.id,
+        agencyId: access.agencyId,
+        senderId: access.userId,
         subject: validatedData.subject,
         body: validatedData.body,
         recipientCount: creators.length,
@@ -128,7 +118,7 @@ export async function POST(req: NextRequest) {
       // Log activity
       await db.activityLog.create({
         data: {
-          userId: session.user.id,
+          userId: access.userId,
           action: "email.scheduled",
           entityType: "BulkEmail",
           entityId: bulkEmail.id,
@@ -193,7 +183,7 @@ export async function POST(req: NextRequest) {
           validatedData.subject,
           validatedData.body,
           variables,
-          session.user.agencyId,
+          access.agencyId,
           agency.name
         );
 
@@ -230,7 +220,8 @@ export async function POST(req: NextRequest) {
         });
 
         results.failed++;
-        results.errors.push(`${creator.email}: ${error instanceof Error ? error.message : "Unknown error"}`);
+        // Name the creator by email only for roles that may see it
+        results.errors.push(`${access.has("creatorInfo.email") ? creator.email : creator.name}: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
     }
 
@@ -248,7 +239,7 @@ export async function POST(req: NextRequest) {
     // Log activity
     await db.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: access.userId,
         action: "email.sent_bulk",
         entityType: "BulkEmail",
         entityId: bulkEmail.id,
@@ -286,11 +277,9 @@ export async function POST(req: NextRequest) {
 // GET - Fetch bulk email history
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("messages.email");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -299,7 +288,7 @@ export async function GET(req: NextRequest) {
 
     const validStatuses = ["PENDING", "SCHEDULED", "SENDING", "SENT", "FAILED"];
     const where = {
-      agencyId: session.user.agencyId,
+      agencyId: access.agencyId,
       ...(status && validStatuses.includes(status) && { status: status as "PENDING" | "SCHEDULED" | "SENDING" | "SENT" | "FAILED" }),
     };
 

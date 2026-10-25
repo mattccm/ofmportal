@@ -4,8 +4,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ImportWizard } from "@/components/creators/import-wizard";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 export default function ImportCreatorsPage() {
+  const { can, roleName } = useAccess();
+  if (!can("creators.import")) return <NoAccess what="importing creators" roleName={roleName} />;
   return (
     <div className="space-y-6">
       {/* Header */}

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorScopeWhere, creatorWhere, requestWhere, requireAccess, uploadWhere } from "@/lib/access/server";
 
 // Types
 interface SearchResult {
@@ -104,11 +103,9 @@ function highlightMatch(text: string, query: string): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q")?.trim() || "";
@@ -128,16 +125,22 @@ export async function GET(req: NextRequest) {
 
     const agencyId = session.user.agencyId;
     const results: SearchResult[] = [];
+    // Each kind of result needs its own view permission; creators outside the
+    // person's scope never match, and hidden creator details are neither
+    // searched nor shown.
+    const seeEmail = access.has("creatorInfo.email");
+    const seePhone = access.has("creatorInfo.phone");
+    const seeInvite = access.has("creatorInfo.invite");
 
     // Search Creators
-    if (!type || type === "creators") {
+    if ((!type || type === "creators") && access.has("creators.view")) {
       const creators = await db.creator.findMany({
         where: {
-          agencyId,
+          ...creatorWhere(access),
           OR: [
             { name: { contains: query, mode: "insensitive" } },
-            { email: { contains: query, mode: "insensitive" } },
-            { phone: { contains: query, mode: "insensitive" } },
+            ...(seeEmail ? [{ email: { contains: query, mode: "insensitive" as const } }] : []),
+            ...(seePhone ? [{ phone: { contains: query, mode: "insensitive" as const } }] : []),
           ],
         },
         take: limit,
@@ -154,17 +157,17 @@ export async function GET(req: NextRequest) {
       });
 
       for (const creator of creators) {
-        const matchResult = fuzzyMatch(creator.name + " " + creator.email, query);
+        const matchResult = fuzzyMatch(creator.name + (seeEmail ? " " + creator.email : ""), query);
         if (matchResult.matches) {
           results.push({
             id: creator.id,
             type: "creator",
             title: creator.name,
-            subtitle: creator.email,
+            subtitle: seeEmail ? creator.email : undefined,
             highlight: highlightMatch(creator.name, query),
             href: `/dashboard/creators/${creator.id}`,
             metadata: {
-              status: creator.inviteStatus,
+              ...(seeInvite ? { status: creator.inviteStatus } : {}),
               requests: creator._count.requests.toString(),
             },
           });
@@ -173,10 +176,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Search Requests
-    if (!type || type === "requests") {
+    if ((!type || type === "requests") && access.has("requests.view")) {
       const requests = await db.contentRequest.findMany({
         where: {
-          agencyId,
+          ...requestWhere(access),
           OR: [
             { title: { contains: query, mode: "insensitive" } },
             { description: { contains: query, mode: "insensitive" } },
@@ -218,10 +221,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Search Uploads
-    if (!type || type === "uploads") {
+    if ((!type || type === "uploads") && access.has("review.view")) {
       const uploads = await db.upload.findMany({
         where: {
-          request: { agencyId },
+          ...uploadWhere(access),
           OR: [
             { originalName: { contains: query, mode: "insensitive" } },
             { fileName: { contains: query, mode: "insensitive" } },
@@ -263,7 +266,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Search Templates
-    if (!type || type === "templates") {
+    if ((!type || type === "templates") && access.has("templates.view")) {
       const templates = await db.requestTemplate.findMany({
         where: {
           agencyId,
@@ -308,7 +311,9 @@ export async function GET(req: NextRequest) {
     }
 
     // Search Messages (conversations)
-    if (!type || type === "messages") {
+    const seeCreatorChats = access.has("messages.creators");
+    const seeTeamChats = access.has("messages.team");
+    if ((!type || type === "messages") && (seeCreatorChats || seeTeamChats || access.has("requests.view"))) {
       const messages = await db.message.findMany({
         where: {
           conversation: {
@@ -317,6 +322,22 @@ export async function GET(req: NextRequest) {
                 userId: session.user.id,
               },
             },
+            AND: [
+              // Creator threads need messages.creators and a creator in
+              // scope; request threads need requests.view and a request in
+              // scope; direct and group chats need messages.team
+              {
+                OR: [
+                  ...(seeCreatorChats
+                    ? [{ type: "CREATOR" as const, creator: creatorScopeWhere(access) }]
+                    : []),
+                  ...(access.has("requests.view")
+                    ? [{ type: "REQUEST_THREAD" as const, request: requestWhere(access) }]
+                    : []),
+                  ...(seeTeamChats ? [{ type: { in: ["DIRECT" as const, "GROUP" as const] } }] : []),
+                ],
+              },
+            ],
           },
           content: { contains: query, mode: "insensitive" },
         },

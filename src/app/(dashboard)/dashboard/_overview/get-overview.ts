@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { creatorScopeWhere, requestWhere, type Access } from "@/lib/access/server";
 import { getPublicFileUrl } from "@/lib/storage";
 import {
   ACTIVE_REQUEST_STATUSES,
@@ -29,13 +30,25 @@ function readByUser(readBy: unknown, userId: string): boolean {
  * template; the approved counts for this and last week; and the creator
  * conversations with their recent messages for unread counts.
  */
-export async function getOverviewData(agencyId: string, userId: string, now = new Date()): Promise<OverviewData> {
+export async function getOverviewData(access: Access, now = new Date()): Promise<OverviewData> {
+  const { agencyId, userId } = access;
   const weekAgo = new Date(now.getTime() - 7 * DAY);
   const twoWeeksAgo = new Date(now.getTime() - 14 * DAY);
+  // Every shelf, count and the billboard only hold creators in the role's
+  // scope, and each part shows only with its own permission.
+  const see = {
+    requests: access.has("requests.view"),
+    uploads: access.has("review.view"),
+    reveal: access.has("review.reveal"),
+    messages: access.has("messages.creators"),
+    activity: access.has("creatorInfo.activity"),
+  };
+  const nothing = { id: { in: [] as string[] } };
+  const scoped = see.requests ? requestWhere(access) : nothing;
 
   const [rows, approvedThisWeek, approvedLastWeek, conversations] = await Promise.all([
     db.contentRequest.findMany({
-      where: { agencyId, status: { in: [...ACTIVE_REQUEST_STATUSES] } },
+      where: { ...scoped, status: { in: [...ACTIVE_REQUEST_STATUSES] } },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
       take: 200,
       select: {
@@ -46,7 +59,7 @@ export async function getOverviewData(agencyId: string, userId: string, now = ne
         createdAt: true,
         fields: true,
         fieldSubmissions: true,
-        creator: { select: { id: true, name: true, lastLoginAt: true, preferredContact: true } },
+        creator: { select: { id: true, name: true, lastLoginAt: true } },
         template: { select: { name: true } },
         uploads: {
           where: { uploadStatus: "COMPLETED" },
@@ -72,15 +85,17 @@ export async function getOverviewData(agencyId: string, userId: string, now = ne
         },
       },
     }),
-    db.contentRequest.count({ where: { agencyId, status: "APPROVED", reviewedAt: { gte: weekAgo, lte: now } } }),
-    db.contentRequest.count({ where: { agencyId, status: "APPROVED", reviewedAt: { gte: twoWeeksAgo, lt: weekAgo } } }),
+    db.contentRequest.count({ where: { ...scoped, status: "APPROVED", reviewedAt: { gte: weekAgo, lte: now } } }),
+    db.contentRequest.count({ where: { ...scoped, status: "APPROVED", reviewedAt: { gte: twoWeeksAgo, lt: weekAgo } } }),
     db.conversation.findMany({
-      where: {
-        type: "CREATOR",
-        participants: { some: { userId } },
-        OR: [{ agencyId }, { agencyId: null }],
-        creator: { agencyId },
-      },
+      where: see.messages
+        ? {
+            type: "CREATOR",
+            participants: { some: { userId } },
+            OR: [{ agencyId }, { agencyId: null }],
+            creator: { AND: [{ agencyId }, creatorScopeWhere(access)] },
+          }
+        : nothing,
       orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
       take: 50,
       select: {
@@ -109,8 +124,7 @@ export async function getOverviewData(agencyId: string, userId: string, now = ne
       sentAt: r.createdAt.toISOString(),
       creatorId: r.creator.id,
       creatorName: r.creator.name,
-      creatorLastSeen: r.creator.lastLoginAt?.toISOString() ?? null,
-      creatorContact: r.creator.preferredContact,
+      creatorLastSeen: see.activity ? (r.creator.lastLoginAt?.toISOString() ?? null) : null,
       kind: r.template?.name ?? null,
       late: isRequestLate(r, now),
       lastReminderAt: r.reminders[0]?.sentAt?.toISOString() ?? null,
@@ -137,7 +151,7 @@ export async function getOverviewData(agencyId: string, userId: string, now = ne
   // New from creators: one tile per field with uploads ready for review, newest first
   const readyFieldIds = new Map(requests.map((r) => [r.id, new Set(r.fields.filter((f) => f.state === "ready").map((f) => f.id))]));
   const uploads: OverviewUpload[] = [];
-  for (const r of rows) {
+  for (const r of see.uploads ? rows : []) {
     const ready = readyFieldIds.get(r.id);
     if (!ready?.size) continue;
     const byField = new Map<string, typeof r.uploads>();
@@ -152,7 +166,8 @@ export async function getOverviewData(agencyId: string, userId: string, now = ne
       const latest = list[0];
       const isImage = latest.fileType.startsWith("image/");
       const isVideo = latest.fileType.startsWith("video/");
-      const hasThumb = isImage || !!latest.thumbnailKey;
+      // No preview at all for a role that can't reveal previews
+      const hasThumb = see.reveal && (isImage || !!latest.thumbnailKey);
       // public URLs exist only for agency assets; creator content stays signed (see the thumbnail route)
       const publicThumb = hasThumb ? getPublicFileUrl(isImage ? latest.storageKey : latest.thumbnailKey!) : null;
       uploads.push({

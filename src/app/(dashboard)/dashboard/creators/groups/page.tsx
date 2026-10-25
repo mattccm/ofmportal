@@ -15,8 +15,16 @@ import {
 } from "lucide-react";
 import { GroupCard, type CreatorGroup } from "@/components/creators/group-card";
 import { GroupEditor } from "@/components/creators/group-editor";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 export default function CreatorGroupsPage() {
+  const { can, roleName } = useAccess();
+  if (!can("creators.view")) return <NoAccess what="creators" roleName={roleName} />;
+  return <CreatorGroups canManage={can("creators.groups")} canRequest={can("requests.create")} />;
+}
+
+function CreatorGroups({ canManage, canRequest }: { canManage: boolean; canRequest: boolean }) {
   const [groups, setGroups] = useState<CreatorGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,13 +102,15 @@ export default function CreatorGroupsPage() {
             </p>
           </div>
         </div>
-        <Button
-          onClick={handleCreateNew}
-          className="w-full sm:w-auto min-h-[44px] bg-raised-hi text-ink hover:bg-raised-hi"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Group
-        </Button>
+        {canManage && (
+          <Button
+            onClick={handleCreateNew}
+            className="w-full sm:w-auto min-h-[44px] bg-raised-hi text-ink hover:bg-raised-hi"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Group
+          </Button>
+        )}
       </div>
 
       {/* Stats cards */}
@@ -166,13 +176,15 @@ export default function CreatorGroupsPage() {
                 Create groups to organize your creators and send requests to
                 multiple creators at once.
               </p>
-              <Button
-                onClick={handleCreateNew}
-                className="mt-6 min-h-[44px] bg-raised-hi text-ink hover:bg-raised-hi"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Your First Group
-              </Button>
+              {canManage && (
+                <Button
+                  onClick={handleCreateNew}
+                  className="mt-6 min-h-[44px] bg-raised-hi text-ink hover:bg-raised-hi"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Your First Group
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -207,6 +219,8 @@ export default function CreatorGroupsPage() {
               group={group}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              canManage={canManage}
+              canRequest={canRequest}
             />
           ))}
         </div>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, redactCreator, requireAccess } from "@/lib/access/server";
 
 // GET - Fetch complete creator context in a single optimized call
 export async function GET(
@@ -9,21 +8,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess(["creators.view", "requests.view", "messages.creators"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const now = new Date();
 
     // Fetch creator with related data in a single query
     const creator = await db.creator.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id }] },
       select: {
         id: true,
         name: true,
@@ -225,7 +219,8 @@ export async function GET(
     });
 
     const recentActivity = activityLogs.map((log) => {
-      const metadata = (log.metadata as Record<string, unknown>) || {};
+      const metadata = { ...((log.metadata as Record<string, unknown>) || {}) };
+      if (!access.has("creatorInfo.email")) delete metadata.creatorEmail;
       return {
         id: log.id,
         action: log.action,
@@ -248,8 +243,8 @@ export async function GET(
       timezone: creator.timezone,
       lastLoginAt: creator.lastLoginAt?.toISOString() || null,
       createdAt: creator.createdAt.toISOString(),
-      activeRequests,
-      recentUploads,
+      activeRequests: access.has("requests.view") ? activeRequests : [],
+      recentUploads: access.has("creatorInfo.content") && access.has("review.view") ? recentUploads : [],
       stats: {
         avgResponseTimeHours,
         onTimeCompletionRate,
@@ -260,7 +255,7 @@ export async function GET(
         overdueRequests: overdueCount,
       },
       notes,
-      recentActivity,
+      recentActivity: access.has("creatorInfo.activity") ? recentActivity : [],
       requestSummary: {
         active: activeRequests.length,
         overdue: overdueCount,
@@ -268,7 +263,12 @@ export async function GET(
     };
 
     // Set cache headers for client-side caching
-    const response = NextResponse.json(contextData);
+    // Fields this role can't see (email, phone, notes, time zone, ...) are removed
+    // (notes stay an empty list rather than vanishing, so the panel still renders)
+    const response = NextResponse.json({
+      ...redactCreator(access, contextData),
+      notes: access.has("creatorInfo.notes") ? notes : [],
+    });
     response.headers.set(
       "Cache-Control",
       "private, max-age=30, stale-while-revalidate=60"

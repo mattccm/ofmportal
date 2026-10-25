@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, forbidden, requestWhere, uploadWhere } from "@/lib/access/server";
 import { BulkTagAction } from "@/lib/tag-types";
 
 // Type for tag stored in JSON fields
@@ -29,10 +28,10 @@ async function getAgencyTagsMap(
 // POST - Bulk tag operations
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.bulk");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
+    if (!access.has("requests.edit")) return forbidden("requests.edit");
 
     const body = await request.json();
     const {
@@ -100,10 +99,7 @@ export async function POST(request: NextRequest) {
         try {
           // Verify upload belongs to agency
           const upload = await db.upload.findFirst({
-            where: {
-              id: uploadId,
-              request: { agencyId: session.user.agencyId },
-            },
+            where: { AND: [uploadWhere(access), { id: uploadId }] },
             select: { id: true, tags: true },
           });
 
@@ -155,10 +151,7 @@ export async function POST(request: NextRequest) {
         try {
           // Verify request belongs to agency
           const contentRequest = await db.contentRequest.findFirst({
-            where: {
-              id: requestId,
-              agencyId: session.user.agencyId,
-            },
+            where: { AND: [requestWhere(access), { id: requestId }] },
             select: { id: true, requirements: true },
           });
 

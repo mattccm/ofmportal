@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, creatorWhere, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
@@ -31,22 +30,17 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("requests.create");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = await req.json();
     const validatedData = cloneRequestSchema.parse(body);
 
     // Get the original request
     const originalRequest = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
       include: {
         creator: true,
         template: true,
@@ -62,10 +56,7 @@ export async function POST(
 
     // Verify all target creators belong to this agency
     const targetCreators = await db.creator.findMany({
-      where: {
-        id: { in: validatedData.targetCreatorIds },
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: { in: validatedData.targetCreatorIds } }] },
     });
 
     if (targetCreators.length !== validatedData.targetCreatorIds.length) {
@@ -239,19 +230,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Get the request
     const request = await db.contentRequest.findFirst({
-      where: {
-        id,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id }] },
     });
 
     if (!request) {
@@ -272,10 +258,7 @@ export async function GET(
     let originalRequest = null;
     if (cloneInfo?.clonedFromId) {
       originalRequest = await db.contentRequest.findFirst({
-        where: {
-          id: cloneInfo.clonedFromId,
-          agencyId: session.user.agencyId,
-        },
+        where: { AND: [requestWhere(access), { id: cloneInfo.clonedFromId }] },
         select: {
           id: true,
           title: true,
@@ -290,7 +273,7 @@ export async function GET(
     // Find requests that were cloned from this one
     const clonedFromThisRequest = await db.contentRequest.findMany({
       where: {
-        agencyId: session.user.agencyId,
+        ...requestWhere(access),
         requirements: {
           path: ["_cloneInfo", "clonedFromId"],
           equals: id,
@@ -323,7 +306,7 @@ export async function GET(
       take: 20,
     });
 
-    return NextResponse.json({
+    return NextResponse.json(redactCreatorsIn(access, {
       isClone: !!cloneInfo?.clonedFromId,
       clonedFrom: originalRequest
         ? {
@@ -334,7 +317,7 @@ export async function GET(
       clones: clonedFromThisRequest,
       cloneCount: clonedFromThisRequest.length,
       activities: cloneActivities,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching clone history:", error);
     return NextResponse.json(

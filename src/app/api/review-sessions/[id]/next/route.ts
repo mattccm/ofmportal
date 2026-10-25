@@ -1,6 +1,6 @@
 // POST /api/review-sessions/[id]/next - Navigate to next/previous item
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess, uploadWhere } from "@/lib/access/server";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -18,9 +18,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { userId, agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { userId, agencyId } = gate.access;
     const body: NavigationRequest = await request.json();
 
     // Get session
@@ -101,8 +101,8 @@ export async function POST(
 
     // Get new current upload info
     const newUploadId = uploadIds[newIndex];
-    const upload = await db.upload.findUnique({
-      where: { id: newUploadId },
+    const upload = await db.upload.findFirst({
+      where: { AND: [uploadWhere(gate.access), { id: newUploadId }] },
       include: {
         creator: { select: { id: true, name: true } },
         request: { select: { id: true, title: true } },

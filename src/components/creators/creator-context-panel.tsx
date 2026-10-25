@@ -376,9 +376,10 @@ function PanelHeader({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-base truncate">{data.name}</h3>
-              <StatusBadge status={data.inviteStatus} />
+              {/* invite status and email arrive only when the role can see them */}
+              {data.inviteStatus && <StatusBadge status={data.inviteStatus} />}
             </div>
-            <p className="text-sm text-muted-foreground truncate">{data.email}</p>
+            {data.email && <p className="text-sm text-muted-foreground truncate">{data.email}</p>}
             <div className="flex items-center gap-3 mt-1">
               {data.lastLoginAt && (
                 <p className="text-xs text-muted-foreground">

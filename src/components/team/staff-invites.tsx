@@ -30,13 +30,8 @@ import { Pill } from "@/components/creators/people-ui";
 import { formatDay } from "@/components/title-wall";
 import type { StaffInviteRow } from "@/lib/staff-invites";
 
-type CustomRole = { id: string; name: string; description: string | null };
-
-const BASE_ROLES = [
-  { value: "ADMIN", label: "Admin", description: "Full access, including the team and settings" },
-  { value: "MANAGER", label: "Manager", description: "Can manage creators and requests" },
-  { value: "MEMBER", label: "Member", description: "Can view and comment only" },
-] as const;
+/** A role the inviter may hand out (never owner; never more access than their own unless they manage roles) */
+type InviteRole = { id: string; name: string; kind: "owner" | "preset" | "custom"; description: string | null };
 
 /**
  * "Invite teammate": pick a role (never owner), optionally a name and email,
@@ -46,15 +41,16 @@ const BASE_ROLES = [
 export function InviteTeammateDialog({
   open,
   onOpenChange,
-  customRoles,
+  roles,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  customRoles: CustomRole[];
+  roles: InviteRole[];
   onCreated: (invite: StaffInviteRow) => void;
 }) {
-  const [role, setRole] = React.useState<string>("MEMBER");
+  const defaultRole = roles.find((r) => r.id === "member")?.id ?? roles[roles.length - 1]?.id ?? "";
+  const [role, setRole] = React.useState<string>(defaultRole);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [sendEmail, setSendEmail] = React.useState(false);
@@ -63,7 +59,7 @@ export function InviteTeammateDialog({
   const [made, setMade] = React.useState<{ link: string; expiresAt: string; emailed: boolean; emailWanted: boolean; to: string | null } | null>(null);
 
   const reset = () => {
-    setRole("MEMBER");
+    setRole(defaultRole);
     setName("");
     setEmail("");
     setSendEmail(false);
@@ -72,9 +68,9 @@ export function InviteTeammateDialog({
   };
 
   const hasEmail = email.trim().length > 0;
-  const description = role.startsWith("custom:")
-    ? customRoles.find((r) => `custom:${r.id}` === role)?.description
-    : BASE_ROLES.find((r) => r.value === role)?.description;
+  const description = roles.find((r) => r.id === role)?.description;
+  const builtIn = roles.filter((r) => r.kind !== "custom");
+  const custom = roles.filter((r) => r.kind === "custom");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,8 +81,7 @@ export function InviteTeammateDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          role: role.startsWith("custom:") ? undefined : role,
-          customRoleId: role.startsWith("custom:") ? role.slice(7) : undefined,
+          roleId: role,
           name: name.trim() || undefined,
           email: email.trim() || undefined,
           sendEmail: sendEmail && hasEmail,
@@ -169,19 +164,21 @@ export function InviteTeammateDialog({
                   <SelectValue placeholder="Choose a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Built-in roles</SelectLabel>
-                    {BASE_ROLES.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                  {customRoles.length > 0 && (
+                  {builtIn.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Built-in roles</SelectLabel>
+                      {builtIn.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
+                  {custom.length > 0 && (
                     <SelectGroup>
                       <SelectLabel>Your roles</SelectLabel>
-                      {customRoles.map((r) => (
-                        <SelectItem key={r.id} value={`custom:${r.id}`}>
+                      {custom.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
                           {r.name}
                         </SelectItem>
                       ))}
@@ -190,7 +187,7 @@ export function InviteTeammateDialog({
                 </SelectContent>
               </Select>
               <p id="invite-role-hint" className="text-[13px] text-ink-2">
-                {description || "Owners can't be invited. Make someone an owner after they join."}
+                {description || "Owners can't be invited. Make someone an owner after they join."} Only roles with no more access than yours are listed.
               </p>
             </div>
 

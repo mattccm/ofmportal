@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { broadcastConversationMessage } from "@/lib/realtime-broadcast";
-import { cleanGroupName, findStaffConversation, staffIdsInAgency } from "@/lib/conversation-access";
+import { INBOX_KEYS, cleanGroupName, findStaffConversation, staffIdsInAgency } from "@/lib/conversation-access";
+import { forbidden, recipientsWhoCanSee, redactCreatorsIn, requestWhere, requireAccess, uploadWhere } from "@/lib/access/server";
 import { extractMentionIds, formatMentionsForDisplay } from "@/lib/mention-parser";
 import { notifyTeam, NotificationType } from "@/lib/notifications";
 
@@ -21,10 +20,9 @@ export async function GET(
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { conversationId } = await params;
     const { searchParams } = new URL(request.url);
@@ -33,8 +31,8 @@ export async function GET(
 
     const userId = session.user.id;
 
-    // Same agency and a participant, or it does not exist for this user
-    if (!(await findStaffConversation(conversationId, userId, session.user.agencyId))) {
+    // Same agency, a participant and a thread this role may see, or it does not exist for this user
+    if (!(await findStaffConversation(conversationId, userId, access.agencyId, access))) {
       return notFound();
     }
 
@@ -102,7 +100,7 @@ export async function GET(
     const [uploads, requests] = await Promise.all([
       uploadIds.size > 0
         ? db.upload.findMany({
-            where: { id: { in: Array.from(uploadIds) } },
+            where: { AND: [uploadWhere(access), { id: { in: Array.from(uploadIds) } }] },
             select: {
               id: true,
               originalName: true,
@@ -114,7 +112,7 @@ export async function GET(
         : [],
       requestIds.size > 0
         ? db.contentRequest.findMany({
-            where: { id: { in: Array.from(requestIds) } },
+            where: { AND: [requestWhere(access), { id: { in: Array.from(requestIds) } }] },
             select: {
               id: true,
               title: true,
@@ -171,18 +169,20 @@ export async function GET(
           AND NOT (COALESCE("readBy", '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('userId', ${userId}::text)))`;
     }
 
-    return NextResponse.json({
-      conversation: {
-        id: conversation.id,
-        type: conversation.type,
-        name: conversation.name,
-        creator: conversation.creator,
-        request: conversation.request,
-        participants: conversation.participants.map((p) => p.user),
-      },
-      messages: messagesWithContent.reverse(), // Return oldest first
-      hasMore: messages.length === limit,
-    });
+    return NextResponse.json(
+      redactCreatorsIn(access, {
+        conversation: {
+          id: conversation.id,
+          type: conversation.type,
+          name: conversation.name,
+          creator: conversation.creator,
+          request: conversation.request,
+          participants: conversation.participants.map((p) => p.user),
+        },
+        messages: messagesWithContent.reverse(), // Return oldest first
+        hasMore: messages.length === limit,
+      })
+    );
   } catch (error) {
     console.error("Error fetching messages:", error);
     return NextResponse.json(
@@ -198,10 +198,9 @@ export async function POST(
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess([...INBOX_KEYS]);
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { conversationId } = await params;
     const body = await request.json();
@@ -209,10 +208,14 @@ export async function POST(
 
     const userId = session.user.id;
 
-    // Same agency and a participant, or it does not exist for this user
-    const convo = await findStaffConversation(conversationId, userId, session.user.agencyId);
+    // Same agency, a participant and a thread this role may see, or it does not exist for this user
+    const convo = await findStaffConversation(conversationId, userId, access.agencyId, access);
     if (!convo) {
       return notFound();
+    }
+    // Writing to a creator needs "Message creators"
+    if (convo.type === "CREATOR" && !access.has("messages.reply")) {
+      return forbidden("messages.reply");
     }
 
     if (!content && !forwardedContent?.length && !attachments?.length) {
@@ -266,7 +269,7 @@ export async function POST(
           convo,
           senderId: userId,
           senderName: message.sender?.name || "A teammate",
-          agencyId: session.user.agencyId,
+          agencyId: access.agencyId,
           messageId: message.id,
           content: content || "",
         });
@@ -312,12 +315,20 @@ async function notifyTeamThread({
   messageId: string;
   content: string;
 }) {
-  const others = (
-    await db.conversationParticipant.findMany({
+  const [participants, thread] = await Promise.all([
+    db.conversationParticipant.findMany({
       where: { conversationId, userId: { not: senderId } },
       select: { userId: true },
-    })
-  ).map((p) => p.userId);
+    }),
+    db.conversation.findUnique({ where: { id: conversationId }, select: { request: { select: { creatorId: true } } } }),
+  ]);
+  // Only members whose role still sees team chats (and, for a request's
+  // thread, that request's creator) hear about it
+  const others = await recipientsWhoCanSee(
+    agencyId,
+    participants.map((p) => p.userId),
+    { keys: ["messages.team"], creatorId: thread?.request?.creatorId ?? null }
+  );
   if (others.length === 0) return;
 
   const link = `/dashboard/messages?conversation=${conversationId}`;
@@ -368,15 +379,15 @@ export async function PATCH(
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Managing or leaving a team group is part of team chats
+    const gate = await requireAccess("messages.team");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
     const { conversationId } = await params;
     const userId = session.user.id;
-    const agencyId = session.user.agencyId;
+    const agencyId = access.agencyId;
 
-    const convo = await findStaffConversation(conversationId, userId, agencyId);
+    const convo = await findStaffConversation(conversationId, userId, agencyId, access);
     if (!convo) return notFound();
     if (convo.type !== "GROUP") {
       return NextResponse.json({ error: "Only team groups can be changed" }, { status: 400 });
@@ -397,7 +408,8 @@ export async function PATCH(
     }
 
     if (add.length > 0) {
-      const valid = await staffIdsInAgency(add, agencyId);
+      // Only teammates inside this person's team scope can be added
+      const valid = await staffIdsInAgency(add, agencyId, access);
       if (valid.length !== add.length) {
         return NextResponse.json({ error: "Only people on your team can be added" }, { status: 400 });
       }
@@ -450,14 +462,14 @@ export async function DELETE(
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Managing or leaving a team group is part of team chats
+    const gate = await requireAccess("messages.team");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
     const { conversationId } = await params;
     const userId = session.user.id;
 
-    const convo = await findStaffConversation(conversationId, userId, session.user.agencyId);
+    const convo = await findStaffConversation(conversationId, userId, access.agencyId, access);
     if (!convo) return notFound();
     if (convo.type !== "GROUP") {
       return NextResponse.json({ error: "Only team groups can be left" }, { status: 400 });

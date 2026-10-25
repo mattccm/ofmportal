@@ -43,7 +43,7 @@ import {
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone?: string | null;
   avatar?: string | null;
 }

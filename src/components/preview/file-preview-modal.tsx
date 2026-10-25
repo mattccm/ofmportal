@@ -35,6 +35,7 @@ import { formatFileSize } from "@/lib/file-utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
+import { useAccess } from "@/lib/access/client";
 
 export interface PreviewFile {
   id: string;
@@ -91,6 +92,11 @@ export function FilePreviewModal({
   onDownload,
   onShare,
 }: FilePreviewModalProps) {
+  // Staff roles decide downloads and links. Outside the staff app (the
+  // creator portal has no AccessProvider) everything stays as it was.
+  const { ready: staff, can } = useAccess();
+  const canDownload = !staff || can("review.download");
+  const canShare = !staff || can("review.share");
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [showMetadata, setShowMetadata] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -211,6 +217,7 @@ export function FilePreviewModal({
   }, [swipeOffset, hasMultipleFiles, goToNext, goToPrevious, onOpenChange]);
 
   const handleDownload = useCallback(() => {
+    if (!canDownload) return;
     if (onDownload && currentFile) {
       onDownload(currentFile);
     } else if (currentFile?.url) {
@@ -223,7 +230,7 @@ export function FilePreviewModal({
       document.body.removeChild(link);
       toast.success("Download started");
     }
-  }, [currentFile, onDownload]);
+  }, [canDownload, currentFile, onDownload]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -351,29 +358,33 @@ export function FilePreviewModal({
               <Info className="h-4 w-4" />
             </Button>
 
-            <Button aria-label={copiedLink ? "Link copied" : "Share"}
-              variant="ghost"
-              size="icon-sm"
-              className="text-white hover:bg-white/20"
-              onClick={handleShare}
-              title="Share"
-            >
-              {copiedLink ? (
-                <Check className="h-4 w-4 text-success" />
-              ) : (
-                <Share2 className="h-4 w-4" />
-              )}
-            </Button>
+            {canShare && (
+              <Button aria-label={copiedLink ? "Link copied" : "Share"}
+                variant="ghost"
+                size="icon-sm"
+                className="text-white hover:bg-white/20"
+                onClick={handleShare}
+                title="Share"
+              >
+                {copiedLink ? (
+                  <Check className="h-4 w-4 text-success" />
+                ) : (
+                  <Share2 className="h-4 w-4" />
+                )}
+              </Button>
+            )}
 
-            <Button aria-label="Download"
-              variant="ghost"
-              size="icon-sm"
-              className="text-white hover:bg-white/20"
-              onClick={handleDownload}
-              title="Download (Ctrl+D)"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
+            {canDownload && (
+              <Button aria-label="Download"
+                variant="ghost"
+                size="icon-sm"
+                className="text-white hover:bg-white/20"
+                onClick={handleDownload}
+                title="Download (Ctrl+D)"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
 
             <div className="w-px h-5 bg-white/20 mx-1" />
 
@@ -513,14 +524,16 @@ export function FilePreviewModal({
                     <p className="text-white/40 text-sm">
                       Preview not available for this file type
                     </p>
-                    <Button
-                      variant="secondary"
-                      className="gap-2 mt-4"
-                      onClick={handleDownload}
-                    >
-                      <Download className="h-4 w-4" />
-                      Download file
-                    </Button>
+                    {canDownload && (
+                      <Button
+                        variant="secondary"
+                        className="gap-2 mt-4"
+                        onClick={handleDownload}
+                      >
+                        <Download className="h-4 w-4" />
+                        Download file
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -634,14 +647,17 @@ export function FilePreviewModal({
 
               {/* Quick actions */}
               <div className="pt-4 border-t border-white/10 space-y-2">
-                <Button
-                  variant="secondary"
-                  className="w-full justify-start gap-2"
-                  onClick={handleDownload}
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </Button>
+                {canDownload && (
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-start gap-2"
+                    onClick={handleDownload}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                )}
+                {canShare && (
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-2 text-white hover:bg-white/10"
@@ -659,6 +675,7 @@ export function FilePreviewModal({
                     </>
                   )}
                 </Button>
+                )}
               </div>
             </div>
           </div>

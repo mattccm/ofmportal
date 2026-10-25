@@ -49,11 +49,13 @@ import {
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { ArchiveDialog } from "@/components/requests/archive-dialog";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
 }
 
 interface RequestTemplate {
@@ -86,6 +88,15 @@ interface Pagination {
 }
 
 export default function ArchivedRequestsPage() {
+  const { can, roleName } = useAccess();
+  if (!can("requests.view")) return <NoAccess what="requests" roleName={roleName} />;
+  return <ArchivedRequests />;
+}
+
+function ArchivedRequests() {
+  const { can } = useAccess();
+  const canRestore = can("requests.archive");
+  const canDelete = can("requests.delete");
   const [requests, setRequests] = useState<ArchivedRequest[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -311,25 +322,29 @@ export default function ArchivedRequestsPage() {
                 {selectedIds.size} request{selectedIds.size !== 1 ? "s" : ""} selected
               </span>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkRestore}
-                  disabled={loading}
-                >
-                  <RotateCcw className="mr-1.5 h-4 w-4" />
-                  Restore
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={loading}
-                  className="hover:text-late"
-                >
-                  <Trash2 className="mr-1.5 h-4 w-4" />
-                  Delete permanently
-                </Button>
+                {canRestore && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkRestore}
+                    disabled={loading}
+                  >
+                    <RotateCcw className="mr-1.5 h-4 w-4" />
+                    Restore
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={loading}
+                    className="hover:text-late"
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" />
+                    Delete permanently
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -417,18 +432,22 @@ export default function ArchivedRequestsPage() {
                                   Open request
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleSingleRestore(request)}>
-                                <RotateCcw className="mr-2 h-4 w-4" />
-                                Restore
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleSingleDelete(request)}
-                                className="text-late focus:text-late"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete permanently
-                              </DropdownMenuItem>
+                              {(canRestore || canDelete) && <DropdownMenuSeparator />}
+                              {canRestore && (
+                                <DropdownMenuItem onClick={() => handleSingleRestore(request)}>
+                                  <RotateCcw className="mr-2 h-4 w-4" />
+                                  Restore
+                                </DropdownMenuItem>
+                              )}
+                              {canDelete && (
+                                <DropdownMenuItem
+                                  onClick={() => handleSingleDelete(request)}
+                                  className="text-late focus:text-late"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete permanently
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -547,16 +566,18 @@ export default function ArchivedRequestsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleSingleRestore(request)}
-                              title="Restore"
-                              aria-label={`Restore ${request.title}`}
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
+                            {canRestore && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleSingleRestore(request)}
+                                title="Restore"
+                                aria-label={`Restore ${request.title}`}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button aria-label={`More actions for ${request.title}`} variant="ghost" size="icon" className="h-8 w-8">
@@ -570,18 +591,22 @@ export default function ArchivedRequestsPage() {
                                     Open request
                                   </Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleSingleRestore(request)}>
-                                  <RotateCcw className="mr-2 h-4 w-4" />
-                                  Restore
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleSingleDelete(request)}
-                                  className="text-late focus:text-late"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete permanently
-                                </DropdownMenuItem>
+                                {(canRestore || canDelete) && <DropdownMenuSeparator />}
+                                {canRestore && (
+                                  <DropdownMenuItem onClick={() => handleSingleRestore(request)}>
+                                    <RotateCcw className="mr-2 h-4 w-4" />
+                                    Restore
+                                  </DropdownMenuItem>
+                                )}
+                                {canDelete && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleSingleDelete(request)}
+                                    className="text-late focus:text-late"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete permanently
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

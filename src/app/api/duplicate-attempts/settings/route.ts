@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import type { DuplicateDetectionSettings } from "@/types/content-fingerprint";
 
@@ -27,18 +26,9 @@ const updateSettingsSchema = z.object({
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to view settings" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const agencyId = session.user.agencyId;
 
@@ -103,18 +93,9 @@ export async function GET() {
  */
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to update settings" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
     const updates = updateSettingsSchema.parse(body);

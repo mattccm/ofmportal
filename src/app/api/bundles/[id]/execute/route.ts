@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
@@ -33,11 +32,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("bundles.run");
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { id: bundleId } = await params;
     const body = await req.json();
@@ -66,10 +63,7 @@ export async function POST(
 
     // Verify creators belong to this agency
     const creators = await db.creator.findMany({
-      where: {
-        id: { in: validatedData.creatorIds },
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: { in: validatedData.creatorIds } }] },
     });
 
     if (creators.length !== validatedData.creatorIds.length) {

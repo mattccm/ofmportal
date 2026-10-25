@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,25 +45,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SelectGroup,
-  SelectLabel,
 } from "@/components/ui/select";
-
-
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Plus,
   Search,
   MoreHorizontal,
-  Shield,
-  ShieldCheck,
-  UserCog,
-  User,
   Clock,
   Mail,
   Trash2,
@@ -72,6 +57,7 @@ import {
   Activity,
   Users,
   Settings,
+  SlidersHorizontal,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
@@ -88,11 +74,15 @@ type ActivityLog = {
   createdAt: string;
 };
 
-type CustomRole = {
+export type TeamRole = {
   id: string;
   name: string;
+  kind: "owner" | "preset" | "custom";
   color: string | null;
   description: string | null;
+  memberCount: number;
+  /** The signed-in person may hand this role out */
+  grantable: boolean;
 };
 
 type TeamMember = {
@@ -100,87 +90,31 @@ type TeamMember = {
   name: string;
   email: string;
   role: "OWNER" | "ADMIN" | "MANAGER" | "MEMBER";
+  roleId: string;
   avatar: string | null;
   lastActiveAt: string | null;
   createdAt: string;
   twoFactorEnabled: boolean;
   isOnline: boolean;
   customRoleId: string | null;
-  customRole: CustomRole | null;
-  permissionOverrides: unknown[];
-  assignedCreatorIds: unknown[];
   activityLogs: ActivityLog[];
 };
 
 type TeamClientProps = {
   initialMembers: TeamMember[];
-  customRoles: CustomRole[];
+  roles: TeamRole[];
   initialInvites: StaffInviteRow[];
-  currentUserRole: string;
   currentUserId: string;
+  can: { invite: boolean; changeRoles: boolean; remove: boolean; manageRoles: boolean; isOwner: boolean };
 };
 
-// Default role configurations
-const defaultRoleConfig: Record<string, { icon: React.ElementType; label: string; color: string; bgColor: string; description: string }> = {
-  OWNER: {
-    icon: ShieldCheck,
-    label: "Owner",
-    color: "#eceef2",
-    bgColor: "bg-tile-hi text-ink border-ctl",
-    description: "Full access, can manage team and billing",
-  },
-  ADMIN: {
-    icon: Shield,
-    label: "Admin",
-    color: "#eceef2",
-    bgColor: "bg-tile-hi text-ink border-ctl",
-    description: "Full access except billing",
-  },
-  MANAGER: {
-    icon: UserCog,
-    label: "Manager",
-    color: "#a6aab3",
-    bgColor: "bg-transparent text-ink border-ctl",
-    description: "Can manage creators and requests",
-  },
-  MEMBER: {
-    icon: User,
-    label: "Member",
-    color: "#a6aab3",
-    bgColor: "bg-transparent text-ink-2 border-ctl",
-    description: "Can view and comment only",
-  },
-};
-
-function getRoleBadge(member: TeamMember) {
-  // If member has a custom role, use that
-  if (member.customRole) {
-    return (
-      <Badge
-        variant="outline"
-        className="font-medium"
-        style={{
-          backgroundColor: `${member.customRole.color}15`,
-          borderColor: member.customRole.color || "#6b7280",
-          color: member.customRole.color || "#6b7280",
-        }}
-      >
-        <Shield className="h-3 w-3 mr-1" />
-        {member.customRole.name}
-      </Badge>
-    );
-  }
-
-  // Otherwise use default role
-  const config = defaultRoleConfig[member.role];
-  if (!config) return null;
-  const Icon = config.icon;
-
+function RoleBadge({ role }: { role: TeamRole | undefined }) {
+  if (!role) return null;
   return (
-    <Badge variant="outline" className={config.bgColor}>
-      <Icon className="h-3 w-3 mr-1" />
-      {config.label}
-    </Badge>
+    <span className="inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-[6px] bg-tile-hi px-2 text-[12.5px] font-semibold leading-none text-ink">
+      <span className="size-2 rounded-full" style={{ backgroundColor: role.color ?? "#a6aab3" }} aria-hidden="true" />
+      {role.name}
+    </span>
   );
 }
 
@@ -211,10 +145,10 @@ function formatActivityAction(action: string, metadata: Record<string, unknown>)
 
 export default function TeamClient({
   initialMembers,
-  customRoles,
+  roles,
   initialInvites,
-  currentUserRole,
   currentUserId,
+  can,
 }: TeamClientProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -227,8 +161,7 @@ export default function TeamClient({
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [invites, setInvites] = useState<StaffInviteRow[]>(initialInvites);
-  const [editRole, setEditRole] = useState<string>("");
-  const [editCustomRoleId, setEditCustomRoleId] = useState<string>("");
+  const [editRoleId, setEditRoleId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filter members based on search and role
@@ -237,16 +170,7 @@ export default function TeamClient({
       member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email.toLowerCase().includes(searchQuery.toLowerCase());
 
-    let matchesRole = roleFilter === "ALL";
-    if (!matchesRole) {
-      if (roleFilter.startsWith("custom:")) {
-        // Custom role filter
-        matchesRole = member.customRoleId === roleFilter.replace("custom:", "");
-      } else {
-        // Default role filter
-        matchesRole = member.role === roleFilter && !member.customRoleId;
-      }
-    }
+    const matchesRole = roleFilter === "ALL" || member.roleId === roleFilter;
 
     return matchesSearch && matchesRole;
   });
@@ -254,22 +178,17 @@ export default function TeamClient({
   // Handle role update
   const handleUpdateRole = async () => {
     if (!selectedMember) return;
-    if (!editRole && !editCustomRoleId) {
-      toast.error("Please select a role");
+    if (!editRoleId) {
+      toast.error("Choose a role");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Update the role via the user-permissions endpoint
-      const response = await fetch("/api/roles/user-permissions", {
-        method: "PUT",
+      const response = await fetch(`/api/team/${selectedMember.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: selectedMember.id,
-          roleId: editCustomRoleId ? undefined : editRole.toLowerCase(),
-          customRoleId: editCustomRoleId || undefined,
-        }),
+        body: JSON.stringify({ roleId: editRoleId }),
       });
 
       const data = await response.json();
@@ -278,7 +197,7 @@ export default function TeamClient({
         throw new Error(data.error || "Failed to update role");
       }
 
-      toast.success("Role updated");
+      toast.success(`${selectedMember.name} is now ${data.role?.name ?? "on the new role"}`);
       setEditDialogOpen(false);
       setSelectedMember(null);
 
@@ -322,23 +241,71 @@ export default function TeamClient({
     }
   };
 
-  const canManageMembers = ["OWNER", "ADMIN"].includes(currentUserRole);
-  const canAssignOwner = currentUserRole === "OWNER";
+  const roleById = new Map(roles.map((r) => [r.id, r]));
+  // Someone's role can be changed when you hold "change roles", it isn't you,
+  // and you may hand out their current role (an owner's: only another owner)
+  const canChangeRoleOf = (m: TeamMember) =>
+    can.changeRoles && m.id !== currentUserId && (m.roleId !== "owner" || can.isOwner) && !!roleById.get(m.roleId)?.grantable;
+  const canRemoveMember = (m: TeamMember) =>
+    can.remove && m.id !== currentUserId && (m.roleId !== "owner" || can.isOwner) && !!roleById.get(m.roleId)?.grantable;
+  const roleChoices = roles.filter((r) => r.grantable && (r.kind !== "owner" || can.isOwner));
+
+  const memberMenu = (member: TeamMember, className?: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button aria-label={`More actions for ${member.name}`} variant="ghost" size="icon" className={className}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem
+          onClick={() => {
+            setSelectedMember(member);
+            setActivityDialogOpen(true);
+          }}
+        >
+          <Activity className="mr-2 h-4 w-4" />
+          View activity
+        </DropdownMenuItem>
+        {canChangeRoleOf(member) && (
+          <DropdownMenuItem
+            onClick={() => {
+              setSelectedMember(member);
+              setEditRoleId(member.roleId);
+              setEditDialogOpen(true);
+            }}
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Change role
+          </DropdownMenuItem>
+        )}
+        {can.manageRoles && (
+          <DropdownMenuItem onClick={() => router.push(`/dashboard/settings/roles/${member.roleId}`)}>
+            <SlidersHorizontal className="mr-2 h-4 w-4" />
+            Open their role
+          </DropdownMenuItem>
+        )}
+        {canRemoveMember(member) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedMember(member);
+                setDeleteDialogOpen(true);
+              }}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Remove from team
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const twoFactorOn = members.filter((m) => m.twoFactorEnabled).length;
   const teamLede = `${members.length} ${members.length === 1 ? "person" : "people"} on the team. Two-factor sign-in is on for ${twoFactorOn} of ${members.length}${twoFactorOn < members.length ? "; ask the rest to turn it on in Security settings" : ""}.`;
-
-  // Count members by role type
-  const roleCounts = {
-    default: Object.keys(defaultRoleConfig).reduce((acc, role) => {
-      acc[role] = members.filter((m) => m.role === role && !m.customRoleId).length;
-      return acc;
-    }, {} as Record<string, number>),
-    custom: customRoles.reduce((acc, role) => {
-      acc[role.id] = members.filter((m) => m.customRoleId === role.id).length;
-      return acc;
-    }, {} as Record<string, number>),
-  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -349,38 +316,33 @@ export default function TeamClient({
           <p className="mt-1.5 text-[15px] text-ink">{teamLede}</p>
         </div>
         <div className="flex flex-col gap-2 max-sm:[&>*]:h-11 max-sm:[&>*]:w-full sm:flex-row sm:items-center">
-          {canManageMembers && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => router.push("/dashboard/settings/roles")}
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                Roles and permissions
-              </Button>
-              <InviteTeammateButton onClick={() => setInviteDialogOpen(true)} />
-            </>
+          {can.manageRoles && (
+            <Button variant="outline" onClick={() => router.push("/dashboard/settings/roles")}>
+              <Settings className="mr-2 h-4 w-4" />
+              Roles and permissions
+            </Button>
           )}
+          {can.invite && <InviteTeammateButton onClick={() => setInviteDialogOpen(true)} />}
         </div>
       </div>
 
-      {canManageMembers && (
+      {can.invite && (
         <InviteTeammateDialog
           open={inviteDialogOpen}
           onOpenChange={setInviteDialogOpen}
-          customRoles={customRoles}
+          roles={roles.filter((r) => r.grantable && r.kind !== "owner")}
           onCreated={(invite) => setInvites((prev) => [invite, ...prev])}
         />
       )}
 
-      {/* Invites not accepted yet: owners and admins only */}
-      {canManageMembers && invites.length > 0 && (
+      {/* Invites not accepted yet: people who can invite */}
+      {can.invite && invites.length > 0 && (
         <PendingInvites invites={invites} onChange={setInvites} onInvite={() => setInviteDialogOpen(true)} />
       )}
 
       {/* Role filter: counts as a segmented control, not stat tiles */}
       <div role="group" aria-label="Show role" className="inline-flex max-w-full flex-wrap gap-0.5 rounded-[8px] bg-well p-0.5">
-        {[["ALL", "Everyone", members.length] as const, ...Object.entries(defaultRoleConfig).map(([role, config]) => [role, `${config.label}s`, roleCounts.default[role] || 0] as const)].map(([key, label, count]) => (
+        {[["ALL", "Everyone", members.length] as const, ...roles.filter((r) => members.some((m) => m.roleId === r.id)).map((r) => [r.id, r.name, members.filter((m) => m.roleId === r.id).length] as const)].map(([key, label, count]) => (
           <button
             key={key}
             type="button"
@@ -397,90 +359,16 @@ export default function TeamClient({
         ))}
       </div>
 
-      {/* Custom Roles Summary */}
-      {customRoles.length > 0 && (
-        <Card>
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Custom Roles
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="py-0 pb-3">
-            <div className="flex flex-wrap gap-2">
-              {customRoles.map((role) => {
-                const count = roleCounts.custom[role.id] || 0;
-                const isActive = roleFilter === `custom:${role.id}`;
-                return (
-                  <Badge
-                    key={role.id}
-                    variant={isActive ? "default" : "outline"}
-                    className={cn(
-                      "cursor-pointer transition-all text-sm py-1.5 px-3",
-                      !isActive && "hover:bg-accent"
-                    )}
-                    style={{
-                      backgroundColor: isActive ? role.color || "#6b7280" : `${role.color}15`,
-                      borderColor: role.color || "#6b7280",
-                      color: isActive ? "white" : role.color || "#6b7280",
-                    }}
-                    onClick={() => setRoleFilter(isActive ? "ALL" : `custom:${role.id}`)}
-                  >
-                    {role.name}
-                    <span className="ml-1.5 opacity-70">({count})</span>
-                  </Badge>
-                );
-              })}
-              <Link href="/dashboard/settings/roles">
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer hover:bg-accent transition-colors text-sm py-1.5 px-3"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Create Role
-                </Badge>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger aria-label="Filter by role" className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Filter by role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Roles</SelectItem>
-            <SelectGroup>
-              <SelectLabel>Default Roles</SelectLabel>
-              <SelectItem value="OWNER">Owners</SelectItem>
-              <SelectItem value="ADMIN">Admins</SelectItem>
-              <SelectItem value="MANAGER">Managers</SelectItem>
-              <SelectItem value="MEMBER">Members</SelectItem>
-            </SelectGroup>
-            {customRoles.length > 0 && (
-              <SelectGroup>
-                <SelectLabel>Custom Roles</SelectLabel>
-                {customRoles.map((role) => (
-                  <SelectItem key={role.id} value={`custom:${role.id}`}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            )}
-          </SelectContent>
-        </Select>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-icon" aria-hidden="true" />
+        <Input
+          placeholder="Search by name or email"
+          aria-label="Search the team"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Empty State */}
@@ -501,7 +389,7 @@ export default function TeamClient({
                   ? "Try adjusting your search or filter criteria."
                   : "Get started by inviting your first team member."}
               </p>
-              {canManageMembers && !searchQuery && roleFilter === "ALL" && (
+              {can.invite && !searchQuery && roleFilter === "ALL" && (
                 <Button className="mt-6 min-h-[44px]" onClick={() => setInviteDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Invite teammate
@@ -545,68 +433,17 @@ export default function TeamClient({
                             {member.email}
                           </p>
                         </div>
-                        {canManageMembers && member.id !== currentUserId && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button aria-label={`More actions for ${member.name}`} variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedMember(member);
-                                  setActivityDialogOpen(true);
-                                }}
-                              >
-                                <Activity className="mr-2 h-4 w-4" />
-                                View Activity
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedMember(member);
-                                  setEditRole(member.customRoleId ? "" : member.role);
-                                  setEditCustomRoleId(member.customRoleId || "");
-                                  setEditDialogOpen(true);
-                                }}
-                              >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Change Role
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedMember(member);
-                                  setDeleteDialogOpen(true);
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Remove Member
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        {member.id !== currentUserId && (
+                          memberMenu(member, "h-9 w-9 flex-shrink-0")
                         )}
                       </div>
 
                       <div className="flex items-center gap-2 mt-3 flex-wrap">
-                        {getRoleBadge(member)}
+                        <RoleBadge role={roleById.get(member.roleId)} />
                         {member.twoFactorEnabled && (
                           <Badge variant="outline" className="bg-success/10 text-success border-success/30">
                             2FA
                           </Badge>
-                        )}
-                        {(member.permissionOverrides as unknown[]).length > 0 && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Badge variant="secondary" className="text-xs">
-                                  Custom
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>Has custom permission overrides</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
                         )}
                       </div>
 
@@ -668,21 +505,7 @@ export default function TeamClient({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getRoleBadge(member)}
-                          {(member.permissionOverrides as unknown[]).length > 0 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Badge variant="secondary" className="text-xs">
-                                    Custom
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent>Has custom permission overrides</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
+                        <RoleBadge role={roleById.get(member.roleId)} />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -714,54 +537,7 @@ export default function TeamClient({
                         )}
                       </TableCell>
                       <TableCell>
-                        {canManageMembers && member.id !== currentUserId && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button aria-label={`More actions for ${member.name}`} variant="ghost" size="icon" className="h-9 w-9">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedMember(member);
-                                  setActivityDialogOpen(true);
-                                }}
-                              >
-                                <Activity className="mr-2 h-4 w-4" />
-                                View Activity
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedMember(member);
-                                  setEditRole(member.customRoleId ? "" : member.role);
-                                  setEditCustomRoleId(member.customRoleId || "");
-                                  setEditDialogOpen(true);
-                                }}
-                              >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Change Role
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => router.push("/dashboard/settings/roles")}
-                              >
-                                <Settings className="mr-2 h-4 w-4" />
-                                Manage Permissions
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedMember(member);
-                                  setDeleteDialogOpen(true);
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Remove Member
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                        {member.id !== currentUserId && memberMenu(member, "h-9 w-9")}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -776,81 +552,33 @@ export default function TeamClient({
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Change Role</DialogTitle>
+            <DialogTitle>Change role</DialogTitle>
             <DialogDescription>
-              Update the role for {selectedMember?.name}
+              Choose the role for {selectedMember?.name}. Their role decides what they can see and change.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>New Role</Label>
-              <Select
-                value={editCustomRoleId ? `custom:${editCustomRoleId}` : editRole}
-                onValueChange={(value) => {
-                  if (value.startsWith("custom:")) {
-                    setEditRole("");
-                    setEditCustomRoleId(value.replace("custom:", ""));
-                  } else {
-                    setEditRole(value);
-                    setEditCustomRoleId("");
-                  }
-                }}
-              >
-                <SelectTrigger aria-label="New Role">
-                  <SelectValue placeholder="Select a role" />
+              <Label>New role</Label>
+              <Select value={editRoleId} onValueChange={setEditRoleId}>
+                <SelectTrigger aria-label="New role">
+                  <SelectValue placeholder="Choose a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Default Roles</SelectLabel>
-                    {canAssignOwner && (
-                      <SelectItem value="OWNER">
-                        <div className="flex items-center gap-2">
-                          <ShieldCheck className="h-4 w-4" style={{ color: defaultRoleConfig.OWNER.color }} />
-                          <span>Owner</span>
-                        </div>
-                      </SelectItem>
-                    )}
-                    <SelectItem value="ADMIN">
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4" style={{ color: defaultRoleConfig.ADMIN.color }} />
-                        <span>Admin</span>
-                      </div>
+                  {roleChoices.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full" style={{ backgroundColor: r.color ?? "#a6aab3" }} aria-hidden="true" />
+                        {r.name}
+                      </span>
                     </SelectItem>
-                    <SelectItem value="MANAGER">
-                      <div className="flex items-center gap-2">
-                        <UserCog className="h-4 w-4" style={{ color: defaultRoleConfig.MANAGER.color }} />
-                        <span>Manager</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="MEMBER">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" style={{ color: defaultRoleConfig.MEMBER.color }} />
-                        <span>Member</span>
-                      </div>
-                    </SelectItem>
-                  </SelectGroup>
-                  {customRoles.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel>Custom Roles</SelectLabel>
-                      {customRoles.map((role) => (
-                        <SelectItem key={role.id} value={`custom:${role.id}`}>
-                          <div className="flex items-center gap-2">
-                            <Shield className="h-4 w-4" style={{ color: role.color || "#6b7280" }} />
-                            <span>{role.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
+                  ))}
                 </SelectContent>
               </Select>
-              {(editRole || editCustomRoleId) && (
-                <p className="text-xs text-muted-foreground">
-                  {editCustomRoleId
-                    ? customRoles.find((r) => r.id === editCustomRoleId)?.description
-                    : defaultRoleConfig[editRole]?.description}
-                </p>
-              )}
+              {editRoleId && <p className="text-[13px] text-ink-2">{roleById.get(editRoleId)?.description}</p>}
+              <p className="text-[13px] text-ink-2">
+                {can.manageRoles ? "" : "Only roles with no more access than yours are listed. "}The change takes effect straight away.
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -859,14 +587,9 @@ export default function TeamClient({
             </DialogClose>
             <Button
               onClick={handleUpdateRole}
-              disabled={
-                isSubmitting ||
-                (!editRole && !editCustomRoleId) ||
-                (editRole === selectedMember?.role && !selectedMember?.customRoleId) ||
-                (editCustomRoleId === selectedMember?.customRoleId)
-              }
+              disabled={isSubmitting || !editRoleId || editRoleId === selectedMember?.roleId}
             >
-              {isSubmitting ? "Updating..." : "Update Role"}
+              {isSubmitting ? "Changing…" : "Change role"}
             </Button>
           </DialogFooter>
         </DialogContent>

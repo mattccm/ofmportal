@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { recipientsWhoCanSee, requireAccess, requestWhere, staffWhere, forbidden } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
 import { format } from "date-fns";
-import { excludePseudoUsers } from "@/lib/staff";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 
 // Schema for bulk status update requests
@@ -43,22 +41,36 @@ interface BulkResult {
   error?: string;
 }
 
+/** The permission a bulk action needs on top of requests.bulk */
+function bulkActionKey(action: z.infer<typeof bulkStatusSchema>["action"], status?: string): string {
+  if (action === "archive") return "requests.archive";
+  if (action === "sendReminders") return "requests.remind";
+  if (action === "changeStatus") {
+    if (status === "APPROVED") return "review.approve";
+    if (status === "NEEDS_REVISION") return "review.requestChanges";
+    if (status === "ARCHIVED") return "requests.archive";
+  }
+  return "requests.edit";
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.bulk");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const validatedData = bulkStatusSchema.parse(body);
 
-    // Verify all requests belong to this agency
+    // Each bulk action also needs the permission for the action itself
+    const actionKey = bulkActionKey(validatedData.action, validatedData.status);
+    if (!access.has(actionKey)) return forbidden(actionKey);
+
+    // Verify all requests belong to this agency and are inside this person's creator scope
     const requests = await db.contentRequest.findMany({
       where: {
+        ...requestWhere(access),
         id: { in: validatedData.requestIds },
-        agencyId: session.user.agencyId,
       },
       include: {
         creator: true,
@@ -205,11 +217,7 @@ export async function POST(req: NextRequest) {
 
         // Verify team member exists and belongs to agency
         const teamMember = await db.user.findFirst({
-          where: {
-            id: validatedData.teamMemberId,
-            agencyId: session.user.agencyId,
-            ...excludePseudoUsers,
-          },
+          where: { AND: [staffWhere(access), { id: validatedData.teamMemberId }] },
         });
 
         if (!teamMember) {
@@ -218,6 +226,15 @@ export async function POST(req: NextRequest) {
             { status: 404 }
           );
         }
+
+        // Whether the assignee's role can see each creator (once per creator)
+        const creatorIds = [...new Set(requests.map((r) => r.creatorId))];
+        const seen = await Promise.all(
+          creatorIds.map((creatorId) =>
+            recipientsWhoCanSee(access.agencyId, [teamMember.id], { creatorId, keys: ["requests.view"] })
+          )
+        );
+        const assigneeSees = new Set(creatorIds.filter((_, i) => seen[i].length > 0));
 
         for (const request of requests) {
           try {
@@ -239,16 +256,18 @@ export async function POST(req: NextRequest) {
               },
             });
 
-            // Create notification for assigned team member
-            await db.notification.create({
-              data: {
-                userId: teamMember.id,
-                type: "request_assigned",
-                title: "New Request Assigned",
-                message: `You have been assigned to "${request.title}"`,
-                link: `/dashboard/requests/${request.id}`,
-              },
-            });
+            // Tell the assigned team member, if their role can see this request
+            if (assigneeSees.has(request.creatorId)) {
+              await db.notification.create({
+                data: {
+                  userId: teamMember.id,
+                  type: "request_assigned",
+                  title: "New Request Assigned",
+                  message: `You have been assigned to "${request.title}"`,
+                  link: `/dashboard/requests/${request.id}`,
+                },
+              });
+            }
 
             results.push({
               requestId: request.id,

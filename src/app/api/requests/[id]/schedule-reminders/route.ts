@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import {
@@ -24,19 +23,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
     const { id: requestId } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Verify request belongs to agency
     const request = await db.contentRequest.findFirst({
-      where: {
-        id: requestId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id: requestId }] },
       include: {
         creator: {
           select: {
@@ -64,7 +58,7 @@ export async function GET(
       preview = await previewReminderSchedule(requestId);
     }
 
-    return NextResponse.json({
+    return NextResponse.json(redactCreatorsIn(access, {
       requestId,
       creator: request.creator,
       dueDate: request.dueDate,
@@ -72,7 +66,7 @@ export async function GET(
       status: request.status,
       summary,
       preview,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching reminder info:", error);
     return NextResponse.json(
@@ -89,19 +83,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("requests.remind");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
     const { id: requestId } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Verify request belongs to agency
     const request = await db.contentRequest.findFirst({
-      where: {
-        id: requestId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id: requestId }] },
       include: {
         creator: {
           select: {
@@ -199,19 +188,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireAccess("requests.remind");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
     const { id: requestId } = await params;
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Verify request belongs to agency
     const request = await db.contentRequest.findFirst({
-      where: {
-        id: requestId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id: requestId }] },
       include: {
         creator: {
           select: {

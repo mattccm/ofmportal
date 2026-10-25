@@ -1,6 +1,6 @@
 // GET /api/review-sessions/[id]/stream - SSE endpoint for real-time updates
 
-import { getReviewSessionUser } from "@/lib/review-session-auth";
+import { requireAccess } from "@/lib/access/server";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { createSSEStream, sessionStore } from "@/lib/realtime-session";
@@ -12,9 +12,9 @@ export async function GET(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { agencyId } = gate.access;
 
     // Verify session exists and user has access
     const session = await db.reviewSession.findUnique({
@@ -57,9 +57,9 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const reviewUser = await getReviewSessionUser();
-    if (!reviewUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { agencyId } = reviewUser;
+    const gate = await requireAccess("settings.reviewSessions");
+    if (gate.error) return gate.error;
+    const { agencyId } = gate.access;
 
     // Verify session exists and user has access
     const session = await db.reviewSession.findUnique({

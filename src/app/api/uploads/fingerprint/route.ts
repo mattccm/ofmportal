@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { forbidden, getAccess, requireAccess, requestWhere, type Access } from "@/lib/access/server";
 import { z } from "zod";
 import type {
   StoreFingerprintResponse,
@@ -30,6 +31,12 @@ const storeFingerprintSchema = z.object({
  * Store fingerprint data for an upload after it completes.
  * This creates a ContentFingerprint record for future duplicate detection.
  */
+/** Staff access to one upload: the key, then the creator scope */
+async function staffCanSee(access: Access | null, uploadId: string, agencyId: string): Promise<boolean> {
+  if (!access || access.agencyId !== agencyId) return false;
+  return (await db.upload.count({ where: { id: uploadId, request: requestWhere(access) } })) > 0;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -65,7 +72,10 @@ export async function POST(req: NextRequest) {
     let creatorId: string;
 
     if (session?.user?.agencyId) {
-      hasAccess = upload.request.agencyId === session.user.agencyId;
+      // Recording a fingerprint is part of uploading on a creator's behalf
+      const access = await getAccess(session);
+      if (access && !access.has("requests.upload")) return forbidden("requests.upload");
+      hasAccess = await staffCanSee(access, upload.id, upload.request.agencyId);
       agencyId = upload.request.agencyId;
       creatorId = upload.creatorId;
     } else if (creatorToken) {
@@ -220,7 +230,9 @@ export async function GET(req: NextRequest) {
       let hasAccess = false;
 
       if (session?.user?.agencyId) {
-        hasAccess = fingerprint.upload.request.agencyId === session.user.agencyId;
+        const access = await getAccess(session);
+        if (access && !access.has("review.view")) return forbidden("review.view");
+        hasAccess = await staffCanSee(access, uploadId, fingerprint.upload.request.agencyId);
       } else if (creatorToken) {
         const creator = await db.creator.findFirst({
           where: {
@@ -286,7 +298,9 @@ export async function GET(req: NextRequest) {
     let hasAccess = false;
 
     if (session?.user?.agencyId) {
-      hasAccess = upload.request.agencyId === session.user.agencyId;
+      const access = await getAccess(session);
+      if (access && !access.has("review.view")) return forbidden("review.view");
+      hasAccess = await staffCanSee(access, upload.id, upload.request.agencyId);
     } else if (creatorToken) {
       const creator = await db.creator.findFirst({
         where: {
@@ -338,19 +352,10 @@ export async function GET(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admins and owners can delete fingerprints
-    if (!["ADMIN", "OWNER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to delete fingerprints" },
-        { status: 403 }
-      );
-    }
+    // Fingerprints belong to duplicate detection
+    const gate = await requireAccess("settings.duplicates");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const uploadId = searchParams.get("uploadId");
@@ -377,8 +382,8 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    if (upload.request.agencyId !== session.user.agencyId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    if (!(await staffCanSee(access, upload.id, upload.request.agencyId))) {
+      return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
     // Delete from ContentFingerprint table

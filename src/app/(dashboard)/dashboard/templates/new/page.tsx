@@ -7,9 +7,12 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TemplateBuilder } from "@/components/templates/template-builder";
 import { TemplateFormData } from "@/lib/template-types";
+import { useAccess } from "@/lib/access/client";
+import { NoAccess } from "@/components/access/no-access";
 
 export default function NewTemplatePage() {
   const router = useRouter();
+  const { can, roleName } = useAccess();
 
   const handleSave = async (data: TemplateFormData, isDraft: boolean) => {
     const response = await fetch("/api/templates", {
@@ -34,6 +37,8 @@ export default function NewTemplatePage() {
       router.push("/dashboard/templates");
     }
   };
+
+  if (!can("templates.create")) return <NoAccess what="making templates" roleName={roleName} />;
 
   return (
     <div className="h-full">

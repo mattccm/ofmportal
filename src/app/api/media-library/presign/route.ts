@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import {
@@ -26,21 +25,18 @@ const presignSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access } = gate;
+    // The library is the creators' content, so it also needs "Their content library"
+    if (!access.has("creatorInfo.content")) return forbidden("creatorInfo.content");
 
     const body = await req.json();
     const data = presignSchema.parse(body);
 
     // Verify creator belongs to the caller's agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: data.creatorId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: data.creatorId }] },
       select: { id: true },
     });
 
@@ -73,7 +69,7 @@ export async function POST(req: NextRequest) {
     // Media-library storage key namespace (kept separate from request uploads)
     const timestamp = Date.now();
     const sanitizedFilename = data.fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const storageKey = `media/${session.user.agencyId}/${data.creatorId}/${timestamp}-${sanitizedFilename}`;
+    const storageKey = `media/${access.agencyId}/${data.creatorId}/${timestamp}-${sanitizedFilename}`;
 
     const { url, key } = await getUploadPresignedUrl(
       storageKey,

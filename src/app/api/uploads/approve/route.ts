@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess, requestWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentApprovedEmail } from "@/lib/email";
@@ -15,21 +14,16 @@ const approveSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("review.approve");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const body = await req.json();
     const { uploadIds, requestId } = approveSchema.parse(body);
 
     // Verify request belongs to agency
     const request = await db.contentRequest.findFirst({
-      where: {
-        id: requestId,
-        agencyId: session.user.agencyId,
-      },
+      where: { AND: [requestWhere(access), { id: requestId }] },
       include: {
         creator: true,
       },

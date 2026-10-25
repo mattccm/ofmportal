@@ -5,6 +5,7 @@ import path from "path";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canSeeCreator, getAccess } from "@/lib/access/server";
 import { LOCAL_UPLOAD_DIR, useLocalStorage } from "@/lib/storage";
 
 // MIME type mapping
@@ -91,9 +92,21 @@ export async function GET(
     // (header or query param), with creators restricted to their own files.
     // Inline media (image/video/audio) is exempt because it is loaded via
     // <img>/<video> tags that cannot carry credentials.
+    // Staff: only files of creators inside their creator scope, in their
+    // own agency (keys are agencyId/creatorId/...).
     const session = await getServerSession(authOptions);
-    const isStaff = Boolean(session?.user?.agencyId);
-    let isAuthorized = isStaff;
+    let isAuthorized = false;
+    if (session?.user?.agencyId) {
+      const access = await getAccess(session);
+      const [keyAgency, keyCreator] = normalizedKey.split(/[/\\]/);
+      isAuthorized = Boolean(
+        access &&
+          access.has("review.view") &&
+          keyAgency === access.agencyId &&
+          keyCreator &&
+          (await canSeeCreator(access, keyCreator))
+      );
+    }
 
     if (!isAuthorized) {
       const creatorToken =

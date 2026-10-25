@@ -58,11 +58,12 @@ import {
   type StageUpload,
 } from "./review-player-parts";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
 
 interface Creator {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone?: string | null;
   avatar?: string | null;
 }
@@ -239,6 +240,10 @@ export function RequestDetailClient({
   const [historyAll, setHistoryAll] = useState(false);
 
   const { openCreatorContext } = useCreatorContextPanel();
+  const { can } = useAccess();
+  const canApprove = can("review.approve");
+  const canAskChanges = can("review.requestChanges");
+  const canEdit = can("requests.edit");
   useSetCreatorContext(initialRequest.creator.id);
   const { celebrateCustom } = useCelebrationContext();
   const userId = currentUserId || currentUser.id;
@@ -512,7 +517,7 @@ export function RequestDetailClient({
   );
 
   const approveCurrent = useCallback(() => {
-    if (!current || finished) return;
+    if (!current || finished || !canApprove) return;
     const id = current.id as string;
     if (current.state === "approved" || current.state === "waiting" || current.state === "overdue") return;
     approve([id]);
@@ -523,10 +528,10 @@ export function RequestDetailClient({
     const next = rest.find((fid) => fid !== id && stateOf(fid) === "ready");
     if (next) setUpNext(next);
     else toast.message("Every ready field is reviewed", { description: "New uploads will show here as the creator sends them." });
-  }, [current, finished, approve, strip, stateOf]);
+  }, [current, finished, canApprove, approve, strip, stateOf]);
 
   const approveAllReady = () => {
-    if (readyIds.length === 0) return;
+    if (readyIds.length === 0 || !canApprove) return;
     approve(readyIds);
     setUpNext(null);
   };
@@ -569,7 +574,7 @@ export function RequestDetailClient({
   };
 
   const openChanges = () => {
-    if (finished || !current || currentUploads.length === 0) return;
+    if (finished || !current || currentUploads.length === 0 || !canAskChanges) return;
     setUpNext(null);
     setChangesText(submission?.feedback ?? "");
     setChangesOpen(true);
@@ -637,7 +642,7 @@ export function RequestDetailClient({
 
   // ---------------------------------------------------------------- edit mode
 
-  if (isEditMode) {
+  if (isEditMode && can("requests.edit")) {
     return (
       <RequestEditor
         request={request as unknown as Parameters<typeof RequestEditor>[0]["request"]}
@@ -648,6 +653,9 @@ export function RequestDetailClient({
   }
 
   // ---------------------------------------------------------------- derived copy
+
+  // Only what the role may see reaches the browser; show what is there
+  const contactLine = [request.creator.email, request.creator.phone].filter(Boolean).join(" · ");
 
   const requestForClone = {
     id: request.id,
@@ -800,16 +808,18 @@ export function RequestDetailClient({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {!finished && (
+          {!finished && canApprove && (
             <Button variant="outline" onClick={approveAllReady} disabled={readyIds.length === 0}>
               <Check className="size-4" />
               Approve all ready{readyIds.length > 0 ? ` (${readyIds.length})` : ""}
             </Button>
           )}
-          <Button variant="outline" aria-pressed={showAll} onClick={() => setShowAll((v) => !v)}>
-            {showAll ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            {showAll ? "Hide previews" : "Show previews"}
-          </Button>
+          {can("review.reveal") && (
+            <Button variant="outline" aria-pressed={showAll} onClick={() => setShowAll((v) => !v)}>
+              {showAll ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              {showAll ? "Hide previews" : "Show previews"}
+            </Button>
+          )}
           <RequestActions request={request} onCloneClick={() => setCloneDialogOpen(true)} />
         </div>
       </div>
@@ -921,19 +931,19 @@ export function RequestDetailClient({
               </form>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                {canReview && currentState !== "approved" && (
+                {canReview && canApprove && currentState !== "approved" && (
                   <Button onClick={approveCurrent} disabled={currentState === "waiting" || currentState === "overdue"}>
                     <Check className="size-4" />
                     {currentState === "changes" ? "Approve anyway" : "Approve"}
                     <Kbd>A</Kbd>
                   </Button>
                 )}
-                {canReview && (
+                {canReview && canAskChanges && (
                   <Button variant="outline" onClick={openChanges}>
                     Request changes <Kbd>R</Kbd>
                   </Button>
                 )}
-                {!canReview && (
+                {!canReview && can("requests.remind") && (
                   <Button
                     variant="outline"
                     onClick={async () => {
@@ -967,8 +977,8 @@ export function RequestDetailClient({
             {!finished && (
               <p className="hidden flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2 md:flex">
                 <span className="inline-flex items-center gap-1"><Kbd>J</Kbd><Kbd>K</Kbd> next and previous field</span>
-                <span className="inline-flex items-center gap-1"><Kbd>A</Kbd> approve</span>
-                <span className="inline-flex items-center gap-1"><Kbd>R</Kbd> request changes</span>
+                {canApprove && <span className="inline-flex items-center gap-1"><Kbd>A</Kbd> approve</span>}
+                {canAskChanges && <span className="inline-flex items-center gap-1"><Kbd>R</Kbd> request changes</span>}
                 <span className="inline-flex items-center gap-1"><Kbd>Esc</Kbd> cancel</span>
                 <span>Hold a preview, or press P on it, to peek</span>
               </p>
@@ -1076,13 +1086,29 @@ export function RequestDetailClient({
               <div className="flex items-center justify-between gap-3 py-2">
                 <dt className="text-ink-2">Status</dt>
                 <dd>
-                  <EditableStatusBadge requestId={request.id} status={request.status} onUpdate={handleStatusUpdate} size="sm" />
+                  {canEdit ? (
+                    <EditableStatusBadge
+                      requestId={request.id}
+                      status={request.status}
+                      onUpdate={handleStatusUpdate}
+                      size="sm"
+                      allowedStatuses={Object.keys(STATUS_WORD).filter(
+                        (s) => s === request.status || (s === "APPROVED" ? canApprove : s === "NEEDS_REVISION" ? canAskChanges : s === "ARCHIVED" ? can("requests.archive") : true)
+                      )}
+                    />
+                  ) : (
+                    <span className="text-ink">{STATUS_WORD[request.status] ?? request.status}</span>
+                  )}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3 py-2">
                 <dt className="text-ink-2">Priority</dt>
                 <dd>
-                  <EditablePriorityBadge requestId={request.id} priority={request.urgency} onUpdate={handlePriorityUpdate} size="sm" />
+                  {canEdit ? (
+                    <EditablePriorityBadge requestId={request.id} priority={request.urgency} onUpdate={handlePriorityUpdate} size="sm" />
+                  ) : (
+                    <span className="text-ink">{request.urgency.charAt(0) + request.urgency.slice(1).toLowerCase()}</span>
+                  )}
                 </dd>
               </div>
               <div className="flex justify-between gap-3 py-2.5">
@@ -1092,7 +1118,13 @@ export function RequestDetailClient({
               <div className="flex items-center justify-between gap-3 py-2">
                 <dt className="text-ink-2">Due</dt>
                 <dd className={cn("text-right", !finished && request.dueDate && new Date(request.dueDate) < new Date() ? "text-late" : "text-ink")}>
-                  <EditableDueDate requestId={request.id} dueDate={request.dueDate} onUpdate={handleDueDateUpdate} size="sm" />
+                  {canEdit ? (
+                    <EditableDueDate requestId={request.id} dueDate={request.dueDate} onUpdate={handleDueDateUpdate} size="sm" />
+                  ) : request.dueDate ? (
+                    formatStamp(request.dueDate)
+                  ) : (
+                    "No due date"
+                  )}
                 </dd>
               </div>
               {request.submittedAt && (
@@ -1133,30 +1165,35 @@ export function RequestDetailClient({
             </dl>
           </section>
 
+          {(contactLine || can("messages.creators") || can("creators.view") || can("requests.create")) && (
           <section aria-labelledby="message-h">
             <h2 id="message-h" className="mb-3 text-[17px] font-semibold text-ink">Message {firstName}</h2>
             <div className="space-y-3 rounded-[10px] bg-tile p-4">
-              <p className="text-[14px] text-ink-2">
-                {request.creator.email}
-                {request.creator.phone ? ` · ${request.creator.phone}` : ""}
-              </p>
+              {contactLine && <p className="text-[14px] text-ink-2">{contactLine}</p>}
               <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/dashboard/messages?creatorId=${request.creator.id}`}>
-                    <MessageSquare className="size-4" />
-                    Open the thread
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => openCreatorContext(request.creator.id)}>
-                  <PanelRightOpen className="size-4" />
-                  Creator context <Kbd>C</Kbd>
-                </Button>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/dashboard/requests/new?creatorId=${request.creator.id}`}>New request</Link>
-                </Button>
+                {can("messages.creators") && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/dashboard/messages?creatorId=${request.creator.id}`}>
+                      <MessageSquare className="size-4" />
+                      Open the thread
+                    </Link>
+                  </Button>
+                )}
+                {can("creators.view") && (
+                  <Button variant="ghost" size="sm" onClick={() => openCreatorContext(request.creator.id)}>
+                    <PanelRightOpen className="size-4" />
+                    Creator context <Kbd>C</Kbd>
+                  </Button>
+                )}
+                {can("requests.create") && (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/dashboard/requests/new?creatorId=${request.creator.id}`}>New request</Link>
+                  </Button>
+                )}
               </div>
             </div>
           </section>
+          )}
 
           {/* The brief */}
           {(request.description || detailFields.length > 0 || request.requirements?._richContent) && (
@@ -1215,7 +1252,8 @@ export function RequestDetailClient({
                   requestId={request.id}
                   watchers={watchers}
                   currentUserId={userId}
-                  canManageWatchers={["OWNER", "ADMIN", "MANAGER"].includes(currentUser.role)}
+                  canManageWatchers={can("requests.edit")}
+                  canRemoveWatchers={can("requests.watchers")}
                   onWatchersChange={setWatchers}
                 />
               </div>
@@ -1238,10 +1276,12 @@ export function RequestDetailClient({
                     Clones{" "}
                     {cloneHistory && <span className="font-normal text-ink-2">{cloneHistory.clones.length}</span>}
                   </h3>
-                  <Button variant="ghost" size="sm" onClick={() => setCloneDialogOpen(true)}>
-                    <GitBranch className="size-3.5" />
-                    Clone
-                  </Button>
+                  {can("requests.create") && (
+                    <Button variant="ghost" size="sm" onClick={() => setCloneDialogOpen(true)}>
+                      <GitBranch className="size-3.5" />
+                      Clone
+                    </Button>
+                  )}
                 </div>
                 {loadingHistory ? (
                   <p className="flex items-center gap-2 text-[14px] text-ink-2">

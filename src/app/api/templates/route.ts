@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -77,11 +76,11 @@ const createTemplateSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["templates.view", "requests.create", "recurring.create", "recurring.edit", "bundles.edit"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
+    // People who manage template groups see every group; others keep their own group limits
+    const seesAllGroups = access.has("templates.groups");
 
     const { searchParams } = new URL(req.url);
     const isActiveParam = searchParams.get("isActive");
@@ -91,7 +90,7 @@ export async function GET(req: NextRequest) {
     // Get user's allowed categories (if restricted)
     const user = await db.user.findUnique({
       where: { id: session.user.id },
-      select: { allowedCategoryIds: true, role: true },
+      select: { allowedCategoryIds: true },
     });
 
     let allowedCategoryIds: string[] = [];
@@ -136,7 +135,7 @@ export async function GET(req: NextRequest) {
 
     // Apply category restrictions for non-admin users
     // If user has allowed categories, only show templates in those categories (or uncategorized)
-    if (allowedCategoryIds.length > 0 && !["OWNER", "ADMIN"].includes(user?.role || "")) {
+    if (allowedCategoryIds.length > 0 && !seesAllGroups) {
       // User can see templates in their allowed categories OR uncategorized templates
       // This is handled by fetching all then filtering (Prisma doesn't support OR with null easily in where)
     }
@@ -161,7 +160,7 @@ export async function GET(req: NextRequest) {
 
     // Filter by allowed categories if user has restrictions
     let filteredTemplates = templates;
-    if (allowedCategoryIds.length > 0 && !["OWNER", "ADMIN"].includes(user?.role || "")) {
+    if (allowedCategoryIds.length > 0 && !seesAllGroups) {
       filteredTemplates = templates.filter((t) => {
         // Allow uncategorized templates
         if (!t.categoryId) return true;
@@ -227,11 +226,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("templates.create");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
     const validatedData = createTemplateSchema.parse(body);

@@ -7,6 +7,7 @@ import { ChevronDown, Plus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Billboard, Shelf, Wall, timeLeft, useFocusWall } from "@/components/title-wall";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/lib/access/client";
 import type { OverviewData, OverviewRequest } from "@/app/(dashboard)/dashboard/_overview/types";
 import { ago, arrangeOverview, plural, type CreatorOwes } from "./arrange";
 import {
@@ -113,6 +114,16 @@ function hrefForWallId(id: string): string | null {
  */
 export function OverviewWall({ data, canRemind }: OverviewWallProps) {
   const router = useRouter();
+  const { can } = useAccess();
+  // Actions the role allows (the server pages and APIs check them too)
+  const may = {
+    request: can("requests.create"),
+    seeRequests: can("requests.view"),
+    message: can("messages.creators"),
+    invite: can("creators.invite"),
+    templates: can("templates.view"),
+    reveal: can("review.reveal"),
+  };
   const now = useMemo(() => new Date(data.now), [data.now]);
   const layout = useMemo(() => arrangeOverview(data), [data]);
   const { featured, reviewing, dueThisWeek, waiting, figures } = layout;
@@ -142,15 +153,14 @@ export function OverviewWall({ data, canRemind }: OverviewWallProps) {
   }, []);
   const { focusedId } = useFocusWall(wallRef, { onOpen, announce });
 
-  const thread = (creatorId: string) => threadHref(data.conversationByCreator[creatorId], creatorId);
+  const thread = (creatorId: string) => (may.message ? threadHref(data.conversationByCreator[creatorId], creatorId) : null);
   const remindRequest = (r: OverviewRequest) =>
-    remind({ key: r.id, requestIds: [r.id], name: r.creatorName, channel: r.creatorContact });
+    remind({ key: r.id, requestIds: [r.id], name: r.creatorName });
   const remindCreator = (c: CreatorOwes) =>
     remind({
       key: `creator:${c.creatorId}`,
       requestIds: c.requests.map((r) => r.id),
       name: c.creatorName,
-      channel: c.requests[0].creatorContact,
     });
 
   const unreadTotal = data.messages.reduce((n, m) => n + m.unread, 0);
@@ -194,12 +204,14 @@ export function OverviewWall({ data, canRemind }: OverviewWallProps) {
             </p>
           )}
         </div>
-        <Button asChild variant="light" className="max-sm:w-full" data-tour="create-request-btn">
-          <Link href="/dashboard/requests/new">
-            <Plus aria-hidden="true" />
-            New request
-          </Link>
-        </Button>
+        {may.request && (
+          <Button asChild variant="light" className="max-sm:w-full" data-tour="create-request-btn">
+            <Link href="/dashboard/requests/new">
+              <Plus aria-hidden="true" />
+              New request
+            </Link>
+          </Button>
+        )}
       </header>
 
       {/* the billboard: the most urgent request */}
@@ -226,6 +238,15 @@ export function OverviewWall({ data, canRemind }: OverviewWallProps) {
               </>
             }
           />
+        ) : noRequests && !may.seeRequests ? (
+          <section className="rounded-[10px] bg-tile px-6 py-7 sm:px-8" aria-labelledby="ov-first">
+            <h2 id="ov-first" className="text-[clamp(26px,2.8vw,36px)] font-extrabold leading-[1.05] tracking-[-0.03em]">
+              Requests are not part of your role
+            </h2>
+            <p className="mt-3 max-w-[60ch] text-[15px] leading-normal">
+              The shelves here show requests and what creators still owe. Ask an owner to add requests to your role if you need them.
+            </p>
+          </section>
         ) : noRequests ? (
           <section className="rounded-[10px] bg-tile px-6 py-7 sm:px-8" aria-labelledby="ov-first">
             <h2 id="ov-first" className="text-[clamp(26px,2.8vw,36px)] font-extrabold leading-[1.05] tracking-[-0.03em]">
@@ -235,17 +256,23 @@ export function OverviewWall({ data, canRemind }: OverviewWallProps) {
               Send a creator a request built from one of your templates. They upload from their phone, and each upload lands
               here, field by field, for you to review.
             </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Button asChild variant="outline">
-                <Link href="/dashboard/creators/invite">
-                  <UserPlus aria-hidden="true" />
-                  Invite a creator
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/dashboard/templates">See templates</Link>
-              </Button>
-            </div>
+            {(may.invite || may.templates) && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {may.invite && (
+                  <Button asChild variant="outline">
+                    <Link href="/dashboard/creators/invite">
+                      <UserPlus aria-hidden="true" />
+                      Invite a creator
+                    </Link>
+                  </Button>
+                )}
+                {may.templates && (
+                  <Button asChild variant="outline">
+                    <Link href="/dashboard/templates">See templates</Link>
+                  </Button>
+                )}
+              </div>
+            )}
           </section>
         ) : null}
       </div>
@@ -326,7 +353,7 @@ export function OverviewWall({ data, canRemind }: OverviewWallProps) {
                 <span className="tw-shelf-sub max-sm:order-3 max-sm:basis-full">
                   The latest {plural(data.uploads.length, "field")} with uploads to review
                 </span>
-                {uploadsOpen && <PreviewToggle on={showPreviews} onToggle={() => setShowPreviews((v) => !v)} />}
+                {uploadsOpen && may.reveal && <PreviewToggle on={showPreviews} onToggle={() => setShowPreviews((v) => !v)} />}
               </div>
               <div id={uploadsRegionId} hidden={!uploadsOpen}>
                 {uploadsOpen && (
@@ -345,7 +372,7 @@ export function OverviewWall({ data, canRemind }: OverviewWallProps) {
             </section>
           )}
 
-          {data.messages.length > 0 ? (
+          {!may.message ? null : data.messages.length > 0 ? (
             <Shelf
               title="Messages"
               sub={`${plural(unreadTotal, "unread message")} from ${plural(data.messages.length, "creator")}`}

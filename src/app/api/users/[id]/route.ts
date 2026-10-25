@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, staffWhere } from "@/lib/access/server";
 
 /**
  * GET /api/users/[id]
@@ -13,19 +12,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(null);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { id } = await params;
 
     const user = await db.user.findFirst({
-      where: {
-        id,
-        // Only expose users within the caller's own agency
-        agencyId: session.user.agencyId,
-      },
+      // Only teammates in the caller's agency and team scope
+      where: { AND: [staffWhere(access), { id }] },
       select: {
         id: true,
         name: true,

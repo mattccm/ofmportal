@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
 import { invalidateCache } from "@/lib/cache";
 import { creatorInvite, creatorInviteLink, inviteExpiry, newInviteToken } from "@/lib/invites";
 
@@ -13,21 +12,16 @@ import { creatorInvite, creatorInviteLink, inviteExpiry, newInviteToken } from "
  * The link is a bearer secret: it is returned to staff, never logged.
  */
 
-const MANAGE_ROLES = ["OWNER", "ADMIN", "MANAGER"];
-
-async function load(params: Promise<{ id: string }>) {
-  const session = await getServerSession(authOptions);
+async function load(params: Promise<{ id: string }>, opts: { reading?: boolean } = {}) {
+  // Making or cancelling a link: inviting, or resetting someone's access
+  const gate = await requireAccess(["creators.invite", "creators.resetAccess"]);
+  if (gate.error) return { error: gate.error } as const;
+  const { session, access } = gate;
+  // Reading the current link is seeing invite links
+  if (opts.reading && !access.has("creatorInfo.invite")) return { error: forbidden("creatorInfo.invite") } as const;
   const { id } = await params;
-  if (!session?.user?.agencyId) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) } as const;
-  }
-  if (!MANAGE_ROLES.includes(session.user.role)) {
-    return {
-      error: NextResponse.json({ error: "You don't have permission to manage invites" }, { status: 403 }),
-    } as const;
-  }
   const creator = await db.creator.findFirst({
-    where: { id, agencyId: session.user.agencyId },
+    where: { AND: [creatorWhere(access), { id }] },
     select: {
       id: true,
       name: true,
@@ -52,7 +46,7 @@ async function load(params: Promise<{ id: string }>) {
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const r = await load(params);
+    const r = await load(params, { reading: true });
     if ("error" in r) return r.error;
     const { creator } = r;
     const invite = creatorInvite(creator);

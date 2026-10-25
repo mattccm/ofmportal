@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, redactCreatorsIn, uploadWhere, type Access } from "@/lib/access/server";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 
@@ -25,13 +24,14 @@ interface RouteParams {
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
     // Check for share token access (public collections)
     const { searchParams } = new URL(req.url);
     const shareToken = searchParams.get("token");
 
     let collection;
+    // Signed-in viewers see uploads within their creator scope; a public share
+    // link sees no private creator information.
+    let viewer: Pick<Access, "has"> & Partial<Access> = { has: () => false };
 
     if (shareToken) {
       // Public access via share token
@@ -52,14 +52,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       });
     } else {
       // Authenticated access
-      if (!session?.user?.agencyId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+      const gate = await requireAccess("settings.mediaLibrary");
+      if (gate.error) return gate.error;
+      viewer = gate.access;
 
       collection = await db.collection.findFirst({
         where: {
           id,
-          agencyId: session.user.agencyId,
+          agencyId: gate.access.agencyId,
         },
         include: {
           items: {
@@ -81,7 +81,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const uploadIds = collection.items.map((i: any) => i.uploadId);
     const uploads = uploadIds.length > 0
       ? await db.upload.findMany({
-          where: { id: { in: uploadIds } },
+          where: viewer.agencyId
+            ? { AND: [uploadWhere(viewer as Access), { id: { in: uploadIds } }] }
+            : { id: { in: uploadIds } },
           include: {
             creator: {
               select: {
@@ -131,7 +133,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }).filter((item: any) => item.upload !== null);
 
-    return NextResponse.json({
+    return NextResponse.json(redactCreatorsIn(viewer, {
       id: collection.id,
       name: collection.name,
       description: collection.description,
@@ -144,7 +146,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       items,
       createdAt: collection.createdAt,
       updatedAt: collection.updatedAt,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching collection:", error);
     return NextResponse.json(
@@ -159,11 +161,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     // Check collection exists and belongs to agency
     const existing = await db.collection.findFirst({
@@ -242,11 +242,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     // Check collection exists and belongs to agency
     const existing = await db.collection.findFirst({

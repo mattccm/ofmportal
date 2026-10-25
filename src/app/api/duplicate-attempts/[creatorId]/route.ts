@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, redactCreator, requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import type {
   DuplicateAttempt,
@@ -26,19 +25,9 @@ export async function GET(
   { params }: { params: Promise<{ creatorId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admins, owners, and managers can view this
-    if (!["ADMIN", "OWNER", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "You do not have permission to view this data" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess(["settings.duplicates", "creators.edit"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const { creatorId } = await params;
     const { searchParams } = new URL(req.url);
@@ -48,10 +37,7 @@ export async function GET(
 
     // Verify creator belongs to this agency
     const creator = await db.creator.findFirst({
-      where: {
-        id: creatorId,
-        agencyId,
-      },
+      where: { AND: [creatorWhere(access), { id: creatorId }] },
       select: {
         id: true,
         name: true,
@@ -158,7 +144,7 @@ export async function GET(
     const pattern: CreatorDuplicatePattern = {
       creatorId: creator.id,
       creatorName: creator.name,
-      creatorEmail: creator.email,
+      creatorEmail: access.has("creatorInfo.email") ? creator.email : "",
       totalAttempts: total,
       blockedAttempts: blockedCount,
       firstAttempt: firstAttempt?.attemptedAt || new Date(),
@@ -194,7 +180,7 @@ export async function GET(
     }));
 
     return NextResponse.json({
-      creator,
+      creator: redactCreator(access, creator),
       attempts: formattedAttempts,
       pagination: {
         page: queryParams.page,

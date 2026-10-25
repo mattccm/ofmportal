@@ -33,6 +33,7 @@ import {
 
 
 import { toast } from "sonner";
+import { useAccess } from "@/lib/access/client";
 import { ReminderPreviewCalendar, ScheduledReminder } from "./reminder-preview-calendar";
 
 // TYPES
@@ -306,10 +307,11 @@ function PreviewCalendarSection({ rules }: { rules: ReminderRule[] }) {
 // MAIN COMPONENT
 
 export function ReminderSettingsPanel({ rules, className }: ReminderSettingsPanelProps) {
+  const { can } = useAccess();
   return (
     <div className={cn("space-y-6", className)}>
-      {/* Test Reminder */}
-      <TestReminderSection />
+      {/* Test reminders are sent for real: Reminders, send by hand */}
+      {can("reminders.send") && <TestReminderSection />}
 
       {/* Preview Calendar */}
       <Card className="card-elevated">

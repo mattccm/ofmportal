@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAccess } from "@/lib/access/server";
 import { getUploadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
 
 // Determine if we're using local MinIO or Cloudflare R2
@@ -44,11 +43,9 @@ function getAssetPublicUrl(key: string): string {
 // Returns a presigned URL for direct browser-to-R2 upload
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["templates.create", "templates.edit"]);
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await request.json();
     const { fileName, fileType, fileSize } = body;

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { forbidden, requestWhere, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
@@ -15,7 +14,9 @@ import { format, differenceInDays } from "date-fns";
 const sendReminderSchema = z.object({
   reminderId: z.string().optional(),
   requestId: z.string().optional(),
-  channel: z.enum(["EMAIL", "SMS", "BOTH"]).default("EMAIL"),
+  // Left out: the creator's preferred contact method, decided here so the
+  // browser never needs to know it
+  channel: z.enum(["EMAIL", "SMS", "BOTH"]).optional(),
   customMessage: z.string().max(2000, "Message too long").optional(),
 }).refine(
   (data) => data.reminderId || data.requestId,
@@ -26,22 +27,16 @@ const sendReminderSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check user role
-    if (!["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+    const gate = await requireAccess(["reminders.send", "requests.remind"]);
+    if (gate.error) return gate.error;
+    const { session, access } = gate;
 
     const body = await req.json();
-    const { reminderId, requestId, channel, customMessage } = sendReminderSchema.parse(body);
+    const { reminderId, requestId, channel: askedChannel, customMessage } = sendReminderSchema.parse(body);
+
+    // Sending a scheduled reminder early is a Reminders action; reminding
+    // from a request (overview, creator page) is covered by requests.remind
+    if (reminderId && !access.has("reminders.send")) return forbidden("reminders.send");
 
     let reminder;
     let request;
@@ -51,9 +46,7 @@ export async function POST(req: NextRequest) {
       reminder = await db.reminder.findFirst({
         where: {
           id: reminderId,
-          request: {
-            agencyId: session.user.agencyId,
-          },
+          request: requestWhere(access),
         },
         include: {
           request: {
@@ -76,8 +69,7 @@ export async function POST(req: NextRequest) {
       // Create and send new reminder for request
       request = await db.contentRequest.findFirst({
         where: {
-          id: requestId,
-          agencyId: session.user.agencyId,
+          AND: [requestWhere(access), { id: requestId }],
         },
         include: {
           creator: true,
@@ -98,6 +90,8 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
+
+    const channel = askedChannel ?? request.creator.preferredContact ?? "EMAIL";
 
     const portalLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
     const dueDate = request.dueDate ? format(request.dueDate, "MMMM d, yyyy") : "No due date";

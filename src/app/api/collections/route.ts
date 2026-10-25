@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, uploadWhere } from "@/lib/access/server";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 
@@ -20,11 +19,9 @@ const createCollectionSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(req.url);
     const privacy = searchParams.get("privacy");
@@ -90,7 +87,7 @@ export async function GET(req: NextRequest) {
     const uploadIds = collections.flatMap((c: any) => c.items.map((i: any) => i.uploadId));
     const uploads = uploadIds.length > 0
       ? await db.upload.findMany({
-          where: { id: { in: uploadIds } },
+          where: { AND: [uploadWhere(access), { id: { in: uploadIds } }] },
           select: {
             id: true,
             thumbnailUrl: true,
@@ -151,11 +148,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId || !session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("settings.mediaLibrary");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await req.json();
     const validatedData = createCollectionSchema.parse(body);

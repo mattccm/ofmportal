@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAccess, requestWhere, uploadWhere, type Access } from "@/lib/access/server";
 import { isValidHexColor, getRandomPresetColor } from "@/lib/tag-types";
 
 // Type for tag stored in agency settings
@@ -56,7 +55,7 @@ async function updateAgencyTags(agencyId: string, tags: StoredTag[]) {
 
 // Helper to count tag usage across uploads and requests
 async function getTagUsageCounts(
-  agencyId: string,
+  access: Access,
   tagIds: string[]
 ): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
@@ -64,9 +63,8 @@ async function getTagUsageCounts(
 
   // Count in uploads (tags stored as array in JSON field)
   const uploads = await db.upload.findMany({
-    where: {
-      request: { agencyId },
-    },
+    // Counts cover only what this person may see
+    where: uploadWhere(access),
     select: { tags: true },
   });
 
@@ -83,7 +81,7 @@ async function getTagUsageCounts(
 
   // Count in requests (requirements JSON field may contain tags)
   const requests = await db.contentRequest.findMany({
-    where: { agencyId },
+    where: requestWhere(access),
     select: { requirements: true },
   });
 
@@ -104,10 +102,9 @@ async function getTagUsageCounts(
 // GET - List all tags for agency with usage counts
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.view");
+    if (gate.error) return gate.error;
+    const { access, session } = gate;
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.toLowerCase();
@@ -128,7 +125,7 @@ export async function GET(request: NextRequest) {
     }));
     if (includeUsage) {
       const usageCounts = await getTagUsageCounts(
-        session.user.agencyId,
+        access,
         tags.map((t) => t.id)
       );
 
@@ -158,10 +155,9 @@ export async function GET(request: NextRequest) {
 // POST - Create a new tag
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.edit");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await request.json();
     const { name, color = getRandomPresetColor() } = body;
@@ -223,10 +219,9 @@ export async function POST(request: NextRequest) {
 // PATCH - Update an existing tag
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.edit");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const body = await request.json();
     const { id, name, color } = body;
@@ -296,10 +291,9 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Delete a tag
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("requests.edit");
+    if (gate.error) return gate.error;
+    const { session } = gate;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

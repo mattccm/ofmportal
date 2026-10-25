@@ -4,7 +4,9 @@
 
 import { db } from "@/lib/db";
 import { excludePseudoUsers } from "@/lib/staff";
-import { ConversationType, RequestStatus } from "@prisma/client";
+import { ConversationType, RequestStatus, type Prisma } from "@prisma/client";
+import { creatorScopeWhere, staffScopeWhere, type Access } from "@/lib/access/server";
+import { filterActivityByCreatorScope, redactActivityMetadata } from "@/lib/activity-scope";
 import type {
   ActivityLog as OversightActivityLog,
   StaffActivityMetrics,
@@ -112,6 +114,59 @@ export async function saveOversightKeywords(
 }
 
 // ----------------------------------------------------------------------------
+// Scope: oversight shows only the creators and teammates inside the viewer's
+// role scopes. With both scopes "all" (every preset) nothing is filtered.
+// ----------------------------------------------------------------------------
+export interface OversightScope {
+  agencyId: string;
+  access: Access;
+  /** Creator fragment, {} = every creator */
+  creator: Prisma.CreatorWhereInput;
+  /** Staff fragment, {} = every teammate */
+  staff: Prisma.UserWhereInput;
+}
+
+export function oversightScope(access: Access): OversightScope {
+  return {
+    agencyId: access.agencyId,
+    access,
+    creator: creatorScopeWhere(access),
+    staff: access.teamScope.type === "all" ? {} : staffScopeWhere(access),
+  };
+}
+
+const isOpen = (w: object) => Object.keys(w).length === 0;
+
+const TEAM_TYPES = [ConversationType.DIRECT, ConversationType.GROUP, ConversationType.REQUEST_THREAD];
+
+/** Creator threads with an in-scope creator */
+function creatorConversations(scope: OversightScope): Prisma.ConversationWhereInput {
+  return isOpen(scope.creator)
+    ? { agencyId: scope.agencyId, type: ConversationType.CREATOR }
+    : { agencyId: scope.agencyId, type: ConversationType.CREATOR, creator: scope.creator };
+}
+
+/** Team threads where everyone is in the team scope (and a request thread's creator is in scope) */
+function teamConversations(scope: OversightScope): Prisma.ConversationWhereInput {
+  return {
+    agencyId: scope.agencyId,
+    type: { in: TEAM_TYPES },
+    AND: [
+      isOpen(scope.staff) ? {} : { participants: { every: { user: scope.staff } } },
+      isOpen(scope.creator) ? {} : { OR: [{ requestId: null }, { request: { creator: scope.creator } }] },
+    ],
+  };
+}
+
+function scopedConversations(scope: OversightScope): Prisma.ConversationWhereInput {
+  return { OR: [creatorConversations(scope), teamConversations(scope)] };
+}
+
+function scopedRequests(scope: OversightScope): Prisma.ContentRequestWhereInput {
+  return isOpen(scope.creator) ? { agencyId: scope.agencyId } : { agencyId: scope.agencyId, creator: scope.creator };
+}
+
+// ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
 function startOfToday(): Date {
@@ -125,12 +180,17 @@ function daysAgo(n: number): Date {
   return d;
 }
 
-async function getAgencyUserIds(agencyId: string): Promise<string[]> {
+async function getAgencyUserIds(scope: OversightScope): Promise<string[]> {
   const users = await db.user.findMany({
-    where: { agencyId, ...excludePseudoUsers },
+    where: { agencyId: scope.agencyId, AND: [excludePseudoUsers, scope.staff] },
     select: { id: true },
   });
   return users.map((u) => u.id);
+}
+
+/** Staff a list may name: everyone in scope (null = no filter needed) */
+async function visibleStaff(scope: OversightScope): Promise<Set<string> | null> {
+  return isOpen(scope.staff) ? null : new Set(await getAgencyUserIds(scope));
 }
 
 function conversationTypeToOversight(
@@ -192,12 +252,12 @@ function avg(nums: number[]): number {
 // Fetches a bounded, recent sample of creator-conversation messages and computes
 // response-time metrics per creator and per staff member. Shared by several
 // aggregations to avoid re-querying.
-async function getCreatorConversationResponseMetrics(agencyId: string): Promise<{
+async function getCreatorConversationResponseMetrics(scope: OversightScope): Promise<{
   perCreator: Map<string, number>;
   perStaff: Map<string, number>;
 }> {
   const messages = await db.message.findMany({
-    where: { conversation: { agencyId, type: ConversationType.CREATOR } },
+    where: { conversation: creatorConversations(scope) },
     orderBy: { createdAt: "desc" },
     take: MESSAGE_SCAN_LIMIT,
     select: {
@@ -254,18 +314,20 @@ async function getCreatorConversationResponseMetrics(agencyId: string): Promise<
 // Recent activity (staff actions from ActivityLog)
 // ----------------------------------------------------------------------------
 export async function getRecentActivity(
-  agencyId: string,
+  scope: OversightScope,
   limit = ACTIVITY_LIMIT
 ): Promise<OversightActivityLog[]> {
-  const userIds = await getAgencyUserIds(agencyId);
+  const userIds = await getAgencyUserIds(scope);
   if (userIds.length === 0) return [];
 
-  const logs = await db.activityLog.findMany({
+  const fetched = await db.activityLog.findMany({
     where: { userId: { in: userIds } },
     orderBy: { createdAt: "desc" },
-    take: Math.min(limit, 100),
+    // Room for rows about out-of-scope creators that are dropped below
+    take: isOpen(scope.creator) ? Math.min(limit, 100) : 100,
     include: { user: { select: { id: true, name: true, role: true } } },
   });
+  const logs = (await filterActivityByCreatorScope(scope.access, fetched)).slice(0, Math.min(limit, 100));
 
   return logs.map((log) => ({
     id: log.id,
@@ -275,7 +337,7 @@ export async function getRecentActivity(
     action: log.action,
     resourceType: log.entityType,
     resourceId: log.entityId,
-    details: (log.metadata as Record<string, unknown>) || {},
+    details: redactActivityMetadata(scope.access, (log.metadata as Record<string, unknown>) || {}),
     ipAddress: log.ipAddress || undefined,
     userAgent: log.userAgent || undefined,
     timestamp: log.createdAt,
@@ -286,10 +348,11 @@ export async function getRecentActivity(
 // Staff activity metrics
 // ----------------------------------------------------------------------------
 export async function getStaffMetrics(
-  agencyId: string
+  scope: OversightScope
 ): Promise<StaffActivityMetrics[]> {
+  const { agencyId } = scope;
   const users = await db.user.findMany({
-    where: { agencyId, ...excludePseudoUsers },
+    where: { agencyId, AND: [excludePseudoUsers, scope.staff] },
     orderBy: [{ lastActiveAt: { sort: "desc", nulls: "last" } }, { name: "asc" }],
     take: STAFF_LIMIT,
     select: {
@@ -336,7 +399,7 @@ export async function getStaffMetrics(
       by: ["senderId"],
       where: {
         senderId: { in: userIds },
-        conversation: { agencyId, type: ConversationType.CREATOR },
+        conversation: creatorConversations(scope),
       },
       _count: { _all: true },
     }),
@@ -353,7 +416,7 @@ export async function getStaffMetrics(
     }),
     db.contentRequest.groupBy({
       by: ["reviewedBy"],
-      where: { agencyId, reviewedBy: { in: userIds } },
+      where: { ...scopedRequests(scope), reviewedBy: { in: userIds } },
       _count: { _all: true },
     }),
     db.session.groupBy({
@@ -361,7 +424,7 @@ export async function getStaffMetrics(
       where: { userId: { in: userIds } },
       _count: { _all: true },
     }),
-    getCreatorConversationResponseMetrics(agencyId),
+    getCreatorConversationResponseMetrics(scope),
   ]);
 
   const toMap = <T extends { _count: { _all: number } }>(
@@ -412,10 +475,11 @@ export type CreatorCommunicationSummaryWithThread = CreatorCommunicationSummary 
 };
 
 export async function getCreatorCommunications(
-  agencyId: string
+  scope: OversightScope
 ): Promise<CreatorCommunicationSummaryWithThread[]> {
+  const staffSeen = await visibleStaff(scope);
   const conversations = await db.conversation.findMany({
-    where: { agencyId, type: ConversationType.CREATOR, creatorId: { not: null } },
+    where: { ...creatorConversations(scope), creatorId: { not: null } },
     take: CONVERSATION_LIMIT,
     orderBy: [{ lastMessageAt: { sort: "desc", nulls: "last" } }],
     select: {
@@ -440,7 +504,7 @@ export async function getCreatorCommunications(
     by: ["conversationId"],
     where: {
       createdAt: { gte: weekAgo },
-      conversation: { agencyId, type: ConversationType.CREATOR },
+      conversation: creatorConversations(scope),
     },
     _count: { _all: true },
   });
@@ -450,13 +514,13 @@ export async function getCreatorCommunications(
   // Pending requests per creator.
   const pendingGroups = await db.contentRequest.groupBy({
     by: ["creatorId"],
-    where: { agencyId, status: { in: PENDING_REQUEST_STATUSES } },
+    where: { ...scopedRequests(scope), status: { in: PENDING_REQUEST_STATUSES } },
     _count: { _all: true },
   });
   const pendingByCreator = new Map<string, number>();
   for (const g of pendingGroups) pendingByCreator.set(g.creatorId, g._count._all);
 
-  const responseMetrics = await getCreatorConversationResponseMetrics(agencyId);
+  const responseMetrics = await getCreatorConversationResponseMetrics(scope);
 
   // Aggregate conversations by creator (a creator may have multiple).
   // Conversations arrive ordered by lastMessageAt desc, so the first one seen
@@ -469,6 +533,8 @@ export async function getCreatorCommunications(
     const staff = conv.participants
       .map((p) => p.user)
       .filter((u): u is NonNullable<typeof u> => Boolean(u))
+      // Only teammates inside the viewer's team scope are named
+      .filter((u) => !staffSeen || staffSeen.has(u.id))
       .map((u) => ({ id: u.id, name: u.name, role: u.role }));
 
     if (existing) {
@@ -506,11 +572,12 @@ export async function getCreatorCommunications(
 // Message oversight (conversation list)
 // ----------------------------------------------------------------------------
 export async function getMessageOversight(
-  agencyId: string,
+  scope: OversightScope,
   keywords: OversightKeyword[]
 ): Promise<MessageOversight[]> {
+  const staffSeen = await visibleStaff(scope);
   const conversations = await db.conversation.findMany({
-    where: { agencyId },
+    where: scopedConversations(scope),
     take: CONVERSATION_LIMIT,
     orderBy: [{ lastMessageAt: { sort: "desc", nulls: "last" } }],
     select: {
@@ -531,6 +598,7 @@ export async function getMessageOversight(
     const participants: ConversationParticipant[] = conv.participants
       .map((p) => p.user)
       .filter((u): u is NonNullable<typeof u> => Boolean(u))
+      .filter((u) => !staffSeen || staffSeen.has(u.id))
       .map((u) => ({ id: u.id, name: u.name, role: u.role }));
     if (conv.creator) {
       participants.push({
@@ -562,11 +630,12 @@ export async function getMessageOversight(
 // Conversation thread (for the thread viewer)
 // ----------------------------------------------------------------------------
 export async function getConversationThread(
-  agencyId: string,
+  scope: OversightScope,
   conversationId: string
 ): Promise<ConversationThread | null> {
+  const staffSeen = await visibleStaff(scope);
   const conv = await db.conversation.findFirst({
-    where: { id: conversationId, agencyId },
+    where: { AND: [{ id: conversationId }, scopedConversations(scope)] },
     select: {
       id: true,
       type: true,
@@ -596,16 +665,19 @@ export async function getConversationThread(
   const participants: ConversationParticipant[] = conv.participants
     .map((p) => p.user)
     .filter((u): u is NonNullable<typeof u> => Boolean(u))
+    .filter((u) => !staffSeen || staffSeen.has(u.id))
     .map((u) => ({ id: u.id, name: u.name, role: u.role }));
   if (conv.creator) {
     participants.push({ id: conv.creator.id, name: conv.creator.name, role: "Creator" });
   }
 
+  // A teammate outside the viewer's team scope is not named
+  const hidden = (id: string | null) => !!id && !!staffSeen && !staffSeen.has(id);
   const messages: ThreadMessage[] = conv.messages.map((m) => ({
     id: m.id,
-    senderId: m.senderId || m.creatorId || "",
-    senderName: m.sender?.name || m.creator?.name || "Unknown",
-    senderRole: m.creatorId ? "Creator" : m.sender?.role || "Staff",
+    senderId: hidden(m.senderId) ? "" : m.senderId || m.creatorId || "",
+    senderName: hidden(m.senderId) ? "A teammate" : m.sender?.name || m.creator?.name || "Unknown",
+    senderRole: m.creatorId ? "Creator" : hidden(m.senderId) ? "Staff" : m.sender?.role || "Staff",
     content: m.content,
     timestamp: m.createdAt,
   }));
@@ -624,14 +696,15 @@ export async function getConversationThread(
 // Keyword alerts (real messages matched against configured keywords)
 // ----------------------------------------------------------------------------
 export async function getKeywordAlerts(
-  agencyId: string,
+  scope: OversightScope,
   keywords: OversightKeyword[]
 ): Promise<KeywordAlert[]> {
   if (keywords.length === 0) return [];
+  const staffSeen = await visibleStaff(scope);
 
   const messages = await db.message.findMany({
     where: {
-      conversation: { agencyId },
+      conversation: scopedConversations(scope),
       OR: keywords.map((k) => ({
         content: { contains: k.keyword, mode: "insensitive" as const },
       })),
@@ -655,17 +728,20 @@ export async function getKeywordAlerts(
     const matched = matchKeyword(m.content, keywords);
     if (!matched) continue;
     const isCreatorSender = m.creatorId !== null;
+    const hiddenSender = !isCreatorSender && !!staffSeen && !!m.sender && !staffSeen.has(m.sender.id);
     alerts.push({
       id: m.id,
       keyword: matched,
       messageId: m.id,
       conversationId: m.conversationId,
       conversationType: conversationTypeToOversight(m.conversation.type),
-      senderId: isCreatorSender ? m.creator?.id || "" : m.sender?.id || "",
+      senderId: isCreatorSender ? m.creator?.id || "" : hiddenSender ? "" : m.sender?.id || "",
       senderName: isCreatorSender
         ? m.creator?.name || "Creator"
-        : m.sender?.name || "Unknown",
-      senderRole: isCreatorSender ? "Creator" : m.sender?.role || "Staff",
+        : hiddenSender
+          ? "A teammate"
+          : m.sender?.name || "Unknown",
+      senderRole: isCreatorSender ? "Creator" : hiddenSender ? "Staff" : m.sender?.role || "Staff",
       messagePreview: m.content.slice(0, 240),
       timestamp: m.createdAt,
       status: "new",
@@ -679,10 +755,11 @@ export async function getKeywordAlerts(
 // Summary stats
 // ----------------------------------------------------------------------------
 export async function getOversightStats(
-  agencyId: string,
+  scope: OversightScope,
   keywords: OversightKeyword[]
 ): Promise<OversightStats> {
-  const userIds = await getAgencyUserIds(agencyId);
+  const { agencyId } = scope;
+  const userIds = await getAgencyUserIds(scope);
   const today = startOfToday();
   const weekAgo = daysAgo(7);
   const dayAgo = daysAgo(1);
@@ -710,21 +787,21 @@ export async function getOversightStats(
           where: { userId: { in: userIds }, createdAt: { gte: weekAgo } },
         })
       : Promise.resolve(0),
-    db.user.count({ where: { agencyId, ...excludePseudoUsers, lastActiveAt: { gte: dayAgo } } }),
-    db.creator.count({ where: { agencyId, lastLoginAt: { gte: dayAgo } } }),
+    db.user.count({ where: { agencyId, AND: [excludePseudoUsers, scope.staff], lastActiveAt: { gte: dayAgo } } }),
+    db.creator.count({ where: { agencyId, AND: [scope.creator], lastLoginAt: { gte: dayAgo } } }),
     db.message.count({
-      where: { conversation: { agencyId }, createdAt: { gte: today } },
+      where: { conversation: scopedConversations(scope), createdAt: { gte: today } },
     }),
     db.message.count({
       where: {
-        conversation: { agencyId, type: ConversationType.CREATOR },
+        conversation: creatorConversations(scope),
         createdAt: { gte: today },
       },
     }),
     keywords.length > 0
       ? db.message.count({
           where: {
-            conversation: { agencyId },
+            conversation: scopedConversations(scope),
             createdAt: { gte: weekAgo },
             OR: keywords.map((k) => ({
               content: { contains: k.keyword, mode: "insensitive" as const },
@@ -733,9 +810,9 @@ export async function getOversightStats(
         })
       : Promise.resolve(0),
     db.contentRequest.count({
-      where: { agencyId, status: { in: PENDING_REQUEST_STATUSES } },
+      where: { ...scopedRequests(scope), status: { in: PENDING_REQUEST_STATUSES } },
     }),
-    getCreatorConversationResponseMetrics(agencyId),
+    getCreatorConversationResponseMetrics(scope),
   ]);
 
   const staffCreatorMessages = creatorMessagesToday;

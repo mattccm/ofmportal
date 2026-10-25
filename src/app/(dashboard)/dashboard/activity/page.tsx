@@ -1,9 +1,10 @@
 import { Suspense } from "react";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { excludePseudoUsers } from "@/lib/staff";
+import { getPageAccess, staffWhere, type Access } from "@/lib/access/server";
+import { ACTIVITY_KEYS, activityFeedSql, activityScopeOf, redactActivityMetadata } from "@/lib/activity-scope";
+import { NoAccess } from "@/components/access/no-access";
 import { ActivityPageClient } from "./activity-page-client";
 
 export const metadata = {
@@ -11,28 +12,44 @@ export const metadata = {
   description: "View all activity across your agency",
 };
 
-async function getInitialData(agencyId: string) {
-  // Get initial activities. Single-agency tool: filter by entity type only,
-  // avoiding IN-lists that grow with every upload.
-  const entityFilter = { entityType: { in: ["Upload", "ContentRequest", "Creator"] } };
+async function getInitialData(access: Access) {
+  // Activity on this agency's uploads, requests and creators, limited to the
+  // creators and teammates inside this person's role scopes
+  const feed = activityFeedSql(access.agencyId, await activityScopeOf(access));
 
   let activities;
   try {
-    activities = await db.activityLog.findMany({
-      where: entityFilter,
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            email: true,
-          },
-        },
-      },
-    });
+    const rows = await db.$queryRaw<
+      Array<{
+        id: string;
+        action: string;
+        entityType: string;
+        entityId: string;
+        metadata: Prisma.JsonValue;
+        createdAt: Date;
+        userId: string | null;
+        userName: string | null;
+        userAvatar: string | null;
+        userEmail: string | null;
+      }>
+    >(Prisma.sql`
+      SELECT a.id, a.action, a."entityType", a."entityId", a.metadata, a."createdAt", a."userId",
+        u.name as "userName", u.avatar as "userAvatar", u.email as "userEmail"
+      FROM "ActivityLog" a
+      LEFT JOIN "User" u ON a."userId" = u.id
+      WHERE ${feed}
+      ORDER BY a."createdAt" DESC
+      LIMIT 20
+    `);
+    activities = rows.map((a) => ({
+      id: a.id,
+      action: a.action,
+      entityType: a.entityType,
+      entityId: a.entityId,
+      metadata: redactActivityMetadata(access, (a.metadata as Record<string, unknown>) || {}),
+      createdAt: a.createdAt,
+      user: a.userId ? { id: a.userId, name: a.userName ?? "", avatar: a.userAvatar, email: a.userEmail ?? "" } : null,
+    }));
   } catch (error) {
     console.error("Failed to fetch initial activity data:", error);
     return {
@@ -42,9 +59,9 @@ async function getInitialData(agencyId: string) {
     };
   }
 
-  // Get users for filter dropdown
+  // Get users for filter dropdown (teammates inside the team scope)
   const users = await db.user.findMany({
-    where: { agencyId, ...excludePseudoUsers },
+    where: { AND: [staffWhere(access), excludePseudoUsers] },
     select: { id: true, name: true, avatar: true },
     orderBy: { name: "asc" },
   });
@@ -55,24 +72,20 @@ async function getInitialData(agencyId: string) {
   const startOfWeek = new Date(now);
   startOfWeek.setDate(startOfWeek.getDate() - 7);
 
+  const countSince = async (since: Date | null) => {
+    const r = await db.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+      SELECT COUNT(*) as count FROM "ActivityLog" a
+      WHERE ${feed} ${since ? Prisma.sql`AND a."createdAt" >= ${since}` : Prisma.empty}
+    `);
+    return Number(r[0]?.count || 0);
+  };
+
   let todayCount = 0, weekCount = 0, totalCount = 0;
   try {
     [todayCount, weekCount, totalCount] = await Promise.all([
-      db.activityLog.count({
-        where: {
-          ...entityFilter,
-          createdAt: { gte: startOfDay },
-        },
-      }),
-      db.activityLog.count({
-        where: {
-          ...entityFilter,
-          createdAt: { gte: startOfWeek },
-        },
-      }),
-      db.activityLog.count({
-        where: entityFilter,
-      }),
+      countSince(startOfDay),
+      countSince(startOfWeek),
+      countSince(null),
     ]);
   } catch (error) {
     console.error("Failed to fetch activity stats:", error);
@@ -86,8 +99,8 @@ async function getInitialData(agencyId: string) {
       entityId: activity.entityId,
       timestamp: activity.createdAt.toISOString(),
       user: activity.user,
-      metadata: activity.metadata as Record<string, unknown>,
-      description: getActivityDescription(activity.action, activity.metadata as Record<string, unknown>),
+      metadata: activity.metadata,
+      description: getActivityDescription(activity.action, activity.metadata),
       icon: getActivityIcon(activity.action),
       color: getActivityColor(activity.action),
       category: getActivityCategory(activity.action),
@@ -243,13 +256,12 @@ function LoadingSkeleton() {
 }
 
 export default async function ActivityPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.agencyId) {
-    redirect("/login");
+  const access = await getPageAccess();
+  if (!access.hasAny(ACTIVITY_KEYS)) {
+    return <NoAccess what="the activity log" roleName={access.role.name} />;
   }
 
-  const data = await getInitialData(session.user.agencyId);
+  const data = await getInitialData(access);
 
   return (
     <Suspense fallback={<LoadingSkeleton />}>

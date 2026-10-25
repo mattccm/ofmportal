@@ -2,6 +2,9 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { creatorWhere, getPageAccess, requestWhere, type Access } from "@/lib/access/server";
+import { NoAccess } from "@/components/access/no-access";
+import { scrubCommunication } from "@/app/api/creators/creator-access";
 import { CreatorVaultClient, type ProfileData } from "./creator-vault-client";
 import {
   type CommunicationPreferences,
@@ -22,17 +25,37 @@ export const metadata = {
   description: "A creator's requests, delivery record, messages and content",
 };
 
-async function getProfile(creatorId: string, agencyId: string, userId: string): Promise<ProfileData | null> {
+async function getProfile(creatorId: string, access: Access): Promise<ProfileData | null> {
+  const { agencyId, userId } = access;
+  // Out-of-scope creators read as not found
   const creator = await db.creator.findFirst({
-    where: { id: creatorId, agencyId },
+    where: { AND: [creatorWhere(access), { id: creatorId }] },
     include: { _count: { select: { requests: true, uploads: true } } },
   });
   if (!creator) return null;
 
+  // What this role may see; everything else stays on the server
+  const see = {
+    email: access.has("creatorInfo.email"),
+    phone: access.has("creatorInfo.phone"),
+    notes: access.has("creatorInfo.notes"),
+    location: access.has("creatorInfo.location"),
+    preferences: access.has("creatorInfo.preferences"),
+    content: access.has("creatorInfo.content"),
+    activity: access.has("creatorInfo.activity"),
+    invite: access.has("creatorInfo.invite"),
+    requests: access.has("requests.view"),
+    messages: access.has("messages.creators"),
+  };
+
   const now = new Date();
   const [requests, override, recentUploads, conversation] = await Promise.all([
     db.contentRequest.findMany({
-      where: { creatorId, agencyId, status: { in: [...ACTIVE_STATUSES, "APPROVED", "CANCELLED"] } },
+      where: {
+        ...requestWhere(access),
+        creatorId,
+        status: { in: [...ACTIVE_STATUSES, "APPROVED", "CANCELLED"] },
+      },
       orderBy: [{ dueDate: "asc" }],
       select: {
         id: true,
@@ -58,8 +81,9 @@ async function getProfile(creatorId: string, agencyId: string, userId: string): 
         quietHoursEnd: true,
       },
     }),
+    // The content library is its own creator-information permission
     db.upload.findMany({
-      where: { creatorId, uploadStatus: "COMPLETED" },
+      where: see.content ? { creatorId, uploadStatus: "COMPLETED" } : { id: { in: [] } },
       orderBy: { uploadedAt: "desc" },
       take: 24,
       include: {
@@ -68,7 +92,7 @@ async function getProfile(creatorId: string, agencyId: string, userId: string): 
       },
     }),
     db.conversation.findFirst({
-      where: { type: "CREATOR", creatorId, agencyId },
+      where: see.messages ? { type: "CREATOR", creatorId, agencyId } : { id: { in: [] } },
       select: {
         id: true,
         messages: {
@@ -87,7 +111,9 @@ async function getProfile(creatorId: string, agencyId: string, userId: string): 
     }),
   ]);
 
-  const active = requests
+  // Requests show only to someone who may see requests
+  const visibleRequests = see.requests ? requests : [];
+  const active = visibleRequests
     .filter((r) => (ACTIVE_STATUSES as readonly string[]).includes(r.status))
     .map((r) => ({
       id: r.id,
@@ -97,23 +123,30 @@ async function getProfile(creatorId: string, agencyId: string, userId: string): 
       fields: requestFields(r, now),
     }));
 
-  const finishedRows = requests
+  const finishedRows = visibleRequests
     .filter((r) => r.status === "APPROVED" || r.status === "CANCELLED")
     .sort((a, b) => (b.reviewedAt ?? b.submittedAt ?? b.createdAt).getTime() - (a.reviewedAt ?? a.submittedAt ?? a.createdAt).getTime());
   const points = finishedPoints(finishedRows);
   const pointById = new Map(points.map((p) => [p.id, p]));
 
   const prefs = creator.contentPreferences as Record<string, unknown>;
-  const internalNotes =
-    (prefs?.internalNotes as ProfileData["internalNotes"] | undefined) ?? [];
+  const internalNotes = see.notes
+    ? ((prefs?.internalNotes as ProfileData["internalNotes"] | undefined) ?? [])
+    : [];
   const storedCommPrefs = prefs?.communicationPreferences as CommunicationPreferences | undefined;
-  const communicationPreferences: CommunicationPreferences = storedCommPrefs || {
-    ...DEFAULT_COMMUNICATION_PREFERENCES,
-    contactDetails: { email: creator.email, phone: creator.phone || undefined },
-    timezone: creator.timezone || "UTC",
-  };
+  const communicationPreferences: CommunicationPreferences | null = see.preferences
+    ? (scrubCommunication(
+        access,
+        (storedCommPrefs || {
+          ...DEFAULT_COMMUNICATION_PREFERENCES,
+          contactDetails: { email: creator.email, phone: creator.phone || undefined },
+          timezone: creator.timezone || "UTC",
+        }) as unknown as Record<string, unknown>
+      ) as unknown as CommunicationPreferences)
+    : null;
 
-  const invite = creatorInvite(creator, now);
+  // Without invite information the profile reads as if they have joined
+  const invite = see.invite ? creatorInvite(creator, now) : ({ state: "accepted", expiresAt: null } as const);
   const paused = !!override?.isPaused && (!override.pauseResumeAt || override.pauseResumeAt > now);
   const isRead = (readBy: unknown) =>
     ((readBy as Array<{ userId?: string } | string>) || []).some((r) => (typeof r === "string" ? r : r?.userId) === userId);
@@ -122,20 +155,20 @@ async function getProfile(creatorId: string, agencyId: string, userId: string): 
     creator: {
       id: creator.id,
       name: creator.name,
-      email: creator.email,
-      phone: creator.phone,
+      email: see.email ? creator.email : null,
+      phone: see.phone ? creator.phone : null,
       avatar: creator.avatar,
-      inviteStatus: creator.inviteStatus,
+      inviteStatus: see.invite ? creator.inviteStatus : "ACCEPTED",
       invite:
         invite.state === "accepted"
           ? null
           : { state: invite.state, expiresAt: invite.expiresAt ? invite.expiresAt.toISOString() : null },
       archivedAt: creator.archivedAt ? creator.archivedAt.toISOString() : null,
-      timezone: creator.timezone,
-      preferredContact: creator.preferredContact,
+      timezone: see.location ? creator.timezone : null,
+      preferredContact: see.preferences ? creator.preferredContact : null,
       createdAt: creator.createdAt.toISOString(),
-      lastLoginAt: creator.lastLoginAt ? creator.lastLoginAt.toISOString() : null,
-      notes: creator.notes,
+      lastLoginAt: see.activity && creator.lastLoginAt ? creator.lastLoginAt.toISOString() : null,
+      notes: see.notes ? creator.notes : null,
       totalRequests: creator._count.requests,
       totalUploads: creator._count.uploads,
     },
@@ -196,13 +229,15 @@ async function getProfile(creatorId: string, agencyId: string, userId: string): 
 }
 
 export default async function CreatorProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const access = await getPageAccess();
+  if (!access.has("creators.view")) return <NoAccess what="creators" roleName={access.role.name} />;
   const session = await getServerSession(authOptions);
-  if (!session?.user?.agencyId) redirect("/login");
+  if (!session?.user) redirect("/login");
 
   const { id } = await params;
   let data: ProfileData | null = null;
   try {
-    data = await getProfile(id, session.user.agencyId, session.user.id);
+    data = await getProfile(id, access);
   } catch (error) {
     console.error("Failed to fetch creator data:", error);
   }
@@ -214,7 +249,7 @@ export default async function CreatorProfilePage({ params }: { params: Promise<{
       currentUser={{
         id: session.user.id,
         name: session.user.name || "Unknown",
-        role: session.user.role,
+        role: access.role.name,
       }}
     />
   );

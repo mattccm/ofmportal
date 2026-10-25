@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { forbidden, redactCreatorsIn, requestWhere, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -25,11 +24,9 @@ const bulkActionSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess("reminders.view");
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const { searchParams } = new URL(req.url);
     const params = listRemindersSchema.parse({
@@ -43,9 +40,7 @@ export async function GET(req: NextRequest) {
 
     // Build the where clause
     const where: Record<string, unknown> = {
-      request: {
-        agencyId: session.user.agencyId,
-      },
+      request: requestWhere(access),
     };
 
     if (params.status) {
@@ -97,7 +92,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({
-      reminders,
+      reminders: redactCreatorsIn(access, reminders),
       pagination: {
         page: params.page,
         limit: params.limit,
@@ -125,22 +120,22 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.agencyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireAccess(["reminders.send", "reminders.edit", "reminders.delete"]);
+    if (gate.error) return gate.error;
+    const { access } = gate;
 
     const body = await req.json();
     const { action, reminderIds, rescheduleDate } = bulkActionSchema.parse(body);
+
+    // Each action has its own key: send now, reschedule, cancel
+    const actionKey = action === "cancel" ? "reminders.delete" : action === "reschedule" ? "reminders.edit" : "reminders.send";
+    if (!access.has(actionKey)) return forbidden(actionKey);
 
     // Verify all reminders belong to this agency
     const reminders = await db.reminder.findMany({
       where: {
         id: { in: reminderIds },
-        request: {
-          agencyId: session.user.agencyId,
-        },
+        request: requestWhere(access),
       },
       include: {
         request: {

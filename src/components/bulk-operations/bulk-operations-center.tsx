@@ -18,6 +18,7 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAccess } from "@/lib/access/client";
 
 import { BulkRequestCreator } from "./bulk-request-creator";
 import { BulkReviewGrid } from "./bulk-review-grid";
@@ -74,6 +75,10 @@ export function BulkOperationsCenter() {
 
   // Undo manager
   const undoManager = useUndoManager();
+  const { can } = useAccess();
+  const canUploads = can("review.view");
+  const canReminders = can("reminders.view");
+  const canActivity = can("activity.view");
 
   // Fetch stats and recent operations
   useEffect(() => {
@@ -81,15 +86,16 @@ export function BulkOperationsCenter() {
       setIsLoadingStats(true);
       try {
         // Fetch stats from multiple endpoints
+        // Only ask for what the role can see (each API answers 403 otherwise)
         const [uploadsRes, remindersOverdueRes, remindersWeekRes] = await Promise.all([
-          fetch("/api/uploads?status=PENDING&limit=1"),
-          fetch("/api/reminders/bulk-send?filter=overdue"),
-          fetch("/api/reminders/bulk-send?filter=due_within_week"),
+          canUploads ? fetch("/api/uploads?status=PENDING&limit=1") : null,
+          canReminders ? fetch("/api/reminders/bulk-send?filter=overdue") : null,
+          canReminders ? fetch("/api/reminders/bulk-send?filter=due_within_week") : null,
         ]);
 
-        const uploadData = uploadsRes.ok ? await uploadsRes.json() : { count: 0 };
-        const overdueData = remindersOverdueRes.ok ? await remindersOverdueRes.json() : { count: 0 };
-        const weekData = remindersWeekRes.ok ? await remindersWeekRes.json() : { count: 0 };
+        const uploadData = uploadsRes?.ok ? await uploadsRes.json() : { count: 0 };
+        const overdueData = remindersOverdueRes?.ok ? await remindersOverdueRes.json() : { count: 0 };
+        const weekData = remindersWeekRes?.ok ? await remindersWeekRes.json() : { count: 0 };
 
         setStats({
           pendingUploads: uploadData.total || uploadData.count || (uploadData.uploads?.length || 0),
@@ -99,8 +105,8 @@ export function BulkOperationsCenter() {
         });
 
         // Fetch recent operations from activity log
-        const activityRes = await fetch("/api/activity?type=bulk&limit=10");
-        if (activityRes.ok) {
+        const activityRes = canActivity ? await fetch("/api/activity?type=bulk&limit=10") : null;
+        if (activityRes?.ok) {
           const activityData = await activityRes.json();
           // Transform activity logs to operation format
           const operations: RecentOperation[] = (activityData.activities || [])
@@ -125,7 +131,7 @@ export function BulkOperationsCenter() {
     }
 
     fetchData();
-  }, []);
+  }, [canUploads, canReminders, canActivity]);
 
   // Helper to get operation type from action string
   const getOperationType = (action: string): BulkOperationType => {
