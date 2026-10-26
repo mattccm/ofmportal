@@ -282,11 +282,11 @@ function ProfileStep({ profile, onProfileChange, creatorEmail }: ProfileStepProp
           type="tel"
           value={profile.phone}
           onChange={(e) => onProfileChange({ phone: e.target.value })}
-          placeholder="+1 (555) 123-4567"
+          placeholder="+44 7700 900123"
           className="h-12"
         />
         <p className="text-xs text-muted-foreground">
-          Required if you want to receive SMS notifications.
+          Include your country code. Needed if you want texts from your team.
         </p>
       </div>
     </div>

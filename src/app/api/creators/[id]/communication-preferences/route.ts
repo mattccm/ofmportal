@@ -5,6 +5,7 @@ import { cleanBrowserTimeZone } from "@/lib/due";
 import { reanchorCreatorDueDates } from "@/lib/due-server";
 import { scrubCommunication } from "../../creator-access";
 import { z } from "zod";
+import { optionalPhone } from "@/lib/phone";
 import type { Prisma } from "@prisma/client";
 
 // COMMUNICATION PREFERENCES API
@@ -12,7 +13,7 @@ import type { Prisma } from "@prisma/client";
 // Validation schemas
 const contactDetailsSchema = z.object({
   email: z.string().email().optional(),
-  phone: z.string().optional(),
+  phone: optionalPhone.transform((v) => v ?? undefined),
   whatsapp: z.string().optional(),
   telegram: z.string().optional(),
   discord: z.string().optional(),

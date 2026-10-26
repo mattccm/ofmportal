@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { optionalPhone } from "@/lib/phone";
 import { sendCreatorInviteEmail } from "@/lib/email";
 import {
   parsePaginationParams,
@@ -15,7 +16,7 @@ import { CREATOR_PICKER_KEYS } from "./creator-access";
 const createCreatorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
+  phone: optionalPhone,
   preferredContact: z.enum(["EMAIL", "SMS", "BOTH"]).default("EMAIL"),
   notes: z.string().optional(),
   // false: make the invite link only (staff share it themselves), no email

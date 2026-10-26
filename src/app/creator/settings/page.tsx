@@ -206,7 +206,9 @@ export default function CreatorSettingsPage() {
         if (response.status === 413) {
           throw new Error("That image is too large — please choose a smaller one");
         }
-        throw new Error("Your profile didn't save. Try again.");
+        // A 400 names the problem (e.g. a phone number without its country code)
+        const body = await response.json().catch(() => null);
+        throw new Error(response.status === 400 && body?.error ? body.error : "Your profile didn't save. Try again.");
       }
 
       // Update local storage
@@ -370,9 +372,13 @@ export default function CreatorSettingsPage() {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+61 400 000 000"
+              placeholder="+44 7700 900123"
               autoComplete="tel"
+              aria-describedby="phone-hint"
             />
+            <p id="phone-hint" className="text-[13px] text-ink-2">
+              Include your country code, so texts reach you wherever you are.
+            </p>
           </div>
 
           <Button onClick={handleSaveProfile} disabled={saving} className="h-11 md:h-9">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { optionalPhone } from "@/lib/phone";
 import type { Prisma } from "@prisma/client";
 import { validateCreatorSession } from "@/lib/portal-auth";
 import { cleanBrowserTimeZone } from "@/lib/due";
@@ -9,7 +10,7 @@ import { reanchorCreatorDueDates } from "@/lib/due-server";
 
 const updateProfileSchema = z.object({
   name: z.string().min(1).optional(),
-  phone: z.string().optional(),
+  phone: optionalPhone,
   timezone: z.string().optional(),
   avatar: z.string().optional(),
   bio: z.string().optional(),

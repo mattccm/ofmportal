@@ -18,10 +18,15 @@ export function reminderUrgencyText(daysUntilDue: number): string {
   return `due in ${daysUntilDue} day${daysUntilDue !== 1 ? "s" : ""}`;
 }
 
+/** Texts greet by first name: friendlier, and it keeps them in one 160-character segment */
+export function smsFirstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
 /** The reminder SMS body before the brand prefix is added */
 export function reminderSmsBody(opts: { creatorName: string; daysUntilDue: number; portalLink: string; isTest?: boolean }): string {
   const testPrefix = opts.isTest ? "[TEST] " : "";
-  return `${testPrefix}Hi ${opts.creatorName}, you have content ${reminderUrgencyText(opts.daysUntilDue)}. View it here: ${opts.portalLink}`;
+  return `${testPrefix}Hi ${smsFirstName(opts.creatorName)}, you have content ${reminderUrgencyText(opts.daysUntilDue)}. View it here: ${opts.portalLink}`;
 }
 
 /** The SMS exactly as delivered: "CCM: Hi ..." */

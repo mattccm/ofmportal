@@ -4,6 +4,7 @@ import { cleanBrowserTimeZone } from "@/lib/due";
 import { reanchorCreatorDueDates } from "@/lib/due-server";
 import { deleteFile } from "@/lib/storage";
 import { z } from "zod";
+import { optionalPhone } from "@/lib/phone";
 import type { Prisma } from "@prisma/client";
 import { creatorWhere, forbidden, redactCreator, requireAccess } from "@/lib/access/server";
 import type { PermissionKey } from "@/lib/access/catalogue";
@@ -162,7 +163,7 @@ export async function GET(
 const updateCreatorSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  phone: z.string().optional().nullable(),
+  phone: optionalPhone,
   avatar: z.string().optional().nullable(),
   preferredContact: z.enum(["EMAIL", "SMS", "BOTH"]).optional(),
   timezone: z.string().optional(),

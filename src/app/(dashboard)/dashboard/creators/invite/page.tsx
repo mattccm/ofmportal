@@ -252,7 +252,7 @@ function InviteCreatorForm({
                 aria-describedby="phone-hint"
               />
               <p id="phone-hint" className="text-[13px] text-ink-2">
-                Needed for SMS reminders
+                With the country code. Needed for SMS reminders
               </p>
             </div>
             )}

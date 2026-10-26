@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
 import { sendCreatorInviteEmail } from "@/lib/email";
 import { z } from "zod";
+import { toE164 } from "@/lib/phone";
 import { v4 as uuidv4 } from "uuid";
 import { getAppUrl } from "@/lib/app-url";
 
@@ -145,9 +146,16 @@ export async function POST(req: NextRequest) {
       updated: [] as Array<{ name: string; email: string }>,
       skipped: [] as Array<{ name: string; email: string; reason: string }>,
       errors: [] as Array<{ row: number; name: string; email: string; error: string }>,
+      // numbers left blank because they had no country code
+      phonesCleared: [] as Array<{ name: string; email: string; phone: string }>,
     };
 
     for (let i = 0; i < validatedData.creators.length; i++) {
+      const rawPhone = validatedData.creators[i].phone;
+      const phone = toE164(rawPhone);
+      if (rawPhone && rawPhone.trim() && !phone) {
+        results.phonesCleared.push({ name: validatedData.creators[i].name, email: validatedData.creators[i].email, phone: rawPhone });
+      }
       const creatorData = validatedData.creators[i];
       const email = creatorData.email.toLowerCase();
 
@@ -178,7 +186,7 @@ export async function POST(req: NextRequest) {
             where: { id: existingId },
             data: {
               name: creatorData.name,
-              ...(access.has("creatorInfo.phone") ? { phone: creatorData.phone || null } : {}),
+              ...(access.has("creatorInfo.phone") ? { phone } : {}),
               ...(access.has("creatorInfo.preferences")
                 ? { preferredContact: creatorData.preferredContact || "EMAIL" }
                 : {}),
@@ -199,7 +207,7 @@ export async function POST(req: NextRequest) {
               agencyId: session.user.agencyId,
               name: creatorData.name,
               email: email,
-              phone: creatorData.phone || null,
+              phone,
               preferredContact: creatorData.preferredContact || "EMAIL",
               notes: creatorData.notes || null,
               inviteToken,
@@ -279,6 +287,7 @@ export async function POST(req: NextRequest) {
         updated: results.updated.length,
         skipped: results.skipped.length,
         errors: results.errors.length,
+        phonesCleared: results.phonesCleared.length,
       },
     });
   } catch (error) {
