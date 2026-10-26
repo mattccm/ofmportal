@@ -4,8 +4,8 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
-import { format } from "date-fns";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
+import { dueLong, calendarDaysUntilDue } from "@/lib/due";
 
 // Schema for bulk status update requests
 const bulkStatusSchema = z.object({
@@ -305,9 +305,7 @@ export async function POST(req: NextRequest) {
 
           try {
             const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
-            const dueDate = request.dueDate
-              ? format(request.dueDate, "MMMM d, yyyy")
-              : "No specific due date";
+            const dueDate = dueLong(request, "No specific due date");
 
             // Send email
             await sendReminderEmail({
@@ -315,9 +313,7 @@ export async function POST(req: NextRequest) {
               creatorName: request.creator.name,
               requestTitle: request.title,
               dueDate,
-              daysUntilDue: request.dueDate
-                ? Math.ceil((request.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                : 0,
+              daysUntilDue: calendarDaysUntilDue(request, request.creator.timezone) ?? 0,
               portalLink,
             });
 
@@ -331,9 +327,7 @@ export async function POST(req: NextRequest) {
                 to: request.creator.phone,
                 creatorName: request.creator.name,
                 requestTitle: request.title,
-                daysUntilDue: request.dueDate
-                  ? Math.ceil((request.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                  : 0,
+                daysUntilDue: calendarDaysUntilDue(request, request.creator.timezone) ?? 0,
                 portalLink,
               });
             }

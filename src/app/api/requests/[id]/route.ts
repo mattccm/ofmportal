@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseDueInput } from "@/lib/due";
+import { creatorTimeZones, staffTimeZone } from "@/lib/due-server";
 import { requireAccess, requestWhere, forbidden, redactCreatorsIn } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
@@ -229,7 +231,14 @@ export async function PATCH(
     }
 
     if (validatedData.dueDate !== undefined) {
-      updateData.dueDate = validatedData.dueDate ? new Date(validatedData.dueDate) : null;
+      // The picked day, due at the end of that day in the creator's timezone
+      const [tzs, pickerTz] = await Promise.all([
+        creatorTimeZones([existingRequest.creatorId]),
+        staffTimeZone(session.user.id),
+      ]);
+      const due = parseDueInput(validatedData.dueDate, tzs.get(existingRequest.creatorId), pickerTz);
+      updateData.dueOn = due?.dueOn ?? null;
+      updateData.dueDate = due?.dueDate ?? null;
     }
     if (validatedData.estimatedMinutes !== undefined) {
       updateData.estimatedMinutes = validatedData.estimatedMinutes;

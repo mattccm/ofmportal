@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
 import { z } from "zod";
-import { format, differenceInDays } from "date-fns";
+import { dueLong, calendarDaysUntilDue } from "@/lib/due";
 
 // Note: customMessage support would need to be added to sendReminderEmail/sendReminderSms
 // For now, we use the default templates
@@ -94,8 +94,8 @@ export async function POST(req: NextRequest) {
     const channel = askedChannel ?? request.creator.preferredContact ?? "EMAIL";
 
     const portalLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
-    const dueDate = request.dueDate ? format(request.dueDate, "MMMM d, yyyy") : "No due date";
-    const daysUntilDue = request.dueDate ? differenceInDays(request.dueDate, new Date()) : 0;
+    const dueDate = dueLong(request, "No due date");
+    const daysUntilDue = calendarDaysUntilDue(request, request.creator.timezone) ?? 0;
 
     const results: { email?: boolean; sms?: boolean; errors: string[] } = {
       errors: [],

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TimezoneSelector } from "@/components/settings/timezone-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +31,6 @@ import {
   User,
   Mail,
   Phone,
-  Globe,
   Key,
   AlertCircle,
   Send,
@@ -38,23 +38,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-// Timezone options
-const TIMEZONES = [
-  { value: "America/New_York", label: "Eastern Time (ET)" },
-  { value: "America/Chicago", label: "Central Time (CT)" },
-  { value: "America/Denver", label: "Mountain Time (MT)" },
-  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
-  { value: "America/Anchorage", label: "Alaska Time (AKT)" },
-  { value: "Pacific/Honolulu", label: "Hawaii Time (HST)" },
-  { value: "Europe/London", label: "London (GMT/BST)" },
-  { value: "Europe/Paris", label: "Paris (CET/CEST)" },
-  { value: "Europe/Berlin", label: "Berlin (CET/CEST)" },
-  { value: "Asia/Tokyo", label: "Tokyo (JST)" },
-  { value: "Asia/Shanghai", label: "Shanghai (CST)" },
-  { value: "Asia/Dubai", label: "Dubai (GST)" },
-  { value: "Australia/Sydney", label: "Sydney (AEST)" },
-  { value: "UTC", label: "UTC" },
-];
 
 const CONTACT_METHODS = [
   { value: "EMAIL", label: "Email Only" },
@@ -429,28 +412,13 @@ export function EditCreatorProfileModal({
             {/* Timezone */}
             {see.location && (
             <div className="space-y-2">
-              <Label htmlFor="timezone">Timezone</Label>
-              <Select
+              <TimezoneSelector
                 value={formData.timezone}
-                onValueChange={(value) => handleInputChange("timezone", value)}
-              >
-                <SelectTrigger id="timezone" className="w-full">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Select timezone" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Used for scheduling and displaying times correctly.
-              </p>
+                onChange={(value) => handleInputChange("timezone", value)}
+                showCurrentTime
+                label="Time zone"
+                description="Due dates end at 11:59 pm here. Changing it keeps every open request on the same due date."
+              />
             </div>
             )}
 

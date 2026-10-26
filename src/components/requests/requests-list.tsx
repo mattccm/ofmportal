@@ -52,7 +52,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { endOfDay, isToday, addDays } from "date-fns";
+import { endOfDay, isToday, addDays, format } from "date-fns";
 import { toast } from "sonner";
 import { groupByPriority, getPriorityConfig, type Priority } from "@/lib/deadline-utils";
 import { BulkStatusDialog, type BulkActionType } from "./bulk-status-dialog";
@@ -98,6 +98,8 @@ interface ContentRequest {
   status: string;
   urgency: string;
   dueDate: string | null;
+  /** The due day, "YYYY-MM-DD" */
+  dueOn?: string | null;
   createdAt: string;
   reviewedAt?: string | null;
   updatedAt?: string;
@@ -393,7 +395,11 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
     if (creatorFilter !== "all") filtered = filtered.filter((r) => r.creator.id === creatorFilter);
     if (templateFilter !== "all") filtered = filtered.filter((r) => r.template?.id === templateFilter);
     if (priorityFilter !== "all") filtered = filtered.filter((r) => r.urgency === priorityFilter);
-    if (dueToday) filtered = filtered.filter((r) => r.dueDate && isToday(new Date(r.dueDate)));
+    // Due today: the due DAY is the viewer's today
+    if (dueToday) {
+      const today = format(now, "yyyy-MM-dd");
+      filtered = filtered.filter((r) => (r.dueOn ? r.dueOn === today : r.dueDate && isToday(new Date(r.dueDate))));
+    }
     if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter(
@@ -1511,7 +1517,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             id: cloneDialog.request.id,
             title: cloneDialog.request.title,
             description: cloneDialog.request.description,
-            dueDate: cloneDialog.request.dueDate,
+            dueDate: cloneDialog.request.dueOn ?? null,
             urgency: cloneDialog.request.urgency,
             status: cloneDialog.request.status,
             fields: null,

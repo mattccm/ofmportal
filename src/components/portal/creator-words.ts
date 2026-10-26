@@ -27,9 +27,9 @@ export function creatorSummary(rows: CreatorFieldStateRow[] | undefined): string
   return fieldSummary(toStrip(list), "creator");
 }
 
-/** "Sent Mon 19 Oct" */
-export function sentLine(createdAt: string | Date): string {
-  return `Sent ${formatDay(new Date(createdAt))}`;
+/** "Sent Mon 19 Oct", in the viewer's time zone */
+export function sentLine(createdAt: string | Date, tz?: string): string {
+  return `Sent ${formatDay(new Date(createdAt), tz)}`;
 }
 
 export interface NextStep {

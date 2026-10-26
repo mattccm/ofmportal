@@ -71,7 +71,7 @@ import {
   type DeliverySummary,
   type QuietHours,
 } from "@/components/creators/insights";
-import { Shelf, TitleCard, formatDay, timeLeft, type FieldSummary } from "@/components/title-wall";
+import { Shelf, TitleCard, formatDay, formatDueOn, timeLeft, useViewerTimeZone, type FieldSummary } from "@/components/title-wall";
 import { DEFAULT_COMMUNICATION_PREFERENCES, type CommunicationPreferences } from "@/types/communication-preferences";
 import { cn } from "@/lib/utils";
 import { useAccess } from "@/lib/access/client";
@@ -102,13 +102,14 @@ export interface ProfileData {
   };
   quiet: QuietHours;
   pause: { paused: boolean; resumeAt: string | null };
-  active: { id: string; title: string; kind: string | null; due: string | null; fields: FieldSummary[] }[];
+  active: { id: string; title: string; kind: string | null; due: string | null; dueOn: string | null; fields: FieldSummary[] }[];
   finished: {
     id: string;
     title: string;
     kind: string | null;
     status: string;
     due: string | null;
+    dueOn: string | null;
     finishedAt: string | null;
     daysEarly: number | null;
     onTime: boolean | null;
@@ -153,6 +154,8 @@ export function CreatorVaultClient({
   currentUser: { id: string; name: string; role: string };
 }) {
   const router = useRouter();
+  // Moments read in the viewer's time zone; due DAYS never convert
+  const tz = useViewerTimeZone();
   const [creator, setCreator] = useState(data.creator);
   const [pause, setPause] = useState(data.pause);
   const [pauseChoice, setPauseChoice] = useState<string>("3");
@@ -228,7 +231,7 @@ export function CreatorVaultClient({
   const summary = data.active.length
     ? `${plural(data.active.length, "active request")}${owed ? `, ${plural(owed, "field")} still to come` : ", everything uploaded"}${
         ready ? `, ${plural(ready, "field")} ready to review` : ""
-      }.${next?.due ? ` Next due ${formatDay(next.due)}, ${timeLeft(next.due).text}.` : ""}`
+      }.${next?.due ? ` Next due ${formatDueOn(next.dueOn ?? next.due)}, ${timeLeft(next.due).text}.` : ""}`
     : `Nothing open for ${first} right now.`;
 
   const channel = creator.preferredContact === "SMS" ? "SMS" : creator.preferredContact === "BOTH" ? "BOTH" : "EMAIL";
@@ -285,7 +288,7 @@ export function CreatorVaultClient({
     setPausing(true);
     try {
       await doPause(resumeAt);
-      const text = resumeAt ? `Reminders to ${first} paused until ${formatDay(resumeAt)}` : `Reminders to ${first} paused until you resume them`;
+      const text = resumeAt ? `Reminders to ${first} paused until ${formatDay(resumeAt, tz)}` : `Reminders to ${first} paused until you resume them`;
       announce(text);
       toast(text, {
         action: {
@@ -567,7 +570,7 @@ export function CreatorVaultClient({
               <p className="mb-1.5 text-[13px] text-ink-2" id="pause-label">
                 {pause.paused
                   ? pause.resumeAt
-                    ? `Reminders paused until ${formatDay(pause.resumeAt)}`
+                    ? `Reminders paused until ${formatDay(pause.resumeAt, tz)}`
                     : "Reminders paused until you resume them"
                   : "Pause reminders"}
               </p>
@@ -743,7 +746,7 @@ export function CreatorVaultClient({
                       {r.title}
                     </Link>
                     <p className="text-[13px] text-ink-2">
-                      {[r.kind, r.finishedAt ? `finished ${formatDay(r.finishedAt)}` : null, r.due ? `due ${formatDay(r.due)}` : null]
+                      {[r.kind, r.finishedAt ? `finished ${formatDay(r.finishedAt, tz)}` : null, r.due ? `due ${formatDueOn(r.dueOn ?? r.due)}` : null]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
@@ -1015,7 +1018,11 @@ export function CreatorVaultClient({
         open={editOpen}
         onOpenChange={setEditOpen}
         creator={creator}
-        onUpdate={(u) => setCreator((c) => ({ ...c, ...u }))}
+        onUpdate={(u) => {
+          // A new time zone moves open deadlines (same days): reload their countdowns
+          if (u.timezone !== undefined && u.timezone !== creator.timezone) router.refresh();
+          setCreator((c) => ({ ...c, ...u }));
+        }}
         currentUserRole={currentUser.role}
       />
 

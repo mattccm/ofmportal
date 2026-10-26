@@ -560,6 +560,10 @@ model ContentRequest {
   fieldSubmissions Json @default("{}")
 
   // Scheduling
+  // dueOn: the calendar day that was picked, what every screen shows.
+  // dueDate: the deadline, 23:59:59 on dueOn in the creator's timezone
+  // (overdue, countdowns, sorting, reminders). Both set via src/lib/due.ts.
+  dueOn            DateTime? @db.Date
   dueDate          DateTime?
   urgency          Urgency   @default(NORMAL)
   estimatedMinutes Int? // Agency's estimate of how long this should take the creator

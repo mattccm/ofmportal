@@ -3,12 +3,13 @@
 import * as React from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDay, timeLeft } from "@/components/title-wall";
+import { formatDay, timeLeft, useViewerTimeZone } from "@/components/title-wall";
 
 /**
  * The due date, in-world: quick chips plus a drawn month calendar in a
- * popover. No native date-input chrome. Values are plain days ("2026-10-30"),
- * which the wall reads as due at 23:59 that day.
+ * popover. No native date-input chrome. Values are plain days ("2026-10-30"):
+ * the day every viewer sees. The deadline is the end of that day in the
+ * creator's time zone (src/lib/due.ts), so the time left uses `timeZone`.
  *
  * Calendar keys: arrows move a day / a week, Home / End go to the week's
  * ends, Page Up / Page Down change month, Enter or Space picks, Esc closes.
@@ -74,8 +75,12 @@ export interface DueDateFieldProps {
   invalid?: boolean;
   /** id for the group, so a label or an error can point at it */
   id?: string;
-  /** Show the "Due Thu 22 Oct, 23:59 · 6 days left" line under the chips */
+  /** Show the "Due Thu 22 Oct · 6 days left" line under the chips */
   showLine?: boolean;
+  /** The creator's time zone, for the time left (defaults to the viewer's) */
+  timeZone?: string;
+  /** A quiet note after the line ("ends 11:59 pm Jade's time (Buenos Aires)") */
+  endsNote?: string;
   className?: string;
 }
 
@@ -88,8 +93,11 @@ export function DueDateField({
   invalid,
   id,
   showLine = true,
+  timeZone,
+  endsNote,
   className,
 }: DueDateFieldProps) {
+  const viewerTz = useViewerTimeZone();
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const today = React.useMemo(() => {
@@ -99,7 +107,7 @@ export function DueDateField({
   const quickIsos = quick.map((q) => addDaysIso(q.days, today));
   const custom = !!value && !quickIsos.includes(value);
   const past = !!value && dayFromIso(value) < today;
-  const left = value ? timeLeft(value) : null;
+  const left = value ? timeLeft(value, new Date(), timeZone ?? viewerTz) : null;
 
   const chip = (pressed: boolean) =>
     cn(
@@ -178,8 +186,9 @@ export function DueDateField({
               <>That day has passed. Pick today or later.</>
             ) : (
               <>
-                Due {formatDay(value)}, 23:59{" "}
+                Due {formatDay(value)}{" "}
                 <span className={cn("font-normal", left?.urgent ? "text-late" : "text-ink-2")}>· {left?.text}</span>
+                {endsNote && <span className="block font-normal text-ink-2">{endsNote}</span>}
               </>
             )
           ) : (

@@ -1,7 +1,11 @@
 import { db } from "./db";
-import { addDays, startOfDay, differenceInDays, format, setHours, setMinutes, addHours } from "date-fns";
+import { addDays, startOfDay, format, setHours, setMinutes, addHours } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import type { Urgency, OverdueFrequency, NotificationChannel, ReminderTone } from "@prisma/client";
+import { addDaysToKey, calendarDaysUntilDue, dueDayOf, endOfDayIn, safeTimeZone, todayIn, zonedTimeToInstant } from "./due";
+
+/** Reminders go out at this hour of the creator's own day (outside default quiet hours) */
+const REMINDER_HOUR = 9;
 
 // TYPES
 
@@ -65,6 +69,7 @@ export interface BatchedReminderGroup {
   requests: Array<{
     id: string;
     title: string;
+    dueOn: Date | null;
     dueDate: Date | null;
     daysFromDue: number;
     urgency: Urgency;
@@ -186,8 +191,11 @@ export async function getReminderConfig(
 export function calculateReminderSchedule(
   dueDate: Date,
   config: ReminderScheduleConfig,
-  preferredChannel: NotificationChannel = "EMAIL"
+  preferredChannel: NotificationChannel = "EMAIL",
+  /** The creator's calendar: reminders land on their days, at REMINDER_HOUR their time */
+  creator?: { dueOn?: Date | string | null; timezone?: string | null; now?: Date }
 ): ScheduledReminderPreview[] {
+  if (creator) return calculateCreatorReminderSchedule(dueDate, config, preferredChannel, creator);
   const reminders: ScheduledReminderPreview[] = [];
   const today = startOfDay(new Date());
   const dueDateStart = startOfDay(dueDate);
@@ -243,6 +251,61 @@ export function calculateReminderSchedule(
 }
 
 /**
+ * The schedule in the creator's own calendar: "3 days before" is 3 calendar
+ * days before their due day, sent at REMINDER_HOUR on that day their time;
+ * overdue reminders follow on the days after the due day.
+ */
+function calculateCreatorReminderSchedule(
+  dueDate: Date,
+  config: ReminderScheduleConfig,
+  preferredChannel: NotificationChannel,
+  creator: { dueOn?: Date | string | null; timezone?: string | null; now?: Date }
+): ScheduledReminderPreview[] {
+  const tz = safeTimeZone(creator.timezone);
+  const now = creator.now ?? new Date();
+  const dueDay = dueDayOf({ dueOn: creator.dueOn ?? null, dueDate }, tz)!;
+  const today = todayIn(tz, now);
+  const at = (day: string) => {
+    const t = zonedTimeToInstant(day, REMINDER_HOUR, 0, 0, tz);
+    // On the creator's today, never before now
+    return day === today && t.getTime() < now.getTime() ? now : t;
+  };
+  const reminders: ScheduledReminderPreview[] = [];
+
+  for (const daysBefore of [...config.reminderDays].sort((a, b) => b - a)) {
+    const day = addDaysToKey(dueDay, -daysBefore);
+    if (day < today) continue;
+    reminders.push({
+      scheduledAt: at(day),
+      type: daysBefore === 0 ? "DUE_TODAY" : "UPCOMING",
+      channel: preferredChannel,
+      daysFromDue: -daysBefore,
+      isEscalation: false,
+    });
+  }
+
+  if (config.overdueReminderFrequency !== "NONE") {
+    const interval = getOverdueInterval(config.overdueReminderFrequency);
+    for (let i = 1; i <= config.maxOverdueReminders; i++) {
+      const daysOverdue = interval * i;
+      const day = addDaysToKey(dueDay, daysOverdue);
+      if (day < today) continue;
+      const isEscalation =
+        config.escalateToSms && config.smsEscalationDays !== null && daysOverdue >= config.smsEscalationDays;
+      reminders.push({
+        scheduledAt: at(day),
+        type: isEscalation ? "ESCALATION" : "OVERDUE",
+        channel: isEscalation ? "SMS" : preferredChannel,
+        daysFromDue: daysOverdue,
+        isEscalation,
+      });
+    }
+  }
+
+  return reminders.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+}
+
+/**
  * Get the interval in days for overdue reminder frequency
  */
 function getOverdueInterval(frequency: OverdueFrequency): number {
@@ -284,6 +347,7 @@ export async function scheduleRemindersForRequest(
         select: {
           id: true,
           preferredContact: true,
+          timezone: true,
         },
       },
     },
@@ -326,11 +390,10 @@ export async function scheduleRemindersForRequest(
     request.creator.preferredContact === "SMS" ? "SMS" : "EMAIL";
 
   // Calculate reminder schedule
-  const reminderSchedule = calculateReminderSchedule(
-    request.dueDate,
-    config,
-    preferredChannel
-  );
+  const reminderSchedule = calculateReminderSchedule(request.dueDate, config, preferredChannel, {
+    dueOn: request.dueOn,
+    timezone: request.creator.timezone,
+  });
 
   // If preview mode, just return the schedule
   if (preview) {
@@ -434,9 +497,13 @@ export async function previewScheduleForNewRequest(
   agencyId: string,
   creatorId: string,
   urgency: Urgency,
-  dueDate: Date
+  dueDate: Date,
+  /** The picked due day; when given, the deadline is the end of it in the creator's timezone */
+  dueOn?: string | null
 ): Promise<{
   reminders: ScheduledReminderPreview[];
+  /** The creator's timezone the schedule is in */
+  timezone: string;
   config: {
     source: "creator_override" | "urgency_rule" | "default";
     ruleId?: string;
@@ -446,7 +513,7 @@ export async function previewScheduleForNewRequest(
   // Get creator's preferred contact method
   const creator = await db.creator.findUnique({
     where: { id: creatorId },
-    select: { preferredContact: true },
+    select: { preferredContact: true, timezone: true },
   });
 
   const preferredChannel: NotificationChannel =
@@ -456,18 +523,26 @@ export async function previewScheduleForNewRequest(
   const { config, source, ruleId, overrideId, disableReminders } =
     await getReminderConfig(agencyId, creatorId, urgency);
 
+  const timezone = safeTimeZone(creator?.timezone);
+
   if (disableReminders) {
     return {
       reminders: [],
+      timezone,
       config: { source, overrideId },
     };
   }
 
-  // Calculate schedule
-  const reminders = calculateReminderSchedule(dueDate, config, preferredChannel);
+  // Calculate schedule in the creator's calendar
+  const deadline = dueOn ? endOfDayIn(dueOn, timezone) : dueDate;
+  const reminders = calculateReminderSchedule(deadline, config, preferredChannel, {
+    dueOn: dueOn ?? null,
+    timezone,
+  });
 
   return {
     reminders,
+    timezone,
     config: { source, ruleId, overrideId },
   };
 }
@@ -547,6 +622,7 @@ export async function processEscalations(requestId: string): Promise<void> {
           id: true,
           phone: true,
           preferredContact: true,
+          timezone: true,
         },
       },
     },
@@ -554,7 +630,8 @@ export async function processEscalations(requestId: string): Promise<void> {
 
   if (!request || !request.dueDate) return;
 
-  const daysOverdue = differenceInDays(new Date(), request.dueDate);
+  // Whole days past the due day, in the creator's calendar
+  const daysOverdue = -(calendarDaysUntilDue(request, request.creator.timezone) ?? 0);
   if (daysOverdue <= 0) return;
 
   // Get configuration
@@ -848,6 +925,7 @@ export async function getBatchedRemindersForCreator(
         select: {
           id: true,
           title: true,
+          dueOn: true,
           dueDate: true,
           urgency: true,
         },
@@ -869,10 +947,9 @@ export async function getBatchedRemindersForCreator(
   const requests = reminders.map((r) => ({
     id: r.request.id,
     title: r.request.title,
+    dueOn: r.request.dueOn,
     dueDate: r.request.dueDate,
-    daysFromDue: r.request.dueDate
-      ? differenceInDays(r.request.dueDate, date)
-      : 0,
+    daysFromDue: calendarDaysUntilDue(r.request, creator.timezone, date) ?? 0,
     urgency: r.request.urgency,
   }));
 

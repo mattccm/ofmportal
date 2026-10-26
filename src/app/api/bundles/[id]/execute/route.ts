@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
-import { format, addDays } from "date-fns";
+import { parseDueInput, dayFromInput, addDaysToKey, todayIn, dueFromDay, safeTimeZone, dayKeyOf, formatDueDay, formatDueLong } from "@/lib/due";
+import { staffTimeZone } from "@/lib/due-server";
 import type { BundleExecutionResult } from "@/types/request-bundles";
 
 // VALIDATION SCHEMA
@@ -89,9 +90,9 @@ export async function POST(
     );
 
     // Calculate base date
-    const startDate = validatedData.startDate
-      ? new Date(validatedData.startDate)
-      : new Date();
+    // A calendar day; with none given, each creator's own today
+    const pickerTz = await staffTimeZone(session.user.id);
+    const startDay = validatedData.startDate ? dayFromInput(validatedData.startDate, pickerTz) : null;
 
     // Results tracking
     const result: BundleExecutionResult = {
@@ -130,9 +131,15 @@ export async function POST(
           // Calculate due date
           const staggerDays = config.staggerDays || 0;
           const dueDays = config.defaultDueDays || template.defaultDueDays;
-          const dueDate = override?.dueDate
-            ? new Date(override.dueDate)
-            : addDays(addDays(startDate, staggerDays), dueDays);
+          // Calendar days from the start day, due at the end of the creator's own day
+          const due =
+            (override?.dueDate ? parseDueInput(override.dueDate, creator.timezone, pickerTz) : null) ??
+            dueFromDay(
+              addDaysToKey(startDay ?? todayIn(safeTimeZone(creator.timezone)), staggerDays + dueDays),
+              creator.timezone
+            );
+          const dueDate = due.dueDate;
+          const dueDay = dayKeyOf(due.dueOn)!;
 
           // Determine urgency
           const urgency = (
@@ -161,6 +168,7 @@ export async function POST(
               templateId: template.id,
               title: template.name,
               description: template.description || null,
+              dueOn: due.dueOn,
               dueDate,
               urgency,
               requirements: template.richContent
@@ -181,7 +189,7 @@ export async function POST(
             creatorId: creator.id,
             creatorName: creator.name,
             title: contentRequest.title,
-            dueDate: format(dueDate, "MMM d, yyyy"),
+            dueDate: formatDueDay(dueDay),
             status: contentRequest.status,
           });
           result.totalCreated++;
@@ -192,7 +200,7 @@ export async function POST(
 
           if (shouldNotify) {
             const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${contentRequest.id}`;
-            const dueDateFormatted = format(dueDate, "MMMM d, yyyy");
+            const dueDateFormatted = formatDueLong(dueDay);
 
             // Send email
             try {

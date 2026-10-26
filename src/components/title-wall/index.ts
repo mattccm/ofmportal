@@ -43,7 +43,8 @@ export {
   type FieldSummary,
   type StateAudience,
 } from "./types";
-export { timeLeft, toDueDate, formatDay, formatDue, formatStamp, type TimeLeft } from "./time";
+export { timeLeft, toDueDate, formatDay, formatDue, formatDueOn, formatDueDay, formatStamp, type TimeLeft } from "./time";
+export { ViewerTimeZoneProvider, useViewerTimeZone } from "./viewer-time";
 export {
   ensureMotion,
   isReducedMotion,

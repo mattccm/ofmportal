@@ -26,6 +26,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { formatStamp } from "@/components/title-wall/time";
+import { useViewerTimeZone } from "@/components/title-wall/viewer-time";
 import { toast } from "sonner";
 import { formatFileSize } from "@/lib/file-utils";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
@@ -90,6 +91,7 @@ function getStatusBadge(status: string) {
 }
 
 export function UploadsList({ uploads, requestId, fields, onStatusChange, readOnly = false }: UploadsListProps) {
+  const tz = useViewerTimeZone();
   const { can } = useAccess();
   const canApprove = can("review.approve");
   const canSendBack = can("review.requestChanges");
@@ -388,7 +390,7 @@ export function UploadsList({ uploads, requestId, fields, onStatusChange, readOn
                       <span>·</span>
                       <span>
                         {upload.uploadedAt
-                          ? formatStamp(upload.uploadedAt)
+                          ? formatStamp(upload.uploadedAt, tz)
                           : "Uploading…"}
                       </span>
                     </div>

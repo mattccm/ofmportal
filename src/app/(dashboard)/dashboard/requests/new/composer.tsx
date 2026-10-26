@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { dueEndsLine } from "@/lib/due";
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -830,6 +831,16 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
                     id="due"
                     value={dueDate}
                     onChange={setDueDate}
+                    timeZone={recipients.length === 1 ? recipients[0].timezone ?? undefined : undefined}
+                    endsNote={
+                      recipients.length === 1
+                        ? recipients[0].timezone
+                          ? dueEndsLine(recipients[0].name, recipients[0].timezone)
+                          : undefined
+                        : recipients.length > 1
+                          ? "Each creator gets until 11:59 pm their own time."
+                          : undefined
+                    }
                     invalid={tried && !!dueDate && dueDate < today}
                     disabled={!!sending}
                     quick={

@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
-import { format } from "date-fns";
 import {
   parsePaginationParams,
   createPaginatedResponse,
@@ -15,6 +14,8 @@ import {
   formatReminderSchedule,
 } from "@/lib/auto-reminder-scheduler";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
+import { parseDueInput, dayKeyOf, formatDueLong } from "@/lib/due";
+import { staffTimeZone } from "@/lib/due-server";
 
 const createRequestSchema = z.object({
   creatorId: z.string().min(1, "Creator is required"),
@@ -233,6 +234,9 @@ export async function POST(req: NextRequest) {
       ...(validatedData.richContent ? { _richContent: validatedData.richContent } : {}),
     };
 
+    // The picked day, due at the end of that day in the creator's timezone
+    const due = parseDueInput(validatedData.dueDate, creator.timezone, await staffTimeZone(session.user.id));
+
     const contentRequest = await db.contentRequest.create({
       data: {
         agencyId: session.user.agencyId,
@@ -240,7 +244,8 @@ export async function POST(req: NextRequest) {
         templateId: validatedData.templateId || null,
         title: validatedData.title,
         description: validatedData.description || null,
-        dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
+        dueOn: due?.dueOn ?? null,
+        dueDate: due?.dueDate ?? null,
         urgency: validatedData.urgency,
         requirements,
         fields: validatedData.fields || [],
@@ -270,9 +275,7 @@ export async function POST(req: NextRequest) {
     // Send notification if requested (and not a draft)
     if (validatedData.sendNotification && !validatedData.saveAsDraft) {
       const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${contentRequest.id}`;
-      const dueDate = validatedData.dueDate
-        ? format(new Date(validatedData.dueDate), "MMMM d, yyyy")
-        : "No specific due date";
+      const dueDate = formatDueLong(dayKeyOf(contentRequest.dueOn), "No specific due date");
 
       // Send email
       try {

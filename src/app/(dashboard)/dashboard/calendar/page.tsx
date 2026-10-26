@@ -5,6 +5,8 @@ import { NoAccess } from "@/components/access/no-access";
 import { Bell, CalendarDays, Flag, Sparkles, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CalendarClient } from "./calendar-client";
+import { addDaysToKey, dayKeyToDate, todayIn } from "@/lib/due";
+import { staffTimeZone } from "@/lib/due-server";
 
 // DATA FETCHING
 
@@ -20,19 +22,15 @@ async function getCreators(where: Prisma.CreatorWhereInput) {
   });
 }
 
-// Counts cover only requests whose creator is in this person's scope
-async function getCalendarStats(scope: Prisma.ContentRequestWhereInput, withReminders: boolean) {
+// Counts cover only requests whose creator is in this person's scope.
+// "Today" and "this week" are due DAYS in the viewer's own calendar.
+async function getCalendarStats(scope: Prisma.ContentRequestWhereInput, withReminders: boolean, tz: string) {
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfToday = new Date(startOfToday);
-  endOfToday.setHours(23, 59, 59, 999);
-
-  const startOfWeek = new Date(startOfToday);
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(endOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
+  const today = todayIn(tz, now);
+  const [y, m, d] = today.split("-").map(Number);
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  const startOfWeek = addDaysToKey(today, -weekday);
+  const endOfWeek = addDaysToKey(startOfWeek, 6);
 
   const [
     todayDeadlines,
@@ -44,10 +42,7 @@ async function getCalendarStats(scope: Prisma.ContentRequestWhereInput, withRemi
     db.contentRequest.count({
       where: {
         ...scope,
-        dueDate: {
-          gte: startOfToday,
-          lte: endOfToday,
-        },
+        dueOn: dayKeyToDate(today),
         status: {
           notIn: ["APPROVED", "CANCELLED", "ARCHIVED"],
         },
@@ -57,9 +52,9 @@ async function getCalendarStats(scope: Prisma.ContentRequestWhereInput, withRemi
     db.contentRequest.count({
       where: {
         ...scope,
-        dueDate: {
-          gte: startOfWeek,
-          lte: endOfWeek,
+        dueOn: {
+          gte: dayKeyToDate(startOfWeek),
+          lte: dayKeyToDate(endOfWeek),
         },
         status: {
           notIn: ["APPROVED", "CANCELLED", "ARCHIVED"],
@@ -70,8 +65,9 @@ async function getCalendarStats(scope: Prisma.ContentRequestWhereInput, withRemi
     db.contentRequest.count({
       where: {
         ...scope,
+        // Past the creator's end of the due day
         dueDate: {
-          lt: startOfToday,
+          lt: now,
         },
         status: {
           notIn: ["APPROVED", "CANCELLED", "ARCHIVED"],
@@ -109,7 +105,7 @@ export default async function CalendarPage() {
   try {
     [creators, stats] = await Promise.all([
       getCreators(creatorWhere(access)),
-      getCalendarStats(requestWhere(access), seesReminders),
+      getCalendarStats(requestWhere(access), seesReminders, (await staffTimeZone(access.userId)) ?? "UTC"),
     ]);
   } catch (error) {
     console.error("Failed to fetch calendar data:", error);

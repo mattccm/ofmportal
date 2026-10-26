@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { WidgetCard, type WidgetProps } from "../widget-grid";
 import { useWidgetData } from "../widget-data-provider";
 import { cn } from "@/lib/utils";
+import { dueDayDate } from "@/lib/due";
 
 // TYPES
 
@@ -91,7 +92,7 @@ export function UpcomingDeadlinesWidget({ config, size }: WidgetProps) {
 
   // Group deadlines by date for calendar-style view
   const groupedDeadlines = deadlines.slice(0, displayCount).reduce((acc, deadline) => {
-    const date = format(new Date(deadline.dueDate), "yyyy-MM-dd");
+    const date = format(dueDayDate(deadline)!, "yyyy-MM-dd");
     if (!acc[date]) {
       acc[date] = [];
     }

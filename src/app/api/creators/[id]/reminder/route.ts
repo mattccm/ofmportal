@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { sendReminderEmail } from "@/lib/email";
-import { format, differenceInDays } from "date-fns";
 import { getAppUrl } from "@/lib/app-url";
+import { dueLong, calendarDaysUntilDue } from "@/lib/due";
 
 /**
  * POST /api/creators/[id]/reminder
@@ -57,12 +57,9 @@ export async function POST(
 
     for (const request of activeRequests) {
       const portalLink = `${appUrl}/creator/requests/${request.id}`;
-      const dueDate = request.dueDate
-        ? format(request.dueDate, "MMMM d, yyyy")
-        : "No due date";
-      const daysUntilDue = request.dueDate
-        ? differenceInDays(request.dueDate, today)
-        : 0;
+      const dueDate = dueLong(request, "No due date");
+      // Calendar days in the creator's own calendar: 1 = due tomorrow
+      const daysUntilDue = calendarDaysUntilDue(request, creator.timezone, today) ?? 0;
 
       let reminderType: "UPCOMING" | "DUE_TODAY" | "OVERDUE" = "UPCOMING";
       if (daysUntilDue === 0) {

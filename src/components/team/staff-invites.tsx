@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { InviteConfirmDialog, InviteLinkBox, InviteLinkDialog } from "@/components/invites/invite-link";
 import { Pill } from "@/components/creators/people-ui";
-import { formatDay } from "@/components/title-wall";
+import { formatDay, useViewerTimeZone } from "@/components/title-wall";
 import type { StaffInviteRow } from "@/lib/staff-invites";
 
 /** A role the inviter may hand out (never owner; never more access than their own unless they manage roles) */
@@ -260,6 +260,7 @@ export function PendingInvites({
   onChange: (next: StaffInviteRow[]) => void;
   onInvite: () => void;
 }) {
+  const tz = useViewerTimeZone();
   const [busy, setBusy] = React.useState<string | null>(null);
   const [shown, setShown] = React.useState<{ title: string; description: string; link: string; expiresAt: string } | null>(null);
   const [confirm, setConfirm] = React.useState<{ kind: "rotate" | "cancel"; invite: StaffInviteRow } | null>(null);
@@ -359,8 +360,8 @@ export function PendingInvites({
                   <p className="mt-1 text-[13px] text-ink-2" suppressHydrationWarning>
                     {[
                       i.name && i.email ? i.email : null,
-                      expired ? `Expired ${formatDay(i.expiresAt)}` : `Link works until ${formatDay(i.expiresAt)}`,
-                      i.emailSentAt ? `emailed ${formatDay(i.emailSentAt)}` : "not emailed",
+                      expired ? `Expired ${formatDay(i.expiresAt, tz)}` : `Link works until ${formatDay(i.expiresAt, tz)}`,
+                      i.emailSentAt ? `emailed ${formatDay(i.emailSentAt, tz)}` : "not emailed",
                       i.invitedBy ? `invited by ${i.invitedBy}` : null,
                     ]
                       .filter(Boolean)

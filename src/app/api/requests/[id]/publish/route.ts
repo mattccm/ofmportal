@@ -3,11 +3,11 @@ import { requireAccess, requestWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
-import { format } from "date-fns";
 import { invalidateCache } from "@/lib/cache";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
 import { getAppUrl } from "@/lib/app-url";
+import { dueLong } from "@/lib/due";
 
 /**
  * POST - Publish a draft request.
@@ -52,9 +52,7 @@ export async function POST(
 
     const creator = existing.creator;
     const portalLink = `${getAppUrl()}/creator/requests/${id}`;
-    const dueDate = existing.dueDate
-      ? format(existing.dueDate, "MMMM d, yyyy")
-      : "No specific due date";
+    const dueDate = dueLong(existing, "No specific due date");
 
     // Notify the creator. Failures are logged and never undo the publish.
     let emailSent = false;

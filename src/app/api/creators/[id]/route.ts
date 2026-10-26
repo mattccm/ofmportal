@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { cleanBrowserTimeZone } from "@/lib/due";
+import { reanchorCreatorDueDates } from "@/lib/due-server";
 import { deleteFile } from "@/lib/storage";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
@@ -191,6 +193,9 @@ export async function PATCH(
 
     const body = await req.json();
     const validatedData = updateCreatorSchema.parse(body);
+    if (validatedData.timezone !== undefined && !cleanBrowserTimeZone(validatedData.timezone)) {
+      return NextResponse.json({ error: "Choose a time zone from the list" }, { status: 400 });
+    }
 
     // Archiving is its own permission; every other field needs creators.edit,
     // and a field they can't see can't be changed either.
@@ -280,6 +285,12 @@ export async function PATCH(
           where: { id },
           data: updateData,
         });
+
+    // A new time zone moves each open request's deadline to the end of the
+    // same due day in that zone
+    if (validatedData.timezone && validatedData.timezone !== existingCreator.timezone) {
+      await reanchorCreatorDueDates(id, validatedData.timezone, existingCreator.timezone);
+    }
 
     // Log activity
     await db.activityLog.create({

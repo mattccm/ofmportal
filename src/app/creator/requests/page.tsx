@@ -15,7 +15,7 @@ import {
 import { Search, ArrowUpDown, LayoutGrid, List, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isRequestOverdue } from "@/lib/request-status";
-import { TitleCard, formatDay } from "@/components/title-wall";
+import { TitleCard, formatDay, useViewerTimeZone } from "@/components/title-wall";
 import type { CreatorFieldStateRow } from "@/lib/creator-field-states";
 import { ACTIONABLE, IN_REVIEW, creatorSummary, toStrip } from "@/components/portal/creator-words";
 import { RequestRow } from "@/components/portal/request-row";
@@ -33,6 +33,8 @@ interface Request {
   title: string;
   description: string | null;
   dueDate: string | null;
+  /** The due day everyone sees */
+  dueOn?: string | null;
   status: RequestStatus;
   urgency: string;
   createdAt: string;
@@ -56,6 +58,7 @@ type SortOption = "due_date" | "created_date" | "title" | "status";
 
 export default function CreatorRequestsPage() {
   const router = useRouter();
+  const tz = useViewerTimeZone();
   const searchParams = useSearchParams();
 
   const [loading, setLoading] = useState(true);
@@ -308,9 +311,9 @@ export default function CreatorRequestsPage() {
                 <TitleCard
                   audience="creator"
                   title={r.title}
-                  creator={`Sent ${formatDay(r.createdAt)}`}
+                  creator={`Sent ${formatDay(r.createdAt, tz)}`}
                   due={IN_REVIEW.has(r.status) ? undefined : r.dueDate}
-                  timeText={IN_REVIEW.has(r.status) ? (r.submittedAt ? `Submitted ${formatDay(r.submittedAt)}` : "In review") : undefined}
+                  timeText={IN_REVIEW.has(r.status) ? (r.submittedAt ? `Submitted ${formatDay(r.submittedAt, tz)}` : "In review") : undefined}
                   fields={toStrip(r.fieldStates)}
                   meta={creatorSummary(r.fieldStates)}
                   href={`/creator/requests/${r.id}`}

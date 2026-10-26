@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { dueDayOf } from "@/lib/due";
 import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -61,6 +62,7 @@ async function getProfile(creatorId: string, access: Access): Promise<ProfileDat
         id: true,
         title: true,
         status: true,
+        dueOn: true,
         dueDate: true,
         createdAt: true,
         submittedAt: true,
@@ -120,6 +122,7 @@ async function getProfile(creatorId: string, access: Access): Promise<ProfileDat
       title: r.title,
       kind: r.template?.name ?? null,
       due: r.dueDate ? r.dueDate.toISOString() : null,
+      dueOn: dueDayOf(r, creator.timezone),
       fields: requestFields(r, now),
     }));
 
@@ -183,6 +186,7 @@ async function getProfile(creatorId: string, access: Access): Promise<ProfileDat
         kind: r.template?.name ?? null,
         status: r.status,
         due: r.dueDate ? r.dueDate.toISOString() : null,
+        dueOn: dueDayOf(r, creator.timezone),
         finishedAt: (r.reviewedAt ?? r.submittedAt)?.toISOString() ?? null,
         daysEarly: p ? p.daysEarly : null,
         onTime: p ? p.onTime : null,
@@ -191,7 +195,8 @@ async function getProfile(creatorId: string, access: Access): Promise<ProfileDat
     points: points.map((p) => ({
       id: p.id,
       title: p.title,
-      due: p.due.toISOString(),
+      // The due DAY for the chart's labels (the same for every viewer)
+      due: p.dueOn ?? p.due.toISOString(),
       delivered: p.delivered.toISOString(),
       daysEarly: p.daysEarly,
       onTime: p.onTime,

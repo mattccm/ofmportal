@@ -9,7 +9,10 @@ export interface RequestCoverProps {
   title: string;
   /** "Sent Mon 19 Oct", set under the title (never above it) */
   sentText: string;
+  /** The deadline instant (the countdown) */
   due?: string | null;
+  /** The due day, the date text ("Due Mon 3 Aug") */
+  dueOn?: string | null;
   /** Finished requests show the finish instead of time left */
   completedAt?: string | null;
   /** Replaces the countdown, e.g. "Submitted for review" */
@@ -40,6 +43,7 @@ export function RequestCover({
   title,
   sentText,
   due,
+  dueOn,
   completedAt,
   statusText,
   fields,
@@ -85,7 +89,7 @@ export function RequestCover({
         ) : due ? (
           <div className="mt-4">
             <Countdown due={due} completedAt={completedAt} size={completedAt ? "sm" : "lg"} />
-            <p className="mt-0.5 text-[14px] leading-normal text-ink-2">{formatDue(due)}</p>
+            <p className="mt-0.5 text-[14px] leading-normal text-ink-2">{formatDue(dueOn ?? due)}</p>
           </div>
         ) : null}
 

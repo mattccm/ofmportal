@@ -22,7 +22,7 @@ import type { TemplateField } from "@/lib/template-types";
 import type { CreatorFieldState } from "@/lib/creator-field-states";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 import { FilePreviewModal, type PreviewFile } from "@/components/preview";
-import { DiscreetPreview, FieldCell, StateWord, formatDay } from "@/components/title-wall";
+import { DiscreetPreview, FieldCell, StateWord, formatDay, useViewerTimeZone } from "@/components/title-wall";
 
 interface SectionComment {
   id: string;
@@ -268,6 +268,7 @@ function FeedbackThread({
   const [reply, setReply] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const id = React.useId();
+  const tz = useViewerTimeZone();
 
   const send = async () => {
     if (!onReply || !reply.trim()) return;
@@ -289,7 +290,7 @@ function FeedbackThread({
             <div className={cn("max-w-[85%] rounded-[10px] px-3 py-2", c.isAgency ? "bg-tile" : "bg-tile-hi")}>
               <p className="whitespace-pre-wrap break-words text-[15px] leading-normal">{c.content}</p>
               <p className="mt-0.5 text-[12px] text-ink-2">
-                {c.isAgency ? c.user?.name || "Your team" : "You"} · {formatDay(c.createdAt)}
+                {c.isAgency ? c.user?.name || "Your team" : "You"} · {formatDay(c.createdAt, tz)}
               </p>
             </div>
           </li>
@@ -367,6 +368,7 @@ function FileFieldCard({
   comments: SectionComment[];
   onReply?: (content: string) => Promise<void>;
 }) {
+  const tz = useViewerTimeZone();
   const [submitting, setSubmitting] = React.useState(false);
   const [redacting, setRedacting] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -473,7 +475,7 @@ function FileFieldCard({
           {rejected.map((u) => (
             <p key={u.id} className="mt-1.5 text-[14px] leading-normal text-ink-2">
               <span className="text-ink">{u.originalName}</span>
-              {u.createdAt ? `, sent ${formatDay(u.createdAt)}` : ""}
+              {u.createdAt ? `, sent ${formatDay(u.createdAt, tz)}` : ""}
               {u.reviewNote ? `: ${u.reviewNote}` : ""}
             </p>
           ))}

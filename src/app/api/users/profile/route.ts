@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cleanBrowserTimeZone } from "@/lib/due";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -41,6 +42,7 @@ export async function GET() {
         role: true,
         twoFactorEnabled: true,
         emailVerified: true,
+        timezone: true,
         createdAt: true,
         updatedAt: true,
         agency: {
@@ -76,7 +78,7 @@ export async function GET() {
     return NextResponse.json({
       ...user,
       bio: personalSettings?.bio || null,
-      timezone: personalSettings?.timezone || "America/New_York",
+      timezone: (user.timezone && user.timezone !== "UTC" ? user.timezone : null) || personalSettings?.timezone || "UTC",
       preferredLanguage: personalSettings?.preferredLanguage || "en",
     });
   } catch (error) {
@@ -130,7 +132,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Separate user fields from settings
-    const userFields: { name?: string; email?: string; phone?: string | null; image?: string | null } = {};
+    const userFields: { name?: string; email?: string; phone?: string | null; image?: string | null; timezone?: string } = {};
     const settingsFields: { bio?: string | null; timezone?: string; preferredLanguage?: string } = {};
 
     if (data.name !== undefined) userFields.name = data.name;
@@ -161,7 +163,14 @@ export async function PATCH(request: NextRequest) {
       userFields.email = data.email.toLowerCase();
     }
     if (data.bio !== undefined) settingsFields.bio = data.bio;
-    if (data.timezone !== undefined) settingsFields.timezone = data.timezone;
+    if (data.timezone !== undefined) {
+      if (!cleanBrowserTimeZone(data.timezone)) {
+        return NextResponse.json({ error: "Choose a time zone from the list" }, { status: 400 });
+      }
+      settingsFields.timezone = data.timezone;
+      // The time zone every moment on their screens reads in
+      userFields.timezone = data.timezone;
+    }
     if (data.preferredLanguage !== undefined) settingsFields.preferredLanguage = data.preferredLanguage;
 
     // Update user record

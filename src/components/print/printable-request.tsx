@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Tag,
 } from "lucide-react";
+import { dueDayDate } from "@/lib/due";
 
 interface Creator {
   id: string;
@@ -182,7 +183,7 @@ export function PrintableRequest({
           </div>
           <div className="request-meta-value font-medium">
             {request.dueDate
-              ? format(new Date(request.dueDate), "MMMM d, yyyy")
+              ? format(dueDayDate(request)!, "MMMM d, yyyy")
               : "No due date"}
           </div>
         </div>

@@ -9,8 +9,9 @@ import {
 } from "@/lib/bulk-operations";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
-import { format, subDays, addHours, addDays, startOfDay } from "date-fns";
+import { subDays, addHours, addDays, startOfDay } from "date-fns";
 import { z } from "zod";
+import { dueLong, calendarDaysUntilDue, dayKeyOf } from "@/lib/due";
 
 interface ReminderResult {
   requestId: string;
@@ -142,14 +143,8 @@ export async function POST(req: NextRequest) {
         let error: string | undefined;
 
         const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
-        const dueDate = request.dueDate
-          ? format(request.dueDate, "MMMM d, yyyy")
-          : "No specific due date";
-        const daysUntilDue = request.dueDate
-          ? Math.ceil(
-              (request.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-            )
-          : 0;
+        const dueDate = dueLong(request, "No specific due date");
+        const daysUntilDue = calendarDaysUntilDue(request, request.creator.timezone) ?? 0;
 
         try {
           // Send email if enabled
@@ -313,6 +308,7 @@ export async function GET(req: NextRequest) {
       title: request.title,
       status: request.status,
       dueDate: request.dueDate?.toISOString() || null,
+      dueOn: dayKeyOf(request.dueOn),
       daysUntilDue: request.dueDate
         ? Math.ceil(
             (request.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)

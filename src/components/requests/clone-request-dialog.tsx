@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { addDaysToKey, dayKeyOf } from "@/lib/due";
+import { formatDueOn } from "@/components/title-wall/time";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,7 +39,7 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 
 interface Creator {
   id: string;
@@ -98,9 +100,7 @@ export function CloneRequestDialog({
   // Configuration state
   const [modifiedTitle, setModifiedTitle] = useState(request.title);
   const [modifiedDueDate, setModifiedDueDate] = useState(
-    request.dueDate
-      ? format(new Date(request.dueDate), "yyyy-MM-dd")
-      : ""
+    dayKeyOf(request.dueDate) ?? ""
   );
   const [dueDateOffset, setDueDateOffset] = useState<number>(0);
   const [useDueDateOffset, setUseDueDateOffset] = useState(false);
@@ -118,9 +118,7 @@ export function CloneRequestDialog({
       setCloneToSameCreator(true);
       setModifiedTitle(request.title);
       setModifiedDueDate(
-        request.dueDate
-          ? format(new Date(request.dueDate), "yyyy-MM-dd")
-          : ""
+        dayKeyOf(request.dueDate) ?? ""
       );
       setDueDateOffset(0);
       setUseDueDateOffset(false);
@@ -159,15 +157,12 @@ export function CloneRequestDialog({
     if (!modifiedDueDate && !useDueDateOffset) return null;
 
     if (useDueDateOffset) {
-      // Apply offset for each additional creator
-      const baseDate = modifiedDueDate
-        ? new Date(modifiedDueDate)
-        : new Date();
-      const offsetDays = dueDateOffset * creatorIndex;
-      return addDays(baseDate, offsetDays).toISOString();
+      // Apply offset for each additional creator, in calendar days
+      const baseDay = modifiedDueDate || format(new Date(), "yyyy-MM-dd");
+      return addDaysToKey(baseDay, dueDateOffset * creatorIndex);
     }
 
-    return new Date(modifiedDueDate).toISOString();
+    return modifiedDueDate;
   };
 
   const handleClone = async () => {
@@ -535,9 +530,7 @@ export function CloneRequestDialog({
                         {useDueDateOffset ? "Base Due Date" : "Due Date"}
                       </span>
                       <span>
-                        {modifiedDueDate
-                          ? format(new Date(modifiedDueDate), "MMM d, yyyy")
-                          : "Not set"}
+                        {modifiedDueDate ? formatDueOn(modifiedDueDate) : "Not set"}
                       </span>
                     </div>
                     {useDueDateOffset && (
@@ -588,7 +581,7 @@ export function CloneRequestDialog({
                             {dueDate && (
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                {format(new Date(dueDate), "MMM d, yyyy")}
+                                {formatDueOn(dueDate)}
                               </span>
                             )}
                           </div>

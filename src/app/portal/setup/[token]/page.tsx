@@ -179,6 +179,7 @@ export default function PortalSetupPage({
         body: JSON.stringify({
           token,
           password: formData.password,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
 

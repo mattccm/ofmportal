@@ -3,6 +3,8 @@ import { forbidden, requestWhere as scopedRequests, requireAccess } from "@/lib/
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { rescheduleReminders } from "@/lib/auto-reminder-scheduler";
+import { dayKeyOf, parseDueInput } from "@/lib/due";
+import { creatorTimeZones, staffTimeZone } from "@/lib/due-server";
 import { isRequestOverdue } from "@/lib/request-status";
 import { requestStatusState, type FieldState } from "@/components/title-wall/types";
 
@@ -29,6 +31,8 @@ export interface CalendarEvent {
   title: string;
   description?: string;
   date: string;
+  /** Deadlines: the due day ("YYYY-MM-DD") that every viewer sees */
+  dueOn?: string;
   endDate?: string;
   type: CalendarEventType;
   status?: string;
@@ -177,6 +181,8 @@ export async function GET(req: NextRequest) {
             title: `Due: ${request.title}`,
             description: request.description || undefined,
             date: request.dueDate.toISOString(),
+            // The due DAY, the same for every viewer: place the event on this day
+            dueOn: dayKeyOf(request.dueOn) ?? undefined,
             type: "deadline",
             status: request.status,
             urgency: request.urgency,
@@ -322,9 +328,18 @@ export async function PATCH(req: NextRequest) {
           );
         }
 
+        // The day it was dropped on, due at the end of that day in the creator's timezone
+        const [tzs, pickerTz] = await Promise.all([
+          creatorTimeZones([request.creatorId]),
+          staffTimeZone(session.user.id),
+        ]);
+        const due = parseDueInput(newDate, tzs.get(request.creatorId), pickerTz);
+        if (!due) {
+          return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+        }
         await db.contentRequest.update({
           where: { id },
-          data: { dueDate: newDateObj },
+          data: { dueOn: due.dueOn, dueDate: due.dueDate },
         });
 
         // Move auto-reminders to match the new due date (same as PATCH /api/requests/[id])
@@ -345,14 +360,16 @@ export async function PATCH(req: NextRequest) {
             entityId: id,
             metadata: {
               oldDueDate: request.dueDate?.toISOString(),
-              newDueDate: newDateObj.toISOString(),
+              newDueDate: due.dueDate.toISOString(),
+              newDueOn: dayKeyOf(due.dueOn),
             },
           },
         });
 
         return NextResponse.json({
           message: "Due date updated successfully",
-          newDate: newDateObj.toISOString(),
+          newDate: due.dueDate.toISOString(),
+          dueOn: dayKeyOf(due.dueOn),
         });
       }
 

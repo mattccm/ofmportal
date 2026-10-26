@@ -155,7 +155,9 @@ function EventDetailPanel({ event, onClose, onReschedule, canMove, isOpen, isMob
         <div className="flex items-center gap-3 text-sm">
           <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="text-foreground">
-            {format(parseISO(event.date), "h:mm a")}
+            {event.type === "deadline" && event.dueOn
+              ? "Ends 11:59 pm in the creator\u2019s time zone"
+              : format(parseISO(event.date), "h:mm a")}
           </span>
         </div>
 
@@ -328,7 +330,13 @@ export function CalendarClient({ creators }: CalendarClientProps) {
       }
 
       const data = await response.json();
-      setEvents(data.events || []);
+      // A deadline sits on its due DAY for every viewer: place it at midday of
+      // that day in this browser so no time zone moves it to a neighbour
+      setEvents(
+        ((data.events || []) as CalendarEvent[]).map((e) =>
+          e.type === "deadline" && e.dueOn ? { ...e, date: `${e.dueOn}T12:00:00` } : e
+        )
+      );
     } catch (error) {
       console.error("Error fetching calendar events:", error);
       toast.error("Failed to load calendar events");
@@ -362,7 +370,8 @@ export function CalendarClient({ creators }: CalendarClientProps) {
         },
         body: JSON.stringify({
           eventId,
-          newDate: newDate.toISOString(),
+          // A deadline moves to a calendar day; anything else to a moment
+          newDate: moving?.type === "deadline" ? format(newDate, "yyyy-MM-dd") : newDate.toISOString(),
         }),
       });
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { formatDay } from "@/components/title-wall";
+import { formatDay, useViewerTimeZone } from "@/components/title-wall";
 
 /**
  * A template as a typeset title card on the shelf: the name set as display
@@ -45,10 +45,10 @@ export interface TemplateCoverProps {
   ariaLabel?: string;
 }
 
-function usageLine(count: number, last?: string | Date | null): string {
+function usageLine(count: number, last?: string | Date | null, tz?: string): string {
   if (!count) return "Not used yet";
   const times = count === 1 ? "Used once" : `Used ${count} times`;
-  return last ? `${times} · last ${formatDay(last)}` : times;
+  return last ? `${times} · last ${formatDay(last, tz)}` : times;
 }
 
 export function TemplateCover({
@@ -70,6 +70,7 @@ export function TemplateCover({
   headingLevel = "h3",
   ariaLabel,
 }: TemplateCoverProps) {
+  const tz = useViewerTimeZone();
   const H = headingLevel;
   const len = name.length <= 14 ? "s" : name.length <= 24 ? "m" : "l";
   const footText = foot ?? (fields.length ? `${fields.length} ${fields.length === 1 ? "field" : "fields"}` : "Blank");
@@ -132,7 +133,7 @@ export function TemplateCover({
       )}
       {!compact && (
         <p className="mt-1.5 truncate text-sm font-medium text-ink-2">
-          {usageLine(usageCount, lastUsedAt)}
+          {usageLine(usageCount, lastUsedAt, tz)}
           {aside}
         </p>
       )}

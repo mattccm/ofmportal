@@ -8,6 +8,7 @@
  */
 import type { FieldState, FieldSummary } from "@/components/title-wall/types";
 import { toDueDate } from "@/components/title-wall/time";
+import { dayKeyOf } from "@/lib/due";
 import { mapRequestFields } from "@/lib/title-wall/request-card-data";
 
 export interface RequestFieldDef {
@@ -26,6 +27,8 @@ export interface RequestRow {
   id: string;
   title: string;
   status: string;
+  /** The due day (DATE) */
+  dueOn?: Date | string | null;
   dueDate: Date | string | null;
   createdAt?: Date | string;
   submittedAt?: Date | string | null;
@@ -72,6 +75,8 @@ export interface FinishedPoint {
   id: string;
   title: string;
   due: Date;
+  /** The due day, "YYYY-MM-DD" */
+  dueOn: string | null;
   delivered: Date;
   /** Positive: days early. Negative: days late. Rounded to whole days. */
   daysEarly: number;
@@ -88,7 +93,7 @@ export function finishedPoints(rows: RequestRow[]): FinishedPoint[] {
     const due = dueMoment(r.dueDate);
     const diff = (due.getTime() - delivered.getTime()) / 86_400_000;
     const daysEarly = diff >= 0 ? Math.floor(diff) : -Math.ceil(-diff);
-    out.push({ id: r.id, title: r.title, due, delivered, daysEarly, onTime: diff >= 0 });
+    out.push({ id: r.id, title: r.title, due, dueOn: dayKeyOf(r.dueOn ?? null), delivered, daysEarly, onTime: diff >= 0 });
   }
   return out.sort((a, b) => a.delivered.getTime() - b.delivered.getTime());
 }

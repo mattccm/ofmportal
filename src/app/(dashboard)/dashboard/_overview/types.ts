@@ -17,8 +17,12 @@ export interface OverviewRequest {
   id: string;
   title: string;
   status: string;
-  /** ISO due moment */
+  /** ISO deadline instant (the countdown): 23:59:59 on dueOn in the creator's time zone */
   due: string | null;
+  /** The due DAY, "YYYY-MM-DD": the date text, the same for every viewer */
+  dueOn: string | null;
+  /** The creator's time zone, only when the viewer may see it (for "Ends 11:59 pm ...") */
+  creatorTz: string | null;
   /** ISO, when the request was created */
   sentAt: string;
   creatorId: string;

@@ -63,6 +63,8 @@ export interface CalendarEvent {
   title: string;
   description?: string;
   date: string;
+  /** Deadlines: the due day ("YYYY-MM-DD"), the same for every viewer */
+  dueOn?: string;
   endDate?: string;
   type: CalendarEventType;
   status?: string;

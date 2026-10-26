@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { forbidden, requireAccess } from "@/lib/access/server";
 import { TASK_TYPE_KEY, targetsInScope } from "../../../recurring-requests/scope";
 import { db } from "@/lib/db";
-import { addDays, format } from "date-fns";
+import { dueInDays, dueLong } from "@/lib/due";
 import { sendContentRequestEmail } from "@/lib/email";
 import type { Prisma } from "@prisma/client";
 
@@ -63,9 +63,10 @@ async function executeCreateRequest(
   });
 
   const createdRequestIds: string[] = [];
-  const dueDate = addDays(new Date(), template.defaultDueDays);
 
   for (const creator of creators) {
+    // Due in N calendar days from the creator's today, at the end of their day
+    const due = dueInDays(template.defaultDueDays, creator.timezone);
     // Create request
     const request = await db.contentRequest.create({
       data: {
@@ -74,7 +75,8 @@ async function executeCreateRequest(
         templateId: task.templateId,
         title: template.name,
         description: template.description,
-        dueDate,
+        dueOn: due.dueOn,
+        dueDate: due.dueDate,
         urgency: template.defaultUrgency,
         requirements: {},
         fields: parseTemplateFields(template.fields) as Prisma.InputJsonValue,
@@ -92,7 +94,7 @@ async function executeCreateRequest(
         creatorName: creator.name,
         agencyName: user.agencyName,
         requestTitle: request.title,
-        dueDate: format(dueDate, "MMMM d, yyyy"),
+        dueDate: dueLong(due),
         portalLink,
       });
     } catch (emailError) {
@@ -141,7 +143,7 @@ async function executeApplyBundle(
 
   for (const creator of creators) {
     for (const template of templates) {
-      const dueDate = addDays(new Date(), template.defaultDueDays);
+      const due = dueInDays(template.defaultDueDays, creator.timezone);
 
       const request = await db.contentRequest.create({
         data: {
@@ -150,7 +152,8 @@ async function executeApplyBundle(
           templateId: template.id,
           title: template.name,
           description: template.description,
-          dueDate,
+          dueOn: due.dueOn,
+          dueDate: due.dueDate,
           urgency: template.defaultUrgency,
           requirements: {},
           fields: parseTemplateFields(template.fields) as Prisma.InputJsonValue,

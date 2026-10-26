@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { validateCreatorSession } from "@/lib/portal-auth";
+import { cleanBrowserTimeZone } from "@/lib/due";
+import { reanchorCreatorDueDates } from "@/lib/due-server";
 
 const updateProfileSchema = z.object({
   name: z.string().min(1).optional(),
@@ -79,6 +81,12 @@ export async function PUT(req: NextRequest) {
     if (!bodyResult.ok) return bodyResult.response;
     const body = bodyResult.data;
     const updates = updateProfileSchema.parse(body);
+    if (updates.timezone !== undefined && !cleanBrowserTimeZone(updates.timezone)) {
+      return NextResponse.json({ error: "Choose a time zone from the list" }, { status: 400 });
+    }
+    const before = updates.timezone
+      ? await db.creator.findUnique({ where: { id: authResult.creator.id }, select: { timezone: true } })
+      : null;
 
     // Notification preferences are stored in the contentPreferences JSON field
     // (consistent with the communication-preferences API). Merge with existing.
@@ -136,6 +144,11 @@ export async function PUT(req: NextRequest) {
         preferredContact: true,
       },
     });
+
+    // A new time zone keeps each open request's due day, ending at 23:59 there
+    if (before && updates.timezone && updates.timezone !== before.timezone) {
+      await reanchorCreatorDueDates(authResult.creator.id, updates.timezone, before.timezone);
+    }
 
     return NextResponse.json(updatedCreator);
   } catch (error) {

@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatDueDay } from "@/lib/due";
 import { Calendar as CalendarIcon, Loader2, X } from "lucide-react";
 
 export interface EditableDateProps {
@@ -36,6 +37,11 @@ export interface EditableDateProps {
   disablePast?: boolean;
   /** Whether to disable future dates */
   disableFuture?: boolean;
+  /**
+   * A calendar day, not a moment: `value` is "YYYY-MM-DD" (or a stored date)
+   * and a pick saves "YYYY-MM-DD". The day reads the same in every timezone.
+   */
+  dayOnly?: boolean;
 }
 
 /**
@@ -58,6 +64,7 @@ export function EditableDate({
   maxDate,
   disablePast = false,
   disableFuture = false,
+  dayOnly = false,
 }: EditableDateProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -75,6 +82,12 @@ export function EditableDate({
   // Parse date value
   const dateValue = React.useMemo(() => {
     if (!value) return undefined;
+    if (dayOnly) {
+      // The day's own digits, as local midnight: the same day for every viewer
+      const key = value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+      const parsed = parseISO(key);
+      return isValid(parsed) ? parsed : undefined;
+    }
     if (value instanceof Date) return isValid(value) ? value : undefined;
     try {
       const parsed = parseISO(value);
@@ -82,7 +95,7 @@ export function EditableDate({
     } catch {
       return undefined;
     }
-  }, [value]);
+  }, [value, dayOnly]);
 
   // Disable date check function
   const isDateDisabled = useCallback(
@@ -109,7 +122,7 @@ export function EditableDate({
     async (date: Date | undefined) => {
       if (disabled) return;
 
-      const newValue = date ? date.toISOString() : null;
+      const newValue = date ? (dayOnly ? format(date, "yyyy-MM-dd") : date.toISOString()) : null;
 
       // Skip if same value
       if (
@@ -133,7 +146,7 @@ export function EditableDate({
         }
       }
     },
-    [disabled, value, dateValue, onSave]
+    [disabled, value, dateValue, onSave, dayOnly]
   );
 
   // Handle clear
@@ -176,7 +189,12 @@ export function EditableDate({
   const sizes = sizeClasses[size];
 
   // Format display value
-  const displayValue = dateValue ? format(dateValue, displayFormat) : placeholder;
+  // A calendar day reads "Tue 3 Nov" (the year only when it isn't this one), like every due date
+  const displayValue = dateValue
+    ? dayOnly
+      ? formatDueDay(format(dateValue, "yyyy-MM-dd"))
+      : format(dateValue, displayFormat)
+    : placeholder;
   const hasValue = !!dateValue;
 
   return (

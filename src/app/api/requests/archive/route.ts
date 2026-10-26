@@ -3,6 +3,7 @@ import { requireAccess, requestWhere, redactCreatorsIn } from "@/lib/access/serv
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { deleteUnreferencedStorageObjects } from "@/lib/media-refs";
+import { dayKeyOf } from "@/lib/due";
 
 // Schema for archive operations
 const archiveSchema = z.object({
@@ -91,6 +92,7 @@ export async function GET(req: NextRequest) {
     const serializedRequests = requests.map((request) => ({
       ...request,
       dueDate: request.dueDate?.toISOString() || null,
+      dueOn: dayKeyOf(request.dueOn),
       createdAt: request.createdAt.toISOString(),
       updatedAt: request.updatedAt.toISOString(),
       submittedAt: request.submittedAt?.toISOString() || null,

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { InviteConfirmDialog, InviteLinkDialog, inviteNote, writeClipboard } from "@/components/invites/invite-link";
 import { cn } from "@/lib/utils";
+import { useViewerTimeZone } from "@/components/title-wall/viewer-time";
 
 export type CreatorInviteUiState = "pending" | "expired" | "cancelled";
 
@@ -41,6 +42,7 @@ export function CreatorInviteActions({
   variant?: "card" | "panel";
   className?: string;
 }) {
+  const tz = useViewerTimeZone();
   const [state, setState] = React.useState(initialState);
   const [expiresAt, setExpiresAt] = React.useState(initialExpires);
   const [busy, setBusy] = React.useState<null | "copy" | "email" | "rotate" | "cancel">(null);
@@ -62,7 +64,7 @@ export function CreatorInviteActions({
       }
       setExpiresAt(data.expiresAt);
       if (await writeClipboard(data.link)) {
-        toast.success(`Invite link for ${first} copied`, { description: inviteNote(data.expiresAt) });
+        toast.success(`Invite link for ${first} copied`, { description: inviteNote(data.expiresAt, tz) });
       } else {
         setShown({ title: `Invite link for ${first}`, description: "Copy it and send it to them yourself.", link: data.link, expiresAt: data.expiresAt });
       }
@@ -134,7 +136,7 @@ export function CreatorInviteActions({
   const live = state === "pending";
   const stateLine =
     state === "pending"
-      ? `Invite sent, not accepted yet. ${inviteNote(expiresAt).replace("Works once, e", "The link e")}`
+      ? `Invite sent, not accepted yet. ${inviteNote(expiresAt, tz).replace("Works once, e", "The link e")}`
       : state === "expired"
         ? "The invite link has expired. Make a new link or email the invite again."
         : "The invite was cancelled. Make a new link or email the invite again.";

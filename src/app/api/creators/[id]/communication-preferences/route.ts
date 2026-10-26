@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
+import { cleanBrowserTimeZone } from "@/lib/due";
+import { reanchorCreatorDueDates } from "@/lib/due-server";
 import { scrubCommunication } from "../../creator-access";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
@@ -155,7 +157,7 @@ export async function PUT(
       validatedPrefs.contactDetails.phone = prevDetails.phone;
       validatedPrefs.contactDetails.whatsapp = prevDetails.whatsapp;
     }
-    const canSetTimezone = access.has("creatorInfo.location");
+    const canSetTimezone = access.has("creatorInfo.location") && !!cleanBrowserTimeZone(validatedPrefs.timezone);
     if (!canSetTimezone) validatedPrefs.timezone = (prevComm.timezone as string | undefined) ?? creator.timezone ?? "UTC";
 
     // Update with new communication preferences
@@ -177,6 +179,11 @@ export async function PUT(
         ...(canSetTimezone ? { timezone: validatedPrefs.timezone } : {}),
       },
     });
+
+    // A new time zone keeps each open request's due day, ending at the new zone's 23:59
+    if (canSetTimezone && validatedPrefs.timezone !== creator.timezone) {
+      await reanchorCreatorDueDates(id, validatedPrefs.timezone, creator.timezone);
+    }
 
     // Log activity
     await db.activityLog.create({

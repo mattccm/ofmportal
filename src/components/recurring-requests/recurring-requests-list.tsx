@@ -58,6 +58,7 @@ import {
 } from "@/types/recurring-requests";
 import { RecurringRequestModal } from "./recurring-request-modal";
 import { formatStamp } from "@/components/title-wall/time";
+import { useViewerTimeZone } from "@/components/title-wall/viewer-time";
 
 type RecurringRow = RecurringRequest & {
   templateIds?: string[];
@@ -145,6 +146,7 @@ function ExecutionHistoryDialog({
   onOpenChange: (open: boolean) => void;
   recurringRequest: RecurringRequest | null;
 }) {
+  const tz = useViewerTimeZone();
   const [executions, setExecutions] = React.useState<RecurringRequestExecution[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -223,7 +225,7 @@ function ExecutionHistoryDialog({
                     )}
                     <div className="min-w-0">
                       <p className="text-sm font-medium tabular-nums">
-                        {formatStamp(execution.scheduledFor)}
+                        {formatStamp(execution.scheduledFor, tz)}
                       </p>
                       <p className="text-[13px] text-ink-2">
                         {EXECUTION_STATUS_LABELS[execution.status]}
@@ -270,6 +272,7 @@ function RecurringRequestCard({
   onDelete?: () => void;
   onViewHistory: () => void;
 }) {
+  const tz = useViewerTimeZone();
   const settings = recurringRequest.requestSettings as RequestSettings;
   const totalCreators = recurringRequest.creators?.length || 0;
   const totalFromGroups = recurringRequest.creatorGroups?.reduce(
@@ -355,7 +358,7 @@ function RecurringRequestCard({
               <>
                 <p className="text-[13px] text-ink-2">Next run</p>
                 <p className="text-sm font-medium tabular-nums">
-                  {formatStamp(recurringRequest.nextRunAt)}
+                  {formatStamp(recurringRequest.nextRunAt, tz)}
                 </p>
               </>
             ) : (
@@ -425,7 +428,7 @@ function RecurringRequestCard({
       </div>
       {recurringRequest.nextRunAt && recurringRequest.isActive && (
         <p className="mt-3 text-[13px] text-ink-2 tabular-nums sm:hidden">
-          Next run {formatStamp(recurringRequest.nextRunAt)}
+          Next run {formatStamp(recurringRequest.nextRunAt, tz)}
         </p>
       )}
     </article>

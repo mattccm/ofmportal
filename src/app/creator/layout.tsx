@@ -26,6 +26,18 @@ import {
 import { cn } from "@/lib/utils";
 import { getCreatorSession, clearCreatorSession, hasCreatorSessionIndicator, setSignedOutFlag, hasSignedOutFlag, storeCreatorSession } from "@/lib/remember-token";
 import { setCreatorCookie, clearCreatorCookie } from "@/lib/creator-cookies";
+import { ViewerTimeZoneProvider } from "@/components/title-wall/viewer-time";
+
+/** The schema default; a creator still on it gets their browser's time zone saved */
+const DEFAULT_CREATOR_TIMEZONE = "America/New_York";
+
+function browserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
 
 interface NavItem {
   href: string;
@@ -99,6 +111,8 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
     email: string;
     avatar?: string;
   } | null>(null);
+  // Every moment on the creator's screens reads in their own time zone
+  const [viewerTz, setViewerTz] = useState<string>("UTC");
 
   // Helper to get cookie value
   const getCookie = useCallback((name: string): string | null => {
@@ -306,6 +320,24 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
             }
             localStorage.setItem("creatorOnboardingComplete", "true");
 
+            // Their time zone: saved from this browser while still the default,
+            // so a deadline ends at 23:59 where they actually are
+            const browserTz = browserTimeZone();
+            let tz: string = data.timezone || browserTz;
+            if (data.timezone === DEFAULT_CREATOR_TIMEZONE && browserTz !== DEFAULT_CREATOR_TIMEZONE) {
+              try {
+                const saved = await fetch("/api/portal/timezone", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "x-creator-token": token! },
+                  body: JSON.stringify({ timezone: browserTz }),
+                });
+                if (saved.ok) tz = (await saved.json()).timezone || tz;
+              } catch {
+                // Keep the stored zone; it is tried again next sign-in
+              }
+            }
+            setViewerTz(tz);
+
             // Update localStorage with fresh data
             if (data.name) localStorage.setItem("creatorName", data.name);
             if (data.avatar) {
@@ -328,11 +360,13 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
             return;
           } else {
             // If fetch fails, use localStorage data
+            setViewerTz(browserTimeZone());
             setCreator(initialCreator);
           }
         } catch (error) {
           console.error("Error fetching creator profile:", error);
           // Use localStorage data on error
+          setViewerTz(browserTimeZone());
           setCreator(initialCreator);
         }
       })();
@@ -559,7 +593,7 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
           id="main"
           className="relative mx-auto w-full max-w-[560px] pb-[calc(104px+env(safe-area-inset-bottom,0px))] sm:pb-16 md:max-w-[720px] lg:max-w-[1200px] lg:px-4 lg:pb-12"
         >
-          {children}
+          <ViewerTimeZoneProvider value={viewerTz}>{children}</ViewerTimeZoneProvider>
         </main>
       </div>
     </div>

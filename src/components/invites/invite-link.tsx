@@ -14,7 +14,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { formatDay } from "@/components/title-wall";
+import { formatDay, useViewerTimeZone } from "@/components/title-wall";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,11 +24,11 @@ import { cn } from "@/lib/utils";
  */
 
 /** "Works once, expires in 7 days (Sat 1 Nov)." */
-export function inviteNote(expiresAt?: string | null): string {
+export function inviteNote(expiresAt?: string | null, tz?: string): string {
   if (!expiresAt) return "Works once, expires in 7 days.";
   const days = Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 86_400_000));
   const when = days >= 1 ? `in ${days} ${days === 1 ? "day" : "days"}` : "today";
-  return `Works once, expires ${when} (${formatDay(expiresAt)}).`;
+  return `Works once, expires ${when} (${formatDay(expiresAt, tz)}).`;
 }
 
 /** Writes text to the clipboard; false when the browser refuses (e.g. after a slow fetch). */
@@ -71,6 +71,7 @@ export function InviteLinkBox({
   label?: string;
   className?: string;
 }) {
+  const tz = useViewerTimeZone();
   const id = React.useId();
   const noteId = `${id}-note`;
   const { copied, copy } = useCopyToClipboard({
@@ -103,7 +104,7 @@ export function InviteLinkBox({
         </Button>
       </div>
       <p id={noteId} className="text-[13px] text-ink-2" suppressHydrationWarning>
-        {inviteNote(expiresAt)}
+        {inviteNote(expiresAt, tz)}
       </p>
     </div>
   );

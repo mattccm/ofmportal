@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { creatorWhere, redactCreator, requireAccess } from "@/lib/access/server";
+import { dayKeyOf } from "@/lib/due";
 
 // GET - Fetch complete creator context in a single optimized call
 export async function GET(
@@ -41,6 +42,7 @@ export async function GET(
             id: true,
             title: true,
             status: true,
+            dueOn: true,
             dueDate: true,
             createdAt: true,
             urgency: true,
@@ -88,6 +90,7 @@ export async function GET(
       select: {
         id: true,
         createdAt: true,
+        dueOn: true,
         dueDate: true,
         submittedAt: true,
         uploads: {
@@ -152,6 +155,7 @@ export async function GET(
         title: req.title,
         status: req.status,
         dueDate: req.dueDate?.toISOString() || null,
+        dueOn: dayKeyOf(req.dueOn),
         createdAt: req.createdAt.toISOString(),
         isOverdue,
         urgency: req.urgency,

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronRight, Upload, Send, PenLine, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Shelf, TitleCard, formatDay, timeLeft } from "@/components/title-wall";
+import { Shelf, TitleCard, formatDay, formatDueOn, formatStamp, timeLeft, useViewerTimeZone } from "@/components/title-wall";
 import { RequestCover } from "@/components/portal/request-cover";
 import { RequestRow } from "@/components/portal/request-row";
 import type { CreatorFieldStateRow } from "@/lib/creator-field-states";
@@ -26,6 +26,8 @@ interface CreatorRequest {
   id: string;
   title: string;
   dueDate: string | null;
+  /** The due day everyone sees */
+  dueOn?: string | null;
   status: RequestStatus;
   createdAt: string;
   submittedAt?: string | null;
@@ -53,15 +55,13 @@ function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-function formatMoment(iso: string) {
-  const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${formatDay(d)}, ${hh}:${mm}`;
+function formatMoment(iso: string, tz: string) {
+  return formatStamp(iso, tz);
 }
 
 export default function CreatorDashboardPage() {
   const router = useRouter();
+  const tz = useViewerTimeZone();
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [requests, setRequests] = useState<CreatorRequest[]>([]);
@@ -138,7 +138,7 @@ export default function CreatorDashboardPage() {
     const due = featured.dueDate ? timeLeft(featured.dueDate) : null;
     const left = fieldsLeft(featured);
     const first = toDo.length === 1 ? "1 open request" : `${toDo.length} open requests`;
-    const dueText = due ? (due.late ? `, ${due.text}` : `, due ${formatDay(featured.dueDate!)}`) : "";
+    const dueText = due ? (due.late ? `, ${due.text}` : `, due ${formatDueOn(featured.dueOn ?? featured.dueDate)}`) : "";
     lede = `${first}${dueText}. ${left === 0 ? "Everything is uploaded." : `${plural(left, "field")} still to do.`}`;
   } else if (inReview.length > 0) {
     lede = `Nothing to upload. ${plural(inReview.length, "request is", "requests are")} in review.`;
@@ -191,7 +191,7 @@ export default function CreatorDashboardPage() {
               audience="creator"
               key={r.id}
               title={r.title}
-              creator={`Sent ${formatDay(r.createdAt)}`}
+              creator={`Sent ${formatDay(r.createdAt, tz)}`}
               due={r.dueDate}
               fields={toStrip(r.fieldStates)}
               meta={creatorSummary(r.fieldStates)}
@@ -212,8 +212,8 @@ export default function CreatorDashboardPage() {
               audience="creator"
               key={r.id}
               title={r.title}
-              creator={`Sent ${formatDay(r.createdAt)}`}
-              timeText={r.submittedAt ? `Submitted ${formatDay(r.submittedAt)}` : "Submitted"}
+              creator={`Sent ${formatDay(r.createdAt, tz)}`}
+              timeText={r.submittedAt ? `Submitted ${formatDay(r.submittedAt, tz)}` : "Submitted"}
               fields={toStrip(r.fieldStates)}
               meta={creatorSummary(r.fieldStates)}
               href={`/creator/requests/${r.id}`}
@@ -248,6 +248,7 @@ function SideList({ id, title, sub, requests }: { id: string; title: string; sub
 
 /** The most urgent request, featured: its title as the cover, time left, the field strip and the next action */
 function FeaturedRequest({ request: r }: { request: CreatorRequest }) {
+  const tz = useViewerTimeZone();
   const rows = r.fieldStates || [];
   const strip = toStrip(rows);
   const step = nextStep(rows, r.fieldSubmissions);
@@ -261,8 +262,9 @@ function FeaturedRequest({ request: r }: { request: CreatorRequest }) {
       headingId="featured-title"
       title={r.title}
       href={`/creator/requests/${r.id}`}
-      sentText={sentLine(r.createdAt)}
+      sentText={sentLine(r.createdAt, tz)}
       due={r.dueDate}
+      dueOn={r.dueOn}
       fields={strip}
       summary={creatorSummary(rows)}
     >
@@ -295,6 +297,7 @@ function FeaturedRequest({ request: r }: { request: CreatorRequest }) {
 }
 
 function MessagesPeek({ inbox }: { inbox: InboxPeek }) {
+  const tz = useViewerTimeZone();
   const { last, unread } = inbox;
   return (
     <section aria-labelledby="peek-h" className="mt-9 lg:mt-0">
@@ -312,7 +315,7 @@ function MessagesPeek({ inbox }: { inbox: InboxPeek }) {
           <>
             <p className="flex items-baseline justify-between gap-3 text-[14px]">
               <span className="truncate font-semibold">{last.fromCreator ? "You" : last.sender || "Your team"}</span>
-              <span className="shrink-0 text-ink-2">{formatMoment(last.createdAt)}</span>
+              <span className="shrink-0 text-ink-2">{formatMoment(last.createdAt, tz)}</span>
             </p>
             <p className="mt-1 line-clamp-2 text-[15px] leading-normal">&ldquo;{last.content}&rdquo;</p>
             <p className="mt-2 flex items-center gap-1 text-[14px] text-ink-2 group-hover:text-ink">

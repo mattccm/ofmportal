@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { sendReminderEmail, sendBatchedReminderEmail } from "./email";
 import { sendReminderSms, sendBatchedReminderSms } from "./sms";
-import { differenceInDays, format, startOfDay, addDays } from "date-fns";
+import { startOfDay, addDays } from "date-fns";
 import {
   processEscalations,
   shouldSendReminder,
@@ -11,6 +11,7 @@ import {
   getAllBatchedRemindersForDate,
   createBatchedReminder,
 } from "./auto-reminder-scheduler";
+import { dueLong, calendarDaysUntilDue } from "@/lib/due";
 
 /**
  * Process all scheduled reminders that are due to be sent
@@ -118,8 +119,9 @@ async function processScheduledReminders(today: Date, windowStart: Date, now: Da
     }
 
     const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
-    const dueDate = request.dueDate ? format(request.dueDate, "MMMM d, yyyy") : "Not set";
-    const daysUntilDue = request.dueDate ? differenceInDays(request.dueDate, today) : 0;
+    const dueDate = dueLong(request, "Not set");
+    // Calendar days in the creator's own calendar: 1 = due tomorrow, -1 = a day overdue
+    const daysUntilDue = calendarDaysUntilDue(request, request.creator.timezone, now) ?? 0;
 
     // Claim (mark SENT) before sending to minimize the double-send window across
     // overlapping runs; true idempotency would need a dedicated claim state
@@ -182,7 +184,8 @@ async function processScheduledReminders(today: Date, windowStart: Date, now: Da
   const overdueRequests = await db.contentRequest.findMany({
     where: {
       status: { in: ["PENDING", "IN_PROGRESS", "NEEDS_REVISION"] },
-      dueDate: { lt: today },
+      // Past the creator's end of the due day
+      dueDate: { lt: now },
     },
     select: { id: true },
     take: 200, // Bounded per run to stay within function timeout
@@ -236,7 +239,7 @@ async function processBatchedReminder(
         creatorName: batch.creatorName,
         requests: batch.requests.map((r) => ({
           title: r.title,
-          dueDate: r.dueDate ? format(r.dueDate, "MMMM d, yyyy") : "No due date",
+          dueDate: dueLong(r, "No due date"),
           daysUntilDue: r.daysFromDue,
           urgency: r.urgency,
         })),
@@ -331,7 +334,7 @@ async function processLegacyReminders(today: Date) {
     for (const request of requests) {
       if (!request.dueDate) continue;
 
-      const daysUntilDue = differenceInDays(request.dueDate, today);
+      const daysUntilDue = calendarDaysUntilDue(request, request.creator.timezone) ?? 0;
 
       // Check if we should send a reminder today
       const shouldRemind =
@@ -365,7 +368,7 @@ async function processLegacyReminders(today: Date) {
       }
 
       const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
-      const dueDate = format(request.dueDate, "MMMM d, yyyy");
+      const dueDate = dueLong(request, "No due date");
 
       // Send email reminder
       if (defaultConfig.sendEmail) {

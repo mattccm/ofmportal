@@ -29,7 +29,8 @@ import {
   type DeliverySummary,
   type QuietHours,
 } from "@/components/creators/insights";
-import { TitleCard, arrive, formatDay, type FieldSummary } from "@/components/title-wall";
+import { TitleCard, arrive, formatDay, useViewerTimeZone, type FieldSummary } from "@/components/title-wall";
+import { localDay, zonedParts } from "@/lib/due";
 import { MentionInput } from "@/components/mentions/mention-input";
 import { textToMentionSegments } from "@/lib/mention-parser";
 import { useAccess } from "@/lib/access/client";
@@ -82,29 +83,28 @@ const VIEWS: { key: View; label: string }[] = [
   { key: "team", label: "Team" },
 ];
 
-function dayLabel(iso: string): string {
-  const d = new Date(iso);
-  const today = new Date();
-  const y = new Date();
-  y.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return "Today";
-  if (d.toDateString() === y.toDateString()) return "Yesterday";
-  return formatDay(d);
+/* Every moment here reads in the viewer's own time zone */
+function dayLabel(iso: string, tz: string): string {
+  const now = Date.now();
+  const k = localDay(iso, tz);
+  if (k === localDay(now, tz)) return "Today";
+  if (k === localDay(now - 86_400_000, tz)) return "Yesterday";
+  return formatDay(iso, tz);
 }
 
-function clock(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function clock(iso: string, tz: string): string {
+  const z = zonedParts(new Date(iso), tz);
+  return `${String(z.hour).padStart(2, "0")}:${String(z.minute).padStart(2, "0")}`;
 }
 
 /** "7 min", "3 h", "Yesterday", "Thu 22 Oct" for the list */
-function short(iso: string | null): string {
+function short(iso: string | null, tz: string): string {
   if (!iso) return "";
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
   if (min < 1) return "now";
   if (min < 60) return `${min} min`;
   if (min < 24 * 60) return `${Math.round(min / 60)} h`;
-  return dayLabel(iso);
+  return dayLabel(iso, tz);
 }
 
 // ---------------------------------------------------------------- page
@@ -118,6 +118,7 @@ export default function MessagesPage() {
 }
 
 function Messages() {
+  const tz = useViewerTimeZone();
   const router = useRouter();
   const { can } = useAccess();
   const canCreators = can("messages.creators");
@@ -647,7 +648,7 @@ function Messages() {
                           <span className="flex items-baseline gap-2">
                             <span className={cn("min-w-0 flex-1 truncate text-sm text-ink", c.unread ? "font-bold" : "font-semibold")}>{c.name}</span>
                             <span className="shrink-0 text-[12px] text-ink-2" suppressHydrationWarning>
-                              {short(c.lastMessageAt)}
+                              {short(c.lastMessageAt, tz)}
                             </span>
                           </span>
                           <span className="mt-0.5 flex items-center gap-2">
@@ -773,12 +774,12 @@ function Messages() {
                   <ol className="space-y-3">
                     {messages.map((m, i) => {
                       const prev = messages[i - 1];
-                      const newDay = !prev || new Date(prev.createdAt).toDateString() !== new Date(m.createdAt).toDateString();
+                      const newDay = !prev || localDay(prev.createdAt, tz) !== localDay(m.createdAt, tz);
                       return (
                         <React.Fragment key={m.id}>
                           {newDay && (
                             <li className="py-1 text-center text-[12.5px] font-medium text-ink-2" aria-hidden="true" suppressHydrationWarning>
-                              {dayLabel(m.createdAt)}
+                              {dayLabel(m.createdAt, tz)}
                             </li>
                           )}
                           {i === dividerAt && (
@@ -813,7 +814,7 @@ function Messages() {
                               )}
                             </div>
                             <span className="mt-1 text-[12px] text-ink-2" suppressHydrationWarning>
-                              {m.mine ? "You" : m.author.split(/\s+/)[0]}, {clock(m.createdAt)}
+                              {m.mine ? "You" : m.author.split(/\s+/)[0]}, {clock(m.createdAt, tz)}
                             </span>
                           </li>
                         </React.Fragment>

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { dueDayOf } from "@/lib/due";
 import { creatorScopeWhere, requestWhere, type Access } from "@/lib/access/server";
 import { getPublicFileUrl } from "@/lib/storage";
 import {
@@ -55,11 +56,12 @@ export async function getOverviewData(access: Access, now = new Date()): Promise
         id: true,
         title: true,
         status: true,
+        dueOn: true,
         dueDate: true,
         createdAt: true,
         fields: true,
         fieldSubmissions: true,
-        creator: { select: { id: true, name: true, lastLoginAt: true } },
+        creator: { select: { id: true, name: true, lastLoginAt: true, timezone: true } },
         template: { select: { name: true } },
         uploads: {
           where: { uploadStatus: "COMPLETED" },
@@ -121,6 +123,8 @@ export async function getOverviewData(access: Access, now = new Date()): Promise
       title: r.title,
       status: r.status,
       due: r.dueDate?.toISOString() ?? null,
+      dueOn: dueDayOf(r, r.creator.timezone),
+      creatorTz: access.has("creatorInfo.location") ? r.creator.timezone : null,
       sentAt: r.createdAt.toISOString(),
       creatorId: r.creator.id,
       creatorName: r.creator.name,

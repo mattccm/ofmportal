@@ -12,6 +12,7 @@ import {
   differenceInHours,
   format,
 } from "date-fns";
+import { dueDayOf } from "@/lib/due";
 
 type ReportType =
   | "creator_performance"
@@ -228,7 +229,7 @@ async function generateContentDeliveryCSV(
       request.status,
       request.urgency,
       format(request.createdAt, "yyyy-MM-dd"),
-      request.dueDate ? format(request.dueDate, "yyyy-MM-dd") : "N/A",
+      dueDayOf(request) ?? "N/A",
       completedAt ? format(completedAt, "yyyy-MM-dd") : "Pending",
       deliveryHours ?? "N/A",
       isOnTime === null ? "N/A" : isOnTime ? "Yes" : "No",
@@ -276,7 +277,7 @@ async function generateRequestSummaryCSV(
     r.status,
     r.urgency,
     format(r.createdAt, "yyyy-MM-dd"),
-    r.dueDate ? format(r.dueDate, "yyyy-MM-dd") : "N/A",
+    dueDayOf(r) ?? "N/A",
     r.submittedAt ? format(r.submittedAt, "yyyy-MM-dd") : "N/A",
     r.reviewedAt ? format(r.reviewedAt, "yyyy-MM-dd") : "N/A",
   ]);

@@ -10,6 +10,7 @@ import {
   subDays,
   differenceInHours,
 } from "date-fns";
+import { dayKeyOf } from "@/lib/due";
 
 // TYPES
 
@@ -160,6 +161,7 @@ async function getPendingRequests(access: Access) {
       title: r.title,
       status: r.status,
       dueDate: r.dueDate?.toISOString() || null,
+      dueOn: dayKeyOf(r.dueOn),
       createdAt: r.createdAt.toISOString(),
       creator: r.creator,
       uploadCount: r._count.uploads,
@@ -225,6 +227,7 @@ async function getUpcomingDeadlines(access: Access) {
         title: r.title,
         status: r.status,
         dueDate: r.dueDate!.toISOString(),
+        dueOn: dayKeyOf(r.dueOn),
         creator: r.creator,
       })),
   });
@@ -846,6 +849,7 @@ async function getAllWidgetData(access: Access) {
         title: r.title,
         status: r.status,
         dueDate: r.dueDate!.toISOString(),
+        dueOn: dayKeyOf(r.dueOn),
         creator: r.creator,
       })),
   };
@@ -857,6 +861,7 @@ async function getAllWidgetData(access: Access) {
       title: r.title,
       status: r.status,
       dueDate: r.dueDate?.toISOString() || null,
+      dueOn: dayKeyOf(r.dueOn),
       createdAt: r.createdAt.toISOString(),
       creator: r.creator,
       uploadCount: r._count.uploads,

@@ -85,6 +85,7 @@ import {
   Maximize2,
   Minimize2,
 } from "lucide-react";
+import { dueDayDate } from "@/lib/due";
 
 // TYPES
 
@@ -534,7 +535,7 @@ function ActiveRequestsSection({
                           request.isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
                         )}
                       >
-                        Due {format(new Date(request.dueDate), "MMM d")}
+                        Due {format(dueDayDate(request)!, "MMM d")}
                       </span>
                     </div>
                   )}

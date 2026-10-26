@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { dueEndsLine } from "@/lib/due";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronDown, Plus, UserPlus } from "lucide-react";
@@ -224,6 +225,8 @@ export function OverviewWall({ data, canRemind }: OverviewWallProps) {
             kind={featured.kind ?? undefined}
             sentText={`sent ${ago(featured.sentAt, now)}`}
             due={featured.due!}
+            dueOn={featured.dueOn}
+            dueNote={featured.creatorTz ? dueEndsLine(featured.creatorName, featured.creatorTz) : undefined}
             now={now}
             fields={featured.fields.map((f) => ({ id: f.id, name: f.name, state: f.state }))}
             note={<FeaturedNote r={featured} now={now} />}

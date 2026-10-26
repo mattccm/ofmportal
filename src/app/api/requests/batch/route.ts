@@ -4,8 +4,9 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
-import { format } from "date-fns";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
+import { dueLong, parseDueInput } from "@/lib/due";
+import { staffTimeZone } from "@/lib/due-server";
 
 // Template fields may be stored as a JSON string; always return an array
 function parseTemplateFields(raw: unknown): unknown[] {
@@ -132,11 +133,14 @@ export async function POST(req: NextRequest) {
 
     // Process requests in transaction for atomicity. Any failure rolls back the
     // whole batch (Postgres aborts the transaction on the first failed statement).
+    const pickerTz = await staffTimeZone(session.user.id);
     const createdRequests = await db.$transaction(async (tx) => {
       const requests = [];
 
       for (const requestData of validatedData.requests) {
         const creator = creatorMap.get(requestData.creatorId)!;
+        // Same day for everyone; each creator's own end of that day
+        const due = parseDueInput(requestData.dueDate, creator.timezone, pickerTz);
 
         // Create the content request
         const contentRequest = await tx.contentRequest.create({
@@ -146,7 +150,8 @@ export async function POST(req: NextRequest) {
             templateId: validatedData.templateId || null,
             title: requestData.title,
             description: requestData.description || null,
-            dueDate: requestData.dueDate ? new Date(requestData.dueDate) : null,
+            dueOn: due?.dueOn ?? null,
+            dueDate: due?.dueDate ?? null,
             urgency: requestData.urgency,
             // Template-level richContent is stored in requirements._richContent
             requirements: JSON.parse(JSON.stringify({
@@ -241,6 +246,7 @@ async function sendBatchNotifications(
   requests: Array<{
     id: string;
     title: string;
+    dueOn: Date | null;
     dueDate: Date | null;
     creator: {
       id: string;
@@ -262,9 +268,7 @@ async function sendBatchNotifications(
     await Promise.allSettled(
       batch.map(async (request) => {
         const portalLink = `${process.env.APP_URL}/creator/requests/${request.id}`;
-        const dueDate = request.dueDate
-          ? format(request.dueDate, "MMMM d, yyyy")
-          : "No specific due date";
+        const dueDate = dueLong(request, "No specific due date");
 
         // Send email
         try {

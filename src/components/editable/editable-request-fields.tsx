@@ -240,8 +240,10 @@ export function EditablePriorityBadge({
  */
 export interface EditableDueDateProps {
   requestId: string;
+  /** The due DAY (the request's dueOn: "YYYY-MM-DD" or the stored date) */
   dueDate: string | Date | null;
-  onUpdate?: (dueDate: string | null) => void;
+  /** The saved due day and the deadline instant the server set for it */
+  onUpdate?: (dueOn: string | null, deadline: string | null) => void;
   className?: string;
   size?: "sm" | "md" | "lg";
   disablePast?: boolean;
@@ -266,8 +268,9 @@ export function EditableDueDate({
       if (!response.ok) {
         throw new Error("Failed to update due date");
       }
+      const saved = (await response.json().catch(() => null)) as { dueDate?: string | null } | null;
 
-      onUpdate?.(newDueDate);
+      onUpdate?.(newDueDate, saved?.dueDate ?? null);
       toast.success(newDueDate ? "Due date updated" : "Due date cleared");
     } catch (error) {
       toast.error("Failed to update due date");
@@ -284,6 +287,7 @@ export function EditableDueDate({
       className={className}
       ariaLabel="Edit due date"
       disablePast={disablePast}
+      dayOnly
       clearable
     />
   );

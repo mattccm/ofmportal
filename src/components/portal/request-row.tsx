@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Countdown, FieldStrip, StateWord, formatDay, requestStatusState } from "@/components/title-wall";
+import { Countdown, FieldStrip, StateWord, formatDay, formatDueOn, requestStatusState, useViewerTimeZone } from "@/components/title-wall";
 import { isRequestOverdue } from "@/lib/request-status";
 import type { CreatorFieldStateRow } from "@/lib/creator-field-states";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ export interface RequestRowData {
   title: string;
   status: string;
   dueDate: string | null;
+  /** The due day ("YYYY-MM-DD" or the stored date) */
+  dueOn?: string | null;
   createdAt: string;
   submittedAt?: string | null;
   unreadFeedbackCount?: number;
@@ -27,6 +29,8 @@ export function RequestRow({ request: r, compact = false }: { request: RequestRo
   const late = ACTIONABLE.has(r.status) && isRequestOverdue(r);
   const strip = toStrip(r.fieldStates);
   const state = requestStatusState(r.status, late);
+  const tz = useViewerTimeZone();
+  const dueDay = formatDueOn(r.dueOn ?? r.dueDate);
   return (
     <Link
       href={`/creator/requests/${r.id}`}
@@ -48,14 +52,14 @@ export function RequestRow({ request: r, compact = false }: { request: RequestRo
       <span className="mt-0.5 block text-[14px] text-ink-2">
         {r.dueDate && ACTIONABLE.has(r.status) ? (
           <>
-            <Countdown due={r.dueDate} /> · {formatDay(r.dueDate)}
+            <Countdown due={r.dueDate} /> · {dueDay}
           </>
         ) : IN_REVIEW.has(r.status) && r.submittedAt ? (
-          `Submitted ${formatDay(r.submittedAt)}`
+          `Submitted ${formatDay(r.submittedAt, tz)}`
         ) : r.dueDate ? (
-          `Due ${formatDay(r.dueDate)}`
+          `Due ${dueDay}`
         ) : (
-          `Sent ${formatDay(r.createdAt)}`
+          `Sent ${formatDay(r.createdAt, tz)}`
         )}
         {r.unreadFeedbackCount ? (
           <span className="text-ink">

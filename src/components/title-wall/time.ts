@@ -1,9 +1,18 @@
 /**
- * The one rule for every time-left figure on the wall.
+ * The one rule for every time-left figure and date on the wall.
  *
- * A due value given as a plain date ("2026-10-26") is due at the END of that
- * day (23:59 local). A full timestamp is used as is. Under 3 days the figure
- * keeps hours ("1 d 10 h"); from 3 days it rounds to days.
+ * Due dates (see src/lib/due.ts): the DATE text comes from the request's
+ * `dueOn` calendar day and reads the same for every viewer ("Mon 3 Aug"), no
+ * timezone conversion. The countdown comes from `dueDate`, the deadline
+ * instant (23:59:59 on that day in the creator's timezone). A plain
+ * "YYYY-MM-DD" given to `timeLeft` is due at the end of that day in the
+ * timezone passed (the composer's preview).
+ *
+ * Every other moment (sent, uploaded, messages) reads in the VIEWER's
+ * timezone, passed in explicitly (useViewerTimeZone()) so the server and the
+ * browser print the same text.
+ *
+ * Under 3 days the figure keeps hours ("1 d 10 h"); from 3 days it rounds to days.
  */
 
 export interface TimeLeft {
@@ -24,48 +33,22 @@ export interface TimeLeft {
   parts: [string, string];
 }
 
-const DAY_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+import { dayKeyOf, endOfDayIn, formatDueDay, isDayKey, safeTimeZone, zonedParts } from "@/lib/due";
 
-/**
- * Every date on the wall reads in the agency's timezone, never the machine's:
- * the server (UTC on Vercel) and the browser must print the same day, or React
- * hydration breaks and a midnight deadline shows on the wrong date.
- */
-export const DISPLAY_TIMEZONE = process.env.NEXT_PUBLIC_DISPLAY_TIMEZONE || "Australia/Brisbane";
+/** A timezone for formatting when none is passed: identical on server and browser */
+export const FALLBACK_TIMEZONE = "UTC";
 
-interface ZonedParts { year: number; month: number; day: number; weekday: number; hour: number; minute: number }
+export { formatDueDay };
 
-const zonedFormat = new Intl.DateTimeFormat("en-US", {
-  timeZone: DISPLAY_TIMEZONE,
-  year: "numeric", month: "numeric", day: "numeric", weekday: "short",
-  hour: "numeric", minute: "numeric", hourCycle: "h23",
-});
-const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-function zoned(d: Date): ZonedParts {
-  const p = Object.fromEntries(zonedFormat.formatToParts(d).map((x) => [x.type, x.value]));
-  return { year: +p.year, month: +p.month, day: +p.day, weekday: WEEKDAY_INDEX[p.weekday], hour: +p.hour % 24, minute: +p.minute };
-}
-
-/** 23:59 on a calendar day in the display timezone, as an instant */
-function endOfZonedDay(year: number, month: number, day: number): Date {
-  const guess = Date.UTC(year, month - 1, day, 23, 59);
-  const z = zoned(new Date(guess));
-  const offset = Date.UTC(z.year, z.month - 1, z.day, z.hour, z.minute) - guess;
-  return new Date(guess - offset);
-}
-
-export function toDueDate(due: Date | string | number): Date {
+/** The deadline instant. A "YYYY-MM-DD" is the end of that day in `tz`. */
+export function toDueDate(due: Date | string | number, tz: string = FALLBACK_TIMEZONE): Date {
   if (due instanceof Date) return due;
-  if (typeof due === "string" && DAY_ONLY.test(due)) {
-    const [y, m, d] = due.split("-").map(Number);
-    return endOfZonedDay(y, m, d);
-  }
+  if (isDayKey(due)) return endOfDayIn(due, safeTimeZone(tz));
   return new Date(due);
 }
 
-export function timeLeft(due: Date | string | number, now: Date = new Date()): TimeLeft {
-  const ms = toDueDate(due).getTime() - now.getTime();
+export function timeLeft(due: Date | string | number, now: Date = new Date(), tz?: string): TimeLeft {
+  const ms = toDueDate(due, tz).getTime() - now.getTime();
   const late = ms < 0;
   const abs = Math.floor(Math.abs(ms) / 3_600_000);
   const days = Math.floor(abs / 24);
@@ -85,27 +68,31 @@ export function timeLeft(due: Date | string | number, now: Date = new Date()): T
   };
 }
 
-const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** "Thu 22 Oct" */
-export function formatDay(d: Date | string | number): string {
-  const z = zoned(toDueDate(d));
-  return `${DOW[z.weekday]} ${z.day} ${MON[z.month - 1]}`;
+/**
+ * "Thu 22 Oct" (with the year when not this year). A "YYYY-MM-DD" calendar
+ * day prints as is, for every viewer; a moment prints in `tz`.
+ */
+export function formatDay(d: Date | string | number, tz: string = FALLBACK_TIMEZONE): string {
+  if (isDayKey(d)) return formatDueDay(d);
+  const z = zonedParts(new Date(d), tz);
+  return formatDueDay(`${String(z.year).padStart(4, "0")}-${String(z.month).padStart(2, "0")}-${String(z.day).padStart(2, "0")}`);
 }
 
-/** "Due Thu 22 Oct, 23:59" */
-export function formatDue(d: Date | string | number): string {
-  const x = toDueDate(d);
-  const z = zoned(x);
-  const hh = String(z.hour).padStart(2, "0");
-  const mm = String(z.minute).padStart(2, "0");
-  return `Due ${formatDay(x)}, ${hh}:${mm}`;
+/** "Mon 3 Aug": a request's due day, from its dueOn (a DATE, its ISO string or "YYYY-MM-DD") */
+export function formatDueOn(dueOn: Date | string | number | null | undefined): string {
+  const key = dayKeyOf(dueOn);
+  return key ? formatDueDay(key) : "";
 }
 
-/** "Fri 30 Oct, 22:06": a moment in the agency's timezone */
-export function formatStamp(d: Date | string | number): string {
-  const x = toDueDate(d);
-  const z = zoned(x);
-  return `${formatDay(x)}, ${String(z.hour).padStart(2, "0")}:${String(z.minute).padStart(2, "0")}`;
+/** "Due Mon 3 Aug": from the request's dueOn (a DATE, its ISO string or "YYYY-MM-DD") */
+export function formatDue(dueOn: Date | string | number): string {
+  const key = dayKeyOf(dueOn);
+  return key ? `Due ${formatDueDay(key)}` : "No due date";
+}
+
+/** "Fri 30 Oct, 22:06": a moment in the viewer's timezone */
+export function formatStamp(d: Date | string | number, tz: string = FALLBACK_TIMEZONE): string {
+  const x = new Date(d);
+  const z = zonedParts(x, tz);
+  return `${formatDay(x, tz)}, ${String(z.hour).padStart(2, "0")}:${String(z.minute).padStart(2, "0")}`;
 }

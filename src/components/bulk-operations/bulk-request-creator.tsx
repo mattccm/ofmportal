@@ -40,7 +40,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
+import { format, addDays, parseISO } from "date-fns";
 import { ProgressTracker } from "./progress-tracker";
 import { cn } from "@/lib/utils";
 import { parseTokens } from "@/lib/bulk-operations";
@@ -273,7 +273,7 @@ export function BulkRequestCreator({
       // Calculate staggered due date
       let itemDueDate = dueDate;
       if (staggerDates && index > 0) {
-        const baseDate = new Date(dueDate);
+        const baseDate = parseISO(dueDate);
         baseDate.setDate(baseDate.getDate() + (index * staggerInterval));
         itemDueDate = format(baseDate, "yyyy-MM-dd");
       }
@@ -323,7 +323,7 @@ export function BulkRequestCreator({
 
         let itemDueDate = dueDate;
         if (staggerDates && index > 0) {
-          const baseDate = new Date(dueDate);
+          const baseDate = parseISO(dueDate);
           baseDate.setDate(baseDate.getDate() + (index * staggerInterval));
           itemDueDate = format(baseDate, "yyyy-MM-dd");
         }
@@ -898,7 +898,7 @@ export function BulkRequestCreator({
                 <p className="text-sm text-muted-foreground">Template</p>
               </div>
               <div className="p-3 bg-muted rounded-lg text-center">
-                <p className="text-2xl font-bold">{format(new Date(dueDate), "MMM d")}</p>
+                <p className="text-2xl font-bold">{format(parseISO(dueDate), "MMM d")}</p>
                 <p className="text-sm text-muted-foreground">Due Date</p>
               </div>
               <div className="p-3 bg-muted rounded-lg text-center">
@@ -1042,7 +1042,7 @@ export function BulkRequestCreator({
                   <div className="flex gap-2">
                     <Badge variant="secondary">
                       <Calendar className="mr-1 h-3 w-3" />
-                      Due: {format(new Date(item.dueDate), "MMM d, yyyy")}
+                      Due: {format(parseISO(item.dueDate), "MMM d, yyyy")}
                     </Badge>
                     <Badge variant="secondary">{item.urgency}</Badge>
                   </div>

@@ -18,7 +18,12 @@ export interface BillboardProps {
   kind?: string;
   /** When it was sent, shown after the creator ("sent Thu 15 Oct") */
   sentText?: string;
+  /** The deadline instant (the countdown) */
   due: Date | string | number;
+  /** The due DAY ("YYYY-MM-DD" or the stored date): the date text, the same for every viewer */
+  dueOn?: Date | string | null;
+  /** A quiet line under the date ("Ends 11:59 pm Jade's time (Buenos Aires)") */
+  dueNote?: string;
   fields: FieldSummary[];
   /** One line under the title: the creator's latest note, what is ready ("Ready for you: Teaser clip, Full video") */
   note?: ReactNode;
@@ -56,6 +61,8 @@ export function Billboard({
   kind,
   sentText,
   due,
+  dueOn,
+  dueNote,
   fields,
   note,
   reviewLabel,
@@ -87,7 +94,8 @@ export function Billboard({
       </div>
       <div className="tw-billboard-side">
         <Countdown due={due} now={now} size="lg" />
-        <p className="tw-billboard-due">{formatDue(due)}</p>
+        <p className="tw-billboard-due">{formatDue(dueOn ?? due)}</p>
+        {dueNote && <p className="text-[14px] leading-normal text-ink-2">{dueNote}</p>}
         <p className="tw-billboard-sum">{fieldSummary(fields)}</p>
         <div className="tw-billboard-acts">
           {reviewHref ? (

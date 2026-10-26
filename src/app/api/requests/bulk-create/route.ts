@@ -5,7 +5,6 @@ import {
   bulkRequestSchema,
   generateOperationId,
   parseTokens,
-  calculateStaggeredDates,
   chunkArray,
   createUndoWindow,
 } from "@/lib/bulk-operations";
@@ -13,6 +12,8 @@ import { sendNewRequestEmail } from "@/lib/email";
 import { expandQuantityFields, type TemplateField } from "@/lib/template-types";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 import { z } from "zod";
+import { addDaysToKey, dayFromInput, dueFromDay, dueInDays, parseDueInput, type DayKey, type Due } from "@/lib/due";
+import { staffTimeZone } from "@/lib/due-server";
 
 interface BulkRequestResult {
   creatorId: string;
@@ -93,16 +94,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculate staggered dates if enabled
-    let staggeredDates: Date[] | null = null;
+    // Calendar days: the first request's day, then every intervalDays after
+    const pickerTz = await staffTimeZone(session.user.id);
+    let staggeredDays: DayKey[] | null = null;
     if (validatedData.staggerDates?.enabled) {
-      const startDate = validatedData.requests[0]?.dueDate
-        ? new Date(validatedData.requests[0].dueDate)
-        : new Date();
-      staggeredDates = calculateStaggeredDates(
-        startDate,
-        validatedData.requests.length,
-        validatedData.staggerDates.intervalDays
-      );
+      const first = validatedData.requests[0]?.dueDate;
+      const startDay = first ? dayFromInput(first, pickerTz) : null;
+      const intervalDays = validatedData.staggerDates.intervalDays;
+      if (startDay) {
+        staggeredDays = validatedData.requests.map((_, i) => addDaysToKey(startDay, i * intervalDays));
+      }
     }
 
     // Process requests in chunks for better performance
@@ -142,21 +143,23 @@ export async function POST(req: NextRequest) {
           }
 
           // Calculate due date (staggered or individual)
-          let dueDate: Date | null = null;
-          if (staggeredDates && staggeredDates[currentIndex]) {
-            dueDate = staggeredDates[currentIndex];
+          // (each creator's own end of the day)
+          let due: Due | null = null;
+          if (staggeredDays && staggeredDays[currentIndex]) {
+            due = dueFromDay(staggeredDays[currentIndex], creator.timezone);
           } else if (requestData.dueDate) {
-            dueDate = new Date(requestData.dueDate);
+            due = parseDueInput(requestData.dueDate, creator.timezone, pickerTz);
           } else if (template?.defaultDueDays) {
-            dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + template.defaultDueDays);
+            due = dueInDays(template.defaultDueDays, creator.timezone);
           }
+          const dueDate = due?.dueDate ?? null;
 
           // Create the request
           const request = await db.contentRequest.create({
             data: {
               title,
               description,
+              dueOn: due?.dueOn ?? null,
               dueDate,
               urgency: requestData.urgency || template?.defaultUrgency || "NORMAL",
               status: "PENDING",

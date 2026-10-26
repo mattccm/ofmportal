@@ -8,7 +8,7 @@ import { UploadQueue } from "@/components/uploads/upload-queue";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 import { PerFieldUpload, type CreatorField } from "@/components/portal/per-field-upload";
 import { RequestCover } from "@/components/portal/request-cover";
-import { FieldCell, StateWord } from "@/components/title-wall";
+import { FieldCell, StateWord, useViewerTimeZone } from "@/components/title-wall";
 import { creatorSummary, sentLine, toStrip } from "@/components/portal/creator-words";
 import {
   computeCreatorFieldStates,
@@ -64,6 +64,8 @@ interface Request {
   title: string;
   description: string | null;
   dueDate: string | null;
+  /** The due day everyone sees */
+  dueOn?: string | null;
   status: string;
   createdAt: string;
   submittedAt?: string | null;
@@ -201,6 +203,7 @@ export default function CreatorRequestDetailPage({
 }) {
   const { requestId } = use(params);
   const router = useRouter();
+  const tz = useViewerTimeZone();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<Request | null>(null);
   // Approved, cancelled or archived: the request has left the portal
@@ -804,8 +807,9 @@ export default function CreatorRequestDetailPage({
             headingLevel="h1"
             headingId="request-title"
             title={request.title}
-            sentText={sentLine(request.createdAt)}
+            sentText={sentLine(request.createdAt, tz)}
             due={request.dueDate}
+            dueOn={request.dueOn}
             statusText={inReview ? "Submitted for review" : undefined}
             fields={toStrip(fieldRows)}
             summary={creatorSummary(fieldRows)}

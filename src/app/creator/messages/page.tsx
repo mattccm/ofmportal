@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDay } from "@/components/title-wall";
+import { formatDay, useViewerTimeZone } from "@/components/title-wall";
+import { localDay, zonedParts } from "@/lib/due";
 import { STATUS_WORD } from "@/components/portal/creator-words";
 import { cn } from "@/lib/utils";
 
@@ -51,24 +52,22 @@ function useDesktop() {
   );
 }
 
-function timeOf(iso: string) {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+/* Every moment here reads in the creator's own time zone */
+function timeOf(iso: string, tz: string) {
+  const z = zonedParts(new Date(iso), tz);
+  return `${String(z.hour).padStart(2, "0")}:${String(z.minute).padStart(2, "0")}`;
 }
 
-function dayKey(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+function dayKey(iso: string, tz: string) {
+  return localDay(iso, tz);
 }
 
-function dayLabel(iso: string) {
-  const today = new Date();
-  const y = new Date();
-  y.setDate(today.getDate() - 1);
-  const k = dayKey(iso);
-  if (k === dayKey(today.toISOString())) return "Today";
-  if (k === dayKey(y.toISOString())) return "Yesterday";
-  return formatDay(iso);
+function dayLabel(iso: string, tz: string) {
+  const now = Date.now();
+  const k = dayKey(iso, tz);
+  if (k === dayKey(new Date(now).toISOString(), tz)) return "Today";
+  if (k === dayKey(new Date(now - 86_400_000).toISOString(), tz)) return "Yesterday";
+  return formatDay(iso, tz);
 }
 
 function token() {
@@ -86,18 +85,19 @@ function senderName(m: ChatMessage) {
 
 /** The conversation, oldest first, with a day line where the day changes */
 function Timeline({ messages, emptyText }: { messages: ChatMessage[]; emptyText: string }) {
+  const tz = useViewerTimeZone();
   if (messages.length === 0) {
     return <p className="mt-6 text-center text-[15px] leading-normal text-ink-2">{emptyText}</p>;
   }
   return (
     <ol className="mt-4 space-y-3" aria-label="Messages">
       {messages.map((m, i) => {
-        const newDay = i === 0 || dayKey(messages[i - 1].createdAt) !== dayKey(m.createdAt);
+        const newDay = i === 0 || dayKey(messages[i - 1].createdAt, tz) !== dayKey(m.createdAt, tz);
         return (
           <li key={m.id}>
             {newDay && (
               <p className="mb-3 mt-5 text-center text-[13px] font-medium text-ink-2 first:mt-0">
-                {dayLabel(m.createdAt)}
+                {dayLabel(m.createdAt, tz)}
               </p>
             )}
             <div className={cn("flex flex-col", m.mine ? "items-end" : "items-start")}>
@@ -141,7 +141,7 @@ function Timeline({ messages, emptyText }: { messages: ChatMessage[]; emptyText:
                 )}
               </div>
               <p className="mt-1 text-[13px] text-ink-2">
-                {senderName(m)} · {timeOf(m.createdAt)}
+                {senderName(m)} · {timeOf(m.createdAt, tz)}
               </p>
             </div>
           </li>
@@ -230,6 +230,7 @@ function Composer({
 
 export default function CreatorMessagesPage() {
   const router = useRouter();
+  const tz = useViewerTimeZone();
   const desktop = useDesktop();
   const [view, setView] = useState<"team" | "requests">("team");
   const [teamLoading, setTeamLoading] = useState(true);
@@ -412,7 +413,7 @@ export default function CreatorMessagesPage() {
 
   const lastFromTeam = [...teamMessages].reverse().find((m) => !m.mine);
   const teamLede = lastFromTeam
-    ? `Your conversation with your team. ${lastFromTeam.from || "Your team"} last wrote ${formatDay(lastFromTeam.createdAt)}.`
+    ? `Your conversation with your team. ${lastFromTeam.from || "Your team"} last wrote ${formatDay(lastFromTeam.createdAt, tz)}.`
     : "Your conversation with your team. Ask anything, any time.";
 
   const teamEmpty = "No messages yet. Write to your team below; they usually reply the same day.";
@@ -454,7 +455,7 @@ export default function CreatorMessagesPage() {
                   icon={<Users className="size-4 text-icon" aria-hidden="true" />}
                   title="Your team"
                   preview={lastTeam ? `${senderName(lastTeam)}: ${lastTeam.content}` : "No messages yet"}
-                  when={lastTeam ? formatDay(lastTeam.createdAt) : undefined}
+                  when={lastTeam ? formatDay(lastTeam.createdAt, tz) : undefined}
                 />
               </li>
               <li aria-hidden="true" className="px-3 pb-1 pt-3 text-[13px] font-medium text-ink-2">
@@ -480,7 +481,7 @@ export default function CreatorMessagesPage() {
                         icon={<FileText className="size-4 text-icon" aria-hidden="true" />}
                         title={t.title}
                         preview={last ? `${senderName(last)}: ${last.content}` : `${STATUS_WORD[t.status] || "Open"} · no messages yet`}
-                        when={last ? formatDay(last.createdAt) : undefined}
+                        when={last ? formatDay(last.createdAt, tz) : undefined}
                       />
                     </li>
                   );
@@ -633,7 +634,7 @@ export default function CreatorMessagesPage() {
                             : `${STATUS_WORD[t.status] || "Open"} · no messages yet`}
                         </span>
                       </span>
-                      {last && <span className="shrink-0 text-[13px] text-ink-2">{formatDay(last.createdAt)}</span>}
+                      {last && <span className="shrink-0 text-[13px] text-ink-2">{formatDay(last.createdAt, tz)}</span>}
                       <ChevronRight className="size-4 shrink-0 text-icon" aria-hidden="true" />
                     </button>
                   </li>

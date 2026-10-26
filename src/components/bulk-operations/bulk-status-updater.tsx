@@ -34,6 +34,7 @@ import { OperationTemplates } from "./operation-templates";
 import { SmartSelectionPresets } from "./smart-selection-presets";
 import { cn } from "@/lib/utils";
 import type { RequestStatus } from "@/lib/bulk-operations";
+import { dueDayDate } from "@/lib/due";
 
 // Types
 interface Request {
@@ -540,7 +541,7 @@ export function BulkStatusUpdater({
                         {request.dueDate && (
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            Due {format(new Date(request.dueDate), "MMM d")}
+                            Due {format(dueDayDate(request)!, "MMM d")}
                           </span>
                         )}
                         <span>

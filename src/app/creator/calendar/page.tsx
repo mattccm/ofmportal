@@ -10,7 +10,7 @@ import {
   Countdown,
   StateIcon,
   StateLegend,
-  formatDay,
+  formatDueOn,
   requestStatusState,
   stateShort,
   type FieldState,
@@ -30,6 +30,7 @@ import {
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { isRequestOverdue } from "@/lib/request-status";
+import { dayKeyOf } from "@/lib/due";
 
 // Approved, cancelled and archived requests never reach the creator
 type RequestStatus = "PENDING" | "IN_PROGRESS" | "SUBMITTED" | "UNDER_REVIEW" | "NEEDS_REVISION";
@@ -39,6 +40,8 @@ interface Request {
   title: string;
   description: string | null;
   dueDate: string | null;
+  /** The due day everyone sees */
+  dueOn?: string | null;
   status: RequestStatus;
   urgency: string;
   createdAt: string;
@@ -114,7 +117,8 @@ export default function CreatorCalendarPage() {
 
     requests.forEach((request) => {
       if (request.dueDate) {
-        const dateKey = format(new Date(request.dueDate), "yyyy-MM-dd");
+        // On its due DAY, the same day the team sees
+        const dateKey = dayKeyOf(request.dueOn) ?? format(new Date(request.dueDate), "yyyy-MM-dd");
         if (!grouped[dateKey]) {
           grouped[dateKey] = [];
         }
@@ -172,7 +176,7 @@ export default function CreatorCalendarPage() {
       ? "Nothing due. New deadlines appear here."
       : [
           late.length ? `${late.length} late` : null,
-          next ? `next due ${formatDay(next.dueDate!)}` : null,
+          next ? `next due ${formatDueOn(next.dueOn ?? next.dueDate)}` : null,
         ]
           .filter(Boolean)
           .join(", ")

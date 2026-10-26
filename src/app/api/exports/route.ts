@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { PermissionKey } from "@/lib/access/catalogue";
 import { creatorWhere, requestWhere, requireAccess, uploadWhere, type Access } from "@/lib/access/server";
+import { dueDayOf } from "@/lib/due";
 
 // Types
 interface ExportFilters {
@@ -327,7 +328,8 @@ async function fetchEntityData(
         creatorEmail: request.creator.email,
         status: request.status,
         urgency: request.urgency,
-        dueDate: request.dueDate?.toISOString() || "",
+        // The due day as picked (the same for everyone)
+        dueDate: dueDayOf(request) ?? "",
         submittedAt: request.submittedAt?.toISOString() || "",
         reviewedAt: request.reviewedAt?.toISOString() || "",
         createdAt: request.createdAt.toISOString(),

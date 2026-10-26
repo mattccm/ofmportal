@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
-import { addDays, format } from "date-fns";
+import { dueInDays, dayKeyOf, formatDueLong } from "@/lib/due";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
@@ -133,7 +133,7 @@ export async function executeRecurringRequest(
       agencyId,
       archivedAt: null,
     },
-    select: { id: true, name: true, email: true, phone: true, preferredContact: true },
+    select: { id: true, name: true, email: true, phone: true, preferredContact: true, timezone: true },
   });
 
   // Create execution record
@@ -157,7 +157,7 @@ export async function executeRecurringRequest(
   // schedule's due date (dueInDays), falling back to each template's own
   // default when the schedule has none.
   for (const creator of creators) {
-    const created: { id: string; title: string; dueDate: Date }[] = [];
+    const created: { id: string; title: string; dueDate: Date; dueDay: string }[] = [];
 
     for (const template of templates) {
       try {
@@ -168,7 +168,9 @@ export async function executeRecurringRequest(
           now,
           creator.name
         );
-        const dueDate = addDays(now, requestSettings.dueInDays || template.defaultDueDays || 7);
+        // N calendar days from today in the creator's timezone, due at the end of that day
+        const due = dueInDays(requestSettings.dueInDays || template.defaultDueDays || 7, creator.timezone, now);
+        const dueDate = due.dueDate;
 
         const request = await db.contentRequest.create({
           data: {
@@ -177,6 +179,7 @@ export async function executeRecurringRequest(
             templateId: template.id,
             title,
             description: requestSettings.description || template.description || null,
+            dueOn: due.dueOn,
             dueDate,
             urgency: requestSettings.urgency || template.defaultUrgency || "NORMAL",
             status: "PENDING",
@@ -186,7 +189,7 @@ export async function executeRecurringRequest(
         });
 
         createdRequestIds.push(request.id);
-        created.push({ id: request.id, title, dueDate });
+        created.push({ id: request.id, title, dueDate, dueDay: dayKeyOf(due.dueOn)! });
         successCount++;
 
         // Schedule auto-reminders like a normal new request
@@ -211,7 +214,7 @@ export async function executeRecurringRequest(
         created.length === 1
           ? `${getAppUrl()}/creator/requests/${created[0].id}`
           : `${getAppUrl()}/creator/requests`;
-      const firstDue = created.reduce((d, r) => (r.dueDate < d ? r.dueDate : d), created[0].dueDate);
+      const firstDue = created.reduce((d, r) => (r.dueDate < d.dueDate ? r : d), created[0]).dueDay;
       const requestTitle =
         created.length === 1
           ? created[0].title
@@ -222,7 +225,7 @@ export async function executeRecurringRequest(
           creatorName: creator.name,
           agencyName,
           requestTitle,
-          dueDate: format(firstDue, "MMMM d, yyyy"),
+          dueDate: formatDueLong(firstDue),
           portalLink,
           agencyId,
           requestCount: created.length,

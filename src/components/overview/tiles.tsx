@@ -12,7 +12,7 @@ import {
   FIELD_STATE_SHORT,
   TitleCard,
   fieldSummary,
-  formatDay,
+  formatDueOn,
   timeLeft,
   type FieldState,
 } from "@/components/title-wall";
@@ -197,7 +197,7 @@ export function RequestTile({
       meta={meta}
       detail={
         <Detail
-          line={t ? `Due ${formatDay(r.due!)} · ${t.text}` : "No due date"}
+          line={t ? `Due ${formatDueOn(r.dueOn ?? r.due)} · ${t.text}` : "No due date"}
           late={t?.late}
           actions={
             <>
@@ -279,7 +279,7 @@ export function CreatorTile({
       </div>
       <div className="tw-tile-detail min-w-0 flex-1 flex-col gap-2 pl-1">
         <Detail
-          line={t ? `${plural(n, "field")} to come, due ${formatDay(c.due!)}, ${t.text}` : `${plural(n, "field")} to come`}
+          line={t ? `${plural(n, "field")} to come, due ${formatDueOn(c.dueOn ?? c.due)}, ${t.text}` : `${plural(n, "field")} to come`}
           late={t?.late}
           actions={
             <>

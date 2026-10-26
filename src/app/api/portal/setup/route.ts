@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createCreatorSessionToken } from "@/lib/portal-auth";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
 import { creatorInvite } from "@/lib/invites";
+import { captureCreatorTimeZone } from "@/lib/due-server";
 
 const setupSchema = z.object({
   token: z.string().min(1),
@@ -16,6 +17,8 @@ const setupSchema = z.object({
     .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number"),
+  // The browser's time zone: due dates end at 23:59 in it
+  timezone: z.string().max(64).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -32,7 +35,7 @@ export async function POST(req: NextRequest) {
     const bodyResult = await parseJsonBody(req);
     if (!bodyResult.ok) return bodyResult.response;
     const body = bodyResult.data;
-    const { token, password } = setupSchema.parse(body);
+    const { token, password, timezone } = setupSchema.parse(body);
 
     const creator = await db.creator.findFirst({
       where: {
@@ -88,6 +91,9 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
+
+    // Their own time zone, unless the team already set one
+    if (timezone) await captureCreatorTimeZone(creator.id, timezone);
 
     // Fire webhook for creator joining (after() keeps it alive past the response)
     after(() =>

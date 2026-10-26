@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { dayKeyOf } from "@/lib/due";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -29,7 +30,6 @@ import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
 import { Avatar } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { DueDateField } from "@/components/requests/deadline-picker";
-import { format } from "date-fns";
 import { FieldEditor, RichContentEditor } from "@/components/templates/field-editor";
 import {
   TemplateField as FullTemplateField,
@@ -54,6 +54,8 @@ interface Request {
   description: string | null;
   status: string;
   urgency: string;
+  /** The due day (DATE) everyone sees */
+  dueOn?: Date | string | null;
   dueDate: Date | null;
   estimatedMinutes?: number | null;
   createdAt: Date;
@@ -81,7 +83,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
   const [title, setTitle] = React.useState(request.title);
   const [description, setDescription] = React.useState(request.description || "");
   const [dueDate, setDueDate] = React.useState(
-    request.dueDate ? format(new Date(request.dueDate), "yyyy-MM-dd") : ""
+    dayKeyOf(request.dueOn) ?? ""
   );
   const [urgency, setUrgency] = React.useState(request.urgency);
   const [estimatedMinutes, setEstimatedMinutes] = React.useState(
@@ -103,7 +105,7 @@ export function RequestEditor({ request, onSave, onCancel }: RequestEditorProps)
     const hasFormChanges =
       title !== request.title ||
       description !== (request.description || "") ||
-      dueDate !== (request.dueDate ? format(new Date(request.dueDate), "yyyy-MM-dd") : "") ||
+      dueDate !== (dayKeyOf(request.dueOn) ?? "") ||
       urgency !== request.urgency ||
       estimatedMinutes !== (request.estimatedMinutes != null ? String(request.estimatedMinutes) : "") ||
       status !== request.status ||

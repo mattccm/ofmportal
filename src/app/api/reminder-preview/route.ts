@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { canSeeCreator, requireAccess } from "@/lib/access/server";
 import { z } from "zod";
 import { previewScheduleForNewRequest } from "@/lib/auto-reminder-scheduler";
-import { format } from "date-fns";
+import { dayFromInput } from "@/lib/due";
+import { staffTimeZone } from "@/lib/due-server";
 
 // VALIDATION SCHEMA
 
@@ -27,8 +28,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Creator not found" }, { status: 404 });
     }
 
+    // The picked calendar day; the schedule runs in the creator's calendar
+    const dueOn = dayFromInput(dueDate, await staffTimeZone(session.user.id));
     const parsedDueDate = new Date(dueDate);
-    if (isNaN(parsedDueDate.getTime())) {
+    if (!dueOn) {
       return NextResponse.json(
         { error: "Invalid due date" },
         { status: 400 }
@@ -40,14 +43,17 @@ export async function POST(req: NextRequest) {
       session.user.agencyId,
       creatorId,
       urgency,
-      parsedDueDate
+      parsedDueDate,
+      dueOn
     );
+    const dateFmt = new Intl.DateTimeFormat("en-US", { timeZone: preview.timezone, month: "short", day: "numeric", year: "numeric" });
+    const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: preview.timezone, hour: "numeric", minute: "2-digit" });
 
     // Format for display
     const formattedReminders = preview.reminders.map((r) => ({
       ...r,
-      formattedDate: format(r.scheduledAt, "MMM d, yyyy"),
-      formattedTime: format(r.scheduledAt, "h:mm a"),
+      formattedDate: dateFmt.format(r.scheduledAt),
+      formattedTime: timeFmt.format(r.scheduledAt),
       label:
         r.daysFromDue === 0
           ? "Due date"

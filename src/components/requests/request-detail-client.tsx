@@ -42,7 +42,11 @@ import { HtmlContent } from "@/components/ui/html-content";
 import { RequestEditor } from "@/components/requests/request-editor";
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 import { useCelebrationContext } from "@/components/celebrations";
-import { Countdown, FieldCell, FIELD_STATE_LABEL, fieldSummary, formatDay, formatDue, formatStamp, type FieldSummary } from "@/components/title-wall";
+import { Countdown, FieldCell, FIELD_STATE_LABEL, fieldSummary, formatDay, formatDue, formatDueOn, formatStamp, useViewerTimeZone, type FieldSummary } from "@/components/title-wall";
+import { dayKeyOf, dueEndsLine } from "@/lib/due";
+
+/** The due day as "YYYY-MM-DD" for forms (the clone dialog) */
+const formatDueKey = (dueOn: Date | string | null) => dayKeyOf(dueOn);
 import { VideoReviewPanel } from "@/components/video-review";
 import { fileFieldsOf, isFinished, mapFields } from "./title-wall-map";
 import { approveTarget, holdAction, requestChangesTarget, type ReviewTarget } from "./review-actions";
@@ -66,6 +70,8 @@ interface Creator {
   email?: string;
   phone?: string | null;
   avatar?: string | null;
+  /** Only when the viewer may see where the creator is */
+  timezone?: string;
 }
 
 interface RichContentData {
@@ -135,6 +141,9 @@ interface Request {
   description: string | null;
   status: string;
   urgency: string;
+  /** The due day everyone sees (DATE) */
+  dueOn: Date | string | null;
+  /** The deadline: 23:59:59 on dueOn in the creator's time zone */
   dueDate: Date | null;
   createdAt: Date;
   submittedAt: Date | null;
@@ -241,6 +250,8 @@ export function RequestDetailClient({
 
   const { openCreatorContext } = useCreatorContextPanel();
   const { can } = useAccess();
+  // Moments (sent, uploaded) read in the viewer's time zone; due DAYS never convert
+  const tz = useViewerTimeZone();
   const canApprove = can("review.approve");
   const canAskChanges = can("review.requestChanges");
   const canEdit = can("requests.edit");
@@ -384,7 +395,8 @@ export function RequestDetailClient({
   );
   const handlePriorityUpdate = useCallback((p: string) => setRequest((prev) => ({ ...prev, urgency: p })), []);
   const handleDueDateUpdate = useCallback(
-    (d: string | null) => setRequest((prev) => ({ ...prev, dueDate: d ? new Date(d) : null })),
+    (dueOn: string | null, deadline: string | null) =>
+      setRequest((prev) => ({ ...prev, dueOn, dueDate: deadline ? new Date(deadline) : null })),
     []
   );
   const handleUploadStatusChange = useCallback((uploadId: string, newStatus: string) => {
@@ -661,7 +673,7 @@ export function RequestDetailClient({
     id: request.id,
     title: request.title,
     description: request.description,
-    dueDate: request.dueDate ? new Date(request.dueDate).toISOString() : null,
+    dueDate: formatDueKey(request.dueOn),
     urgency: request.urgency,
     status: request.status,
     fields: request.fields,
@@ -732,7 +744,7 @@ export function RequestDetailClient({
     const kinds = new Set(ups.map((u) => kindOf(u.fileType)));
     const what = `${ups.length} ${kinds.size === 1 ? (kinds.has("video") ? "video" : kinds.has("photo") ? "photo" : "file") : "file"}${ups.length === 1 ? "" : "s"}`;
     if (st === "approved") return `${what} · approved`;
-    return `${what} · ${formatDay(when)}`;
+    return `${what} · ${formatDay(when, tz)}`;
   };
 
   const specLine = (() => {
@@ -781,11 +793,11 @@ export function RequestDetailClient({
               </>
             )}
             <span aria-hidden="true">·</span>
-            <span>Sent {formatDay(request.createdAt)}</span>
+            <span>Sent {formatDay(request.createdAt, tz)}</span>
             {request.dueDate && (
               <>
                 <span aria-hidden="true">·</span>
-                <span>{formatDue(request.dueDate)}</span>
+                <span>{formatDue(request.dueOn ?? request.dueDate)}</span>
                 <span aria-hidden="true">·</span>
                 <Countdown due={request.dueDate} completedAt={completedAt} />
               </>
@@ -1113,30 +1125,33 @@ export function RequestDetailClient({
               </div>
               <div className="flex justify-between gap-3 py-2.5">
                 <dt className="text-ink-2">Sent</dt>
-                <dd className="text-ink">{formatStamp(request.createdAt)}</dd>
+                <dd className="text-ink">{formatStamp(request.createdAt, tz)}</dd>
               </div>
               <div className="flex items-center justify-between gap-3 py-2">
                 <dt className="text-ink-2">Due</dt>
                 <dd className={cn("text-right", !finished && request.dueDate && new Date(request.dueDate) < new Date() ? "text-late" : "text-ink")}>
                   {canEdit ? (
-                    <EditableDueDate requestId={request.id} dueDate={request.dueDate} onUpdate={handleDueDateUpdate} size="sm" />
-                  ) : request.dueDate ? (
-                    formatStamp(request.dueDate)
+                    <EditableDueDate requestId={request.id} dueDate={request.dueOn} onUpdate={handleDueDateUpdate} size="sm" />
+                  ) : request.dueOn ? (
+                    formatDueOn(request.dueOn)
                   ) : (
                     "No due date"
+                  )}
+                  {request.dueOn && request.creator.timezone && (
+                    <span className="block text-[13px] text-ink-2">{dueEndsLine(request.creator.name, request.creator.timezone)}</span>
                   )}
                 </dd>
               </div>
               {request.submittedAt && (
                 <div className="flex justify-between gap-3 py-2.5">
                   <dt className="text-ink-2">Submitted</dt>
-                  <dd className="text-ink">{formatStamp(request.submittedAt)}</dd>
+                  <dd className="text-ink">{formatStamp(request.submittedAt, tz)}</dd>
                 </div>
               )}
               {request.reviewedAt && (
                 <div className="flex justify-between gap-3 py-2.5">
                   <dt className="text-ink-2">Last reviewed</dt>
-                  <dd className="text-ink">{formatStamp(request.reviewedAt)}</dd>
+                  <dd className="text-ink">{formatStamp(request.reviewedAt, tz)}</dd>
                 </div>
               )}
               <div className="flex justify-between gap-3 py-2.5">
@@ -1229,7 +1244,7 @@ export function RequestDetailClient({
                     <span className="min-w-0">
                       <span className="block text-[14px] text-ink">{e.text}</span>
                       <time dateTime={e.at.toISOString()} className="block text-[13px] text-ink-2">
-                        {formatStamp(e.at)}
+                        {formatStamp(e.at, tz)}
                       </time>
                     </span>
                   </li>
@@ -1298,7 +1313,7 @@ export function RequestDetailClient({
                         >
                           <span className="truncate text-ink">{clone.creator.name}</span>
                           <span className="shrink-0 text-ink-2">
-                            {STATUS_WORD[clone.status] ?? clone.status} · {formatDay(clone.createdAt)}
+                            {STATUS_WORD[clone.status] ?? clone.status} · {formatDay(clone.createdAt, tz)}
                           </span>
                         </Link>
                       </li>

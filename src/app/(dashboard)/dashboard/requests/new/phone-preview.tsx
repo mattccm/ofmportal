@@ -146,7 +146,8 @@ export function PhonePreview({
   const shown = fields.filter((f) => f.label.trim() || f.helpText?.trim());
   const files = shown.filter((f) => f.type === "file");
   const details = shown.filter((f) => f.type !== "file");
-  const left = dueDate ? timeLeft(dueDate) : null;
+  // The creator's own time left: their end of the due day
+  const left = dueDate ? timeLeft(dueDate, new Date(), creator?.timezone ?? undefined) : null;
   const initials = creator
     ? creator.name
         .split(/\s+/)
@@ -195,7 +196,7 @@ export function PhonePreview({
           {left && dueDate ? (
             <>
               <span className={cn(left.urgent && "text-late")}>{left.text}</span>{" "}
-              <span className="font-normal text-ink-2">· due {formatDay(dueDate)}, 23:59</span>
+              <span className="font-normal text-ink-2">· due {formatDay(dueDate)}</span>
             </>
           ) : (
             <span className="font-normal text-ink-2">No due date</span>

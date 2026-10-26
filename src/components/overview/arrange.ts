@@ -25,6 +25,8 @@ export interface CreatorOwes {
   requests: OverviewRequest[];
   /** The soonest due moment among those requests (ISO), for the time left */
   due: string | null;
+  /** That request's due day ("YYYY-MM-DD"), for the date text */
+  dueOn: string | null;
   /** Fields still to come or with changes requested, across those requests */
   owed: { field: OverviewField; request: OverviewRequest }[];
   lastReminderAt: string | null;
@@ -70,11 +72,15 @@ export function arrangeOverview(data: OverviewData): OverviewLayout {
         creatorLastSeen: r.creatorLastSeen,
         requests: [],
         due: null,
+        dueOn: null,
         owed: [],
         lastReminderAt: null,
       } as CreatorOwes);
     c.requests.push(r);
-    if (r.due && (!c.due || dueMs(r) < new Date(c.due).getTime())) c.due = r.due;
+    if (r.due && (!c.due || dueMs(r) < new Date(c.due).getTime())) {
+      c.due = r.due;
+      c.dueOn = r.dueOn;
+    }
     c.owed.push(...owedFields(r).map((field) => ({ field, request: r })));
     if (r.lastReminderAt && (!c.lastReminderAt || r.lastReminderAt > c.lastReminderAt)) c.lastReminderAt = r.lastReminderAt;
     byCreator.set(r.creatorId, c);

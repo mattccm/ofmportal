@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
-import { format, addDays } from "date-fns";
+import { dueDayOf, dueFromDay, parseDueInput, shiftDue, todayIn, safeTimeZone, formatDueLong, dayKeyOf, type Due } from "@/lib/due";
+import { staffTimeZone } from "@/lib/due-server";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 
 const cloneRequestSchema = z.object({
@@ -67,6 +68,9 @@ export async function POST(
     }
 
     const modifications = validatedData.modifications || {};
+    const pickerTz = await staffTimeZone(session.user.id);
+    // The original's due DAY (what everyone saw), re-anchored per target creator
+    const originalDay = dueDayOf(originalRequest, originalRequest.creator.timezone);
     const clonedRequests: string[] = [];
     const cloneErrors: string[] = [];
 
@@ -76,16 +80,18 @@ export async function POST(
 
       try {
         // Calculate due date with optional offset
-        let dueDate: Date | null = null;
+        // Same calendar day for each creator, due at the end of their own day
+        let due: Due | null = null;
         if (modifications.dueDate) {
-          dueDate = new Date(modifications.dueDate);
+          due = parseDueInput(modifications.dueDate, creator.timezone, pickerTz);
         } else if (modifications.dueDateOffset !== null && modifications.dueDateOffset !== undefined) {
-          // Use original due date with offset
-          const baseDueDate = originalRequest.dueDate || new Date();
-          dueDate = addDays(baseDueDate, modifications.dueDateOffset * i);
-        } else if (originalRequest.dueDate) {
-          dueDate = new Date(originalRequest.dueDate);
+          // Original due day (or the creator's today) plus the offset, in calendar days
+          const base = originalDay ?? todayIn(safeTimeZone(creator.timezone));
+          due = shiftDue(base, modifications.dueDateOffset * i, creator.timezone);
+        } else if (originalDay) {
+          due = dueFromDay(originalDay, creator.timezone);
         }
+        const dueDate = due?.dueDate ?? null;
 
         // Get the clone metadata from original request if it exists
         const originalRequirements = originalRequest.requirements as Record<string, unknown> || {};
@@ -103,6 +109,7 @@ export async function POST(
             templateId: originalRequest.templateId,
             title: modifications.title || originalRequest.title,
             description: originalRequest.description,
+            dueOn: due?.dueOn ?? null,
             dueDate,
             urgency: modifications.urgency || originalRequest.urgency,
             requirements: JSON.parse(JSON.stringify({
@@ -131,9 +138,7 @@ export async function POST(
         // Send notification if requested
         if (validatedData.sendNotification) {
           const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${clonedRequest.id}`;
-          const formattedDueDate = dueDate
-            ? format(dueDate, "MMMM d, yyyy")
-            : "No specific due date";
+          const formattedDueDate = formatDueLong(dayKeyOf(due?.dueOn), "No specific due date");
 
           try {
             await sendContentRequestEmail({

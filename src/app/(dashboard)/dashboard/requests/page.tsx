@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { dayKeyOf } from "@/lib/due";
 import { getPageAccess, requestWhere, creatorWhere, staffWhere, uploadWhere, redactCreator, redactCreatorsIn, type Access } from "@/lib/access/server";
 import { NoAccess } from "@/components/access/no-access";
 import { RequestsList } from "@/components/requests/requests-list";
@@ -107,6 +108,7 @@ export default async function RequestsPage() {
     strip,
     readyTargets,
     dueDate: request.dueDate?.toISOString() || null,
+    dueOn: dayKeyOf(request.dueOn),
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString(),
     submittedAt: request.submittedAt?.toISOString() || null,
