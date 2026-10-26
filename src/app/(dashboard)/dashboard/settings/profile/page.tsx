@@ -482,7 +482,7 @@ export default function ProfileSettingsPage() {
                   type="tel"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+61 412 345 678"
                   className="pl-10 h-10"
                 />
               </div>

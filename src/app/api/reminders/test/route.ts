@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
         if (!recipientPhone) {
           result.error = "No phone number available for SMS test";
         } else {
-          await sendReminderSms({
+          const sent = await sendReminderSms({
             to: recipientPhone,
             creatorName: recipientName,
             requestTitle: testRequestTitle,
@@ -117,7 +117,9 @@ export async function POST(req: NextRequest) {
             portalLink: testPortalLink,
             isTest: true,
           });
-          result.success = true;
+          // A number without its country code is skipped, not sent: say so
+          if (!sent.success) result.error = sent.reason;
+          else result.success = true;
         }
       }
     } catch (error) {

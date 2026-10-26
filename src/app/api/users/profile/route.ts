@@ -4,13 +4,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { optionalPhone } from "@/lib/phone";
 import type { Prisma } from "@prisma/client";
 
 // Validation schema for profile updates
 const profileUpdateSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name is too long").optional(),
   email: z.string().email("Invalid email address").max(255, "Email is too long").optional(),
-  phone: z.string().max(20, "Phone number is too long").nullable().optional(),
+  phone: optionalPhone,
   bio: z.string().max(500, "Bio must be less than 500 characters").nullable().optional(),
   timezone: z.string().max(50, "Invalid timezone").optional(),
   preferredLanguage: z.string().max(10, "Invalid language code").optional(),
@@ -109,7 +110,8 @@ export async function PATCH(request: NextRequest) {
     if (!validationResult.success) {
       return NextResponse.json(
         {
-          error: "Validation failed",
+          // The first problem in words (e.g. a phone number without its country code)
+          error: validationResult.error.issues[0]?.message || "Validation failed",
           details: validationResult.error.flatten().fieldErrors,
         },
         { status: 400 }
