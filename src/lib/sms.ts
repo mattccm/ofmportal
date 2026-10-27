@@ -72,6 +72,28 @@ function birdHost(): string {
 // North America doesn't deliver alphanumeric senders
 const needsNumberSender = (e164: string) => e164.startsWith("+1");
 
+/**
+ * A refusal from Bird, in Bird's own words: its error code (e.g.
+ * SMSSenderNotConfigured), what went wrong, and its suggested fix.
+ */
+export class BirdError extends Error {
+  constructor(
+    public status: number,
+    public code: string | undefined,
+    public remediation: string | undefined,
+    message: string
+  ) {
+    super(message);
+    this.name = "BirdError";
+  }
+}
+
+function birdError(status: number, data: unknown, fallback: string): BirdError {
+  const d = (data ?? {}) as { message?: string; error?: { message?: string; name?: string; code?: string; remediation?: string } };
+  const e = d.error ?? {};
+  return new BirdError(status, e.name ?? e.code, e.remediation, e.message || d.message || fallback);
+}
+
 async function birdSend(to: string, text: string, from: string) {
   const response = await fetch(`${birdHost()}/v1/sms/messages`, {
     method: "POST",
@@ -100,7 +122,7 @@ async function sendWithBird(to: string, message: string): Promise<SendSmsResult>
 
   if (!response.ok) {
     console.error("Bird SMS error:", response.status, data);
-    throw new Error(data?.message || data?.error?.message || `Failed to send SMS (${response.status})`);
+    throw birdError(response.status, data, `Failed to send SMS (${response.status})`);
   }
   const segments = data?.segments?.count;
   if (segments > 1) console.warn(`[SMS] Sent as ${segments} segments (${data?.segments?.encoding}); keep texts under 160 characters`);
@@ -136,7 +158,7 @@ export interface BirdDestination {
 }
 
 async function birdRequest(path: string, init: { method?: string; body?: unknown } = {}) {
-  if (!BIRD_API_KEY) throw new Error("Bird isn't connected: BIRD_API_KEY is not set");
+  if (!BIRD_API_KEY) throw new BirdError(400, "NotConnected", "Add BIRD_API_KEY in Vercel, then redeploy.", "Bird isn't connected");
   const response = await fetch(`${birdHost()}${path}`, {
     method: init.method ?? "GET",
     headers: {
@@ -147,9 +169,7 @@ async function birdRequest(path: string, init: { method?: string; body?: unknown
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.message || data?.error?.message || `Bird answered ${response.status}`);
-  }
+  if (!response.ok) throw birdError(response.status, data, `Bird answered ${response.status}`);
   return data;
 }
 
@@ -167,6 +187,44 @@ export async function birdUpdateDestinations(changes: { country_code: string; en
 /** A sent text's delivery status, segments and cost */
 export async function birdGetMessage(id: string) {
   return birdRequest(`/v1/sms/messages/${encodeURIComponent(id)}`);
+}
+
+// ---------- Bird senders and organisation verification ----------
+// Sending as a name like "CCM" needs the organisation verified, the name
+// claimed (free), and in some countries a registration (which can carry a
+// setup fee and monthly charge, so the portal leaves registering to Bird).
+
+const listOf = (data: { data?: unknown } | unknown[]): Record<string, unknown>[] =>
+  Array.isArray(data) ? (data as Record<string, unknown>[]) : Array.isArray((data as { data?: unknown }).data) ? ((data as { data: Record<string, unknown>[] }).data) : [];
+
+/** The senders (names and numbers) this workspace holds */
+export async function birdListSenders() {
+  return listOf(await birdRequest("/v1/sms/senders"));
+}
+
+/** Claim an alphanumeric sender name such as "CCM" (free) */
+export async function birdClaimSender(name: string) {
+  return birdRequest("/v1/sms/senders", { method: "POST", body: { sender: name, type: "alpha" } });
+}
+
+/** Per country: whether this sender needs a registration there, and where it stands */
+export async function birdSenderRequirements(senderId: string) {
+  return listOf(await birdRequest(`/v1/sms/senders/${encodeURIComponent(senderId)}/requirements`));
+}
+
+/** The organisation's verification requirements and their status */
+export async function birdTrustGates() {
+  return listOf(await birdRequest("/v1/trust/gates"));
+}
+
+/** Start a verification: Bird answers with a link to complete, or says where it sent a code */
+export async function birdStartVerification(slug: string) {
+  return birdRequest(`/v1/trust/gates/${encodeURIComponent(slug)}/verification`, { method: "POST" });
+}
+
+/** Finish a code verification with the code the person received */
+export async function birdCheckVerification(slug: string, code: string) {
+  return birdRequest(`/v1/trust/gates/${encodeURIComponent(slug)}/verification/check`, { method: "POST", body: { code } });
 }
 
 // ---------- Twilio (fallback) ----------

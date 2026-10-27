@@ -40,6 +40,20 @@ const countryName = (code: string) => {
   }
 };
 
+/** Read a reply as JSON; a page instead of data becomes a readable error, never "Unexpected token '<'" */
+type Reply<T> = T & { error?: string; fix?: string };
+async function readJson<T>(res: Response): Promise<Reply<T>> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as Reply<T>;
+  } catch {
+    return { error: `The server had a problem (${res.status}). Try again in a moment.` } as Reply<T>;
+  }
+}
+
+const withFix = (data: { error?: string; fix?: string }, fallback: string) =>
+  [data.error || fallback, data.fix].filter(Boolean).join(" ");
+
 /** Bird marks countries it can't currently deliver to; read whichever flag it sends */
 function undeliverable(d: Destination): boolean {
   for (const k of ["deliverable", "available", "supported", "is_deliverable"]) if (d[k] === false) return true;
@@ -58,10 +72,10 @@ export default function SmsSettingsClient() {
     setLoading(true);
     try {
       const res = await fetch("/api/settings/sms");
-      const data = await res.json();
+      const data = await readJson<{ status?: Status; destinations?: Destination[] }>(res);
       setStatus(data.status ?? null);
       setDestinations(Array.isArray(data.destinations) ? data.destinations : []);
-      setLoadError(data.error ?? (res.ok ? null : "Couldn't load text message settings"));
+      setLoadError(data.error ? withFix(data, "") : res.ok ? null : "Couldn't load text message settings");
     } catch {
       setLoadError("Couldn't load text message settings. Check your connection and try again.");
     } finally {
@@ -81,8 +95,8 @@ export default function SmsSettingsClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ destinations: changes }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Bird didn't save that");
+      const data = await readJson<{ destinations?: Destination[] }>(res);
+      if (!res.ok) throw new Error(withFix(data, "Bird didn't save that"));
       if (Array.isArray(data.destinations)) setDestinations(data.destinations);
       toast.success(
         changes.length === 1
@@ -158,6 +172,8 @@ export default function SmsSettingsClient() {
           )}
         </Panel>
       </SettingsSection>
+
+      {connected && <SenderSection />}
 
       {connected && (
         <SettingsSection
@@ -269,7 +285,7 @@ function TestText() {
     pollRef.current = window.setTimeout(async () => {
       try {
         const res = await fetch(`/api/settings/sms?message=${encodeURIComponent(id)}`);
-        const data = await res.json();
+        const data = await readJson<{ message?: SentMessage }>(res);
         const m: SentMessage | undefined = data.message;
         if (!m) return;
         const cost = m.cost?.amount != null ? `${m.cost.amount} ${m.cost.currency_code ?? ""}`.trim() : null;
@@ -301,10 +317,10 @@ function TestText() {
       const res = await fetch("/api/settings/sms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to }),
+        body: JSON.stringify({ action: "test", to }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "The text didn't send");
+      const data = await readJson<{ sent?: { id?: string } }>(res);
+      if (!res.ok) throw new Error(withFix(data, "The text didn't send"));
       setResult({ ok: true, text: "Sent to Bird, waiting for the phone network" });
       if (data.sent?.id) follow(data.sent.id);
     } catch (err) {
@@ -346,6 +362,245 @@ function TestText() {
           <p role="status" className={cn("mt-4 text-sm", result.ok ? "text-ink" : "text-late")}>
             {result.text}
             {result.detail && <span className="block text-[13px] text-ink-2">{result.detail}</span>}
+          </p>
+        )}
+      </Panel>
+    </SettingsSection>
+  );
+}
+
+// ---------- sender name ----------
+
+type Row = Record<string, unknown>;
+type Settled<T> = { value: T } | { error: string; fix?: string };
+interface SenderView {
+  status?: Status;
+  gates?: Settled<Row[]>;
+  senders?: Settled<Row[]>;
+  sender?: Row | null;
+  requirements?: Settled<Row[]> | null;
+}
+
+/** The first of these fields Bird sends, as text */
+const pick = (row: Row | null | undefined, keys: string[]): string | undefined => {
+  for (const k of keys) {
+    const v = row?.[k];
+    if (typeof v === "string" && v.trim()) return v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+  }
+  return undefined;
+};
+const words = (v: string | undefined) => (v ? v.replace(/[_-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : undefined);
+const DONE = /^(passed|approved|verified|complete|completed|active|not_required|none)$/i;
+const linkIn = (o: unknown): string | undefined => {
+  if (typeof o === "string") return /^https:\/\//.test(o) ? o : undefined;
+  if (o && typeof o === "object") {
+    for (const v of Object.values(o)) {
+      const l = linkIn(v);
+      if (l) return l;
+    }
+  }
+  return undefined;
+};
+const failed = (s: Settled<Row[]> | null | undefined) => (s && "error" in s ? [s.error, s.fix].filter(Boolean).join(" ") : null);
+
+function SenderSection() {
+  const [view, setView] = React.useState<SenderView | null>(null);
+  const [busy, setBusy] = React.useState<string | null>(null);
+  const [note, setNote] = React.useState<{ ok: boolean; text: string; link?: string } | null>(null);
+  const [code, setCode] = React.useState("");
+  const [codeFor, setCodeFor] = React.useState<string | null>(null);
+
+  const load = React.useCallback(async () => {
+    const res = await fetch("/api/settings/sms?view=sender");
+    setView(await readJson<SenderView>(res));
+  }, []);
+  React.useEffect(() => {
+    void load();
+  }, [load]);
+
+  const act = async (label: string, body: Record<string, unknown>) => {
+    setBusy(label);
+    setNote(null);
+    try {
+      const res = await fetch("/api/settings/sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await readJson<{ verification?: Row; sender?: Row }>(res);
+      if (!res.ok) throw new Error(withFix(data, "Bird didn't do that"));
+      if (body.action === "verify") {
+        const link = linkIn(data.verification);
+        if (link) {
+          setNote({ ok: true, text: "Bird made a verification link. Open it and finish the check yourself.", link });
+        } else {
+          const sentTo = pick(data.verification, ["channel", "destination", "sent_to"]);
+          setCodeFor(String(body.slug));
+          setNote({ ok: true, text: `Bird sent a code${sentTo ? ` to ${sentTo}` : ""}. Enter it below.` });
+        }
+      } else if (body.action === "verify-check") {
+        setCodeFor(null);
+        setCode("");
+        setNote({ ok: true, text: "Verified." });
+      } else if (body.action === "claim") {
+        setNote({ ok: true, text: "Sender name claimed." });
+      }
+      await load();
+    } catch (e) {
+      setNote({ ok: false, text: e instanceof Error ? e.message : "Bird didn't do that" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const name = view?.status?.sender ?? "CCM";
+  const gates = view?.gates && "value" in view.gates ? view.gates.value : [];
+  const openGates = gates.filter((g) => !DONE.test(pick(g, ["status", "state"]) ?? ""));
+  const reqs = view?.requirements && "value" in view.requirements ? view.requirements.value : [];
+  const needed = reqs
+    .filter(
+      (r) =>
+        !DONE.test(pick(r, ["registration_status", "status", "state"]) ?? "") &&
+        /required/i.test(pick(r, ["registration_mode", "mode"]) ?? "")
+    )
+    .sort((a, b) => countryName(String(a.country_code ?? "")).localeCompare(countryName(String(b.country_code ?? ""))));
+
+  return (
+    <SettingsSection
+      id="sender"
+      title="Sender name"
+      description={`Texts show “${name}” as the sender where a country allows names. Bird needs your organisation verified and the name claimed first, and some countries also need it registered.`}
+    >
+      <Panel className="space-y-5">
+        {!view ? (
+          <p className="flex items-center gap-2 text-sm text-ink-2">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Asking Bird…
+          </p>
+        ) : (
+          <>
+            <div>
+              <h3 className="text-[15px] font-semibold text-ink">1. Verify your organisation</h3>
+              {failed(view.gates) ? (
+                <p className="mt-1 text-sm text-ink-2">{failed(view.gates)}</p>
+              ) : openGates.length === 0 ? (
+                <p className="mt-1 text-sm text-ink">Done. Bird has nothing left to check.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-line">
+                  {openGates.map((g) => {
+                    const slug = pick(g, ["slug", "id", "name"]) ?? "";
+                    return (
+                      <li key={slug} className="flex flex-wrap items-center gap-3 py-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-ink">{words(pick(g, ["title", "label", "name", "slug"]))}</p>
+                          <p className="text-[13px] text-ink-2">{words(pick(g, ["status", "state"])) ?? "Not started"}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy !== null}
+                          onClick={() => void act(`verify-${slug}`, { action: "verify", slug })}
+                        >
+                          {busy === `verify-${slug}` && <Loader2 className="animate-spin" aria-hidden="true" />}
+                          Start
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {codeFor && (
+                <form
+                  className="mt-3 flex flex-wrap items-end gap-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void act("check", { action: "verify-check", slug: codeFor, code });
+                  }}
+                >
+                  <div>
+                    <label htmlFor="bird-code" className="text-sm font-medium text-ink">
+                      Code from Bird
+                    </label>
+                    <Input
+                      id="bird-code"
+                      className="mt-1.5 w-40"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" size="sm" disabled={busy !== null || code.trim().length < 3}>
+                    Check code
+                  </Button>
+                </form>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-[15px] font-semibold text-ink">2. Claim “{name}”</h3>
+              {failed(view.senders) ? (
+                <p className="mt-1 text-sm text-ink-2">{failed(view.senders)}</p>
+              ) : view.sender ? (
+                <p className="mt-1 text-sm text-ink">
+                  Claimed{pick(view.sender, ["status", "state"]) ? ` · ${words(pick(view.sender, ["status", "state"]))}` : ""}.
+                </p>
+              ) : (
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-ink-2">Not claimed yet. Claiming is free.</p>
+                  <Button size="sm" disabled={busy !== null} onClick={() => void act("claim", { action: "claim" })}>
+                    {busy === "claim" && <Loader2 className="animate-spin" aria-hidden="true" />}
+                    Claim “{name}”
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {view.sender && (
+              <div>
+                <h3 className="text-[15px] font-semibold text-ink">3. Countries that need it registered</h3>
+                {failed(view.requirements) ? (
+                  <p className="mt-1 text-sm text-ink-2">{failed(view.requirements)}</p>
+                ) : needed.length === 0 ? (
+                  <p className="mt-1 text-sm text-ink">None waiting. Every country that needs a registration has one.</p>
+                ) : (
+                  <>
+                    <ul className="mt-2 divide-y divide-line">
+                      {needed.map((r) => (
+                        <li key={String(r.country_code)} className="flex items-center gap-3 py-3">
+                          <p className="min-w-0 flex-1 text-sm text-ink">{countryName(String(r.country_code ?? ""))}</p>
+                          <p className="text-[13px] text-ink-2">
+                            {words(pick(r, ["registration_status", "status", "state"])) ?? "Not registered"}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[13px] text-ink-2">
+                      Registering can carry a setup fee and a monthly charge, so do it in Bird where the price is shown:{" "}
+                      <a
+                        href="https://bird.com/dashboard"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium text-ink underline underline-offset-[3px]"
+                      >
+                        open Bird
+                      </a>
+                      . Until then, those countries need a number your workspace owns (BIRD_SENDER_NUMBER).
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        {note && (
+          <p role="status" className={cn("text-sm", note.ok ? "text-ink" : "text-late")}>
+            {note.text}{" "}
+            {note.link && (
+              <a href={note.link} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-[3px]">
+                Open verification
+              </a>
+            )}
           </p>
         )}
       </Panel>
