@@ -168,6 +168,7 @@ const DEFS: Record<AreaId, Omit<PermissionDef, "area">[]> = {
     P("settings.reviewSessions", "Review sessions", "Live sessions where the team reviews uploads together.", "review sessions"),
     P("settings.mediaLibrary", "Media library", "The agency's shared folders of approved content.", "media library"),
     P("settings.integrations", "Integrations and webhooks", "Connections that send portal events to other services.", "integrations"),
+    P("settings.sms", "Text messages (SMS)", "Which countries texts can go to, and sending test texts. Every text costs money.", "text message settings", { dangerous: true }),
     P("settings.oversight", "Oversight", "What each teammate is working on and how fast they respond.", "oversight"),
     P("settings.oversightKeywords", "Oversight keywords", "The words that raise an alert when they appear in conversations.", "oversight keywords", { implies: ["settings.oversight"] }),
     P("settings.auditLog", "Audit log", "Every action taken by staff, newest first.", "audit log"),
@@ -218,7 +219,7 @@ export function dependentsOf(key: string): string[] {
  * exactly what it could do: it gets each new key when it held any of the
  * stand-ins (a built-in role gets its preset's default instead).
  */
-export const CATALOGUE_REV = 2;
+export const CATALOGUE_REV = 3;
 export const SPLIT_FROM: Record<string, string[]> = {
   "activity.view": ["overview.view", "requests.view", "creators.view", "review.view"],
   "requests.upload": ["requests.edit"],
@@ -231,6 +232,7 @@ export const SPLIT_FROM: Record<string, string[]> = {
   "reminders.delete": ["reminders.send"],
   "reminders.templates": ["reminders.rules"],
   "settings.oversightKeywords": ["settings.oversight"],
+  "settings.sms": ["settings.integrations"],
 };
 
 /** Keys a role saved at an older catalogue revision should also hold */
@@ -317,6 +319,7 @@ const ADMIN_ONLY = [
   "settings.announcements",
   "settings.duplicates",
   "settings.integrations",
+  "settings.sms",
   "settings.auditLog",
   "settings.feedback",
   "settings.data",

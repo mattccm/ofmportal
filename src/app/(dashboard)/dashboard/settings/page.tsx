@@ -42,6 +42,7 @@ const GROUPS: Group[] = [
     description: "What creators receive: reminders, emails and banners.",
     rows: [
       { title: "Reminder rules", description: "When reminders go out, quiet hours, and a preview of the lock screen", href: "/dashboard/settings/reminder-rules", perm: "reminders.rules" },
+      { title: "Text messages", description: "Which countries creators can be texted in, and a test text", href: "/dashboard/settings/sms", perm: "settings.sms" },
       { title: "Email templates", description: "The wording of emails sent to creators", href: "/dashboard/settings/email-templates", perm: "settings.emailTemplates" },
       { title: "Announcements", description: "Banners shown across the portal", href: "/dashboard/settings/announcements", perm: "settings.announcements" },
       { title: "Duplicate detection", description: "Catch the same file uploaded twice", href: "/dashboard/settings/duplicate-detection", perm: "settings.duplicates" },

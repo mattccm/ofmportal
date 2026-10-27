@@ -107,6 +107,68 @@ async function sendWithBird(to: string, message: string): Promise<SendSmsResult>
   return { success: true, provider: "bird", id: data?.id, segments };
 }
 
+// ---------- Bird account: status, destination countries, message lookup ----------
+
+export interface SmsProviderStatus {
+  provider: "bird" | "twilio" | "none";
+  region?: string;
+  sender?: string;
+  senderNumber?: string | null;
+}
+
+export function smsProviderStatus(): SmsProviderStatus {
+  if (BIRD_API_KEY) {
+    return {
+      provider: "bird",
+      region: BIRD_API_KEY.match(/^b[km]_([a-z0-9]+)_/)?.[1] ?? "us1",
+      sender: BIRD_SENDER,
+      senderNumber: BIRD_SENDER_NUMBER ?? null,
+    };
+  }
+  if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) return { provider: "twilio" };
+  return { provider: "none" };
+}
+
+export interface BirdDestination {
+  country_code: string;
+  enabled: boolean;
+  [field: string]: unknown;
+}
+
+async function birdRequest(path: string, init: { method?: string; body?: unknown } = {}) {
+  if (!BIRD_API_KEY) throw new Error("Bird isn't connected: BIRD_API_KEY is not set");
+  const response = await fetch(`${birdHost()}${path}`, {
+    method: init.method ?? "GET",
+    headers: {
+      Authorization: `Bearer ${BIRD_API_KEY}`,
+      "Content-Type": "application/json",
+      ...(init.method && init.method !== "GET" ? { "Idempotency-Key": randomUUID() } : {}),
+    },
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error?.message || `Bird answered ${response.status}`);
+  }
+  return data;
+}
+
+/** Every country Bird texts, with whether this workspace has switched it on */
+export async function birdListDestinations(): Promise<BirdDestination[]> {
+  const data = await birdRequest("/v1/sms/destinations");
+  return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+}
+
+/** Switch countries on or off; countries not listed keep their setting */
+export async function birdUpdateDestinations(changes: { country_code: string; enabled: boolean }[]) {
+  return birdRequest("/v1/sms/destinations", { method: "PATCH", body: { destinations: changes } });
+}
+
+/** A sent text's delivery status, segments and cost */
+export async function birdGetMessage(id: string) {
+  return birdRequest(`/v1/sms/messages/${encodeURIComponent(id)}`);
+}
+
 // ---------- Twilio (fallback) ----------
 
 async function sendWithTwilio(to: string, message: string): Promise<SendSmsResult> {
