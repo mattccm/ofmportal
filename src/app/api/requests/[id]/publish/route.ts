@@ -3,6 +3,7 @@ import { requireAccess, requestWhere } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 import { invalidateCache } from "@/lib/cache";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
@@ -57,33 +58,31 @@ export async function POST(
     // Notify the creator. Failures are logged and never undo the publish.
     let emailSent = false;
     if (!creator.archivedAt) {
-      try {
-        await sendContentRequestEmail({
-          to: creator.email,
-          creatorName: creator.name,
-          agencyName: session.user.agencyName,
-          requestTitle: existing.title,
-          dueDate,
-          portalLink,
-          agencyId,
-        });
-        emailSent = true;
-      } catch (error) {
-        console.error("Failed to send publish email:", error);
-      }
-
-      if (creator.phone && (creator.preferredContact === "SMS" || creator.preferredContact === "BOTH")) {
-        try {
-          await sendContentRequestSms({
-            to: creator.phone,
-            creatorName: creator.name,
-            requestTitle: existing.title,
-            portalLink,
-          });
-        } catch (error) {
-          console.error("Failed to send publish SMS:", error);
+      // Email and/or text, as the request's messaging plan says
+      const sent = await deliver(
+        "request.new",
+        { agencyId, creator, request: existing },
+        {
+          email: () =>
+            sendContentRequestEmail({
+              to: creator.email,
+              creatorName: creator.name,
+              agencyName: session.user.agencyName,
+              requestTitle: existing.title,
+              dueDate,
+              portalLink,
+              agencyId,
+            }),
+          sms: (to) =>
+            sendContentRequestSms({
+              to,
+              creatorName: creator.name,
+              requestTitle: existing.title,
+              portalLink,
+            }),
         }
-      }
+      );
+      emailSent = sent.email;
     }
 
     // after() keeps the serverless function alive until delivery finishes

@@ -3,6 +3,7 @@ import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { isEmptyPlan, messagingPlanSchema, type MessagingPlan } from "@/lib/messaging";
 import { validateTemplateFields, TemplateField } from "@/lib/templates";
 
 // VALIDATION SCHEMA
@@ -70,6 +71,8 @@ const createTemplateSchema = z.object({
   defaultDueDays: z.number().min(1).default(7),
   defaultUrgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
   isActive: z.boolean().default(true),
+  // Creator messages (templates.edit); null = agency defaults
+  messaging: messagingPlanSchema.nullable().optional(),
 });
 
 // GET - List all templates for agency
@@ -274,6 +277,10 @@ export async function POST(req: NextRequest) {
         defaultDueDays: validatedData.defaultDueDays,
         defaultUrgency: validatedData.defaultUrgency,
         isActive: validatedData.isActive,
+        messaging:
+          validatedData.messaging && !isEmptyPlan(validatedData.messaging as MessagingPlan) && gate.access.has("templates.edit")
+            ? ({ v: 1, events: validatedData.messaging.events, schedule: validatedData.messaging.schedule } as Prisma.InputJsonValue)
+            : Prisma.DbNull,
       },
       include: {
         _count: {

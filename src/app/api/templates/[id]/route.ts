@@ -3,6 +3,8 @@ import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { validateTemplateFields, TemplateField, deserializeTemplate } from "@/lib/templates";
+import { Prisma } from "@prisma/client";
+import { isEmptyPlan, messagingPlanSchema, type MessagingPlan } from "@/lib/messaging";
 
 // VALIDATION SCHEMA
 
@@ -69,6 +71,8 @@ const updateTemplateSchema = z.object({
   defaultDueDays: z.number().min(1).optional(),
   defaultUrgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
   isActive: z.boolean().optional(),
+  // Creator messages for requests made from it (null = agency defaults)
+  messaging: messagingPlanSchema.nullable().optional(),
 });
 
 // GET - Fetch single template
@@ -206,6 +210,11 @@ export async function PATCH(
       updateData.defaultUrgency = validatedData.defaultUrgency;
     if (validatedData.isActive !== undefined)
       updateData.isActive = validatedData.isActive;
+    if (validatedData.messaging !== undefined) {
+      const plan = validatedData.messaging as MessagingPlan | null;
+      // Requests already sent keep their own snapshot; only new requests take this
+      updateData.messaging = isEmptyPlan(plan) ? Prisma.DbNull : ({ v: 1, events: plan!.events, schedule: plan!.schedule } as Prisma.InputJsonValue);
+    }
 
     const updatedTemplate = await db.requestTemplate.update({
       where: { id },

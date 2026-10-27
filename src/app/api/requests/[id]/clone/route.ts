@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
+import { Prisma } from "@prisma/client";
+import { deliver } from "@/lib/messaging-server";
 import { dueDayOf, dueFromDay, parseDueInput, shiftDue, todayIn, safeTimeZone, formatDueLong, dayKeyOf, type Due } from "@/lib/due";
 import { staffTimeZone } from "@/lib/due-server";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
@@ -112,6 +114,8 @@ export async function POST(
             dueOn: due?.dueOn ?? null,
             dueDate,
             urgency: modifications.urgency || originalRequest.urgency,
+            // A copy keeps the original's messaging plan
+            messaging: (originalRequest.messaging as Prisma.InputJsonValue | null) ?? Prisma.DbNull,
             requirements: JSON.parse(JSON.stringify({
               ...originalRequirements,
               _cloneInfo: cloneInfo,
@@ -140,35 +144,29 @@ export async function POST(
           const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${clonedRequest.id}`;
           const formattedDueDate = formatDueLong(dayKeyOf(due?.dueOn), "No specific due date");
 
-          try {
-            await sendContentRequestEmail({
-              to: creator.email,
-              creatorName: creator.name,
-              agencyName: session.user.agencyName,
-              requestTitle: clonedRequest.title,
-              dueDate: formattedDueDate,
-              portalLink,
-            });
-          } catch (error) {
-            console.error(`Failed to send email to ${creator.email}:`, error);
-          }
-
-          // Send SMS if preferred
-          if (
-            creator.phone &&
-            (creator.preferredContact === "SMS" || creator.preferredContact === "BOTH")
-          ) {
-            try {
-              await sendContentRequestSms({
-                to: creator.phone,
-                creatorName: creator.name,
-                requestTitle: clonedRequest.title,
-                portalLink,
-              });
-            } catch (error) {
-              console.error(`Failed to send SMS to ${creator.phone}:`, error);
+          // Email and/or text, as the request's messaging plan says
+          await deliver(
+            "request.new",
+            { agencyId: clonedRequest.agencyId, creator, request: clonedRequest },
+            {
+              email: () =>
+                sendContentRequestEmail({
+                  to: creator.email,
+                  creatorName: creator.name,
+                  agencyName: session.user.agencyName,
+                  requestTitle: clonedRequest.title,
+                  dueDate: formattedDueDate,
+                  portalLink,
+                }),
+              sms: (to) =>
+                sendContentRequestSms({
+                  to,
+                  creatorName: creator.name,
+                  requestTitle: clonedRequest.title,
+                  portalLink,
+                }),
             }
-          }
+          );
         }
 
         // Log activity for cloned request

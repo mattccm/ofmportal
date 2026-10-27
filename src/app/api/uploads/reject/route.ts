@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendRevisionRequestEmail } from "@/lib/email";
 import { sendRevisionRequestSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
 
 const rejectSchema = z.object({
@@ -107,31 +108,29 @@ export async function POST(req: NextRequest) {
       // Notify creator
       const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${requestId}`;
 
-      try {
-        await sendRevisionRequestEmail({
-          to: request.creator.email,
-          creatorName: request.creator.name,
-          requestTitle: request.title,
-          feedback: reason,
-          portalLink,
-          agencyId: session.user.agencyId,
-        });
-
-        if (
-          request.creator.phone &&
-          (request.creator.preferredContact === "SMS" ||
-            request.creator.preferredContact === "BOTH")
-        ) {
-          await sendRevisionRequestSms({
-            to: request.creator.phone,
-            creatorName: request.creator.name,
-            requestTitle: request.title,
-            portalLink,
-          });
+      // Email and/or text, as the request's messaging plan says
+      await deliver(
+        "request.changes",
+        { agencyId: session.user.agencyId, creator: request.creator, request },
+        {
+          email: () =>
+            sendRevisionRequestEmail({
+              to: request.creator.email,
+              creatorName: request.creator.name,
+              requestTitle: request.title,
+              feedback: reason,
+              portalLink,
+              agencyId: session.user.agencyId,
+            }),
+          sms: (to) =>
+            sendRevisionRequestSms({
+              to,
+              creatorName: request.creator.name,
+              requestTitle: request.title,
+              portalLink,
+            }),
         }
-      } catch (error) {
-        console.error("Failed to send rejection notification:", error);
-      }
+      );
 
       // Log activity
       // One row per upload so the activity feed can join on entityId

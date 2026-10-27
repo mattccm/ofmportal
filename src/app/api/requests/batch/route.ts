@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
+import { deliver, requestMessagingFor } from "@/lib/messaging-server";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 import { dueLong, parseDueInput } from "@/lib/due";
 import { staffTimeZone } from "@/lib/due-server";
@@ -134,6 +135,8 @@ export async function POST(req: NextRequest) {
     // Process requests in transaction for atomicity. Any failure rolls back the
     // whole batch (Postgres aborts the transaction on the first failed statement).
     const pickerTz = await staffTimeZone(session.user.id);
+    // Each request keeps a snapshot of the template's messaging plan
+    const messaging = await requestMessagingFor(validatedData.templateId);
     const createdRequests = await db.$transaction(async (tx) => {
       const requests = [];
 
@@ -153,6 +156,7 @@ export async function POST(req: NextRequest) {
             dueOn: due?.dueOn ?? null,
             dueDate: due?.dueDate ?? null,
             urgency: requestData.urgency,
+            messaging,
             // Template-level richContent is stored in requirements._richContent
             requirements: JSON.parse(JSON.stringify({
               ...(requestData.requirements || {}),
@@ -245,6 +249,8 @@ export async function POST(req: NextRequest) {
 async function sendBatchNotifications(
   requests: Array<{
     id: string;
+    agencyId: string;
+    messaging: unknown;
     title: string;
     dueOn: Date | null;
     dueDate: Date | null;
@@ -270,37 +276,29 @@ async function sendBatchNotifications(
         const portalLink = `${process.env.APP_URL}/creator/requests/${request.id}`;
         const dueDate = dueLong(request, "No specific due date");
 
-        // Send email
-        try {
-          await sendContentRequestEmail({
-            to: request.creator.email,
-            creatorName: request.creator.name,
-            agencyName,
-            requestTitle: request.title,
-            dueDate,
-            portalLink,
-          });
-        } catch (error) {
-          console.error(`Failed to send email to ${request.creator.email}:`, error);
-        }
-
-        // Send SMS if preferred
-        if (
-          request.creator.phone &&
-          (request.creator.preferredContact === "SMS" ||
-            request.creator.preferredContact === "BOTH")
-        ) {
-          try {
-            await sendContentRequestSms({
-              to: request.creator.phone,
-              creatorName: request.creator.name,
-              requestTitle: request.title,
-              portalLink,
-            });
-          } catch (error) {
-            console.error(`Failed to send SMS to ${request.creator.phone}:`, error);
+        // Email and/or text, as the request's messaging plan says
+        await deliver(
+          "request.new",
+          { agencyId: request.agencyId, creator: request.creator, request },
+          {
+            email: () =>
+              sendContentRequestEmail({
+                to: request.creator.email,
+                creatorName: request.creator.name,
+                agencyName,
+                requestTitle: request.title,
+                dueDate,
+                portalLink,
+              }),
+            sms: (to) =>
+              sendContentRequestSms({
+                to,
+                creatorName: request.creator.name,
+                requestTitle: request.title,
+                portalLink,
+              }),
           }
-        }
+        );
       })
     );
 

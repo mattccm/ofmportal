@@ -7,6 +7,7 @@ import {
   sendRevisionRequestEmail,
 } from "@/lib/email";
 import { sendContentApprovedSms, sendRevisionRequestSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 
 const reviewSchema = z.object({
   uploadId: z.string().min(1, "Upload ID is required"),
@@ -150,28 +151,25 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Send approval notification
-        try {
-          await sendContentApprovedEmail({
-            to: upload.creator.email,
-            creatorName: upload.creator.name,
-            requestTitle: upload.request.title,
-          });
-
-          if (
-            upload.creator.phone &&
-            (upload.creator.preferredContact === "SMS" ||
-              upload.creator.preferredContact === "BOTH")
-          ) {
-            await sendContentApprovedSms({
-              to: upload.creator.phone,
-              creatorName: upload.creator.name,
-              requestTitle: upload.request.title,
-            });
+        // Approval notification: email and/or text, as the request's plan says
+        await deliver(
+          "request.approved",
+          { agencyId: upload.request.agencyId, creator: upload.creator, request: upload.request },
+          {
+            email: () =>
+              sendContentApprovedEmail({
+                to: upload.creator.email,
+                creatorName: upload.creator.name,
+                requestTitle: upload.request.title,
+              }),
+            sms: (to) =>
+              sendContentApprovedSms({
+                to,
+                creatorName: upload.creator.name,
+                requestTitle: upload.request.title,
+              }),
           }
-        } catch (error) {
-          console.error("Failed to send approval notification:", error);
-        }
+        );
       }
     } else {
       // Rejected - update request status to needs revision
@@ -182,33 +180,29 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Send rejection notification
-      try {
-        const portalLink = `${process.env.APP_URL}/creator/requests/${upload.requestId}`;
-
-        await sendRevisionRequestEmail({
-          to: upload.creator.email,
-          creatorName: upload.creator.name,
-          requestTitle: upload.request.title,
-          feedback: notes || "Please review and resubmit.",
-          portalLink,
-        });
-
-        if (
-          upload.creator.phone &&
-          (upload.creator.preferredContact === "SMS" ||
-            upload.creator.preferredContact === "BOTH")
-        ) {
-          await sendRevisionRequestSms({
-            to: upload.creator.phone,
-            creatorName: upload.creator.name,
-            requestTitle: upload.request.title,
-            portalLink,
-          });
+      // Changes notification: email and/or text, as the request's plan says
+      const portalLink = `${process.env.APP_URL}/creator/requests/${upload.requestId}`;
+      await deliver(
+        "request.changes",
+        { agencyId: upload.request.agencyId, creator: upload.creator, request: upload.request },
+        {
+          email: () =>
+            sendRevisionRequestEmail({
+              to: upload.creator.email,
+              creatorName: upload.creator.name,
+              requestTitle: upload.request.title,
+              feedback: notes || "Please review and resubmit.",
+              portalLink,
+            }),
+          sms: (to) =>
+            sendRevisionRequestSms({
+              to,
+              creatorName: upload.creator.name,
+              requestTitle: upload.request.title,
+              portalLink,
+            }),
         }
-      } catch (error) {
-        console.error("Failed to send revision notification:", error);
-      }
+      );
     }
 
     return NextResponse.json({

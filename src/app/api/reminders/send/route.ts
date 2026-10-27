@@ -5,6 +5,7 @@ import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
 import { z } from "zod";
 import { dueLong, calendarDaysUntilDue } from "@/lib/due";
+import { planFor } from "@/lib/messaging-server";
 
 // Note: customMessage support would need to be added to sendReminderEmail/sendReminderSms
 // For now, we use the default templates
@@ -91,14 +92,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const channel = askedChannel ?? request.creator.preferredContact ?? "EMAIL";
+    // Channels: what staff picked, else the scheduled reminder's own channel,
+    // else the "reminder sent by hand" plan; the creator's consent applies to all
+    const picked = askedChannel ?? (reminder ? reminder.channel : undefined);
+    const plan = await planFor("reminder.manual", {
+      agencyId: request.agencyId,
+      creator: request.creator,
+      request,
+      forced: picked ? { email: picked !== "SMS", sms: picked !== "EMAIL" } : undefined,
+    });
 
     const portalLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
     const dueDate = dueLong(request, "No due date");
     const daysUntilDue = calendarDaysUntilDue(request, request.creator.timezone) ?? 0;
 
-    const results: { email?: boolean; sms?: boolean; errors: string[] } = {
+    const results: { email?: boolean; sms?: boolean; errors: string[]; plan: string } = {
       errors: [],
+      plan: plan.reason,
     };
 
     // Determine reminder type for new reminders
@@ -110,7 +120,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Send email reminder
-    if (channel === "EMAIL" || channel === "BOTH") {
+    if (plan.email) {
       const emailReminder = reminder && reminder.channel === "EMAIL"
         ? reminder
         : await db.reminder.create({
@@ -154,7 +164,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Send SMS reminder
-    if (channel === "SMS" || channel === "BOTH") {
+    if (plan.sms) {
       if (!request.creator.phone) {
         results.sms = false;
         results.errors.push("SMS: Creator does not have a phone number");

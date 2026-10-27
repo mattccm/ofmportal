@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 import { dueLong, calendarDaysUntilDue } from "@/lib/due";
 
@@ -307,37 +308,38 @@ export async function POST(req: NextRequest) {
             const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
             const dueDate = dueLong(request, "No specific due date");
 
-            // Send email
-            await sendReminderEmail({
-              to: request.creator.email,
-              creatorName: request.creator.name,
-              requestTitle: request.title,
-              dueDate,
-              daysUntilDue: calendarDaysUntilDue(request, request.creator.timezone) ?? 0,
-              portalLink,
-            });
-
-            // Send SMS if applicable
-            if (
-              request.creator.phone &&
-              (request.creator.preferredContact === "SMS" ||
-                request.creator.preferredContact === "BOTH")
-            ) {
-              await sendReminderSms({
-                to: request.creator.phone,
-                creatorName: request.creator.name,
-                requestTitle: request.title,
-                daysUntilDue: calendarDaysUntilDue(request, request.creator.timezone) ?? 0,
-                portalLink,
-              });
-            }
+            // Email and/or text, as the "reminder sent by hand" plan says
+            const delivered = await deliver(
+              "reminder.manual",
+              { agencyId: request.agencyId, creator: request.creator, request },
+              {
+                email: () =>
+                  sendReminderEmail({
+                    to: request.creator.email,
+                    creatorName: request.creator.name,
+                    requestTitle: request.title,
+                    dueDate,
+                    daysUntilDue: calendarDaysUntilDue(request, request.creator.timezone) ?? 0,
+                    portalLink,
+                  }),
+                sms: (to) =>
+                  sendReminderSms({
+                    to,
+                    creatorName: request.creator.name,
+                    requestTitle: request.title,
+                    daysUntilDue: calendarDaysUntilDue(request, request.creator.timezone) ?? 0,
+                    portalLink,
+                  }),
+              }
+            );
+            if (!delivered.email && !delivered.sms) throw new Error(delivered.errors.join("; ") || "Nothing was sent");
 
             // Create reminder record
             await db.reminder.create({
               data: {
                 requestId: request.id,
                 type: "UPCOMING",
-                channel: "EMAIL",
+                channel: delivered.email ? "EMAIL" : "SMS",
                 scheduledAt: new Date(),
                 sentAt: new Date(),
                 status: "SENT",

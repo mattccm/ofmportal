@@ -24,7 +24,11 @@ import { ReminderSchedulePreview } from "@/components/requests/reminder-schedule
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 import { FieldList, AutoGrowTextarea, type ComposeField } from "./field-list";
 import { NotificationLines, PhonePreview } from "./phone-preview";
-import type { ComposeData, ComposeTemplate } from "./data";
+import type { ComposeCreator, ComposeData, ComposeTemplate } from "./data";
+import { useAccess } from "@/lib/access/client";
+import { planChannels, type MessagingPlan } from "@/lib/messaging";
+import { PlanEditor, planSummary } from "@/components/messaging/plan-editor";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /* ------------------------------------------------------------------------ */
 
@@ -181,6 +185,30 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
 
   const template = templates.find((t) => t.id === templateId) ?? null;
   const picked = !!templateId;
+
+  // ---------- reminders and messages ----------
+  // undefined = the template's plan; null or a plan = set for this request (reminders.edit)
+  const { can } = useAccess();
+  const canPlan = can("reminders.edit");
+  const [planOverride, setPlanOverride] = React.useState<MessagingPlan | null | undefined>(undefined);
+  const [planOpen, setPlanOpen] = React.useState(false);
+  const [planDraft, setPlanDraft] = React.useState<MessagingPlan | null>(null);
+  React.useEffect(() => setPlanOverride(undefined), [templateId]);
+  const effectivePlan: MessagingPlan | null = planOverride !== undefined ? planOverride : (template?.messaging ?? null);
+  const planSource =
+    planOverride !== undefined ? "Set for this request" : template?.messaging ? `From template ${template.name}` : "Agency defaults";
+  /** How a new-request message reaches this creator, from src/lib/messaging.ts */
+  const channelsOf = (c: ComposeCreator) =>
+    planChannels("request.new", {
+      agency: data.agencyMessaging,
+      // The number never reaches the browser: a stand-in says whether there is one
+      creator: { name: c.name, phone: c.hasPhone ? "on file" : null, preferredContact: c.preferredContact },
+      request: { messaging: effectivePlan },
+    });
+  const channelWord = (c: ComposeCreator) => {
+    const p = channelsOf(c);
+    return p.email && p.sms ? "text and email" : p.sms ? "text" : p.email ? "email" : "nothing";
+  };
 
   // ---------- who ----------
   const group = groups.find((g) => g.id === groupId) ?? null;
@@ -420,6 +448,8 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
       richContent,
       saveAsDraft: asDraft,
       sendNotification: asDraft ? false : sendNotification,
+      // Only when changed here; otherwise the server copies the template's plan
+      ...(planOverride !== undefined ? { messaging: planOverride } : {}),
     });
     try {
       const results = await Promise.all(
@@ -475,7 +505,9 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
     : recipients.length === 1
       ? recipients[0].preferredContact === null
         ? `${recipients[0].name} gets their own copy.`
-        : `${recipients[0].name} hears about it by ${recipients[0].hasPhone && recipients[0].preferredContact !== "EMAIL" ? "text and email" : "email"}.`
+        : sendNotification
+          ? `${recipients[0].name} hears about it by ${channelWord(recipients[0])}.`
+          : `${recipients[0].name} isn't told: notifications are off.`
       : `${list(recipients.slice(0, 4).map((c) => c.name))}${recipients.length > 4 ? ` and ${recipients.length - 4} more` : ""} each get their own copy.`;
 
   const filteredCreators = creators.filter(
@@ -726,7 +758,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
                                 {c.name}
                                 {c.preferredContact !== null && (
                                   <small className="hidden text-[13px] font-normal text-ink-2 sm:inline">
-                                    {c.hasPhone && c.preferredContact !== "EMAIL" ? "Text and email" : "Email"}
+                                    {channelWord(c).replace(/^./, (x) => x.toUpperCase())}
                                   </small>
                                 )}
                               </button>
@@ -876,11 +908,80 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
               </div>
 
               {/* reminders */}
+              <div className="mt-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-1 rounded-[8px] bg-tile px-3.5 py-2.5">
+                <p className="min-w-0 flex-1 text-sm">
+                  <span className="font-medium text-ink">Reminders and messages: </span>
+                  <span className="text-ink-2">
+                    {planSummary(effectivePlan, "the agency's reminder rules and message settings")}. {planSource}.
+                  </span>
+                </p>
+                {canPlan && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="-my-1"
+                    disabled={!!sending}
+                    onClick={() => {
+                      setPlanDraft(effectivePlan);
+                      setPlanOpen(true);
+                    }}
+                  >
+                    Change
+                  </Button>
+                )}
+              </div>
               {dueDate && dueDate >= today && previewCreator && (
                 <div className="mt-4">
-                  <ReminderSchedulePreview creatorId={previewCreator.id} urgency={urgency} dueDate={dueDate} />
+                  <ReminderSchedulePreview
+                    creatorId={previewCreator.id}
+                    urgency={urgency}
+                    dueDate={dueDate}
+                    templateId={template?.id}
+                    messaging={planOverride}
+                  />
                 </div>
               )}
+              <Dialog open={planOpen} onOpenChange={setPlanOpen}>
+                <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[760px]">
+                  <DialogHeader>
+                    <DialogTitle>Reminders and messages for this request</DialogTitle>
+                    <DialogDescription>
+                      {template?.messaging
+                        ? `The template ${template.name} has its own plan. Changes here apply only to the request you're sending.`
+                        : "Changes here apply only to the request you're sending, not to the template."}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <PlanEditor value={planDraft} onChange={setPlanDraft} agency={data.agencyMessaging} scope="request" idPrefix="new-plan" />
+                  <DialogFooter>
+                    {planOverride !== undefined && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="sm:mr-auto"
+                        onClick={() => {
+                          setPlanOverride(undefined);
+                          setPlanOpen(false);
+                        }}
+                      >
+                        {template?.messaging ? "Use the template's plan" : "Use the agency defaults"}
+                      </Button>
+                    )}
+                    <Button type="button" variant="outline" onClick={() => setPlanOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setPlanOverride(planDraft);
+                        setPlanOpen(false);
+                      }}
+                    >
+                      Use for this request
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* note */}
               <div className="mt-6">
@@ -1002,6 +1103,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
               </div>
               <NotificationLines
                 creator={previewCreator}
+                channels={previewCreator ? channelsOf(previewCreator) : null}
                 emailFrom={data.emailFrom}
                 portalHost={data.portalHost}
                 notify={sendNotification}
@@ -1025,7 +1127,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
                         ? `${previewCreator.name} is told the way they prefer.`
                         : `${previewCreator.name} prefers ${
                             previewCreator.preferredContact === "BOTH" ? "texts and email" : previewCreator.preferredContact === "SMS" ? "texts" : "email"
-                          }${previewCreator.preferredContact !== "EMAIL" && !previewCreator.hasPhone ? ", but has no phone number, so it goes by email" : ""}.`,
+                          }${previewCreator.preferredContact !== "EMAIL" && !previewCreator.hasPhone ? ", but has no phone number" : ""}, so this request goes by ${channelWord(previewCreator)}.`,
                       previewCreator.timezone ? `Their time zone is ${previewCreator.timezone.replace(/_/g, " ")}.` : "",
                     ]
                       .filter(Boolean)

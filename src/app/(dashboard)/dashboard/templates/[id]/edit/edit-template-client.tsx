@@ -26,6 +26,7 @@ export function EditTemplateClient({ template }: EditTemplateClientProps) {
     defaultUrgency: template.defaultUrgency,
     isActive: template.isActive,
     categoryId: template.categoryId,
+    messaging: template.messaging ?? null,
   };
 
   const handleSave = async (data: TemplateFormData, isDraft: boolean) => {

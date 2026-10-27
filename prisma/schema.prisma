@@ -453,6 +453,10 @@ model RequestTemplate {
   defaultDueDays Int     @default(7)
   defaultUrgency Urgency @default(NORMAL)
 
+  // Creator messages: per-event channels and an optional reminder schedule
+  // (src/lib/messaging.ts MessagingPlan). Null = agency defaults.
+  messaging Json?
+
   isActive Boolean @default(true)
 
   // Category for organizing templates (Instagram, OnlyFans, Reddit, etc.)
@@ -567,6 +571,11 @@ model ContentRequest {
   dueDate          DateTime?
   urgency          Urgency   @default(NORMAL)
   estimatedMinutes Int? // Agency's estimate of how long this should take the creator
+
+  // Creator messages for this request (MessagingPlan): a snapshot of the
+  // template's plan taken when the request is made, editable per request.
+  // Null = agency defaults.
+  messaging Json?
 
   // Status tracking
   status      RequestStatus @default(PENDING)

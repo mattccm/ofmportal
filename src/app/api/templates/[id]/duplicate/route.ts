@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
@@ -97,6 +98,7 @@ export async function POST(
         defaultDueDays: originalTemplate.defaultDueDays,
         defaultUrgency: originalTemplate.defaultUrgency,
         categoryId: originalTemplate.categoryId, // stays in the same group
+        messaging: originalTemplate.messaging ?? Prisma.DbNull, // same creator messages
         isActive: false, // Start as draft
       },
       include: {

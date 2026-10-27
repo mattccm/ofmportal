@@ -63,6 +63,7 @@ import {
 } from "./review-player-parts";
 import { cn } from "@/lib/utils";
 import { useAccess } from "@/lib/access/client";
+import { RequestRemindersPanel } from "@/components/messaging/request-reminders-panel";
 
 interface Creator {
   id: string;
@@ -1209,6 +1210,16 @@ export function RequestDetailClient({
             </div>
           </section>
           )}
+
+          {/* Reminders: the plan for this request, where it comes from, what's scheduled */}
+          <RequestRemindersPanel
+            key={`${String(request.dueOn)}|${request.status}|${request.urgency}`}
+            requestId={request.id}
+            firstName={firstName}
+            canEdit={can("reminders.edit")}
+            tz={tz}
+            active={["PENDING", "IN_PROGRESS", "NEEDS_REVISION"].includes(request.status)}
+          />
 
           {/* The brief */}
           {(request.description || detailFields.length > 0 || request.requirements?._richContent) && (

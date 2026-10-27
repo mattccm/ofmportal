@@ -76,6 +76,9 @@ import { useAutosave } from "@/hooks/use-autosave";
 import { AutosaveStatusBadge } from "@/components/forms/autosave-indicator";
 import { RecoveryDialog } from "@/components/forms/recovery-dialog";
 import { clearFormData } from "@/lib/form-storage";
+import { useAccess } from "@/lib/access/client";
+import type { MessagingPlan } from "@/lib/messaging";
+import { PlanEditor, useAgencyMessaging } from "@/components/messaging/plan-editor";
 
 // TYPES
 
@@ -290,6 +293,11 @@ export function TemplateBuilder({
   const [categoryId, setCategoryId] = React.useState<string | null>(
     initialData?.categoryId || null
   );
+  // Creator messages for requests made from this template (null = agency defaults)
+  const { can } = useAccess();
+  const canEditMessaging = can("templates.edit");
+  const [messaging, setMessaging] = React.useState<MessagingPlan | null>(initialData?.messaging ?? null);
+  const agencyMessaging = useAgencyMessaging(canEditMessaging);
   const [categories, setCategories] = React.useState<TemplateCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = React.useState(true);
 
@@ -344,8 +352,9 @@ export function TemplateBuilder({
       defaultUrgency,
       isActive,
       categoryId,
+      messaging,
     }),
-    [name, description, richContent, fields, defaultDueDays, defaultUrgency, isActive, categoryId]
+    [name, description, richContent, fields, defaultDueDays, defaultUrgency, isActive, categoryId, messaging]
   );
 
   // Initialize autosave
@@ -370,6 +379,7 @@ export function TemplateBuilder({
       setDefaultDueDays(recovered.defaultDueDays || 7);
       setDefaultUrgency(recovered.defaultUrgency || "NORMAL");
       setIsActive(recovered.isActive ?? true);
+      if (recovered.messaging !== undefined) setMessaging(recovered.messaging ?? null);
       toast.success("Draft restored");
     }
   };
@@ -406,12 +416,13 @@ export function TemplateBuilder({
         defaultDueDays !== initialData.defaultDueDays ||
         defaultUrgency !== initialData.defaultUrgency ||
         isActive !== initialData.isActive ||
+        JSON.stringify(messaging) !== JSON.stringify(initialData.messaging ?? null) ||
         JSON.stringify(fields) !== JSON.stringify(initialData.fields);
       setHasChanges(hasFormChanges);
     } else {
       setHasChanges(name !== "" || fields.length > 0);
     }
-  }, [name, description, richContent, fields, defaultDueDays, defaultUrgency, isActive, initialData]);
+  }, [name, description, richContent, fields, defaultDueDays, defaultUrgency, isActive, messaging, initialData]);
 
   // Save to history
   const saveToHistory = (newFields: TemplateField[]) => {
@@ -511,6 +522,8 @@ export function TemplateBuilder({
           defaultUrgency,
           isActive: isDraft ? false : isActive,
           categoryId,
+          // Left out for people who can't edit templates' messages: unchanged
+          ...(canEditMessaging ? { messaging } : {}),
         },
         isDraft
       );
@@ -786,6 +799,23 @@ export function TemplateBuilder({
             </div>
           </CardContent>
         </Card>
+
+        {/* Reminders and messages: this template's own plan, or the agency defaults */}
+        {canEditMessaging && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-[17px]">
+                <h2 id="tpl-messages">Reminders and messages</h2>
+              </CardTitle>
+              <p className="text-sm text-ink-2">
+                When creators are reminded about requests made from this template, and whether each message goes by email or text. Requests already sent keep the plan they were sent with.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <PlanEditor value={messaging} onChange={setMessaging} agency={agencyMessaging} scope="template" idPrefix="tpl-plan" />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Fields Section */}
         <div className="space-y-4">

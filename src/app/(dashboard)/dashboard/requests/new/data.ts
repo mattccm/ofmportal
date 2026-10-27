@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { creatorWhere, requestWhere, type Access } from "@/lib/access/server";
 import { loadEmailBranding } from "@/lib/email";
 import type { TemplateField, RichContent } from "@/lib/template-types";
+import { readPlan, type AgencyMessaging, type MessagingPlan } from "@/lib/messaging";
+import { loadAgencyMessaging } from "@/lib/messaging-server";
 
 /* Everything the composer needs, read once on the server. */
 
@@ -36,6 +38,8 @@ export interface ComposeTemplate {
   defaultUrgency: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   usageCount: number;
   lastUsedAt: string | null;
+  /** Creator messages for requests made from it; null = agency defaults */
+  messaging: MessagingPlan | null;
 }
 
 export interface ComposeData {
@@ -47,6 +51,8 @@ export interface ComposeData {
   /** Host of the portal link in the SMS ("portal.example.com") */
   portalHost: string;
   totalRequests: number;
+  /** The agency's creator-message defaults (Settings, Creator messages) */
+  agencyMessaging: AgencyMessaging;
 }
 
 function parseFields(raw: unknown): TemplateField[] {
@@ -81,7 +87,7 @@ export async function getComposeData(
   agencyName?: string
 ): Promise<ComposeData> {
   const { agencyId, userId } = access;
-  const [creators, groups, templates, usage, totalRequests, allowed, branding] = await Promise.all([
+  const [creators, groups, templates, usage, totalRequests, allowed, branding, agencyMessaging] = await Promise.all([
     db.creator.findMany({
       where: { ...creatorWhere(access), archivedAt: null },
       select: {
@@ -118,6 +124,7 @@ export async function getComposeData(
     db.contentRequest.count({ where: requestWhere(access) }),
     allowedCategories(userId),
     loadEmailBranding(agencyId, agencyName),
+    loadAgencyMessaging(agencyId),
   ]);
 
   const useBy = new Map(usage.map((u) => [u.templateId, u]));
@@ -169,10 +176,12 @@ export async function getComposeData(
           defaultUrgency: t.defaultUrgency,
           usageCount: u?._count._all ?? 0,
           lastUsedAt: u?._max.createdAt?.toISOString() ?? null,
+          messaging: readPlan(t.messaging),
         };
       }),
     emailFrom: branding.fromName,
     portalHost,
     totalRequests,
+    agencyMessaging,
   };
 }

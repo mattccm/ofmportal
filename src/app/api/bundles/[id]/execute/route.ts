@@ -4,6 +4,9 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
+import { Prisma } from "@prisma/client";
+import { snapshotFromTemplate } from "@/lib/messaging";
+import { deliver } from "@/lib/messaging-server";
 import { parseDueInput, dayFromInput, addDaysToKey, todayIn, dueFromDay, safeTimeZone, dayKeyOf, formatDueDay, formatDueLong } from "@/lib/due";
 import { staffTimeZone } from "@/lib/due-server";
 import type { BundleExecutionResult } from "@/types/request-bundles";
@@ -171,6 +174,8 @@ export async function POST(
               dueOn: due.dueOn,
               dueDate,
               urgency,
+              // Snapshot of the template's messaging plan
+              messaging: (snapshotFromTemplate(template) as Prisma.InputJsonValue | null) ?? Prisma.DbNull,
               requirements: template.richContent
                 ? JSON.parse(JSON.stringify({ _richContent: template.richContent }))
                 : {},
@@ -202,37 +207,29 @@ export async function POST(
             const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${contentRequest.id}`;
             const dueDateFormatted = formatDueLong(dueDay);
 
-            // Send email
-            try {
-              await sendContentRequestEmail({
-                to: creator.email,
-                creatorName: creator.name,
-                agencyName: session.user.agencyName,
-                requestTitle: template.name,
-                dueDate: dueDateFormatted,
-                portalLink,
-              });
-            } catch (emailError) {
-              console.error("Failed to send request email:", emailError);
-            }
-
-            // Send SMS if preferred
-            if (
-              creator.phone &&
-              (creator.preferredContact === "SMS" ||
-                creator.preferredContact === "BOTH")
-            ) {
-              try {
-                await sendContentRequestSms({
-                  to: creator.phone,
-                  creatorName: creator.name,
-                  requestTitle: template.name,
-                  portalLink,
-                });
-              } catch (smsError) {
-                console.error("Failed to send request SMS:", smsError);
+            // Email and/or text, as the request's messaging plan says
+            await deliver(
+              "request.new",
+              { agencyId: contentRequest.agencyId, creator, request: contentRequest },
+              {
+                email: () =>
+                  sendContentRequestEmail({
+                    to: creator.email,
+                    creatorName: creator.name,
+                    agencyName: session.user.agencyName,
+                    requestTitle: template.name,
+                    dueDate: dueDateFormatted,
+                    portalLink,
+                  }),
+                sms: (to) =>
+                  sendContentRequestSms({
+                    to,
+                    creatorName: creator.name,
+                    requestTitle: template.name,
+                    portalLink,
+                  }),
               }
-            }
+            );
           }
         } catch (error) {
           console.error(

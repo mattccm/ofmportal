@@ -32,12 +32,6 @@ export const EMAIL_SUBJECT = "You have a new content request";
 
 const firstName = (n: string) => n.split(" ")[0] || n;
 
-function channelsFor(c: ComposeCreator | null) {
-  // The request route always emails; it texts too when the creator has a
-  // phone number and prefers SMS or both.
-  const sms = !!c && c.hasPhone && (c.preferredContact === "SMS" || c.preferredContact === "BOTH");
-  return { email: true, sms };
-}
 
 export function NotificationLines({
   creator,
@@ -46,8 +40,11 @@ export function NotificationLines({
   notify,
   title,
   dueDate,
+  channels,
 }: {
   creator: ComposeCreator | null;
+  /** How the new-request message reaches them (planChannels in src/lib/messaging.ts) */
+  channels: { email: boolean; sms: boolean } | null;
   emailFrom: string;
   portalHost: string;
   notify: boolean;
@@ -61,14 +58,15 @@ export function NotificationLines({
       </p>
     );
   }
-  const ch = channelsFor(creator);
+  const ch = channels ?? { email: true, sms: false };
   const name = creator?.name ?? "there";
   return (
     <div className="flex flex-col gap-1.5" aria-live="polite">
       {ch.sms && (
         <NoteLine icon={<MessageSquare className="size-4" />} app="Messages" body={smsBody(name, portalHost)} />
       )}
-      <NoteLine icon={<Inbox className="size-4" />} app={`Mail · ${emailFrom}`} body={EMAIL_SUBJECT} />
+      {ch.email && <NoteLine icon={<Inbox className="size-4" />} app={`Mail · ${emailFrom}`} body={EMAIL_SUBJECT} />}
+      {!ch.email && !ch.sms && <p className="px-1 text-[13px] text-ink-2">This request&rsquo;s plan sends no message when it&rsquo;s sent.</p>}
       <p className="px-1 text-[13px] text-ink-2">
         Lock screens show only these lines. Opened, the email names the request:{" "}
         <span className="text-ink">

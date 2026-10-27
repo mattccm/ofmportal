@@ -4,7 +4,10 @@ import { TASK_TYPE_KEY, targetsInScope } from "../../../recurring-requests/scope
 import { db } from "@/lib/db";
 import { dueInDays, dueLong } from "@/lib/due";
 import { sendContentRequestEmail } from "@/lib/email";
-import type { Prisma } from "@prisma/client";
+import { sendContentRequestSms } from "@/lib/sms";
+import { Prisma } from "@prisma/client";
+import { snapshotFromTemplate } from "@/lib/messaging";
+import { deliver } from "@/lib/messaging-server";
 
 // Template fields may be stored as a JSON string; always return an array
 function parseTemplateFields(raw: unknown): unknown[] {
@@ -78,6 +81,8 @@ async function executeCreateRequest(
         dueOn: due.dueOn,
         dueDate: due.dueDate,
         urgency: template.defaultUrgency,
+        // Snapshot of the template's messaging plan
+        messaging: (snapshotFromTemplate(template) as Prisma.InputJsonValue | null) ?? Prisma.DbNull,
         requirements: {},
         fields: parseTemplateFields(template.fields) as Prisma.InputJsonValue,
         status: "PENDING",
@@ -86,20 +91,24 @@ async function executeCreateRequest(
 
     createdRequestIds.push(request.id);
 
-    // Send notification
-    try {
-      const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${request.id}`;
-      await sendContentRequestEmail({
-        to: creator.email,
-        creatorName: creator.name,
-        agencyName: user.agencyName,
-        requestTitle: request.title,
-        dueDate: dueLong(due),
-        portalLink,
-      });
-    } catch (emailError) {
-      console.error("Failed to send email:", emailError);
-    }
+    // Email and/or text, as the request's messaging plan says
+    const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${request.id}`;
+    await deliver(
+      "request.new",
+      { agencyId: task.agencyId, creator, request },
+      {
+        email: () =>
+          sendContentRequestEmail({
+            to: creator.email,
+            creatorName: creator.name,
+            agencyName: user.agencyName,
+            requestTitle: request.title,
+            dueDate: dueLong(due),
+            portalLink,
+          }),
+        sms: (to) => sendContentRequestSms({ to, creatorName: creator.name, portalLink }),
+      }
+    );
   }
 
   return {

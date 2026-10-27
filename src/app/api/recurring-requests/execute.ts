@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import { snapshotFromTemplate } from "@/lib/messaging";
+import { deliver } from "@/lib/messaging-server";
 import { dueInDays, dayKeyOf, formatDueLong } from "@/lib/due";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
@@ -157,7 +159,7 @@ export async function executeRecurringRequest(
   // schedule's due date (dueInDays), falling back to each template's own
   // default when the schedule has none.
   for (const creator of creators) {
-    const created: { id: string; title: string; dueDate: Date; dueDay: string }[] = [];
+    const created: { id: string; title: string; dueDate: Date; dueDay: string; messaging: unknown }[] = [];
 
     for (const template of templates) {
       try {
@@ -172,6 +174,8 @@ export async function executeRecurringRequest(
         const due = dueInDays(requestSettings.dueInDays || template.defaultDueDays || 7, creator.timezone, now);
         const dueDate = due.dueDate;
 
+        // Snapshot of the template's messaging plan
+        const messaging = snapshotFromTemplate(template);
         const request = await db.contentRequest.create({
           data: {
             agencyId,
@@ -183,13 +187,14 @@ export async function executeRecurringRequest(
             dueDate,
             urgency: requestSettings.urgency || template.defaultUrgency || "NORMAL",
             status: "PENDING",
+            messaging: (messaging as Prisma.InputJsonValue | null) ?? Prisma.DbNull,
             requirements: {},
             fields: parseTemplateFields(template.fields) as Prisma.InputJsonValue,
           },
         });
 
         createdRequestIds.push(request.id);
-        created.push({ id: request.id, title, dueDate, dueDay: dayKeyOf(due.dueOn)! });
+        created.push({ id: request.id, title, dueDate, dueDay: dayKeyOf(due.dueOn)!, messaging });
         successCount++;
 
         // Schedule auto-reminders like a normal new request
@@ -219,32 +224,30 @@ export async function executeRecurringRequest(
         created.length === 1
           ? created[0].title
           : `${created.length} requests: ${created.map((r) => r.title).join(", ")}`;
-      try {
-        await sendContentRequestEmail({
-          to: creator.email,
-          creatorName: creator.name,
-          agencyName,
-          requestTitle,
-          dueDate: formatDueLong(firstDue),
-          portalLink,
-          agencyId,
-          requestCount: created.length,
-        });
-      } catch (error) {
-        console.error("Failed to send recurring request email:", error);
-      }
-
-      if (creator.phone && (creator.preferredContact === "SMS" || creator.preferredContact === "BOTH")) {
-        try {
-          await sendContentRequestSms({
-            to: creator.phone,
-            creatorName: creator.name,
-            portalLink,
-          });
-        } catch (error) {
-          console.error("Failed to send recurring request SMS:", error);
+      // One message for the run, planned from the first request's plan
+      await deliver(
+        "request.new",
+        { agencyId, creator, request: { messaging: created[0].messaging } },
+        {
+          email: () =>
+            sendContentRequestEmail({
+              to: creator.email,
+              creatorName: creator.name,
+              agencyName,
+              requestTitle,
+              dueDate: formatDueLong(firstDue),
+              portalLink,
+              agencyId,
+              requestCount: created.length,
+            }),
+          sms: (to) =>
+            sendContentRequestSms({
+              to,
+              creatorName: creator.name,
+              portalLink,
+            }),
         }
-      }
+      );
     }
   }
 

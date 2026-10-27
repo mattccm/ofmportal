@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { sendReminderEmail } from "@/lib/email";
+import { sendReminderSms } from "@/lib/sms";
+import { planFor } from "@/lib/messaging-server";
 import { getAppUrl } from "@/lib/app-url";
 import { dueLong, calendarDaysUntilDue } from "@/lib/due";
 
 /**
  * POST /api/creators/[id]/reminder
- * Quick action: send an email reminder to a creator for their active
- * (outstanding) content requests. Reuses the same email send path as
- * /api/reminders/send.
+ * Quick action: remind a creator about their active (outstanding) content
+ * requests, by the channels the "reminder sent by hand" plan gives them.
  */
 export async function POST(
   _req: NextRequest,
@@ -68,60 +69,71 @@ export async function POST(
         reminderType = "OVERDUE";
       }
 
-      // Record the reminder before sending (mirrors /api/reminders/send)
-      const reminder = await db.reminder.create({
-        data: {
-          requestId: request.id,
-          type: reminderType,
-          channel: "EMAIL",
-          scheduledAt: new Date(),
-        },
-      });
+      // Email and/or text, as the "reminder sent by hand" plan says (src/lib/messaging.ts)
+      const plan = await planFor("reminder.manual", { agencyId: request.agencyId, creator, request });
+      const channels = [plan.email && "EMAIL", plan.sms && creator.phone && "SMS"].filter(Boolean) as ("EMAIL" | "SMS")[];
+      let anySent = false;
 
-      try {
-        await sendReminderEmail({
-          to: creator.email,
-          creatorName: creator.name,
-          requestTitle: request.title,
-          dueDate,
-          daysUntilDue,
-          portalLink,
-          agencyId: session.user.agencyId,
+      for (const channel of channels) {
+        // Record the reminder before sending (mirrors /api/reminders/send)
+        const reminder = await db.reminder.create({
+          data: { requestId: request.id, type: reminderType, channel, scheduledAt: new Date() },
         });
-
-        await db.reminder.update({
-          where: { id: reminder.id },
-          data: { status: "SENT", sentAt: new Date() },
-        });
-
-        await db.activityLog.create({
-          data: {
-            userId: session.user.id,
-            action: "reminder.sent",
-            entityType: "Reminder",
-            entityId: reminder.id,
-            metadata: {
-              requestId: request.id,
-              creatorId: creator.id,
+        try {
+          if (channel === "EMAIL") {
+            await sendReminderEmail({
+              to: creator.email,
               creatorName: creator.name,
-              type: reminderType,
-              channel: "EMAIL",
-            },
-          },
-        });
+              requestTitle: request.title,
+              dueDate,
+              daysUntilDue,
+              portalLink,
+              agencyId: session.user.agencyId,
+            });
+          } else {
+            await sendReminderSms({
+              to: creator.phone!,
+              creatorName: creator.name,
+              requestTitle: request.title,
+              daysUntilDue,
+              portalLink,
+            });
+          }
 
-        sent++;
-      } catch (error) {
-        console.error("Failed to send creator reminder:", error);
-        await db.reminder.update({
-          where: { id: reminder.id },
-          data: {
-            status: "FAILED",
-            error: error instanceof Error ? error.message : "Unknown error",
-          },
-        });
-        failed++;
+          await db.reminder.update({
+            where: { id: reminder.id },
+            data: { status: "SENT", sentAt: new Date() },
+          });
+
+          await db.activityLog.create({
+            data: {
+              userId: session.user.id,
+              action: "reminder.sent",
+              entityType: "Reminder",
+              entityId: reminder.id,
+              metadata: {
+                requestId: request.id,
+                creatorId: creator.id,
+                creatorName: creator.name,
+                type: reminderType,
+                channel,
+              },
+            },
+          });
+          anySent = true;
+        } catch (error) {
+          console.error("Failed to send creator reminder:", error);
+          await db.reminder.update({
+            where: { id: reminder.id },
+            data: {
+              status: "FAILED",
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+          });
+        }
       }
+      if (anySent) sent++;
+      else failed++;
     }
 
     const success = sent > 0;

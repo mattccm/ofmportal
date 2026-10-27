@@ -9,6 +9,10 @@ import {
   createUndoWindow,
 } from "@/lib/bulk-operations";
 import { sendNewRequestEmail } from "@/lib/email";
+import { sendContentRequestSms } from "@/lib/sms";
+import { Prisma } from "@prisma/client";
+import { snapshotFromTemplate } from "@/lib/messaging";
+import { deliver } from "@/lib/messaging-server";
 import { expandQuantityFields, type TemplateField } from "@/lib/template-types";
 import { scheduleRemindersForRequest } from "@/lib/auto-reminder-scheduler";
 import { z } from "zod";
@@ -166,6 +170,8 @@ export async function POST(req: NextRequest) {
               agencyId: session.user.agencyId,
               creatorId: creator.id,
               templateId: validatedData.templateId || null,
+              // Snapshot of the template's messaging plan
+              messaging: (snapshotFromTemplate(template) as Prisma.InputJsonValue | null) ?? Prisma.DbNull,
               fields: JSON.parse(JSON.stringify(templateFields)),
               requirements: JSON.parse(JSON.stringify(baseRequirements)),
             },
@@ -231,18 +237,24 @@ export async function POST(req: NextRequest) {
           const creator = creatorMap.get(result.creatorId);
           if (!creator) return;
 
-          try {
-            await sendNewRequestEmail({
-              to: creator.email,
-              creatorName: creator.name,
-              requestTitle: validatedData.requests.find(
-                (r) => r.creatorId === result.creatorId
-              )?.title || "New Content Request",
-              portalLink: `${process.env.APP_URL}/portal/${creator.id}/requests/${result.requestId}`,
-            });
-          } catch (error) {
-            console.error(`Failed to send notification to ${creator.email}:`, error);
-          }
+          const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${result.requestId}`;
+          // Email and/or text, as the request's messaging plan says
+          await deliver(
+            "request.new",
+            { agencyId: session.user.agencyId, creator, request: { messaging: snapshotFromTemplate(template) } },
+            {
+              email: () =>
+                sendNewRequestEmail({
+                  to: creator.email,
+                  creatorName: creator.name,
+                  requestTitle: validatedData.requests.find(
+                    (r) => r.creatorId === result.creatorId
+                  )?.title || "New Content Request",
+                  portalLink,
+                }),
+              sms: (to) => sendContentRequestSms({ to, creatorName: creator.name, portalLink }),
+            }
+          );
         })
       ).catch(console.error);
     }

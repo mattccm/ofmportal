@@ -12,6 +12,28 @@ import {
   createBatchedReminder,
 } from "./auto-reminder-scheduler";
 import { dueLong, calendarDaysUntilDue } from "@/lib/due";
+import { applyConsent } from "@/lib/messaging";
+import { loadAgencyMessaging } from "@/lib/messaging-server";
+
+/**
+ * Re-check a text against the creator's consent when it goes out (their
+ * preference or phone may have changed since it was scheduled). Returns the
+ * channel to use, or null to skip: a text that can't go becomes an email,
+ * unless it was an extra (escalation) or the same step already has an email.
+ */
+async function channelAtSend(
+  channel: "EMAIL" | "SMS",
+  creator: { name: string; phone: string | null; preferredContact: string },
+  agencyId: string,
+  opts: { isEscalation?: boolean; hasEmailSibling?: () => Promise<boolean> } = {}
+): Promise<"EMAIL" | "SMS" | null> {
+  if (channel === "EMAIL") return "EMAIL";
+  const agency = await loadAgencyMessaging(agencyId);
+  if (applyConsent({ email: false, sms: true }, creator, agency, { fallback: false }).sms) return "SMS";
+  if (opts.isEscalation) return null;
+  if (opts.hasEmailSibling && (await opts.hasEmailSibling())) return null;
+  return "EMAIL";
+}
 
 /**
  * Process all scheduled reminders that are due to be sent
@@ -131,8 +153,24 @@ async function processScheduledReminders(today: Date, windowStart: Date, now: Da
     });
     if (claim.count === 0) continue;
 
+    const channel = await channelAtSend(reminder.channel, request.creator, request.agencyId, {
+      isEscalation: reminder.isEscalation,
+      hasEmailSibling: async () =>
+        !!(await db.reminder.findFirst({
+          where: { requestId: request.id, channel: "EMAIL", scheduledAt: reminder.scheduledAt, id: { not: reminder.id } },
+          select: { id: true },
+        })),
+    });
+    if (!channel) {
+      await db.reminder.update({
+        where: { id: reminder.id },
+        data: { error: "Not sent: the creator can't get texts (contact preference or no phone number)" },
+      });
+      continue;
+    }
+
     try {
-      if (reminder.channel === "EMAIL") {
+      if (channel === "EMAIL") {
         await sendReminderEmail({
           to: request.creator.email,
           creatorName: request.creator.name,
@@ -142,7 +180,7 @@ async function processScheduledReminders(today: Date, windowStart: Date, now: Da
           portalLink,
           agencyId: request.agencyId,
         });
-      } else if (reminder.channel === "SMS" && request.creator.phone) {
+      } else if (channel === "SMS" && request.creator.phone) {
         await sendReminderSms({
           to: request.creator.phone,
           creatorName: request.creator.name,
@@ -162,7 +200,8 @@ async function processScheduledReminders(today: Date, windowStart: Date, now: Da
             requestId: request.id,
             creatorName: request.creator.name,
             type: reminder.type,
-            channel: reminder.channel,
+            channel,
+            ...(channel !== reminder.channel ? { scheduledChannel: reminder.channel } : {}),
             isEscalation: reminder.isEscalation,
           },
         },
@@ -231,9 +270,15 @@ async function processBatchedReminder(
   if (claim.count === 0) return;
 
   const portalLink = `${process.env.APP_URL}/portal/${batch.creatorId}`;
+  const channel =
+    (await channelAtSend(
+      batch.channel,
+      { name: batch.creatorName, phone: batch.creatorPhone ?? null, preferredContact: batch.creatorPreferredContact ?? "EMAIL" },
+      agencyId
+    )) ?? "EMAIL";
 
   try {
-    if (batch.channel === "EMAIL") {
+    if (channel === "EMAIL") {
       await sendBatchedReminderEmail({
         to: batch.creatorEmail,
         creatorName: batch.creatorName,
@@ -246,7 +291,7 @@ async function processBatchedReminder(
         portalLink,
         agencyId,
       });
-    } else if (batch.channel === "SMS" && batch.creatorPhone) {
+    } else if (channel === "SMS" && batch.creatorPhone) {
       await sendBatchedReminderSms({
         to: batch.creatorPhone,
         creatorName: batch.creatorName,
@@ -266,7 +311,7 @@ async function processBatchedReminder(
           creatorName: batch.creatorName,
           requestCount: batch.requests.length,
           requestIds: batch.requests.map((r) => r.id),
-          channel: batch.channel,
+          channel,
         },
       },
     });
@@ -370,8 +415,16 @@ async function processLegacyReminders(today: Date) {
       const portalLink = `${process.env.APP_URL}/portal/${request.creator.id}/requests/${request.id}`;
       const dueDate = dueLong(request, "No due date");
 
+      // Legacy configs say email/SMS; the creator's consent decides (src/lib/messaging.ts)
+      const legacyPlan = applyConsent(
+        { email: defaultConfig.sendEmail, sms: defaultConfig.sendSms },
+        request.creator,
+        await loadAgencyMessaging(agency.id),
+        { fallback: false }
+      );
+
       // Send email reminder
-      if (defaultConfig.sendEmail) {
+      if (legacyPlan.email) {
         // Created as SENT before sending to minimize the double-send window
         const reminder = await db.reminder.create({
           data: {
@@ -409,12 +462,7 @@ async function processLegacyReminders(today: Date) {
       }
 
       // Send SMS reminder
-      if (
-        defaultConfig.sendSms &&
-        request.creator.phone &&
-        (request.creator.preferredContact === "SMS" ||
-          request.creator.preferredContact === "BOTH")
-      ) {
+      if (legacyPlan.sms && request.creator.phone) {
         // Created as SENT before sending to minimize the double-send window
         const reminder = await db.reminder.create({
           data: {

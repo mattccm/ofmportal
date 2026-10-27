@@ -1,3 +1,4 @@
+import type { MessagingPlan } from "./messaging";
 // Template Types and Client-Side Utilities
 // These can be safely imported in client components
 
@@ -93,6 +94,8 @@ export interface Template {
   _count?: {
     requests: number;
   };
+  /** Creator messages for requests made from it; null = agency defaults */
+  messaging?: MessagingPlan | null;
 }
 
 export interface TemplateFormData {
@@ -103,6 +106,8 @@ export interface TemplateFormData {
   defaultDueDays: number;
   defaultUrgency: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   isActive: boolean;
+  /** Creator messages; null = agency defaults. Left out = unchanged */
+  messaging?: MessagingPlan | null;
   // Index signature for useAutosave compatibility
   [key: string]: unknown;
 }

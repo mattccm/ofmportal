@@ -2,6 +2,7 @@
 // Validation, rendering, and utility functions for the template system
 
 import { db } from "@/lib/db";
+import { readPlan, type MessagingPlan } from "./messaging";
 
 // TYPES
 
@@ -73,6 +74,8 @@ export interface Template {
   _count?: {
     requests: number;
   };
+  /** Creator messages for requests made from it; null = agency defaults */
+  messaging?: MessagingPlan | null;
 }
 
 export interface TemplateFormData {
@@ -510,6 +513,7 @@ export function deserializeTemplate(dbTemplate: {
   createdAt: Date;
   updatedAt: Date;
   _count?: { requests: number };
+  messaging?: unknown;
 }): Template {
   let fields: TemplateField[] = [];
 
@@ -549,5 +553,6 @@ export function deserializeTemplate(dbTemplate: {
     createdAt: dbTemplate.createdAt,
     updatedAt: dbTemplate.updatedAt,
     _count: dbTemplate._count,
+    messaging: readPlan(dbTemplate.messaging),
   };
 }

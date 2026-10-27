@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { getRequiredFileFieldIds } from "@/lib/upload-finalize";
 import { sendRevisionRequestEmail } from "@/lib/email";
 import { sendRevisionRequestSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 
 interface FieldSubmission {
   status: "PENDING" | "SUBMITTED" | "APPROVED" | "NEEDS_REVISION";
@@ -163,26 +164,29 @@ export async function POST(
     if (action === "request_changes") {
       const { creator } = request;
       const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${id}`;
-      try {
-        await sendRevisionRequestEmail({
-          to: creator.email,
-          creatorName: creator.name,
-          requestTitle: request.title,
-          feedback: feedback.trim(),
-          portalLink,
-          agencyId: session.user.agencyId,
-        });
-        if (creator.phone && (creator.preferredContact === "SMS" || creator.preferredContact === "BOTH")) {
-          await sendRevisionRequestSms({
-            to: creator.phone,
-            creatorName: creator.name,
-            requestTitle: request.title,
-            portalLink,
-          });
+      // Email and/or text, as the request's messaging plan says
+      await deliver(
+        "request.changes",
+        { agencyId: session.user.agencyId, creator, request },
+        {
+          email: () =>
+            sendRevisionRequestEmail({
+              to: creator.email,
+              creatorName: creator.name,
+              requestTitle: request.title,
+              feedback: feedback.trim(),
+              portalLink,
+              agencyId: session.user.agencyId,
+            }),
+          sms: (to) =>
+            sendRevisionRequestSms({
+              to,
+              creatorName: creator.name,
+              requestTitle: request.title,
+              portalLink,
+            }),
         }
-      } catch (error) {
-        console.error("Failed to send revision notification:", error);
-      }
+      );
     }
 
     return NextResponse.json({

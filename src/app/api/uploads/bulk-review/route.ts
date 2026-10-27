@@ -7,6 +7,7 @@ import {
   sendRevisionRequestEmail,
 } from "@/lib/email";
 import { sendContentApprovedSms, sendRevisionRequestSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 import {
   generateOperationId,
   createUndoWindow,
@@ -40,7 +41,9 @@ interface NotificationGroup {
   };
   request: {
     id: string;
+    agencyId: string;
     title: string;
+    messaging: unknown;
   };
   uploads: string[];
 }
@@ -283,85 +286,30 @@ export async function POST(req: NextRequest) {
           .then(() => undefined)
       );
 
-      // Send email notification
-      if (action === "approve") {
-        notificationPromises.push(
-          sendContentApprovedEmail({
-            to: creator.email,
-            creatorName: creator.name,
-            requestTitle: request.title,
-          })
-            .then(() => undefined)
-            .catch((error) => {
-              console.error(
-                `Failed to send approval email to ${creator.email}:`,
-                error
-              );
-            })
-        );
-
-        if (
-          creator.phone &&
-          (creator.preferredContact === "SMS" ||
-            creator.preferredContact === "BOTH")
-        ) {
-          notificationPromises.push(
-            sendContentApprovedSms({
-              to: creator.phone,
-              creatorName: creator.name,
-              requestTitle: request.title,
-            })
-              .then(() => undefined)
-              .catch((error) => {
-                console.error(
-                  `Failed to send approval SMS to ${creator.phone}:`,
-                  error
-                );
-              })
-          );
-        }
-      } else {
-        const portalLink = `${process.env.APP_URL}/creator/requests/${request.id}`;
-
-        notificationPromises.push(
-          sendRevisionRequestEmail({
-            to: creator.email,
-            creatorName: creator.name,
-            requestTitle: request.title,
-            feedback: notes || "Please review and resubmit your content.",
-            portalLink,
-          })
-            .then(() => undefined)
-            .catch((error) => {
-              console.error(
-                `Failed to send revision email to ${creator.email}:`,
-                error
-              );
-            })
-        );
-
-        if (
-          creator.phone &&
-          (creator.preferredContact === "SMS" ||
-            creator.preferredContact === "BOTH")
-        ) {
-          notificationPromises.push(
-            sendRevisionRequestSms({
-              to: creator.phone,
-              creatorName: creator.name,
-              requestTitle: request.title,
-              portalLink,
-            })
-              .then(() => undefined)
-              .catch((error) => {
-                console.error(
-                  `Failed to send revision SMS to ${creator.phone}:`,
-                  error
-                );
-              })
-          );
-        }
-      }
+      // Email and/or text, as the request's messaging plan says
+      const portalLink = `${process.env.APP_URL}/creator/requests/${request.id}`;
+      notificationPromises.push(
+        deliver(
+          action === "approve" ? "request.approved" : "request.changes",
+          { agencyId: request.agencyId, creator, request },
+          action === "approve"
+            ? {
+                email: () => sendContentApprovedEmail({ to: creator.email, creatorName: creator.name, requestTitle: request.title }),
+                sms: (to) => sendContentApprovedSms({ to, creatorName: creator.name, requestTitle: request.title }),
+              }
+            : {
+                email: () =>
+                  sendRevisionRequestEmail({
+                    to: creator.email,
+                    creatorName: creator.name,
+                    requestTitle: request.title,
+                    feedback: notes || "Please review and resubmit your content.",
+                    portalLink,
+                  }),
+                sms: (to) => sendRevisionRequestSms({ to, creatorName: creator.name, requestTitle: request.title, portalLink }),
+              }
+        ).then(() => undefined)
+      );
     }
 
     // Send notifications in background - allSettled never rejects, so no .catch needed

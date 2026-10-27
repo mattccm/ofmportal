@@ -37,9 +37,11 @@ interface ReminderPreviewResponse {
   reminders: ReminderPreview[];
   count: number;
   config: {
-    source: "creator_override" | "urgency_rule" | "default";
+    source: "creator_override" | "urgency_rule" | "default" | "template" | "request";
     ruleId?: string;
     overrideId?: string;
+    /** "From template Story clips", "Agency defaults", "Jade's own schedule" */
+    label?: string;
   };
   summary: string;
 }
@@ -50,6 +52,10 @@ interface ReminderSchedulePreviewProps {
   dueDate: string | null;
   className?: string;
   showDetails?: boolean;
+  /** The template the request is made from (its plan applies) */
+  templateId?: string;
+  /** A plan set for this request; undefined = the template's */
+  messaging?: unknown;
 }
 
 // HELPER COMPONENTS
@@ -77,7 +83,8 @@ function ChannelIcon({ channel }: { channel: "EMAIL" | "SMS" }) {
   );
 }
 
-function getConfigSourceLabel(source: ReminderPreviewResponse["config"]["source"]) {
+function getConfigSourceLabel(source: ReminderPreviewResponse["config"]["source"], label?: string) {
+  if (label) return label;
   switch (source) {
     case "creator_override":
       return "Custom creator settings";
@@ -85,6 +92,8 @@ function getConfigSourceLabel(source: ReminderPreviewResponse["config"]["source"
       return "Agency urgency rule";
     case "default":
       return "Default settings";
+    default:
+      return "This request's plan";
   }
 }
 
@@ -96,7 +105,10 @@ export function ReminderSchedulePreview({
   dueDate,
   className,
   showDetails = true,
+  templateId,
+  messaging,
 }: ReminderSchedulePreviewProps) {
+  const planKey = messaging === undefined ? "" : JSON.stringify(messaging);
   const [isLoading, setIsLoading] = React.useState(false);
   const [preview, setPreview] = React.useState<ReminderPreviewResponse | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -132,6 +144,8 @@ export function ReminderSchedulePreview({
             creatorId,
             urgency,
             dueDate,
+            templateId,
+            ...(planKey ? { messaging: JSON.parse(planKey) } : {}),
           }),
         });
 
@@ -154,7 +168,7 @@ export function ReminderSchedulePreview({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [creatorId, urgency, dueDate]);
+  }, [creatorId, urgency, dueDate, templateId, planKey]);
 
   // Don't render if no due date or creator
   if (!creatorId || !dueDate) {
@@ -185,7 +199,7 @@ export function ReminderSchedulePreview({
     return (
       <p className={cn("flex items-center gap-2 text-sm text-ink-2", className)}>
         <Info className="size-4 text-icon" aria-hidden="true" />
-        No automatic reminders for this one. Your reminder rules don&apos;t cover this priority.
+        No automatic reminders for this one ({getConfigSourceLabel(preview.config.source, preview.config.label)}).
       </p>
     );
   }
@@ -213,7 +227,7 @@ export function ReminderSchedulePreview({
               <span className="min-w-0">
                 <span className="block text-sm font-medium">{preview.summary}</span>
                 <span className="block text-[13px] text-ink-2">
-                  {getConfigSourceLabel(preview.config.source)}
+                  {getConfigSourceLabel(preview.config.source, preview.config.label)}
                 </span>
               </span>
             </span>

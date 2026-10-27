@@ -9,6 +9,7 @@ import {
 } from "@/lib/bulk-operations";
 import { sendReminderEmail } from "@/lib/email";
 import { sendReminderSms } from "@/lib/sms";
+import { planFor } from "@/lib/messaging-server";
 import { subDays, addHours, addDays, startOfDay } from "date-fns";
 import { z } from "zod";
 import { dueLong, calendarDaysUntilDue, dayKeyOf } from "@/lib/due";
@@ -147,8 +148,16 @@ export async function POST(req: NextRequest) {
         const daysUntilDue = calendarDaysUntilDue(request, request.creator.timezone) ?? 0;
 
         try {
+          // The channels picked, filtered by the creator's consent (src/lib/messaging.ts)
+          const plan = await planFor("reminder.manual", {
+            agencyId: request.agencyId,
+            creator: request.creator,
+            request,
+            forced: { email: validatedData.channels.includes("email"), sms: validatedData.channels.includes("sms") },
+          });
+
           // Send email if enabled
-          if (validatedData.channels.includes("email")) {
+          if (plan.email) {
             await sendReminderEmail({
               to: request.creator.email,
               creatorName: request.creator.name,
@@ -163,12 +172,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Send SMS if enabled and creator has phone
-          if (
-            validatedData.channels.includes("sms") &&
-            request.creator.phone &&
-            (request.creator.preferredContact === "SMS" ||
-              request.creator.preferredContact === "BOTH")
-          ) {
+          if (plan.sms && request.creator.phone) {
             await sendReminderSms({
               to: request.creator.phone,
               creatorName: request.creator.name,

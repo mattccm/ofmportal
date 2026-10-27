@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendContentRequestEmail } from "@/lib/email";
 import { sendContentRequestSms } from "@/lib/sms";
+import { deliver, requestMessagingFor } from "@/lib/messaging-server";
+import { messagingPlanSchema } from "@/lib/messaging";
 import {
   parsePaginationParams,
   createPaginatedResponse,
@@ -19,6 +21,8 @@ import { staffTimeZone } from "@/lib/due-server";
 
 const createRequestSchema = z.object({
   creatorId: z.string().min(1, "Creator is required"),
+  // This request's own messaging plan (reminders.edit); omitted = the template's plan
+  messaging: messagingPlanSchema.nullable().optional(),
   templateId: z.string().optional(),
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
@@ -234,6 +238,12 @@ export async function POST(req: NextRequest) {
       ...(validatedData.richContent ? { _richContent: validatedData.richContent } : {}),
     };
 
+    // A plan set in the composer needs reminders.edit; otherwise the template's plan is copied
+    if (validatedData.messaging !== undefined && !access.has("reminders.edit")) {
+      return NextResponse.json({ error: "You don't have permission to change this request's reminders" }, { status: 403 });
+    }
+    const messaging = await requestMessagingFor(validatedData.templateId, validatedData.messaging);
+
     // The picked day, due at the end of that day in the creator's timezone
     const due = parseDueInput(validatedData.dueDate, creator.timezone, await staffTimeZone(session.user.id));
 
@@ -247,6 +257,7 @@ export async function POST(req: NextRequest) {
         dueOn: due?.dueOn ?? null,
         dueDate: due?.dueDate ?? null,
         urgency: validatedData.urgency,
+        messaging,
         requirements,
         fields: validatedData.fields || [],
         status: validatedData.saveAsDraft ? "DRAFT" : "PENDING",
@@ -277,33 +288,29 @@ export async function POST(req: NextRequest) {
       const portalLink = `${process.env.APP_URL}/portal/${creator.id}/requests/${contentRequest.id}`;
       const dueDate = formatDueLong(dayKeyOf(contentRequest.dueOn), "No specific due date");
 
-      // Send email
-      try {
-        await sendContentRequestEmail({
-          to: creator.email,
-          creatorName: creator.name,
-          agencyName: session.user.agencyName,
-          requestTitle: validatedData.title,
-          dueDate,
-          portalLink,
-        });
-      } catch (error) {
-        console.error("Failed to send request email:", error);
-      }
-
-      // Send SMS if preferred
-      if (creator.phone && (creator.preferredContact === "SMS" || creator.preferredContact === "BOTH")) {
-        try {
-          await sendContentRequestSms({
-            to: creator.phone,
-            creatorName: creator.name,
-            requestTitle: validatedData.title,
-            portalLink,
-          });
-        } catch (error) {
-          console.error("Failed to send request SMS:", error);
+      // Email and/or text, as the request's messaging plan says (src/lib/messaging.ts)
+      await deliver(
+        "request.new",
+        { agencyId: contentRequest.agencyId, creator, request: contentRequest },
+        {
+          email: () =>
+            sendContentRequestEmail({
+              to: creator.email,
+              creatorName: creator.name,
+              agencyName: session.user.agencyName,
+              requestTitle: validatedData.title,
+              dueDate,
+              portalLink,
+            }),
+          sms: (to) =>
+            sendContentRequestSms({
+              to,
+              creatorName: creator.name,
+              requestTitle: validatedData.title,
+              portalLink,
+            }),
         }
-      }
+      );
     }
 
     // Log activity
