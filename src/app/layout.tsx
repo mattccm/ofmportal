@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Onest, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { BRAND } from "@/lib/brand";
+import { getAppUrl } from "@/lib/app-url";
+import { LINK_CARDS, linkCardMetadata } from "@/lib/link-cards";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { KeyboardShortcutsProvider } from "@/components/providers/keyboard-shortcuts-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -36,19 +38,18 @@ export const viewport: Viewport = {
 };
 
 const ICON_VERSION = "v=4";
-const DESCRIPTION = `${BRAND.name} content collection and management portal`;
 
 export const metadata: Metadata = {
   title: {
     default: BRAND.productName,
     template: "%s · " + BRAND.productName,
   },
-  description: DESCRIPTION,
+  description: LINK_CARDS.default.description,
+  // Absolute URLs for the link-preview pictures (src/app/og)
+  metadataBase: new URL(getAppUrl()),
   applicationName: BRAND.productName,
   keywords: ["ccm", "content", "portal", "management", "upload", "creator"],
-  authors: [{ name: BRAND.legalName }],
   creator: BRAND.name,
-  publisher: BRAND.legalName,
   // Internal tool: keep it out of search engines
   robots: { index: false, follow: false },
   formatDetection: {
@@ -61,17 +62,8 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: BRAND.name,
   },
-  openGraph: {
-    type: "website",
-    siteName: BRAND.productName,
-    title: BRAND.productName,
-    description: DESCRIPTION,
-  },
-  twitter: {
-    card: "summary",
-    title: BRAND.productName,
-    description: DESCRIPTION,
-  },
+  // What chat apps show for a pasted link; invite pages set their own
+  ...linkCardMetadata("default"),
   icons: {
     icon: [
       { url: `/favicon.ico?${ICON_VERSION}`, sizes: "16x16 32x32 48x48" },

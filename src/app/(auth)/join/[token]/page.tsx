@@ -4,12 +4,15 @@ import { Clock, Link2Off } from "lucide-react";
 import { staffInviteState } from "@/lib/invites";
 import { findStaffInviteByToken, toInviteRow } from "@/lib/staff-invites";
 import { JoinForm } from "./join-form";
+import { linkCardMetadata } from "@/lib/link-cards";
 
 // Generic on purpose, and the link (a bearer secret) never leaks as a referrer
 export const metadata: Metadata = {
   title: "Join the team",
   referrer: "no-referrer",
   robots: { index: false, follow: false },
+  // The preview a chat app shows for the pasted link
+  ...linkCardMetadata("team"),
 };
 
 export const dynamic = "force-dynamic";
