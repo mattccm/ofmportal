@@ -98,7 +98,7 @@ export function FieldReviewControls({
       {/* Rejection reason attached to this specific section */}
       {needsRevision && submission?.feedback && (
         <div className="rounded-lg border border-late/30 bg-late/10 p-3 dark:bg-late/10">
-          <p className="text-sm text-late dark:text-late">
+          <p className="whitespace-pre-wrap break-words text-sm text-late dark:text-late">
             <span className="font-medium">Changes requested:</span>{" "}
             {submission.feedback}
           </p>

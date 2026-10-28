@@ -893,7 +893,7 @@ export function RequestDetailClient({
             </div>
 
             {currentState === "changes" && submission?.feedback && (
-              <p className="rounded-[8px] bg-tile px-4 py-3 text-[15px] text-ink">
+              <p className="whitespace-pre-wrap break-words rounded-[8px] bg-tile px-4 py-3 text-[15px] text-ink">
                 <span className="text-changes">Changes requested:</span> {submission.feedback}
               </p>
             )}
@@ -1232,7 +1232,7 @@ export function RequestDetailClient({
                     {detailFields.map((f, i) => (
                       <div key={f.id ?? i} className="flex justify-between gap-4 py-2 text-[14px]">
                         <dt className="text-ink-2">{f.label}</dt>
-                        <dd className="text-right text-ink">{f.value || "—"}</dd>
+                        <dd className="whitespace-pre-wrap break-words text-right text-ink">{f.value || "—"}</dd>
                       </div>
                     ))}
                   </dl>

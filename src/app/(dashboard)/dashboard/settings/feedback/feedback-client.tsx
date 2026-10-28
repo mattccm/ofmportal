@@ -406,7 +406,7 @@ export default function FeedbackHistoryPage() {
                       </div>
 
                       {/* Message */}
-                      <p className="text-sm leading-relaxed">{item.message}</p>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{item.message}</p>
 
                       {/* Admin Reply */}
                       {item.adminReply && (
@@ -514,7 +514,7 @@ export default function FeedbackHistoryPage() {
                   </Badge>
                   <StarRating rating={selectedFeedback.rating} />
                 </div>
-                <p className="text-sm line-clamp-3">{selectedFeedback.message}</p>
+                <p className="whitespace-pre-wrap break-words text-sm line-clamp-3">{selectedFeedback.message}</p>
                 <p className="text-xs text-muted-foreground mt-2">
                   From {selectedFeedback.userName} on {formatDate(selectedFeedback.createdAt)}
                 </p>

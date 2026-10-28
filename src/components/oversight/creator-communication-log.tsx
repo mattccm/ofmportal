@@ -635,7 +635,7 @@ export function CreatorCommunicationLog() {
                               </div>
                               <div
                                 className={cn(
-                                  "rounded-lg p-3 text-sm",
+                                  "whitespace-pre-wrap break-words rounded-lg p-3 text-sm",
                                   isStaff
                                     ? "bg-muted"
                                     : "bg-primary text-primary-foreground"

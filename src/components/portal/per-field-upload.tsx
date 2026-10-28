@@ -472,9 +472,9 @@ function FileFieldCard({
       {(changesNote || rejected.length > 0) && state === "changes" && (
         <div className="mt-3 rounded-[var(--tw-r-ctl)] bg-well p-3">
           <StateWord state="changes" audience="creator" className="flex" />
-          {changesNote && <p className="mt-1 text-[15px] leading-normal">{changesNote}</p>}
+          {changesNote && <p className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-normal">{changesNote}</p>}
           {rejected.map((u) => (
-            <p key={u.id} className="mt-1.5 text-[14px] leading-normal text-ink-2">
+            <p key={u.id} className="mt-1.5 whitespace-pre-wrap break-words text-[14px] leading-normal text-ink-2">
               <span className="text-ink">{u.originalName}</span>
               {u.createdAt ? `, sent ${formatDay(u.createdAt, tz)}` : ""}
               {u.reviewNote ? `: ${u.reviewNote}` : ""}

@@ -316,7 +316,7 @@ export function FieldExamplesDisplay({
 
           {/* Example Text */}
           {richContent?.exampleText && (
-            <blockquote className="rounded-md bg-tile px-3 py-2 text-sm text-ink">
+            <blockquote className="whitespace-pre-wrap break-words rounded-md bg-tile px-3 py-2 text-sm text-ink">
               {richContent.exampleText}
             </blockquote>
           )}
@@ -446,7 +446,7 @@ export function FieldExamplesDisplay({
 
           {/* Example Text */}
           {richContent?.exampleText && (
-            <blockquote className="rounded-md bg-well px-3 py-2 text-sm text-ink">
+            <blockquote className="whitespace-pre-wrap break-words rounded-md bg-well px-3 py-2 text-sm text-ink">
               {richContent.exampleText}
             </blockquote>
           )}
