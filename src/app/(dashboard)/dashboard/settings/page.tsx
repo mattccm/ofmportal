@@ -39,7 +39,7 @@ const GROUPS: Group[] = [
     title: "Agency",
     description: "Settings that apply to everyone on the team.",
     rows: [
-      { title: "Reminders, emails and texts", description: "On the Reminders page: timing, which messages are texted, and the text setup", href: "/dashboard/reminders?tab=texts", perm: "reminders.rules" },
+      { title: "Reminders, emails and texts", description: "On the Reminders page: timing, which messages are texted, their wording, and the text setup", href: "/dashboard/reminders?tab=texts", perm: "reminders.rules" },
       { title: "Branding", description: "Agency name, logos and email sender", href: "/dashboard/settings/branding", perm: "settings.branding" },
       { title: "Template groups", description: "Group request templates so they are easier to find, and limit who can send them", href: "/dashboard/settings/template-categories", perm: "templates.groups" },
       { title: "Announcements", description: "Banners shown across the portal", href: "/dashboard/settings/announcements", perm: "settings.announcements" },

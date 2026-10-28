@@ -470,9 +470,10 @@
       },
       "email-approved-tint": {
         "role": "email-only",
-        "displayName": "Email Approved Tint",
-        "canonical": "#ecfdf3",
-        "scope": "Approved pill background in emails.",
+        "displayName": "Approved Tint on Tile",
+        "canonical": "#273733",
+        "aliases": [],
+        "scope": "Behind the Approved chip in emails (src/lib/email-layout.ts): the 14% state tint precomputed over the tile, because mail clients ignore translucent colours.",
         "frontmatter": false
       },
       "email-changes-ink": {
@@ -484,9 +485,10 @@
       },
       "email-changes-tint": {
         "role": "email-only",
-        "displayName": "Email Changes Tint",
-        "canonical": "#fff7ed",
-        "scope": "Needs changes pill background in emails.",
+        "displayName": "Changes Tint on Tile",
+        "canonical": "#3a2d24",
+        "aliases": [],
+        "scope": "Behind the Needs changes chip in emails (src/lib/email-layout.ts): the 14% state tint precomputed over the tile, because mail clients ignore translucent colours.",
         "frontmatter": false
       },
       "email-overdue-ink": {
@@ -501,6 +503,22 @@
         "displayName": "Email Overdue Tint",
         "canonical": "#fef2f2",
         "scope": "Overdue pill background in emails.",
+        "frontmatter": false
+      },
+      "email-late-tint": {
+        "role": "email-only",
+        "displayName": "Late Tint on Tile",
+        "canonical": "#3b272b",
+        "aliases": [],
+        "scope": "Behind the Overdue chip in emails (src/lib/email-layout.ts): the 14% state tint precomputed over the tile, because mail clients ignore translucent colours.",
+        "frontmatter": false
+      },
+      "email-ready-tint": {
+        "role": "email-only",
+        "displayName": "Ready Tint on Tile",
+        "canonical": "#273141",
+        "aliases": [],
+        "scope": "Behind the Waiting for review chip in emails (src/lib/email-layout.ts): the 14% state tint precomputed over the tile, because mail clients ignore translucent colours.",
         "frontmatter": false
       }
     },

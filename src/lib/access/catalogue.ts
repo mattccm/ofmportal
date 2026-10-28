@@ -139,7 +139,7 @@ const DEFS: Record<AreaId, Omit<PermissionDef, "area">[]> = {
     P("reminders.send", "Send reminders by hand", "Send reminders now, to one creator or many, and send test reminders.", "send by hand", { implies: ["reminders.view"] }),
     P("reminders.edit", "Reschedule reminders", "Move a scheduled reminder to another time.", "reschedule", { implies: ["reminders.view"] }),
     P("reminders.delete", "Cancel reminders", "Stop a scheduled reminder from going out.", "cancel", { implies: ["reminders.view"] }),
-    P("reminders.templates", "Edit reminder wording", "What reminders say: the reminder templates.", "edit wording", { implies: ["reminders.view"] }),
+    P("reminders.templates", "Edit message wording", "Reminders > Wording: what every creator email and text says.", "edit wording", { implies: ["reminders.view"] }),
     P("reminders.rules", "Edit reminder rules", "When reminders go out and how often, and which messages are emailed or texted.", "edit rules", { implies: ["reminders.view"] }),
   ],
   calendar: [P("calendar.view", "See the calendar", "Due dates and scheduled work on a calendar.", "see the calendar")],
@@ -160,7 +160,7 @@ const DEFS: Record<AreaId, Omit<PermissionDef, "area">[]> = {
   ],
   settings: [
     P("settings.branding", "Agency branding", "Agency name, logos and the email sender.", "branding"),
-    P("settings.emailTemplates", "Email templates", "The wording of emails sent to creators.", "email templates"),
+    P("settings.emailTemplates", "Email wording", "Also opens Reminders > Wording: what every creator email and text says.", "email wording"),
     P("settings.notifications", "Notification defaults", "What the team is notified about unless they choose otherwise.", "notification defaults"),
     P("settings.announcements", "Announcements", "Banners shown across the portal.", "announcements"),
     P("settings.duplicates", "Duplicate detection", "Catch the same file uploaded twice, and allow known repeats.", "duplicate detection"),

@@ -2,6 +2,8 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { creatorWhere, getPageAccess, redactCreatorsIn, requestWhere } from "@/lib/access/server";
 import { loadAgencyMessaging } from "@/lib/messaging-server";
+import { loadMessageCopy } from "@/lib/message-copy-server";
+import { loadEmailBranding } from "@/lib/email";
 import { NoAccess } from "@/components/access/no-access";
 import { PageHead } from "@/components/creators/people-ui";
 import { RemindersClient, type ReminderTab } from "./reminders-client";
@@ -53,9 +55,12 @@ export default async function RemindersPage() {
 
   const tabs: ReminderTab[] = ["scheduled", "sent"];
   if (access.has("reminders.rules")) tabs.push("timing", "texts");
+  // Wording: either wording permission (reminders, or the old email templates key)
+  const canWording = access.has("reminders.templates") || access.has("settings.emailTemplates");
+  if (canWording) tabs.push("wording");
   if (access.has("settings.sms")) tabs.push("setup");
 
-  const [rawReminders, stats, creators, messaging, templates] = await Promise.all([
+  const [rawReminders, stats, creators, messaging, templates, copy, branding] = await Promise.all([
     getReminders(scope).catch(() => []),
     getStats(scope).catch(() => ({ pending: 0, sent: 0, failed: 0 })),
     db.creator.findMany({ where: creatorWhere(access), select: { id: true, name: true }, orderBy: { name: "asc" } }).catch(() => []),
@@ -65,6 +70,8 @@ export default async function RemindersPage() {
           .findMany({ where: { agencyId, isActive: true }, select: { id: true, name: true, messaging: true }, orderBy: { name: "asc" } })
           .catch(() => [])
       : Promise.resolve([]),
+    loadMessageCopy(agencyId, { fresh: true }),
+    loadEmailBranding(agencyId),
   ]);
 
   const reminders = redactCreatorsIn(access, rawReminders).map((r) => ({
@@ -84,11 +91,19 @@ export default async function RemindersPage() {
               : "Nothing is scheduled"}
             , {stats.sent} sent
             {stats.failed ? `, ${stats.failed} failed to deliver` : ", none failed"}.
-            {tabs.includes("texts") && " Timing, emails and texts are all set here."}
+            {tabs.includes("texts") && " Timing, emails, texts and their wording are all set here."}
           </>
         }
       />
-      <RemindersClient initialReminders={reminders} creators={creators} tabs={tabs} messaging={messaging} templates={templates} />
+      <RemindersClient
+        initialReminders={reminders}
+        creators={creators}
+        tabs={tabs}
+        messaging={messaging}
+        templates={templates}
+        copy={copy}
+        branding={branding}
+      />
     </div>
   );
 }

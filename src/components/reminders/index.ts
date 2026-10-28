@@ -6,4 +6,3 @@ export type { PauseStatus, CreatorReminderPauseProps } from "./creator-reminder-
 
 export { ReminderSettingsPanel } from "./reminder-settings-panel";
 
-export { TieredTemplatesPanel } from "./tiered-templates-panel";

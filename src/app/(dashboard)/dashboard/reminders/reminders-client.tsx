@@ -15,6 +15,9 @@ import { EmptyLine, Panel, Pill } from "@/components/creators/people-ui";
 import { TimingPanel } from "@/components/reminders/timing-panel";
 import { TextsPanel, type TemplateTexts } from "@/components/reminders/texts-panel";
 import { TextSetupPanel } from "@/components/reminders/text-setup-panel";
+import { WordingPanel } from "@/components/reminders/wording-panel";
+import type { AgencyCopy } from "@/lib/message-copy";
+import type { EmailBranding } from "@/lib/email-layout";
 import { useAccess } from "@/lib/access/client";
 import type { AgencyMessaging } from "@/lib/messaging";
 
@@ -41,7 +44,7 @@ interface Creator {
   name: string;
 }
 
-export type ReminderTab = "scheduled" | "sent" | "timing" | "texts" | "setup";
+export type ReminderTab = "scheduled" | "sent" | "timing" | "texts" | "wording" | "setup";
 
 interface RemindersClientProps {
   initialReminders: Reminder[];
@@ -50,6 +53,8 @@ interface RemindersClientProps {
   tabs: ReminderTab[];
   messaging: AgencyMessaging;
   templates: TemplateTexts[];
+  copy: AgencyCopy;
+  branding: EmailBranding;
 }
 
 const TAB_LABEL: Record<ReminderTab, string> = {
@@ -57,6 +62,7 @@ const TAB_LABEL: Record<ReminderTab, string> = {
   sent: "Sent",
   timing: "Timing",
   texts: "Email and texts",
+  wording: "Wording",
   setup: "Text setup",
 };
 
@@ -79,7 +85,7 @@ function Channel({ channel }: { channel: Reminder["channel"] }) {
 
 // MAIN COMPONENT
 
-export function RemindersClient({ initialReminders, creators, tabs, messaging, templates }: RemindersClientProps) {
+export function RemindersClient({ initialReminders, creators, tabs, messaging, templates, copy, branding }: RemindersClientProps) {
   const { can } = useAccess();
   const canSend = can("reminders.send");
   const canCancel = can("reminders.delete");
@@ -361,13 +367,19 @@ export function RemindersClient({ initialReminders, creators, tabs, messaging, t
 
       {tabs.includes("timing") && (
         <TabsContent value="timing">
-          <TimingPanel messaging={messaging} />
+          <TimingPanel messaging={messaging} copy={copy} />
         </TabsContent>
       )}
 
       {tabs.includes("texts") && (
         <TabsContent value="texts">
           <TextsPanel initial={messaging} templates={templates} canEditAgency={can("reminders.rules")} canEditTemplates={can("templates.edit")} />
+        </TabsContent>
+      )}
+
+      {tabs.includes("wording") && (
+        <TabsContent value="wording">
+          <WordingPanel initial={copy} branding={branding} canEdit={can("reminders.templates") || can("settings.emailTemplates")} />
         </TabsContent>
       )}
 

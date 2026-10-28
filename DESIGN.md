@@ -353,6 +353,13 @@ Applies inside `@media print` only and never on screen. Printed requests, report
 - **Print Grey Dark** (#374151) and **Print Grey** (#6b7280): secondary and tertiary text.
 - **Print Rule** (#e5e7eb) and **Print Rule Strong** (#d1d5db): borders, row rules and card outlines on paper.
 
+### Email-only
+Used only in `src/lib/email-layout.ts`. Mail clients such as Outlook ignore translucent colours, so the chips' 14% state tints are precomputed over the tile:
+- **Approved Tint on Tile** (#273733): behind the Approved chip in emails.
+- **Changes Tint on Tile** (#3a2d24): behind the Needs changes chip in emails.
+- **Late Tint on Tile** (#3b272b): behind the Overdue chip in emails.
+- **Ready Tint on Tile** (#273141): behind the Waiting for review chip in emails.
+
 ### Mask-only
 - **Mask Opaque** (#000 in `mask-image` gradients): the billboard plate's fade into the ground (`linear-gradient(90deg, #000 0%, #000 52%, transparent 100%)`, and 180deg with the stop at 60% under 900px). In a mask, #000 means "fully visible", so it is an alpha value and never paints a surface. Do not use it as a colour.
 
@@ -481,6 +488,9 @@ Uploads are hidden by default: a flat plate (6px corners) with an eye-off icon a
 
 ### Overlays
 Dialogs on tile-hi, sheets on tile, both with the dialog shadow, 10px corners and 36 to 44px close targets. Popovers, menus, select lists and tooltips are raised panels with a ctl hairline; items are at least 36px and highlight to raised-hi. Toasts sit bottom centre on raised with a ctl border; error icons late, warning icons yellow, success neutral.
+
+### Email
+The inbox gets the same world (`src/lib/email-layout.ts`, built per message in `src/lib/creator-emails.ts`). On the night ground, a 560px column with 24px gutters (16px on phones). From the top: the typeset "CCM" wordmark (22px 800, -0.035em; never an image, which mail clients block). Then a cover tile with the heading in Cover lettering, sized by length (40, 34 or 28px; 30px on phones), and an optional chip under it. Then the message in 15px ink, the request on a tile (17px 600 title, 14px Quiet Ink meta, a state chip, and the team's note under a hairline). Then the one yellow button (left-aligned, full width on phones), the paste-this-link box in a well in mono, 13px Quiet Ink notes, and a hairline footer in 12 to 13px Quiet Ink. Chips use the state's precomputed 14% tint on the tile, with the glyph before the word (✓ Approved, ↺ Needs changes, ! Overdue). The email declares itself dark only. Gmail's iOS app inverts it in dark mode and it stays legible. The wording is staff-edited plain text (Reminders > Wording) inside this fixed layout. Subjects, headings, buttons and texts never carry the request title.
 
 ### Motion
 Controls transition colour in 150ms ease-out; tiles in 200 to 250ms. Choreography runs on GSAP with shared durations (press 100ms, release 220ms, tick 320ms, fill 450ms, flip 500ms, panel 300ms) and power-curve easing, animating only transform and opacity. Nothing animates on page load and no content waits for script. Under reduced motion every state change is instant.

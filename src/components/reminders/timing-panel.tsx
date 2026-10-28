@@ -16,7 +16,8 @@ import {
 import { ReminderSettingsPanel } from "./reminder-settings-panel";
 import { EmptyLine, Panel, SettingsSection } from "@/components/creators/people-ui";
 import { cityOf, contactLabel, plural, type QuietHours } from "@/components/creators/insights";
-import { reminderEmailSubject, reminderSmsBody, withBrandPrefix } from "@/lib/reminder-copy";
+import { reminderUrgencyText, smsFirstName, withBrandPrefix } from "@/lib/reminder-copy";
+import { composeSms, fill, type AgencyCopy, type CopyKey } from "@/lib/message-copy";
 import { cn } from "@/lib/utils";
 import { useAccess } from "@/lib/access/client";
 import { NoAccess } from "@/components/access/no-access";
@@ -173,7 +174,7 @@ const shortDay = (d: Date) => d.toLocaleDateString("en-AU", { weekday: "short", 
  * and a lock-screen preview. Whether a reminder is also texted comes from
  * Reminders > Email and texts (`messaging`).
  */
-export function TimingPanel({ messaging }: { messaging: AgencyMessaging }) {
+export function TimingPanel({ messaging, copy }: { messaging: AgencyMessaging; copy: AgencyCopy }) {
   const { can, roleName } = useAccess();
   const canRules = can("reminders.rules");
   // Quiet hours are a creator's reminder settings (Creators: pause reminders)
@@ -370,8 +371,11 @@ export function TimingPanel({ messaging }: { messaging: AgencyMessaging }) {
   const emailGoes = !!moment && moment.email;
   const firstName = creator?.name ?? "Jade";
   const link = `${ctx?.portalBase ?? "/portal/"}…`;
-  const sms = moment ? withBrandPrefix(reminderSmsBody({ creatorName: firstName, daysUntilDue: moment.daysUntilDue, portalLink: link })) : "";
-  const subject = moment ? reminderEmailSubject(moment.daysUntilDue) : "";
+  // The words come from Reminders > Wording, as the senders use them
+  const copyKey: CopyKey | null = moment ? (moment.daysUntilDue < 0 ? "reminder.overdue" : moment.daysUntilDue === 0 ? "reminder.dueToday" : "reminder.before") : null;
+  const fillValues = moment ? { firstName: smsFirstName(firstName), due: reminderUrgencyText(moment.daysUntilDue), link } : null;
+  const sms = copyKey && fillValues ? withBrandPrefix(composeSms(copy[copyKey], fillValues)) : "";
+  const subject = copyKey && fillValues ? fill(copy[copyKey].subject, fillValues).trim() : "";
 
   const lede = loading
     ? "Loading reminder rules"

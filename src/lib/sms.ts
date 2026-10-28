@@ -1,5 +1,8 @@
+import { getAppUrl } from "./app-url";
 import { randomUUID } from "crypto";
-import { reminderSmsBody, smsFirstName, withBrandPrefix } from "./reminder-copy";
+import { reminderUrgencyText, smsFirstName, withBrandPrefix } from "./reminder-copy";
+import { composeSms, type CopyKey, type CopyValues } from "./message-copy";
+import { loadMessageCopy } from "./message-copy-server";
 import { toE164 } from "./phone";
 
 // Bird (bird.com) is the SMS provider. Twilio stays as a fallback when only
@@ -265,8 +268,15 @@ async function sendWithTwilio(to: string, message: string): Promise<SendSmsResul
 //
 // Lock-screen safe: SMS previews show on locked phones, and request titles can
 // be explicit, so bodies never include the request title or other
-// request-specific wording. `requestTitle` is still accepted for caller
+// request-specific wording (Reminders > Wording refuses {{requestTitle}} in a
+// text). `requestTitle` is still accepted for caller
 // compatibility but intentionally unused. sendSms adds the "CCM: " prefix.
+
+/** The agency's wording for a text, filled in (sendSms adds the "CCM: " prefix and shortens links) */
+async function worded(key: CopyKey, values: CopyValues): Promise<string> {
+  const copy = await loadMessageCopy();
+  return composeSms(copy[key], values);
+}
 
 export async function sendCreatorInviteSms({
   to,
@@ -277,7 +287,7 @@ export async function sendCreatorInviteSms({
   creatorName: string;
   inviteLink: string;
 }) {
-  const message = `Hi ${smsFirstName(creatorName)}, you're invited! Set up your portal: ${inviteLink}`;
+  const message = await worded("invite", { firstName: smsFirstName(creatorName), link: inviteLink });
   return sendSms({ to, message });
 }
 
@@ -291,7 +301,7 @@ export async function sendContentRequestSms({
   requestTitle?: string;
   portalLink: string;
 }) {
-  const message = `Hi ${smsFirstName(creatorName)}, you have a new content request. View it here: ${portalLink}`;
+  const message = await worded("request.new", { firstName: smsFirstName(creatorName), link: portalLink });
   return sendSms({ to, message });
 }
 
@@ -309,9 +319,9 @@ export async function sendReminderSms({
   portalLink: string;
   isTest?: boolean;
 }) {
-  // Shared with the reminder-rules preview (src/lib/reminder-copy.ts)
-  const message = reminderSmsBody({ creatorName, daysUntilDue, portalLink, isTest });
-  return sendSms({ to, message });
+  const key = daysUntilDue < 0 ? "reminder.overdue" : daysUntilDue === 0 ? "reminder.dueToday" : "reminder.before";
+  const message = await worded(key, { firstName: smsFirstName(creatorName), due: reminderUrgencyText(daysUntilDue), link: portalLink });
+  return sendSms({ to, message: isTest ? `[TEST] ${message}` : message });
 }
 
 export async function sendContentApprovedSms({
@@ -322,7 +332,7 @@ export async function sendContentApprovedSms({
   creatorName: string;
   requestTitle?: string;
 }) {
-  const message = `Hi ${smsFirstName(creatorName)}, your content has been approved.`;
+  const message = await worded("request.approved", { firstName: smsFirstName(creatorName) });
   return sendSms({ to, message });
 }
 
@@ -336,8 +346,7 @@ export async function sendRevisionRequestSms({
   requestTitle?: string;
   portalLink?: string;
 }) {
-  const linkPart = portalLink ? ` View feedback here: ${portalLink}` : "";
-  const message = `Hi ${smsFirstName(creatorName)}, changes have been requested on your content.${linkPart}`;
+  const message = await worded("request.changes", { firstName: smsFirstName(creatorName), link: portalLink ?? `${getAppUrl()}/creator/requests` });
   return sendSms({ to, message });
 }
 
