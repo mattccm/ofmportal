@@ -22,12 +22,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  Eye,
-  EyeOff,
+  Smartphone,
   Copy,
   Trash2,
   AlertTriangle,
-  FileText,
   CheckCircle,
   Loader2,
   Undo2,
@@ -37,8 +35,6 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -56,7 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
-import { HtmlContent } from "@/components/ui/html-content";
+import { CreatorPreviewDialog } from "./creator-preview-dialog";
 import { cn } from "@/lib/utils";
 import {
   TemplateField,
@@ -66,8 +62,6 @@ import {
   validateTemplateFields,
   createEmptyField,
   duplicateField,
-  getDefaultValues,
-  isFieldVisible,
   ValidationError,
 } from "@/lib/template-types";
 import { FieldEditor, FieldTypePalette, RichContentEditor } from "./field-editor";
@@ -154,110 +148,6 @@ function SortableFieldItem({
   );
 }
 
-// PREVIEW FIELD
-
-interface PreviewFieldProps {
-  field: TemplateField;
-  value: unknown;
-  onChange: (value: unknown) => void;
-}
-
-function PreviewField({ field, value, onChange }: PreviewFieldProps) {
-  const renderField = () => {
-    switch (field.type) {
-      case "text":
-        return (
-          <Input
-            value={(value as string) || ""}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={field.placeholder}
-          />
-        );
-      case "textarea":
-        return (
-          <Textarea
-            value={(value as string) || ""}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={field.placeholder}
-          />
-        );
-      case "number":
-        return (
-          <Input
-            type="number"
-            value={(value as number) ?? ""}
-            onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}
-            placeholder={field.placeholder}
-          />
-        );
-      case "date":
-        return (
-          <Input
-            type="date"
-            value={(value as string) || ""}
-            onChange={(e) => onChange(e.target.value)}
-          />
-        );
-      case "select":
-        return (
-          <Select
-            value={(value as string) || ""}
-            onValueChange={onChange}
-          >
-            <SelectTrigger aria-label={field.label || "Select an option"}>
-              <SelectValue placeholder={field.placeholder || "Select an option"} />
-            </SelectTrigger>
-            <SelectContent>
-              {field.options?.map((option) => (
-                <SelectItem key={option.id} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      case "checkbox":
-        return (
-          <div className="flex items-center gap-2">
-            <Checkbox aria-label={field.label || "Yes"}
-              id={`preview-${field.id}`}
-              checked={(value as boolean) || false}
-              onCheckedChange={onChange}
-            />
-            <Label htmlFor={`preview-${field.id}`}>Yes</Label>
-          </div>
-        );
-      case "file":
-        return (
-          <div className="border-2 border-dashed rounded-lg p-6 text-center bg-muted/30">
-            <p className="text-sm text-muted-foreground">
-              Drag and drop files here, or click to browse
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {field.acceptedFileTypes?.join(", ")} - Max{" "}
-              {Math.round((field.maxFileSize || 0) / (1024 * 1024))}MB
-            </p>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      <Label className="flex items-center gap-1">
-        {field.label}
-        {field.required && <span className="text-destructive">*</span>}
-      </Label>
-      {renderField()}
-      {field.helpText && (
-        <p className="text-xs text-muted-foreground">{field.helpText}</p>
-      )}
-    </div>
-  );
-}
-
 // TEMPLATE BUILDER
 
 // Generate form ID for autosave
@@ -320,14 +210,11 @@ export function TemplateBuilder({
   }, []);
 
   // UI state
-  const [isPreviewMode, setIsPreviewMode] = React.useState(false);
+  const [creatorPreview, setCreatorPreview] = React.useState(false);
   const [expandedFieldId, setExpandedFieldId] = React.useState<string | null>(
     null
   );
   const [activeId, setActiveId] = React.useState<string | null>(null);
-  const [previewValues, setPreviewValues] = React.useState<
-    Record<string, unknown>
-  >({});
   const [validationErrors, setValidationErrors] = React.useState<
     ValidationError[]
   >([]);
@@ -400,11 +287,6 @@ export function TemplateBuilder({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // Reset preview values when fields change
-  React.useEffect(() => {
-    setPreviewValues(getDefaultValues({ fields }));
-  }, [fields]);
 
   // Track changes
   React.useEffect(() => {
@@ -586,7 +468,7 @@ export function TemplateBuilder({
                 : "The fields, due date and priority a request starts from."}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
             {/* Autosave Status - Hidden on mobile to save space */}
             <div className="hidden sm:block">
               <AutosaveStatusBadge
@@ -600,23 +482,9 @@ export function TemplateBuilder({
                 <span className="hidden sm:inline">Undo</span>
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPreviewMode(!isPreviewMode)}
-              aria-label={isPreviewMode ? "Edit" : "Preview"}
-            >
-              {isPreviewMode ? (
-                <>
-                  <EyeOff className="h-4 w-4 sm:mr-2" aria-hidden="true" />
-                  <span className="hidden sm:inline">Edit</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4 sm:mr-2" aria-hidden="true" />
-                  <span className="hidden sm:inline">Preview</span>
-                </>
-              )}
+            <Button variant="outline" size="sm" onClick={() => setCreatorPreview(true)} aria-label="Preview as creator">
+              <Smartphone className="h-4 w-4 sm:mr-2" aria-hidden="true" />
+              <span className="hidden sm:inline">Preview as creator</span>
             </Button>
             <Button
               size="sm"
@@ -828,48 +696,7 @@ export function TemplateBuilder({
             </h2>
           </div>
 
-          {isPreviewMode ? (
-            /* Preview Mode */
-            <Card>
-              <CardHeader className="border-b">
-                <CardTitle className="text-[22px] font-bold">{name || "Untitled template"}</CardTitle>
-                {description && (
-                  <HtmlContent
-                    html={description}
-                    className="text-sm text-muted-foreground"
-                  />
-                )}
-              </CardHeader>
-              <CardContent className="pt-6 space-y-6">
-                {fields.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground/50" />
-                    <p className="mt-4 text-muted-foreground">
-                      No fields added yet. Switch to edit mode to add fields.
-                    </p>
-                  </div>
-                ) : (
-                  fields
-                    .filter((field) => isFieldVisible(field, previewValues))
-                    .map((field) => (
-                      <PreviewField
-                        key={field.id}
-                        field={field}
-                        value={previewValues[field.id]}
-                        onChange={(value) =>
-                          setPreviewValues({
-                            ...previewValues,
-                            [field.id]: value,
-                          })
-                        }
-                      />
-                    ))
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            /* Edit Mode */
-            <>
+          <>
               {fields.length === 0 ? (
                 <div className="rounded-[var(--tw-r-tile)] bg-tile-dim px-5 py-6">
                   <h3 className="font-semibold">No fields yet</h3>
@@ -928,8 +755,7 @@ export function TemplateBuilder({
                   </DragOverlay>
                 </DndContext>
               )}
-            </>
-          )}
+          </>
         </div>
 
         {/* Template Actions */}
@@ -957,19 +783,17 @@ export function TemplateBuilder({
       </div>
 
       {/* Sidebar - Responsive: full width on mobile, fixed width on desktop */}
-      {!isPreviewMode && (
-        <div className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:space-y-6 order-first lg:order-last">
-          <div className="lg:sticky lg:top-0 space-y-4 lg:space-y-6">
-            <FieldTypePalette onAddField={handleAddField} />
+      <div className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:space-y-6 order-first lg:order-last">
+        <div className="lg:sticky lg:top-0 space-y-4 lg:space-y-6">
+          <FieldTypePalette onAddField={handleAddField} />
 
-            {/* Quick Tips - Hidden on mobile to save space */}
-            <div className="hidden space-y-1.5 px-1 text-[13px] text-ink-2 lg:block">
-              <p>Drag a field by its handle to move it; with the keyboard, focus the handle and press Space.</p>
-              <p>Open a field to set its examples, limits and when it shows.</p>
-            </div>
+          {/* Quick Tips - Hidden on mobile to save space */}
+          <div className="hidden space-y-1.5 px-1 text-[13px] text-ink-2 lg:block">
+            <p>Drag a field by its handle to move it; with the keyboard, focus the handle and press Space.</p>
+            <p>Open a field to set its examples, limits and when it shows.</p>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -1008,6 +832,13 @@ export function TemplateBuilder({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CreatorPreviewDialog
+        open={creatorPreview}
+        onOpenChange={setCreatorPreview}
+        templateId={templateId}
+        draft={{ name, description: description || null, richContent: richContent ?? null, fields, defaultDueDays }}
+      />
     </div>
   );
 }

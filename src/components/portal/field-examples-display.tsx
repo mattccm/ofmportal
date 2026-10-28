@@ -1,5 +1,6 @@
 "use client";
 
+import { asRichHtml, hasRichText } from "@/lib/rich-text";
 import * as React from "react";
 import {
   ChevronDown,
@@ -259,7 +260,7 @@ export function FieldExamplesDisplay({
   };
 
   // Check if there's any content to display
-  const hasContent = richContent?.description ||
+  const hasContent = hasRichText(richContent?.description) ||
     richContent?.exampleText ||
     allExampleImages.length > 0 ||
     richContent?.exampleVideoUrl ||
@@ -306,10 +307,10 @@ export function FieldExamplesDisplay({
         {(expanded || !canToggleExamples) && (
         <div className="p-4 space-y-4">
           {/* Description - Render HTML from WYSIWYG editor */}
-          {richContent?.description && (
+          {hasRichText(richContent?.description) && (
             <div
               className="prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(richContent.description) }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(asRichHtml(richContent?.description)) }}
             />
           )}
 
@@ -323,7 +324,7 @@ export function FieldExamplesDisplay({
           {/* Example Images */}
           {allExampleImages.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[13px] font-medium text-ink-2">{examplesLabel}</p>
+              <p className="text-[13px] font-medium text-ink-2">Photos</p>
               <div className="flex flex-wrap gap-3">
                 {allExampleImages.map((img, index) => (
                   <button
@@ -436,10 +437,10 @@ export function FieldExamplesDisplay({
       {(expanded || !canToggleExamples) && (
         <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border/50 ml-5 animate-in slide-in-from-top-1 duration-150">
           {/* Description - Render HTML from WYSIWYG editor */}
-          {richContent?.description && (
+          {hasRichText(richContent?.description) && (
             <div
               className="prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(richContent.description) }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(asRichHtml(richContent?.description)) }}
             />
           )}
 
@@ -453,7 +454,7 @@ export function FieldExamplesDisplay({
           {/* Example Images */}
           {allExampleImages.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[13px] font-medium text-ink-2">{examplesLabel}</p>
+              <p className="text-[13px] font-medium text-ink-2">Photos</p>
               <div className="flex flex-wrap gap-2">
                 {allExampleImages.map((img, index) => (
                   <button

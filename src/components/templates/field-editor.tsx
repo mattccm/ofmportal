@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
+import { asRichHtml, hasRichText } from "@/lib/rich-text";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -959,11 +961,13 @@ export function RichContentEditor({ richContent, onChange, title, description }:
           {/* Description / Instructions */}
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Instructions / Description</Label>
-            <Textarea
-              value={richContent?.description || ""}
-              onChange={(e) => updateRichContent({ description: e.target.value })}
-              placeholder="Add detailed instructions or description for this field..."
-              className="min-h-[80px] resize-y"
+            <WysiwygEditor
+              aria-label="Instructions or description"
+              value={asRichHtml(richContent?.description)}
+              onChange={(html) => updateRichContent({ description: hasRichText(html) ? html : "" })}
+              placeholder="Add detailed instructions or description..."
+              minHeight="80px"
+              maxHeight="320px"
             />
             <p className="text-xs text-muted-foreground">
               Provide additional context or guidelines for creators filling out this field.

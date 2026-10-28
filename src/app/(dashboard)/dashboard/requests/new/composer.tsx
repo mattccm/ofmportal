@@ -16,6 +16,8 @@ import { RecoveryDialog } from "@/components/forms/recovery-dialog";
 import { clearFormData } from "@/lib/form-storage";
 import { cn } from "@/lib/utils";
 import { expandQuantityFields, type TemplateField } from "@/lib/template-types";
+import { htmlToPlain, plainToHtml } from "@/lib/rich-text";
+import { requestDescriptionFromTemplate, requestFieldsFromTemplate, requestRichContentFromTemplate } from "@/lib/template-request";
 import { flipLayout, usePressFeedback } from "@/components/title-wall";
 import { TemplateCover } from "@/components/templates/template-cover";
 import { fieldSpec } from "@/components/templates/template-spec";
@@ -82,52 +84,9 @@ function list(names: string[]) {
 }
 const plural = (n: number, w: string) => `${n} ${n === 1 ? w : `${w}s`}`;
 
-function htmlToPlain(html: string) {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
-    .replace(/<li[^>]*>/gi, "- ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-function plainToHtml(text: string) {
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  return text
-    .trim()
-    .split(/\n{2,}/)
-    .map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`)
-    .join("");
-}
-
-function templateDescription(t: ComposeTemplate) {
-  let d = t.description || "";
-  const rc = t.richContent?.description?.trim();
-  if (rc && htmlToPlain(rc) !== htmlToPlain(d)) d = d ? `${d}\n\n${rc}` : rc;
-  return d;
-}
-
-function fieldsFrom(t: ComposeTemplate): ComposeField[] {
-  return expandQuantityFields(t.fields as TemplateField[]).map((f) => ({
-    id: f.id,
-    label: f.label,
-    value: f.defaultValue !== undefined ? String(f.defaultValue) : "",
-    type: f.type,
-    required: f.required,
-    helpText: f.helpText,
-    richContent: f.richContent,
-    acceptedFileTypes: f.acceptedFileTypes,
-    maxFileSize: f.maxFileSize,
-    maxFiles: f.maxFiles,
-    minFiles: f.minFiles,
-  }));
-}
+// What a request made from a template carries (shared with "Preview as creator")
+const templateDescription = (t: ComposeTemplate) => requestDescriptionFromTemplate(t);
+const fieldsFrom = (t: ComposeTemplate): ComposeField[] => requestFieldsFromTemplate(t);
 
 /* ------------------------------------------------------------------------ */
 
@@ -428,14 +387,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
       return;
     }
     setSending(asDraft ? "draft" : "send");
-    const richContent = template?.richContent
-      ? {
-          exampleText: template.richContent.exampleText,
-          exampleImages: template.richContent.exampleImages,
-          exampleVideoUrl: template.richContent.exampleVideoUrl,
-          referenceLinks: template.richContent.referenceLinks,
-        }
-      : undefined;
+    const richContent = template ? requestRichContentFromTemplate(template) : undefined;
     const body = (creatorId: string) => ({
       creatorId,
       templateId: template?.id,

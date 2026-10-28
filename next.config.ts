@@ -35,10 +35,19 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      // Never framed by another site. The creator preview is framed by the
+      // template editor on this same site, so it alone allows same-origin frames.
+      { source: "/((?!preview/).*)", headers: [{ key: "X-Frame-Options", value: "DENY" }] },
+      {
+        source: "/preview/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
         ],
       },
     ];

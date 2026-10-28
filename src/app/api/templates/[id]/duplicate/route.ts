@@ -94,6 +94,8 @@ export async function POST(
         agencyId: session.user.agencyId,
         name: newName,
         description: originalTemplate.description,
+        // The whole-request instructions, example photos, video and links
+        richContent: originalTemplate.richContent ?? Prisma.DbNull,
         fields: JSON.stringify(updatedFields),
         defaultDueDays: originalTemplate.defaultDueDays,
         defaultUrgency: originalTemplate.defaultUrgency,
@@ -112,6 +114,7 @@ export async function POST(
       id: duplicatedTemplate.id,
       name: duplicatedTemplate.name,
       description: duplicatedTemplate.description,
+      richContent: duplicatedTemplate.richContent,
       fields: updatedFields,
       fieldCount: updatedFields.length,
       categoryId: duplicatedTemplate.categoryId,

@@ -422,7 +422,8 @@ function FileFieldCard({
         return "";
       }
     })();
-    const missing = uploads.filter((u) => !fullUrls[u.id]);
+    // Preview files (template "Preview as creator") live on this device only
+    const missing = uploads.filter((u) => !fullUrls[u.id] && !u.id.startsWith("preview-"));
     if (missing.length === 0) return;
     const results = await Promise.all(
       missing.map(async (u) => {
