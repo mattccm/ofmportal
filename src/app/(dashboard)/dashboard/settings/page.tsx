@@ -1,12 +1,10 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useAccess } from "@/lib/access/client";
 import { ChevronRight } from "lucide-react";
 import { PageHead, SettingsSection } from "@/components/creators/people-ui";
-import { plural } from "@/components/creators/insights";
 
 interface Row {
   title: string;
@@ -37,25 +35,15 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    id: "creators",
-    title: "Creators and reminders",
-    description: "What creators receive: reminders, emails and banners.",
-    rows: [
-      { title: "Reminder rules", description: "When reminders go out, quiet hours, and a preview of the lock screen", href: "/dashboard/settings/reminder-rules", perm: "reminders.rules" },
-      { title: "Creator messages", description: "Which messages go by email and which by text", href: "/dashboard/settings/creator-messages", perm: "reminders.rules" },
-      { title: "Text messages", description: "Which countries creators can be texted in, and a test text", href: "/dashboard/settings/sms", perm: "settings.sms" },
-      { title: "Email templates", description: "The wording of emails sent to creators", href: "/dashboard/settings/email-templates", perm: "settings.emailTemplates" },
-      { title: "Announcements", description: "Banners shown across the portal", href: "/dashboard/settings/announcements", perm: "settings.announcements" },
-      { title: "Duplicate detection", description: "Catch the same file uploaded twice", href: "/dashboard/settings/duplicate-detection", perm: "settings.duplicates" },
-    ],
-  },
-  {
     id: "agency",
     title: "Agency",
     description: "Settings that apply to everyone on the team.",
     rows: [
+      { title: "Reminders, emails and texts", description: "On the Reminders page: timing, which messages are texted, and the text setup", href: "/dashboard/reminders?tab=texts", perm: "reminders.rules" },
       { title: "Branding", description: "Agency name, logos and email sender", href: "/dashboard/settings/branding", perm: "settings.branding" },
       { title: "Template groups", description: "Group request templates so they are easier to find, and limit who can send them", href: "/dashboard/settings/template-categories", perm: "templates.groups" },
+      { title: "Announcements", description: "Banners shown across the portal", href: "/dashboard/settings/announcements", perm: "settings.announcements" },
+      { title: "Duplicate detection", description: "Catch the same file uploaded twice", href: "/dashboard/settings/duplicate-detection", perm: "settings.duplicates" },
       { title: "Roles and permissions", description: "What each role can see and change", href: "/dashboard/settings/roles", perm: "roles.manage" },
       { title: "Automations", description: "Rules that act on requests by themselves", href: "/dashboard/automations", perm: "settings.automations" },
       { title: "Review sessions", description: "Live sessions where the team reviews uploads together", href: "/review-sessions", perm: "settings.reviewSessions" },
@@ -69,23 +57,11 @@ const GROUPS: Group[] = [
 export default function SettingsPage() {
   const { data: session } = useSession();
   const { can, roleName } = useAccess();
-  const canRules = can("reminders.rules");
-  const [rules, setRules] = React.useState<{ on: number; total: number } | null>(null);
-
-  React.useEffect(() => {
-    if (!canRules) return;
-    fetch("/api/reminder-rules")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setRules({ on: d.rules.filter((r: { isActive: boolean }) => r.isActive).length, total: d.rules.length }))
-      .catch(() => {});
-  }, [canRules]);
 
   const groups = GROUPS.map((g) => ({ ...g, rows: g.rows.filter((r) => !r.perm || can(r.perm)) })).filter((g) => g.rows.length);
   const who = session?.user?.name ? `Signed in as ${session.user.name}${roleName ? `, ${roleName}` : ""}.` : "";
   const agencyRows = groups.some((g) => g.id !== "you");
-  const lede = agencyRows
-    ? `${who} ${rules ? `${rules.on} of ${plural(rules.total, "reminder rule")} on.` : ""}`.trim()
-    : `${who} Your role doesn't include agency settings.`.trim();
+  const lede = agencyRows ? who : `${who} Your role doesn't include agency settings.`.trim();
 
   return (
     <div className="mx-auto max-w-[1152px] space-y-8">
@@ -103,7 +79,6 @@ export default function SettingsPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold text-ink">{r.title}</span>
                       <span className="block text-sm text-ink-2">
-                        {r.href.endsWith("reminder-rules") && rules ? `${rules.on} of ${rules.total} on. ` : ""}
                         {r.description}
                       </span>
                     </span>

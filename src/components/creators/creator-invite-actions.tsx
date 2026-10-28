@@ -83,7 +83,7 @@ export function CreatorInviteActions({
       if (!res.ok) throw new Error(data?.error || "The invite could not be sent");
       setState("pending");
       setExpiresAt(new Date(Date.now() + 7 * 86_400_000).toISOString());
-      toast.success(`Invite emailed to ${email ?? first}`);
+      toast.success(data?.texted ? `Invite emailed and texted to ${first}` : `Invite emailed to ${email ?? first}`);
       changed();
     } catch (e) {
       toast.error(`${e instanceof Error ? e.message : "The invite could not be sent"}. Try again in a minute.`);

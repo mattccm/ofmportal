@@ -13,14 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReminderSettingsPanel, TieredTemplatesPanel } from "@/components/reminders";
-import { EmptyLine, PageHead, Panel, SettingsSection } from "@/components/creators/people-ui";
+import { ReminderSettingsPanel } from "./reminder-settings-panel";
+import { EmptyLine, Panel, SettingsSection } from "@/components/creators/people-ui";
 import { cityOf, contactLabel, plural, type QuietHours } from "@/components/creators/insights";
 import { reminderEmailSubject, reminderSmsBody, withBrandPrefix } from "@/lib/reminder-copy";
 import { cn } from "@/lib/utils";
 import { useAccess } from "@/lib/access/client";
 import { NoAccess } from "@/components/access/no-access";
+import { applyConsent, type AgencyMessaging } from "@/lib/messaging";
 
 // ---------------------------------------------------------------- types
 
@@ -76,22 +76,26 @@ interface Moment {
   key: string;
   /** days until due when it goes out (negative: overdue) */
   daysUntilDue: number;
+  email: boolean;
   sms: boolean;
   label: string;
 }
 
+/** What one reminder goes out on: an SMS escalation is a text; otherwise the agency's choice in Email and texts */
+type ChannelsFor = (daysUntilDue: number, escalation: boolean) => { email: boolean; sms: boolean };
+
 /** Mirrors calculateReminderSchedule in src/lib/auto-reminder-scheduler.ts */
-function momentsOf(rule: ReminderRule, prefersSms: boolean): Moment[] {
+function momentsOf(rule: ReminderRule, channelsFor: ChannelsFor): Moment[] {
   const out: Moment[] = [];
   for (const d of [...rule.reminderDays].sort((a, b) => b - a)) {
-    out.push({ key: `b${d}`, daysUntilDue: d, sms: prefersSms, label: d === 0 ? "On the due date" : `${plural(d, "day")} before due` });
+    out.push({ key: `b${d}`, daysUntilDue: d, ...channelsFor(d, false), label: d === 0 ? "On the due date" : `${plural(d, "day")} before due` });
   }
   const every = FREQ.find((f) => f.value === rule.overdueReminderFrequency)?.every ?? 0;
   if (every) {
     for (let i = 1; i <= rule.maxOverdueReminders; i++) {
       const late = every * i;
       const esc = rule.escalateToSms && rule.smsEscalationDays != null && late >= rule.smsEscalationDays;
-      out.push({ key: `a${late}`, daysUntilDue: -late, sms: esc || prefersSms, label: `${plural(late, "day")} overdue${esc ? ", by SMS" : ""}` });
+      out.push({ key: `a${late}`, daysUntilDue: -late, ...channelsFor(-late, esc), label: `${plural(late, "day")} overdue${esc ? ", by text" : ""}` });
     }
   }
   return out;
@@ -103,7 +107,7 @@ function ruleSummary(r: ReminderRule): string {
   const list = before.length > 1 ? `${before.slice(0, -1).join(", ")} and ${before[before.length - 1]}` : before[0] ?? "no reminders before the due date";
   const f = FREQ.find((x) => x.value === r.overdueReminderFrequency);
   const after = f && f.every ? `, then ${f.label.toLowerCase()} while overdue, up to ${r.maxOverdueReminders}` : "";
-  const sms = r.escalateToSms && r.smsEscalationDays ? `. SMS from ${plural(r.smsEscalationDays, "day")} overdue` : "";
+  const sms = r.escalateToSms && r.smsEscalationDays ? `. A text from ${plural(r.smsEscalationDays, "day")} overdue` : "";
   return `${list.charAt(0).toUpperCase()}${list.slice(1)}${after}${sms}.`;
 }
 
@@ -164,11 +168,14 @@ const shortDay = (d: Date) => d.toLocaleDateString("en-AU", { weekday: "short", 
 
 // ---------------------------------------------------------------- page
 
-export default function ReminderRulesPage() {
+/**
+ * Reminders > Timing: when reminders go out (rules by urgency), quiet hours,
+ * and a lock-screen preview. Whether a reminder is also texted comes from
+ * Reminders > Email and texts (`messaging`).
+ */
+export function TimingPanel({ messaging }: { messaging: AgencyMessaging }) {
   const { can, roleName } = useAccess();
   const canRules = can("reminders.rules");
-  // The wording (reminder templates) has its own key
-  const canWording = can("reminders.templates");
   // Quiet hours are a creator's reminder settings (Creators: pause reminders)
   const canQuiet = can("creators.pauseReminders");
   const [rules, setRules] = React.useState<ReminderRule[]>([]);
@@ -341,8 +348,15 @@ export default function ReminderRulesPage() {
   // ---------- preview
   const creator = ctx?.creators.find((c) => c.id === creatorId) ?? null;
   const previewRule = rules.find((r) => r.urgency === ruleKey) ?? sorted[0];
-  const prefersSms = creator?.preferredContact === "SMS";
-  const moments = previewRule ? momentsOf(previewRule, prefersSms) : [];
+  const channelsFor: ChannelsFor = (days, escalation) => {
+    const choice = escalation
+      ? { email: false, sms: true }
+      : messaging.events[days > 0 ? "reminder.before" : days === 0 ? "reminder.dueToday" : "reminder.overdue"];
+    if (!creator) return { email: choice.email, sms: choice.sms };
+    const out = applyConsent(choice, { ...creator, phone: creator.hasPhone ? "+0" : null }, messaging, { fallback: !escalation });
+    return { email: out.email, sms: out.sms };
+  };
+  const moments = previewRule ? momentsOf(previewRule, channelsFor) : [];
   const moment = moments.find((m) => m.key === momentKey) ?? moments[0];
   const sampleDue = React.useMemo(() => {
     const d = new Date();
@@ -352,8 +366,8 @@ export default function ReminderRulesPage() {
   }, []);
   const sendDay = moment ? new Date(sampleDue.getTime() - moment.daysUntilDue * 86_400_000) : sampleDue;
   const arrive = creator ? arrival(sendDay, creator.timezone, creator.quiet) : { time: "09:00", day: sendDay };
-  const smsGoes = !!moment && moment.sms && !!creator?.hasPhone;
-  const emailGoes = !!moment && !moment.sms;
+  const smsGoes = !!moment && moment.sms;
+  const emailGoes = !!moment && moment.email;
   const firstName = creator?.name ?? "Jade";
   const link = `${ctx?.portalBase ?? "/portal/"}…`;
   const sms = moment ? withBrandPrefix(reminderSmsBody({ creatorName: firstName, daysUntilDue: moment.daysUntilDue, portalLink: link })) : "";
@@ -365,12 +379,12 @@ export default function ReminderRulesPage() {
       ? error
       : `${on.length} of ${plural(rules.length, "rule")} on. Texts and emails never carry a request title.`;
 
-  if (!canRules) return <NoAccess what="reminder rules and wording" roleName={roleName} />;
+  if (!canRules) return <NoAccess what="reminder timing" roleName={roleName} />;
 
   if (loading) {
     return (
       <div className="space-y-8">
-        <PageHead title="Reminder rules" lede={lede} back={{ href: "/dashboard/settings", label: "Settings" }} />
+        <p className="max-w-[72ch] text-[15px] leading-normal text-ink">{lede}</p>
         <div className="h-64 rounded-[10px] bg-tile motion-safe:animate-pulse" aria-hidden="true" />
       </div>
     );
@@ -378,17 +392,13 @@ export default function ReminderRulesPage() {
 
   return (
     <div className="space-y-8">
-      <PageHead
-        title="Reminder rules"
-        lede={lede}
-        back={{ href: "/dashboard/settings", label: "Settings" }}
-        actions={
-          <Button variant="outline" onClick={rescheduleAll} disabled={rescheduling || rules.length === 0}>
-            {rescheduling ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
-            Reschedule open requests
-          </Button>
-        }
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <p className="max-w-[72ch] text-[15px] leading-normal text-ink">{lede}</p>
+        <Button variant="outline" className="shrink-0 max-sm:h-11" onClick={rescheduleAll} disabled={rescheduling || rules.length === 0}>
+          {rescheduling ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
+          Reschedule open requests
+        </Button>
+      </div>
 
       {error && (
         <EmptyLine>
@@ -403,7 +413,7 @@ export default function ReminderRulesPage() {
       <SettingsSection
         id="rules"
         title="Rules by urgency"
-        description="Each request follows the rule for its urgency, by the channel the creator prefers. A creator with their own schedule overrides these. Changes apply to new requests; Reschedule open requests applies them to the rest."
+        description="Each request follows the rule for its urgency. A creator with their own schedule overrides these, and so does a template with its own reminder steps. Whether reminders are also texted is set in Email and texts. Changes apply to new requests; Reschedule open requests applies them to the rest."
       >
         <Panel className="p-0 sm:p-0">
           {sorted.length === 0 ? (
@@ -572,7 +582,7 @@ export default function ReminderRulesPage() {
                   </div>
                 )}
                 {!smsGoes && !emailGoes && (
-                  <p className="rounded-[16px] bg-raised p-3 text-[13.5px] text-ink-2">Nothing arrives: this reminder goes by SMS and {firstName} has no phone number.</p>
+                  <p className="rounded-[16px] bg-raised p-3 text-[13.5px] text-ink-2">Nothing arrives: this reminder is a text and {firstName} can&rsquo;t get one.</p>
                 )}
               </div>
             </div>
@@ -581,7 +591,7 @@ export default function ReminderRulesPage() {
               <dl className="mt-2 divide-y divide-line text-sm">
                 {[
                   ["Arrives", `${arrive.time} their time, ${shortDay(arrive.day)}`],
-                  ["Goes by", moment ? (moment.sms ? (creator.hasPhone ? "SMS" : "SMS, but no phone number") : "Email") : "Nothing"],
+                  ["Goes by", moment ? (moment.email && moment.sms ? "Email and text" : moment.sms ? "Text" : moment.email ? "Email" : "Nothing") : "Nothing"],
                   ...(creator.preferredContact !== undefined ? [["They prefer", contactLabel(creator.preferredContact)]] : []),
                   ...(creator.timezone !== undefined ? [["Time zone", cityOf(creator.timezone)]] : []),
                   ["Quiet hours", creator.quiet.enabled ? `${creator.quiet.start}–${creator.quiet.end}` : "None"],
@@ -595,7 +605,7 @@ export default function ReminderRulesPage() {
               </dl>
               <p className="mt-3 text-[13px] leading-relaxed text-ink-2">
                 For a request due {shortDay(sampleDue)}.
-                {creator.preferredContact === "BOTH" ? " Creators who prefer both get reminders by email; SMS joins once a rule escalates." : ""}
+                {" "}Requests from a template with its own texts or schedule can differ.
                 {creator.paused ? ` ${firstName}'s reminders are paused right now, so nothing goes out until they resume.` : ""}
                 {creator.disabled ? ` Reminders are turned off for ${firstName}.` : ""}
                 {previewRule && !previewRule.isActive ? " This rule is off, so the default schedule applies instead." : ""}
@@ -682,26 +692,13 @@ export default function ReminderRulesPage() {
         </Panel>
       </SettingsSection>
 
-      {/* ---------------- wording and tests (kept) ---------------- */}
+      {/* ---------------- tests ---------------- */}
       <SettingsSection
         id="more"
-        title="Wording and tests"
-        description="Message templates by tier, a test reminder to yourself, and the schedule laid out on a calendar."
+        title="Test and calendar"
+        description="Send a test reminder to yourself, and see the schedule laid out on a calendar."
       >
-        <Tabs defaultValue={canWording ? "templates" : "test"} className="space-y-4">
-          <TabsList>
-            {canWording && <TabsTrigger value="templates">Message templates</TabsTrigger>}
-            <TabsTrigger value="test">Test and calendar</TabsTrigger>
-          </TabsList>
-          {canWording && (
-            <TabsContent value="templates">
-              <TieredTemplatesPanel />
-            </TabsContent>
-          )}
-          <TabsContent value="test">
-            <ReminderSettingsPanel rules={rules} />
-          </TabsContent>
-        </Tabs>
+        <ReminderSettingsPanel rules={rules} />
       </SettingsSection>
     </div>
   );
@@ -771,7 +768,7 @@ function RuleEditor({
       </div>
       <div className="flex items-center justify-between gap-3 sm:col-span-2">
         <div>
-          <p className="text-sm font-medium text-ink">Switch to SMS when overdue</p>
+          <p className="text-sm font-medium text-ink">Switch to a text when overdue</p>
           <p className="text-[13px] text-ink-2">For creators with a phone number.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -785,7 +782,7 @@ function RuleEditor({
                 value={rule.smsEscalationDays ?? 2}
                 onChange={(e) => onChange({ smsEscalationDays: Math.min(30, Math.max(1, parseInt(e.target.value) || 2)) })}
                 className="w-[72px]"
-                aria-label="Days overdue before SMS"
+                aria-label="Days overdue before the text"
               />
               days
             </label>
@@ -793,7 +790,7 @@ function RuleEditor({
           <Switch
             checked={rule.escalateToSms}
             onCheckedChange={(v) => onChange({ escalateToSms: v, smsEscalationDays: v ? rule.smsEscalationDays || 2 : null })}
-            aria-label="Switch to SMS when overdue"
+            aria-label="Switch to a text when overdue"
           />
         </div>
       </div>

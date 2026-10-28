@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { optionalPhone } from "@/lib/phone";
 import { sendCreatorInviteEmail } from "@/lib/email";
+import { sendCreatorInviteSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 import {
   parsePaginationParams,
   createPaginatedResponse,
@@ -196,22 +198,28 @@ export async function POST(req: NextRequest) {
 
     const inviteLink = creatorInviteLink(inviteToken);
 
-    // Send invitation email (unless staff chose to share the link themselves)
+    // Send the invitation (unless staff chose to share the link themselves):
+    // email, and a text when Reminders > Texts has the portal invite on
     let emailed = false;
+    let texted = false;
     if (validatedData.sendInvite) {
-      try {
-        await sendCreatorInviteEmail({
-          to: creator.email,
-          creatorName: creator.name,
-          agencyName: session.user.agencyName,
-          inviteLink,
-          agencyId: session.user.agencyId,
-        });
-        emailed = true;
-      } catch (emailError) {
-        console.error("Failed to send invite email:", emailError);
-        // Continue - we still created the creator, just email failed
-      }
+      const sent = await deliver(
+        "creator.invite",
+        { agencyId: session.user.agencyId, creator },
+        {
+          email: () =>
+            sendCreatorInviteEmail({
+              to: creator.email,
+              creatorName: creator.name,
+              agencyName: session.user.agencyName,
+              inviteLink,
+              agencyId: session.user.agencyId,
+            }),
+          sms: (to) => sendCreatorInviteSms({ to, creatorName: creator.name, inviteLink }),
+        }
+      );
+      emailed = sent.email;
+      texted = sent.sms;
     }
 
     // Log activity
@@ -226,6 +234,7 @@ export async function POST(req: NextRequest) {
           creatorEmail: creator.email,
           delivery: validatedData.sendInvite ? "email" : "link",
           emailed,
+          texted,
         },
       },
     });
@@ -246,6 +255,7 @@ export async function POST(req: NextRequest) {
         inviteLink,
         inviteExpiresAt: inviteExpiry(issuedAt).toISOString(),
         emailed,
+        texted,
         visibleToYou,
         message: "Creator invited successfully",
       },

@@ -268,6 +268,19 @@ async function sendWithTwilio(to: string, message: string): Promise<SendSmsResul
 // request-specific wording. `requestTitle` is still accepted for caller
 // compatibility but intentionally unused. sendSms adds the "CCM: " prefix.
 
+export async function sendCreatorInviteSms({
+  to,
+  creatorName,
+  inviteLink,
+}: {
+  to: string;
+  creatorName: string;
+  inviteLink: string;
+}) {
+  const message = `Hi ${smsFirstName(creatorName)}, you're invited! Set up your portal: ${inviteLink}`;
+  return sendSms({ to, message });
+}
+
 export async function sendContentRequestSms({
   to,
   creatorName,

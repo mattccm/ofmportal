@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { sendCreatorInviteEmail } from "@/lib/email";
+import { sendCreatorInviteSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 import { creatorInvite, creatorInviteLink, newInviteToken } from "@/lib/invites";
 
 // POST - Resend invite to creator
@@ -79,16 +81,29 @@ export async function POST(
       },
     });
 
-    await sendCreatorInviteEmail({
-      to: creator.email,
-      creatorName: creator.name,
-      agencyName: creator.agency?.name || "Your Agency",
-      inviteLink: inviteUrl,
-      agencyId: session.user.agencyId,
-    });
+    // Email, and a text when Reminders > Texts has the portal invite on
+    const sent = await deliver(
+      "creator.invite",
+      { agencyId: session.user.agencyId, creator },
+      {
+        email: () =>
+          sendCreatorInviteEmail({
+            to: creator.email,
+            creatorName: creator.name,
+            agencyName: creator.agency?.name || "Your Agency",
+            inviteLink: inviteUrl,
+            agencyId: session.user.agencyId,
+          }),
+        sms: (to) => sendCreatorInviteSms({ to, creatorName: creator.name, inviteLink: inviteUrl }),
+      }
+    );
+    if (!sent.email && !sent.sms) {
+      return NextResponse.json({ error: sent.errors[0] ?? "The invitation couldn't be sent" }, { status: 424 });
+    }
 
     return NextResponse.json({
-      message: "Invitation resent successfully",
+      message: sent.sms ? "Invitation emailed and texted" : "Invitation resent successfully",
+      texted: sent.sms,
       // Only include this in development for testing
       ...(process.env.NODE_ENV === "development" && { inviteUrl }),
     });

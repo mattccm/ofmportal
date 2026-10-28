@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { creatorWhere, forbidden, requireAccess } from "@/lib/access/server";
 import { sendCreatorInviteEmail } from "@/lib/email";
+import { sendCreatorInviteSms } from "@/lib/sms";
+import { deliver } from "@/lib/messaging-server";
 import { z } from "zod";
 import { toE164 } from "@/lib/phone";
 import { v4 as uuidv4 } from "uuid";
@@ -217,27 +219,36 @@ export async function POST(req: NextRequest) {
           });
 
           // Send invites sequentially to stay under the email provider's rate limit;
-          // only stamp inviteSentAt once the email actually went out
+          // only stamp inviteSentAt once the invite actually went out
           if (validatedData.sendInvites) {
-            try {
-              await sendCreatorInviteEmail({
-                to: created.email,
-                creatorName: created.name,
-                agencyName: session.user.agencyName,
-                inviteLink: `${getAppUrl()}/portal/setup/${inviteToken}`,
-                agencyId: session.user.agencyId,
-              });
+            const inviteLink = `${getAppUrl()}/portal/setup/${inviteToken}`;
+            const sent = await deliver(
+              "creator.invite",
+              { agencyId: session.user.agencyId, creator: created },
+              {
+                email: () =>
+                  sendCreatorInviteEmail({
+                    to: created.email,
+                    creatorName: created.name,
+                    agencyName: session.user.agencyName,
+                    inviteLink,
+                    agencyId: session.user.agencyId,
+                  }),
+                sms: (to) => sendCreatorInviteSms({ to, creatorName: created.name, inviteLink }),
+              }
+            );
+            if (sent.email || sent.sms) {
               await db.creator.update({
                 where: { id: created.id },
                 data: { inviteSentAt: new Date() },
               });
-            } catch (emailError) {
-              console.error("Import invite email failed:", emailError);
+            } else {
+              console.error("Import invite failed:", sent.errors);
               results.errors.push({
                 row: i + 1,
                 name: creatorData.name,
                 email: creatorData.email,
-                error: "Creator created but invite email failed; use Resend invite",
+                error: "Creator created but the invite failed; use Resend invite",
               });
             }
           }

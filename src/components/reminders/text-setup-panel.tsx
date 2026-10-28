@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { EmptyLine, PageHead, Panel, SettingsSection } from "@/components/creators/people-ui";
+import { EmptyLine, Panel, SettingsSection } from "@/components/creators/people-ui";
 import { cn } from "@/lib/utils";
 
 interface Status {
@@ -60,7 +60,8 @@ function undeliverable(d: Destination): boolean {
   return typeof d.status === "string" && /unavailable|unsupported|blocked/i.test(d.status);
 }
 
-export default function SmsSettingsClient() {
+/** Reminders > Text setup: Bird connection, sender name, countries and a test text */
+export function TextSetupPanel() {
   const [status, setStatus] = React.useState<Status | null>(null);
   const [destinations, setDestinations] = React.useState<Destination[]>([]);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -129,7 +130,7 @@ export default function SmsSettingsClient() {
 
   return (
     <div className="space-y-8">
-      <PageHead title="Text messages" lede={lede} back={{ href: "/dashboard/settings", label: "Settings" }} />
+      <p className="max-w-[72ch] text-[15px] leading-normal text-ink">{lede}</p>
 
       {loadError && (
         <EmptyLine>

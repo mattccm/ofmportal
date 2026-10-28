@@ -28,13 +28,19 @@
  *   - If nothing can reach the creator (a text-only plan and they prefer email
  *     or have no phone), the message goes by email, so it never vanishes.
  *     Messages switched off in the plan stay off.
- * With the switch off, texts go to every creator with a phone number.
+ * With the switch off (the default), texts go to every creator with a phone
+ * number, but only for the messages a plan switches texts on for.
+ *
+ * Texts cost money, so the agency defaults text only the portal invite;
+ * everything else goes by email unless a template, a request or the agency
+ * switches texts on for it.
  */
 import { z } from "zod";
 
 // EVENTS
 
 export const MESSAGE_EVENTS = [
+  { id: "creator.invite", label: "Portal invite", sentence: "a creator is invited to set up their portal", kind: "invite" },
   { id: "request.new", label: "New request", sentence: "a new request is sent", kind: "once" },
   { id: "reminder.before", label: "Reminder before the due day", sentence: "a reminder goes out before the due day", kind: "reminder" },
   { id: "reminder.dueToday", label: "Reminder on the due day", sentence: "a reminder goes out on the due day", kind: "reminder" },
@@ -46,6 +52,8 @@ export const MESSAGE_EVENTS = [
 
 export type MessageEvent = (typeof MESSAGE_EVENTS)[number]["id"];
 export const MESSAGE_EVENT_IDS = MESSAGE_EVENTS.map((e) => e.id) as [MessageEvent, ...MessageEvent[]];
+/** The events a template or a request can set (an invite comes before any request) */
+export const REQUEST_EVENTS = MESSAGE_EVENTS.filter((e) => e.kind !== "invite");
 export const SCHEDULE_EVENTS: MessageEvent[] = ["reminder.before", "reminder.dueToday", "reminder.overdue"];
 export const eventLabel = (e: MessageEvent) => MESSAGE_EVENTS.find((x) => x.id === e)?.label ?? e;
 
@@ -83,18 +91,19 @@ export interface AgencyMessaging {
   events: Record<MessageEvent, ChannelChoice>;
 }
 
-/** Reproduces how the portal sent messages before plans existed */
+/** Email for everything; a text only with the portal invite. Texts are switched on where they're worth paying for */
 export const DEFAULT_AGENCY_MESSAGING: AgencyMessaging = {
   version: 1,
-  respectPreference: true,
+  respectPreference: false,
   events: {
-    "request.new": { email: true, sms: true, pick: "all" },
-    "reminder.before": { email: true, sms: true, pick: "preferred" },
-    "reminder.dueToday": { email: true, sms: true, pick: "preferred" },
-    "reminder.overdue": { email: true, sms: true, pick: "preferred" },
-    "reminder.manual": { email: true, sms: true, pick: "all" },
-    "request.changes": { email: true, sms: true, pick: "all" },
-    "request.approved": { email: true, sms: true, pick: "all" },
+    "creator.invite": { email: true, sms: true, pick: "all" },
+    "request.new": { email: true, sms: false, pick: "all" },
+    "reminder.before": { email: true, sms: false, pick: "all" },
+    "reminder.dueToday": { email: true, sms: false, pick: "all" },
+    "reminder.overdue": { email: true, sms: false, pick: "all" },
+    "reminder.manual": { email: true, sms: false, pick: "all" },
+    "request.changes": { email: true, sms: false, pick: "all" },
+    "request.approved": { email: true, sms: false, pick: "all" },
   },
 };
 
@@ -122,7 +131,7 @@ export function readAgencyMessaging(settings: unknown): AgencyMessaging {
   }
   return {
     version: 1,
-    respectPreference: typeof r.respectPreference === "boolean" ? r.respectPreference : true,
+    respectPreference: typeof r.respectPreference === "boolean" ? r.respectPreference : DEFAULT_AGENCY_MESSAGING.respectPreference,
     events,
   };
 }

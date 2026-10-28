@@ -140,7 +140,7 @@ const DEFS: Record<AreaId, Omit<PermissionDef, "area">[]> = {
     P("reminders.edit", "Reschedule reminders", "Move a scheduled reminder to another time.", "reschedule", { implies: ["reminders.view"] }),
     P("reminders.delete", "Cancel reminders", "Stop a scheduled reminder from going out.", "cancel", { implies: ["reminders.view"] }),
     P("reminders.templates", "Edit reminder wording", "What reminders say: the reminder templates.", "edit wording", { implies: ["reminders.view"] }),
-    P("reminders.rules", "Edit reminder rules", "When reminders go out and how often, for every creator.", "edit rules", { implies: ["reminders.view"] }),
+    P("reminders.rules", "Edit reminder rules", "When reminders go out and how often, and which messages are emailed or texted.", "edit rules", { implies: ["reminders.view"] }),
   ],
   calendar: [P("calendar.view", "See the calendar", "Due dates and scheduled work on a calendar.", "see the calendar")],
   analytics: [
@@ -168,7 +168,7 @@ const DEFS: Record<AreaId, Omit<PermissionDef, "area">[]> = {
     P("settings.reviewSessions", "Review sessions", "Live sessions where the team reviews uploads together.", "review sessions"),
     P("settings.mediaLibrary", "Media library", "The agency's shared folders of approved content.", "media library"),
     P("settings.integrations", "Integrations and webhooks", "Connections that send portal events to other services.", "integrations"),
-    P("settings.sms", "Text messages (SMS)", "Which countries texts can go to, and sending test texts. Every text costs money.", "text message settings", { dangerous: true }),
+    P("settings.sms", "Text messages (SMS)", "Reminders > Text setup: the sender name, which countries texts can go to, and test texts. Every text costs money.", "text message settings", { dangerous: true }),
     P("settings.oversight", "Oversight", "What each teammate is working on and how fast they respond.", "oversight"),
     P("settings.oversightKeywords", "Oversight keywords", "The words that raise an alert when they appear in conversations.", "oversight keywords", { implies: ["settings.oversight"] }),
     P("settings.auditLog", "Audit log", "Every action taken by staff, newest first.", "audit log"),

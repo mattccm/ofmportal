@@ -38,6 +38,8 @@ interface Invited {
   emailWanted: boolean;
   /** The email actually went out */
   emailed: boolean;
+  /** A text with the link went out too */
+  texted: boolean;
   /** False when the role sees only chosen creators (an admin adds them) */
   visibleToYou: boolean;
 }
@@ -126,9 +128,10 @@ function InviteCreatorForm({
         expiresAt: data.inviteExpiresAt ?? null,
         emailWanted: sendEmail,
         emailed: !!data.emailed,
+        texted: !!data.texted,
         visibleToYou: data.visibleToYou !== false,
       });
-      toast.success(sendEmail && data.emailed ? "Invite emailed" : "Invite link ready");
+      toast.success(sendEmail && data.emailed ? (data.texted ? "Invite emailed and texted" : "Invite emailed") : "Invite link ready");
     } catch {
       toast.error("The creator could not be invited. Check your connection and try again.");
     } finally {
@@ -141,7 +144,7 @@ function InviteCreatorForm({
   if (invited) {
     const first = invited.name.split(/\s+/)[0] || invited.name;
     const line = invited.emailed
-      ? `We emailed the invite to ${invited.email}. You can also send ${first} this link yourself.`
+      ? `We emailed the invite to ${invited.email}${invited.texted ? " and texted it to their phone" : ""}. You can also send ${first} this link yourself.`
       : invited.emailWanted
         ? `The invite email could not be sent. Send ${first} this link yourself instead.`
         : `No email was sent. Send ${first} this link yourself, by text or any chat app.`;
@@ -252,7 +255,7 @@ function InviteCreatorForm({
                 aria-describedby="phone-hint"
               />
               <p id="phone-hint" className="text-[13px] text-ink-2">
-                With the country code. Needed for SMS reminders
+                With the country code. Needed for texts
               </p>
             </div>
             )}
@@ -353,7 +356,9 @@ function InviteCreatorForm({
               <span className="block break-words text-[15px] font-medium text-ink">{emailLabel}</span>
               <span className="mt-0.5 block text-[13px] text-ink-2">
                 {sendEmail
-                  ? "They get an email with a button to set up their account."
+                  ? formData.phone.trim()
+                    ? "They get an email with a button to set up their account, and a text with the link when invite texts are on in Reminders."
+                    : "They get an email with a button to set up their account."
                   : "No email goes out. You share the link yourself, by text or any chat app."}
               </span>
             </span>

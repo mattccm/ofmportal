@@ -10,7 +10,7 @@ import {
   DEFAULT_AGENCY_MESSAGING,
   EVENT_CHOICES,
   MAX_STEPS,
-  MESSAGE_EVENTS,
+  REQUEST_EVENTS,
   SCHEDULE_EVENTS,
   describeSteps,
   newStepId,
@@ -292,7 +292,7 @@ export function PlanEditor({
   const ownSchedule = plan.schedule !== null;
 
   const setEvent = (e: MessageEvent, c: EventChoice) => onChange({ ...plan, events: { ...plan.events, [e]: c } });
-  const shownEvents = MESSAGE_EVENTS.filter((e) => !(ownSchedule && SCHEDULE_EVENTS.includes(e.id)));
+  const shownEvents = REQUEST_EVENTS.filter((e) => !(ownSchedule && SCHEDULE_EVENTS.includes(e.id)));
 
   return (
     <div className="space-y-5">
@@ -308,7 +308,7 @@ export function PlanEditor({
 
       {!own ? (
         <p className="text-sm text-ink-2">
-          Reminders follow the agency&rsquo;s reminder rules, and each message goes the way Settings, Creator messages says.
+          Reminders follow the agency&rsquo;s timing, and each message goes the way Reminders, Email and texts says.
         </p>
       ) : (
         <>
@@ -384,7 +384,7 @@ export function planSummary(plan: MessagingPlan | null, scopeWord = "Agency defa
   const parts: string[] = [];
   if (plan.schedule) parts.push(describeSteps(plan.schedule));
   else parts.push("Agency reminder rules");
-  const changed = MESSAGE_EVENTS.filter((e) => plan.events[e.id] && plan.events[e.id] !== "inherit" && !(plan.schedule && SCHEDULE_EVENTS.includes(e.id)));
+  const changed = REQUEST_EVENTS.filter((e) => plan.events[e.id] && plan.events[e.id] !== "inherit" && !(plan.schedule && SCHEDULE_EVENTS.includes(e.id)));
   if (changed.length) parts.push(changed.map((e) => `${e.label.toLowerCase()}: ${EVENT_CHOICES.find((c) => c.id === plan.events[e.id])!.label.toLowerCase()}`).join(", "));
   return parts.join(" · ");
 }

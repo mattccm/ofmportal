@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
       { source: "/portal", destination: "/creator/dashboard", permanent: false },
       { source: "/portal/requests", destination: "/creator/requests", permanent: false },
       { source: "/portal/requests/:id", destination: "/creator/requests/:id", permanent: false },
+      // Reminder settings moved to the Reminders page
+      { source: "/dashboard/settings/reminder-rules", destination: "/dashboard/reminders?tab=timing", permanent: false },
+      { source: "/dashboard/settings/creator-messages", destination: "/dashboard/reminders?tab=texts", permanent: false },
+      { source: "/dashboard/settings/sms", destination: "/dashboard/reminders?tab=setup", permanent: false },
     ];
   },
   async headers() {

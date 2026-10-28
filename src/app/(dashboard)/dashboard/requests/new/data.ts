@@ -51,7 +51,7 @@ export interface ComposeData {
   /** Host of the portal link in the SMS ("portal.example.com") */
   portalHost: string;
   totalRequests: number;
-  /** The agency's creator-message defaults (Settings, Creator messages) */
+  /** The agency's creator-message defaults (Reminders, Email and texts) */
   agencyMessaging: AgencyMessaging;
 }
 

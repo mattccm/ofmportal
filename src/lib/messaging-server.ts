@@ -26,9 +26,10 @@ import {
 const agencyCache = new Map<string, { at: number; value: AgencyMessaging }>();
 const TTL = 15_000;
 
-export async function loadAgencyMessaging(agencyId: string): Promise<AgencyMessaging> {
+/** `fresh`: skip the cache (settings pages, which must show what was just saved) */
+export async function loadAgencyMessaging(agencyId: string, opts: { fresh?: boolean } = {}): Promise<AgencyMessaging> {
   const hit = agencyCache.get(agencyId);
-  if (hit && Date.now() - hit.at < TTL) return hit.value;
+  if (!opts.fresh && hit && Date.now() - hit.at < TTL) return hit.value;
   const agency = await db.agency.findUnique({ where: { id: agencyId }, select: { settings: true } });
   const value = agency ? readAgencyMessaging(agency.settings) : DEFAULT_AGENCY_MESSAGING;
   agencyCache.set(agencyId, { at: Date.now(), value });
