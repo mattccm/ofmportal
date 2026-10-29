@@ -68,7 +68,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ card: s
         >
           <div style={{ display: "flex", flexDirection: "column" }}>
             {/* Word by word: the renderer widens a space after some letters in Onest */}
-            <div style={{ display: "flex", flexWrap: "wrap", fontSize: c.heading.length > 26 ? 72 : 84, fontWeight: 800, lineHeight: 1.02, letterSpacing: "-0.035em", color: C.ink, maxWidth: 960 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", fontSize: c.heading.length > 20 ? 72 : 84, fontWeight: 800, lineHeight: 1.02, letterSpacing: "-0.035em", color: C.ink, maxWidth: 960 }}>
               {c.heading.split(" ").map((word, i) => (
                 <span key={i} style={{ marginRight: "0.24em" }}>
                   {word}

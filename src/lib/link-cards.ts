@@ -15,7 +15,7 @@ export const LINK_CARDS = {
     title: BRAND.productName,
     description: "Requests, uploads and approvals in one place.",
     heading: "One place for your content",
-    line: "See what's needed, upload your content and track approvals.",
+    line: "Requests, uploads and approvals.",
     action: "Open the portal",
   },
   team: {
