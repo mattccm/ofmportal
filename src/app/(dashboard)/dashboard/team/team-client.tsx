@@ -64,6 +64,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { StaffInviteRow } from "@/lib/staff-invites";
 import { InviteTeammateButton, InviteTeammateDialog, PendingInvites } from "@/components/team/staff-invites";
+import { MemberCreatorsDialog } from "@/components/team/member-creators-dialog";
 
 type ActivityLog = {
   id: string;
@@ -83,6 +84,8 @@ export type TeamRole = {
   memberCount: number;
   /** The signed-in person may hand this role out */
   grantable: boolean;
+  /** The role sees only each person's assigned creators */
+  seesOnlyAssigned: boolean;
 };
 
 type TeamMember = {
@@ -97,6 +100,8 @@ type TeamMember = {
   twoFactorEnabled: boolean;
   isOnline: boolean;
   customRoleId: string | null;
+  /** How many creators they look after */
+  assignedCount: number;
   activityLogs: ActivityLog[];
 };
 
@@ -105,7 +110,7 @@ type TeamClientProps = {
   roles: TeamRole[];
   initialInvites: StaffInviteRow[];
   currentUserId: string;
-  can: { invite: boolean; changeRoles: boolean; remove: boolean; manageRoles: boolean; isOwner: boolean };
+  can: { invite: boolean; changeRoles: boolean; remove: boolean; manageRoles: boolean; isOwner: boolean; assign: boolean };
 };
 
 function RoleBadge({ role }: { role: TeamRole | undefined }) {
@@ -163,6 +168,7 @@ export default function TeamClient({
   const [invites, setInvites] = useState<StaffInviteRow[]>(initialInvites);
   const [editRoleId, setEditRoleId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [creatorsFor, setCreatorsFor] = useState<TeamMember | null>(null);
 
   // Filter members based on search and role
   const filteredMembers = members.filter((member) => {
@@ -279,6 +285,12 @@ export default function TeamClient({
             Change role
           </DropdownMenuItem>
         )}
+        {can.assign && (
+          <DropdownMenuItem onClick={() => setCreatorsFor(member)}>
+            <Users className="mr-2 h-4 w-4" />
+            Assign creators
+          </DropdownMenuItem>
+        )}
         {can.manageRoles && (
           <DropdownMenuItem onClick={() => router.push(`/dashboard/settings/roles/${member.roleId}`)}>
             <SlidersHorizontal className="mr-2 h-4 w-4" />
@@ -303,6 +315,22 @@ export default function TeamClient({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+
+  const looksAfter = (member: TeamMember) => {
+    const n = member.assignedCount;
+    const words = n === 0 ? "No creators assigned" : `Looks after ${n === 1 ? "1 creator" : `${n} creators`}`;
+    return can.assign ? (
+      <button
+        type="button"
+        onClick={() => setCreatorsFor(member)}
+        className="text-left text-sm text-ink-2 underline decoration-ctl-hi underline-offset-[3px] hover:text-ink hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        {words}
+      </button>
+    ) : (
+      <span className="text-sm text-ink-2">{words}</span>
+    );
+  };
 
   const twoFactorOn = members.filter((m) => m.twoFactorEnabled).length;
   const teamLede = `${members.length} ${members.length === 1 ? "person" : "people"} on the team. Two-factor sign-in is on for ${twoFactorOn} of ${members.length}${twoFactorOn < members.length ? "; ask the rest to turn it on in Security settings" : ""}.`;
@@ -447,6 +475,8 @@ export default function TeamClient({
                         )}
                       </div>
 
+                      <div className="mt-3">{looksAfter(member)}</div>
+
                       <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
                         {member.lastActiveAt
@@ -474,6 +504,7 @@ export default function TeamClient({
                   <TableRow>
                     <TableHead>Member</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Creators</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Last Active</TableHead>
                     <TableHead>Security</TableHead>
@@ -507,6 +538,7 @@ export default function TeamClient({
                       <TableCell>
                         <RoleBadge role={roleById.get(member.roleId)} />
                       </TableCell>
+                      <TableCell>{looksAfter(member)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span
@@ -547,6 +579,13 @@ export default function TeamClient({
           </Card>
         </>
       )}
+
+      <MemberCreatorsDialog
+        member={creatorsFor}
+        seesOnlyAssigned={!!(creatorsFor && roleById.get(creatorsFor.roleId)?.seesOnlyAssigned)}
+        onOpenChange={(open) => !open && setCreatorsFor(null)}
+        onSaved={(id, count) => setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, assignedCount: count } : m)))}
+      />
 
       {/* Edit Role Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

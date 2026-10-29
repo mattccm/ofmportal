@@ -92,6 +92,7 @@ const DEFS: Record<AreaId, Omit<PermissionDef, "area">[]> = {
     P("creators.invite", "Add and invite creators", "Add creators and make or send their invite links.", "add and invite", { implies: ["creators.view"] }),
     P("creators.edit", "Edit creators", "Change a creator's profile, contact details, tags and notes.", "edit", { implies: ["creators.view"] }),
     P("creators.groups", "Manage creator groups", "Create groups and choose who is in them.", "manage groups", { implies: ["creators.view"] }),
+    P("creators.assign", "Assign creators to teammates", "Choose which teammates look after a creator. Someone whose role sees only their assigned creators sees just those.", "assign to teammates", { implies: ["creators.view"] }),
     P("creators.import", "Import creators", "Add many creators at once from a spreadsheet.", "import", { implies: ["creators.view"] }),
     P("creators.pauseReminders", "Pause a creator's reminders", "Turn a creator's reminders off, and set their quiet hours and reminder settings.", "pause reminders", { implies: ["creators.view"] }),
     P("creators.resetAccess", "Reset creator access", "Send a password reset or a new invite link so a creator can sign in again.", "reset access", { dangerous: true, implies: ["creators.view"] }),
@@ -219,7 +220,7 @@ export function dependentsOf(key: string): string[] {
  * exactly what it could do: it gets each new key when it held any of the
  * stand-ins (a built-in role gets its preset's default instead).
  */
-export const CATALOGUE_REV = 3;
+export const CATALOGUE_REV = 4;
 export const SPLIT_FROM: Record<string, string[]> = {
   "activity.view": ["overview.view", "requests.view", "creators.view", "review.view"],
   "requests.upload": ["requests.edit"],
@@ -233,6 +234,7 @@ export const SPLIT_FROM: Record<string, string[]> = {
   "reminders.templates": ["reminders.rules"],
   "settings.oversightKeywords": ["settings.oversight"],
   "settings.sms": ["settings.integrations"],
+  "creators.assign": ["creators.edit"],
 };
 
 /** Keys a role saved at an older catalogue revision should also hold */
@@ -252,7 +254,9 @@ export function upgradeKeys(keys: string[], rev: number, presetKeys?: string[]):
 export type CreatorScope =
   | { type: "all" }
   | { type: "groups"; groupIds: string[] }
-  | { type: "creators"; creatorIds: string[] };
+  | { type: "creators"; creatorIds: string[] }
+  /** Each person sees the creators assigned to them (User.assignedCreatorIds); resolved to "creators" in their Access */
+  | { type: "assigned" };
 
 /**
  * Team scope. Role ids are preset ids ("owner", "admin", "manager", "member")
@@ -330,6 +334,7 @@ const ADMIN_ONLY = [
 const MANAGER_UP = [
   "creators.invite",
   "creators.edit",
+  "creators.assign",
   "creators.import",
   "creators.pauseReminders",
   "requests.watchers",
@@ -416,6 +421,7 @@ function names(ids: string[], map: Record<string, string> | undefined, noun: str
 
 export function creatorScopeSentence(scope: CreatorScope, n: SummaryNames = {}): string {
   if (scope.type === "all") return "Sees every creator.";
+  if (scope.type === "assigned") return "Sees only the creators assigned to them.";
   if (scope.type === "groups") {
     return scope.groupIds.length === 0
       ? "Sees no creators: no group is chosen yet."
@@ -491,7 +497,8 @@ export function roleWithin(role: RoleShape, actor: RoleShape): boolean {
 
   const ac = actor.creatorScope;
   const rc = role.creatorScope;
-  if (ac.type !== "all") {
+  // "Assigned to them" is bounded by assignments, which only reach creators the assigner can see
+  if (ac.type !== "all" && rc.type !== "assigned") {
     if (rc.type === "all") return false;
     if (rc.type !== ac.type) return false;
     if (rc.type === "groups" && ac.type === "groups" && !subset(rc.groupIds, ac.groupIds)) return false;

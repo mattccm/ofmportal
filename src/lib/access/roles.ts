@@ -24,14 +24,15 @@ import {
  * carry the new shape, each marked `version: 2`:
  *   permissions          { version: 2, rev, preset?: "admin"|"manager"|"member", keys: string[] }
  *                        (rev = the catalogue revision the keys were saved at; see upgradeKeys)
- *   creatorVisibility    { version: 2, type: "all" | "groups" | "creators", groupIds?, creatorIds? }
+ *   creatorVisibility    { version: 2, type: "all" | "groups" | "creators" | "assigned", groupIds?, creatorIds? }
+ *                        ("assigned": each person's User.assignedCreatorIds, read again since 2026-10-29)
  *   teamMemberVisibility { version: 2, type: "all" | "roles" | "members" | "self", roleIds?, memberIds? }
  *   dataFieldVisibility  { version: 2 }  (creator information is now permission keys)
  * Admin, Manager and Member are CustomRole rows with isSystem: true, created
  * lazily per agency from PRESETS. Owner has no row: it is User.role = OWNER.
  * Older (v1) rows are read through a best-effort conversion and rewritten in
- * v2 the next time they are saved. User.permissionOverrides,
- * assignedCreatorIds and activityRestrictions are no longer read.
+ * v2 the next time they are saved. User.permissionOverrides and
+ * activityRestrictions are no longer read.
  */
 
 export type RoleKind = "owner" | "preset" | "custom";
@@ -93,7 +94,9 @@ export function parseCreatorScope(v: unknown): CreatorScope {
   if (!o) return ALL_CREATORS;
   if (o.type === "groups") return { type: "groups", groupIds: strings(o.groupIds) };
   if (o.type === "creators" || o.type === "specific") return { type: "creators", creatorIds: strings(o.creatorIds) };
-  return ALL_CREATORS; // "all", and legacy "assigned" (never enforced)
+  // v2 "assigned" is enforced; the v1 "assigned" was never enforced, so it stays "all"
+  if (o.type === "assigned" && o.version === 2) return { type: "assigned" };
+  return ALL_CREATORS;
 }
 
 export function parseTeamScope(v: unknown): TeamScope {

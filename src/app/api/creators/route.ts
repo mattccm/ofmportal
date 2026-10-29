@@ -14,6 +14,7 @@ import { creatorInviteLink, inviteExpiry, newInviteToken } from "@/lib/invites";
 import { canSeeCreator, creatorWhere, redactCreator, requireAccess } from "@/lib/access/server";
 import type { Prisma } from "@prisma/client";
 import { CREATOR_PICKER_KEYS } from "./creator-access";
+import { assignCreator } from "@/lib/assignments";
 
 const createCreatorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -194,7 +195,10 @@ export async function POST(req: NextRequest) {
       },
     });
     // A role that sees only chosen creators won't see this one until an admin adds it
-    const visibleToYou = scope.type !== "creators";
+    // A role that sees its assigned creators gets this one assigned, so it shows
+    // for whoever added it; one that sees chosen creators waits for an admin
+    if (access.creatorScopeSource === "assigned") await assignCreator(session.user.id, creator.id);
+    const visibleToYou = access.creatorScopeSource === "assigned" || scope.type !== "creators";
 
     const inviteLink = creatorInviteLink(inviteToken);
 

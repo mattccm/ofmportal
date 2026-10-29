@@ -20,6 +20,7 @@ async function getTeamMembers(access: Access, presetRowIds: Record<string, strin
       createdAt: true,
       twoFactorEnabled: true,
       customRoleId: true,
+      assignedCreatorIds: true,
       activityLogs: {
         take: 10,
         orderBy: { createdAt: "desc" },
@@ -36,8 +37,9 @@ async function getTeamMembers(access: Access, presetRowIds: Record<string, strin
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });
 
-  return members.map((member) => ({
+  return members.map(({ assignedCreatorIds, ...member }) => ({
     ...member,
+    assignedCount: Array.isArray(assignedCreatorIds) ? assignedCreatorIds.length : 0,
     roleId: roleIdOf(member, presetRowIds as Record<string, "admin" | "manager" | "member">),
     // Active within the last 5 minutes
     isOnline: member.lastActiveAt ? Date.now() - new Date(member.lastActiveAt).getTime() < 5 * 60 * 1000 : false,
@@ -70,6 +72,7 @@ export default async function TeamPage() {
       description: r.description,
       memberCount: r.memberCount,
       grantable: canGrant(access, r),
+      seesOnlyAssigned: r.kind !== "owner" && r.creatorScope.type === "assigned",
     }));
     [members, invites] = await Promise.all([
       getTeamMembers(access, presetRowIds),
@@ -91,6 +94,7 @@ export default async function TeamPage() {
         remove: access.has("team.remove"),
         manageRoles: access.has("roles.manage"),
         isOwner: access.isOwner,
+        assign: access.has("creators.assign"),
       }}
     />
   );

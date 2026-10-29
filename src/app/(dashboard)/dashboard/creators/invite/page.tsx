@@ -75,7 +75,7 @@ function InviteCreatorForm({
   see: { phone: boolean; preferences: boolean; notes: boolean };
   canBundle: boolean;
   /** "groups": the new creator must go in one of the role's groups to stay visible */
-  creatorScope: "all" | "groups" | "creators";
+  creatorScope: "all" | "groups" | "creators" | "assigned";
 }) {
   const needsGroup = creatorScope === "groups";
   const [groups, setGroups] = useState<GroupOption[] | null>(null);
@@ -307,6 +307,12 @@ function InviteCreatorForm({
                 </>
               )}
             </div>
+          )}
+
+          {creatorScope === "assigned" && (
+            <p className="text-[13px] text-ink-2">
+              Your role sees the creators assigned to you, so this creator is assigned to you when you add them.
+            </p>
           )}
 
           {creatorScope === "creators" && (

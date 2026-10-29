@@ -8,7 +8,7 @@ import { LINK_CARDS, type LinkCardKey } from "@/lib/link-cards";
 /**
  * The picture chat apps show when someone pastes a portal link (Open Graph
  * image, 1200×630). The Title Wall in one frame: the night ground, the CCM
- * wordmark, a cover tile with the heading in Onest 800, one yellow action.
+ * mark and wordmark, a cover tile with the heading in Onest 800, one yellow action.
  * Built once at deploy; generic on purpose (no names, nothing from the link).
  */
 
@@ -35,13 +35,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ card: s
   const { card } = await params;
   const key = card.replace(/\.png$/, "") as LinkCardKey;
   const c = LINK_CARDS[key] ?? LINK_CARDS.default;
-  const [w400, w600, w800] = await Promise.all([font(400), font(600), font(800)]);
+  const [w400, w600, w800, mark] = await Promise.all([
+    font(400),
+    font(600),
+    font(800),
+    readFile(join(process.cwd(), "public/email/ccm-mark.png")),
+  ]);
+  const markSrc = `data:image/png;base64,${mark.toString("base64")}`;
 
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: C.ground, padding: "56px 64px", fontFamily: "Onest" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.035em", color: C.ink }}>{BRAND.name}</div>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain img */}
+            <img src={markSrc} width={52} height={52} alt="" style={{ marginRight: 16 }} />
+            <div style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.035em", color: C.ink }}>{BRAND.name}</div>
+          </div>
           <div style={{ fontSize: 24, fontWeight: 400, color: C.ink2 }}>{new URL(getAppUrl()).host}</div>
         </div>
         <div

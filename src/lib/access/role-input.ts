@@ -19,6 +19,7 @@ export const roleInputSchema = z.object({
       z.object({ type: z.literal("all") }),
       z.object({ type: z.literal("groups"), groupIds: z.array(z.string()).max(500) }),
       z.object({ type: z.literal("creators"), creatorIds: z.array(z.string()).max(5000) }),
+      z.object({ type: z.literal("assigned") }),
     ])
     .optional(),
   teamScope: z

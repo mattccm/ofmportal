@@ -12,7 +12,7 @@ export const metadata = { title: "Roles and permissions" };
 
 function scopeWords(c: CreatorScope, t: TeamScope): string {
   const creators =
-    c.type === "all" ? "every creator" : c.type === "groups" ? `creators in ${c.groupIds.length} ${c.groupIds.length === 1 ? "group" : "groups"}` : `${c.creatorIds.length} chosen ${c.creatorIds.length === 1 ? "creator" : "creators"}`;
+    c.type === "all" ? "every creator" : c.type === "assigned" ? "the creators assigned to them" : c.type === "groups" ? `creators in ${c.groupIds.length} ${c.groupIds.length === 1 ? "group" : "groups"}` : `${c.creatorIds.length} chosen ${c.creatorIds.length === 1 ? "creator" : "creators"}`;
   const team =
     t.type === "all" ? "the whole team" : t.type === "self" ? "only themselves on the team" : t.type === "roles" ? `teammates in ${t.roleIds.length} ${t.roleIds.length === 1 ? "role" : "roles"}` : `${t.memberIds.length} chosen ${t.memberIds.length === 1 ? "teammate" : "teammates"}`;
   return `Sees ${creators} and ${team}`;

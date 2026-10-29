@@ -34,12 +34,17 @@ export interface Access {
   has(key: PermissionKey): boolean;
   hasAny(keys: PermissionKey[]): boolean;
   creatorScope: CreatorScope;
+  /** "assigned": the role sees each person's assigned creators (creatorScope holds their list) */
+  creatorScopeSource: "role" | "assigned";
   teamScope: TeamScope;
 }
 
-function build(userId: string, agencyId: string, role: RoleRecord): Access {
+function build(userId: string, agencyId: string, role: RoleRecord, assignedCreatorIds: string[] = []): Access {
   const isOwner = role.kind === "owner";
   const keys = withImplied(role.keys);
+  // "Creators assigned to them" becomes this person's own list, so every query
+  // below only ever sees all / groups / creators
+  const assigned = !isOwner && role.creatorScope.type === "assigned";
   return {
     userId,
     agencyId,
@@ -48,14 +53,15 @@ function build(userId: string, agencyId: string, role: RoleRecord): Access {
     keys,
     has: (k) => isOwner || keys.has(k),
     hasAny: (ks) => isOwner || ks.some((k) => keys.has(k)),
-    creatorScope: isOwner ? { type: "all" } : role.creatorScope,
+    creatorScope: isOwner ? { type: "all" } : assigned ? { type: "creators", creatorIds: assignedCreatorIds } : role.creatorScope,
+    creatorScopeSource: assigned ? "assigned" : "role",
     teamScope: isOwner ? { type: "all" } : role.teamScope,
   };
 }
 
 /** Access for an already-known user row (also used by tests) */
-export function accessFor(userId: string, agencyId: string, role: RoleRecord): Access {
-  return build(userId, agencyId, role);
+export function accessFor(userId: string, agencyId: string, role: RoleRecord, assignedCreatorIds: string[] = []): Access {
+  return build(userId, agencyId, role, assignedCreatorIds);
 }
 
 /**
@@ -71,6 +77,7 @@ export async function getAccess(session?: Session | null): Promise<Access | null
     select: {
       role: true,
       agencyId: true,
+      assignedCreatorIds: true,
       customRole: {
         select: {
           id: true,
@@ -90,11 +97,12 @@ export async function getAccess(session?: Session | null): Promise<Access | null
   });
   if (!user?.agencyId || user.agencyId !== s.user.agencyId) return null;
   if (user.role === "OWNER") return build(s.user.id, user.agencyId, OWNER_RECORD);
+  const assigned = Array.isArray(user.assignedCreatorIds) ? user.assignedCreatorIds.filter((x): x is string => typeof x === "string") : [];
   if (user.customRole && user.customRole.agencyId === user.agencyId) {
-    return build(s.user.id, user.agencyId, rowToRole(user.customRole));
+    return build(s.user.id, user.agencyId, rowToRole(user.customRole), assigned);
   }
   const preset = (PRESET_IDS as string[]).find((p) => ENUM_FOR_BUILT_IN[p as PresetId] === user.role) as PresetId | undefined;
-  return build(s.user.id, user.agencyId, await loadPresetRow(user.agencyId, preset ?? "member"));
+  return build(s.user.id, user.agencyId, await loadPresetRow(user.agencyId, preset ?? "member"), assigned);
 }
 
 /** Per-render access for server components and layouts (deduplicated with React cache) */
@@ -148,6 +156,8 @@ export function creatorScopeWhere(access: Pick<Access, "creatorScope">): Prisma.
   const s = access.creatorScope;
   if (s.type === "groups") return { groupMemberships: { some: { groupId: { in: s.groupIds } } } };
   if (s.type === "creators") return { id: { in: s.creatorIds } };
+  // Resolved in build(); if it ever arrives unresolved, show nothing
+  if (s.type === "assigned") return { id: { in: [] } };
   return {};
 }
 
@@ -352,7 +362,7 @@ export function toClientAccess(access: Access): ClientAccess {
     roleId: access.role.id,
     roleName: access.role.name,
     keys: access.isOwner ? Object.keys(PERMISSION_BY_KEY) : [...access.keys],
-    creatorScope: access.creatorScope.type,
+    creatorScope: access.creatorScopeSource === "assigned" ? "assigned" : access.creatorScope.type,
     teamScope: access.teamScope.type,
   };
 }

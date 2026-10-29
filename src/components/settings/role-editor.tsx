@@ -880,6 +880,15 @@ function CreatorScopePicker({
       {value.type === "creators" && (
         <CheckList label="Creators" items={creators} chosen={creatorIds} onChange={(ids) => onChange({ type: "creators", creatorIds: ids })} disabled={disabled} filterable />
       )}
+      <Choice
+        name="creator-scope"
+        value="assigned"
+        checked={value.type === "assigned"}
+        onChange={() => onChange({ type: "assigned" })}
+        disabled={disabled}
+        title="Creators assigned to them"
+        hint="Each person sees only the creators assigned to them. Assign on a creator's profile (Looked after by) or on the Team page."
+      />
     </ScopeBlock>
   );
 }

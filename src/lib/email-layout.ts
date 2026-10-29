@@ -20,8 +20,10 @@ export interface EmailBranding {
   agencyName: string;
   /** Display name used for the email "From" header */
   fromName: string;
-  /** Kept for callers that pass it; the header is always the typeset wordmark */
+  /** The agency's own logo from Branding (unused in the dark email: it may be dark on light) */
   logoUrl: string | null;
+  /** Absolute URL of the white CCM mark (public/email/ccm-mark.png) shown before the wordmark */
+  markUrl?: string | null;
   /** The button fill: the one yellow */
   primaryColor: string;
   /** Ink on the button */
@@ -127,6 +129,16 @@ function coverSize(heading: string): { size: number; tracking: string } {
 }
 
 /**
+ * The header: the white CCM mark, then the typeset wordmark. When a mail app
+ * blocks images, the mark (empty alt) drops out and the wordmark still reads.
+ */
+function wordmark(branding: Pick<EmailBranding, "markUrl">): string {
+  const text = `<span style="font-family:${FONT_STACK};font-size:22px;line-height:28px;font-weight:800;letter-spacing:-0.035em;color:${C.ink};">${escapeHtml(BRAND.name)}</span>`;
+  if (!branding.markUrl) return text;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="${escapeHtml(branding.markUrl)}" width="28" height="28" alt="" style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;"></td><td style="vertical-align:middle;">${text}</td></tr></table>`;
+}
+
+/**
  * Wrap pre-built (already-escaped) content in the shell: wordmark, the cover
  * tile with the heading (and an optional line or chip under it), the content
  * on the ground, then the footer. `heading` is plain text.
@@ -188,7 +200,7 @@ ${coverFoot ? `<div style="margin:14px 0 0;font-family:${FONT_STACK};font-size:1
         <td align="center" style="padding:28px 0 36px;">
           <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
             <tr>
-              <td class="px" style="padding:0 24px 22px;font-family:${FONT_STACK};font-size:22px;line-height:1;font-weight:800;letter-spacing:-0.035em;color:${C.ink};">${escapeHtml(BRAND.name)}</td>
+              <td class="px" style="padding:0 24px 22px;">${wordmark(branding)}</td>
             </tr>
             ${coverHtml}
             <tr>

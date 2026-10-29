@@ -1,5 +1,6 @@
 "use client";
 
+import { CreatorTeammates } from "@/components/creators/creator-teammates";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -468,7 +469,7 @@ export function CreatorVaultClient({
             </h1>
             <Pill tone={status.tone}>{status.label}</Pill>
           </div>
-          <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+          <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-5">
             {creator.preferredContact && (
               <div>
                 <dt className="text-[13px] text-ink-2">Prefers</dt>
@@ -491,6 +492,7 @@ export function CreatorVaultClient({
               <dd className="mt-0.5 font-semibold tabular-nums text-ink">{quietLabel(data.quiet)}</dd>
               <dd className="text-[13px] text-ink-2">{data.quiet.isDefault ? "the default, their time" : "their time"}</dd>
             </div>
+            <CreatorTeammates creatorId={creator.id} creatorName={creator.name} />
             <div>
               <dt className="text-[13px] text-ink-2">Joined</dt>
               <dd className="mt-0.5 font-semibold text-ink">{format(new Date(creator.createdAt), "d MMM yyyy")}</dd>

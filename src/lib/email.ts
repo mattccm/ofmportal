@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { db } from "./db";
 import type { BrandingSettings } from "./branding";
 import { BRAND } from "./brand";
+import { getAppUrl } from "./app-url";
 import { reminderUrgencyText, smsFirstName } from "./reminder-copy";
 import {
   EMAIL_COLORS,
@@ -57,6 +58,7 @@ const FALLBACK_BRANDING: EmailBranding = {
   agencyName: BRAND.name,
   fromName: BRAND.name,
   logoUrl: null,
+  markUrl: `${getAppUrl()}/email/ccm-mark.png`,
   primaryColor: EMAIL_COLORS.acc,
   buttonTextColor: EMAIL_COLORS.accInk,
   signature: null,
@@ -119,6 +121,7 @@ export async function loadEmailBranding(
       agencyName: agency.name,
       fromName: senderName,
       logoUrl,
+      markUrl: `${getAppUrl()}/email/ccm-mark.png`,
       primaryColor: EMAIL_COLORS.acc,
       buttonTextColor: EMAIL_COLORS.accInk,
       signature: normalizeSignature(branding.emailSignature),
