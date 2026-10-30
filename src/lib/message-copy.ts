@@ -9,8 +9,10 @@ import { z } from "zod";
  * the request tile, the button, the footer) stays fixed, so an edit can't
  * break the design.
  *
- * Discretion: {{requestTitle}} may appear only in an email's message, never in
- * a subject, heading or text, which show on lock screens and in previews.
+ * Discretion: the request and template names never go in a text (texts show
+ * on lock screens). In an email's subject, heading or button they're allowed
+ * since 2026-10-30 (the owner wants request names in subjects) with a
+ * heads-up in the editor; the standard wording never uses them there.
  */
 
 export const COPY_KEYS = [
@@ -40,20 +42,32 @@ export interface FillIn {
 }
 
 const FIRST: FillIn = { key: "firstName", label: "First name", sample: "Jade" };
+const FULL: FillIn = { key: "fullName", label: "Full name", sample: "Jade Kim" };
 const AGENCY: FillIn = { key: "agencyName", label: "Agency", sample: "CCM" };
+const TEAM: FillIn = { key: "teamMember", label: "Who looks after them", sample: "Fer" };
+const TITLE: FillIn = { key: "requestTitle", label: "Request name", sample: "Weekend story set" };
+const TEMPLATE: FillIn = { key: "templateName", label: "Template", sample: "Story clips" };
+const PRIORITY: FillIn = { key: "priority", label: "Priority", sample: "High" };
+const ITEMS: FillIn = { key: "itemCount", label: "Number of items", sample: "5" };
+const COUNT: FillIn = { key: "requestCount", label: "Number of new requests", sample: "1" };
 const DUE: FillIn = { key: "due", label: "Due, in words", sample: "due in 3 days" };
 const DUE_DATE: FillIn = { key: "dueDate", label: "Due date", sample: "Fri 3 Nov" };
-const TITLE: FillIn = { key: "requestTitle", label: "Request title (message only)", sample: "Weekend story set" };
+const DAYS_LEFT: FillIn = { key: "daysLeft", label: "Days left", sample: "3" };
+const DAYS_OVER: FillIn = { key: "daysOverdue", label: "Days overdue", sample: "2" };
 const LINK: FillIn = { key: "link", label: "Link (texts)", sample: "https://portal.of-m.com/creator/requests/cm0000000000000000000000" };
 
+/** Fill-ins that name the request: never in a text, and a heads-up anywhere a lock screen or inbox list shows */
+export const REVEALING_FILL_INS = ["requestTitle", "templateName"];
+
+const REQUEST = [TITLE, TEMPLATE, PRIORITY, ITEMS];
 export const COPY_MESSAGES: Record<CopyKey, { label: string; when: string; fillIns: FillIn[]; smsNeedsLink: boolean }> = {
-  invite: { label: "Portal invite", when: "A creator is invited to set up their portal", fillIns: [FIRST, AGENCY, LINK], smsNeedsLink: true },
-  "request.new": { label: "New request", when: "A request is sent", fillIns: [FIRST, AGENCY, DUE_DATE, LINK], smsNeedsLink: true },
-  "reminder.before": { label: "Reminder before the due day", when: "Reminders before the due day", fillIns: [FIRST, AGENCY, DUE, DUE_DATE, TITLE, LINK], smsNeedsLink: true },
-  "reminder.dueToday": { label: "Reminder on the due day", when: "The reminder on the due day", fillIns: [FIRST, AGENCY, DUE, DUE_DATE, TITLE, LINK], smsNeedsLink: true },
-  "reminder.overdue": { label: "Reminder once overdue", when: "Reminders once a request is overdue", fillIns: [FIRST, AGENCY, DUE, DUE_DATE, TITLE, LINK], smsNeedsLink: true },
-  "request.changes": { label: "Changes requested", when: "Someone asks for changes", fillIns: [FIRST, AGENCY, TITLE, LINK], smsNeedsLink: true },
-  "request.approved": { label: "Content approved", when: "Content is approved", fillIns: [FIRST, AGENCY, TITLE], smsNeedsLink: false },
+  invite: { label: "Portal invite", when: "A creator is invited to set up their portal", fillIns: [FIRST, FULL, AGENCY, LINK], smsNeedsLink: true },
+  "request.new": { label: "New request", when: "A request is sent", fillIns: [FIRST, FULL, AGENCY, TEAM, ...REQUEST, DUE_DATE, COUNT, LINK], smsNeedsLink: true },
+  "reminder.before": { label: "Reminder before the due day", when: "Reminders before the due day", fillIns: [FIRST, FULL, AGENCY, TEAM, ...REQUEST, DUE, DUE_DATE, DAYS_LEFT, LINK], smsNeedsLink: true },
+  "reminder.dueToday": { label: "Reminder on the due day", when: "The reminder on the due day", fillIns: [FIRST, FULL, AGENCY, TEAM, ...REQUEST, DUE, DUE_DATE, LINK], smsNeedsLink: true },
+  "reminder.overdue": { label: "Reminder once overdue", when: "Reminders once a request is overdue", fillIns: [FIRST, FULL, AGENCY, TEAM, ...REQUEST, DUE, DUE_DATE, DAYS_OVER, LINK], smsNeedsLink: true },
+  "request.changes": { label: "Changes requested", when: "Someone asks for changes", fillIns: [FIRST, FULL, AGENCY, TEAM, TITLE, TEMPLATE, LINK], smsNeedsLink: true },
+  "request.approved": { label: "Content approved", when: "Content is approved", fillIns: [FIRST, FULL, AGENCY, TEAM, TITLE, TEMPLATE], smsNeedsLink: false },
 };
 
 export const DEFAULT_COPY: Record<CopyKey, MessageCopy> = {
@@ -113,8 +127,8 @@ export const SEVERAL_REQUESTS_SUBJECT = "You have new content requests";
 
 export const FIELD_LIMITS: Record<CopyField, number> = { subject: 120, heading: 60, body: 1500, button: 40, sms: 320 };
 
-/** Fields that can show outside the email body (lock screens, inbox lists, previews) */
-const DISCREET_FIELDS: CopyField[] = ["subject", "heading", "sms", "button"];
+/** Email fields that show outside the message (lock screens, inbox lists, previews) */
+const PREVIEWED_FIELDS: CopyField[] = ["subject", "heading", "button"];
 
 export type CopyOverrides = Partial<Record<CopyKey, Partial<MessageCopy>>>;
 export type AgencyCopy = Record<CopyKey, MessageCopy>;
@@ -172,7 +186,7 @@ export function copyProblems(key: CopyKey, copy: MessageCopy): { field: CopyFiel
     for (const m of value.matchAll(FILL_RE)) {
       const name = m[1];
       if (!known.has(name)) problems.push({ field, message: `{{${name}}} isn't a fill-in for this message` });
-      else if (name === "requestTitle" && DISCREET_FIELDS.includes(field)) problems.push({ field, message: "The request title can only go in the message, not where a lock screen shows it" });
+      else if (REVEALING_FILL_INS.includes(name) && field === "sms") problems.push({ field, message: "Request and template names can't go in a text: texts show on lock screens" });
       else if (name === "link" && field !== "sms") problems.push({ field, message: "{{link}} is for texts; the email has its own button" });
     }
   }
@@ -180,19 +194,67 @@ export function copyProblems(key: CopyKey, copy: MessageCopy): { field: CopyFiel
   return problems;
 }
 
+/** Things worth knowing before saving, that don't stop it (e.g. a request name in a subject) */
+export function copyWarnings(key: CopyKey, copy: MessageCopy): { field: CopyField; message: string }[] {
+  const out: { field: CopyField; message: string }[] = [];
+  for (const field of PREVIEWED_FIELDS) {
+    const names = [...(copy[field] ?? "").matchAll(FILL_RE)].map((m) => m[1]).filter((n) => REVEALING_FILL_INS.includes(n));
+    if (names.length)
+      out.push({
+        field,
+        message:
+          field === "subject"
+            ? "The request or template name will show on lock screens, in notifications and in inbox lists. Fine if your names are safe to be seen."
+            : "The request or template name will show to anyone who sees this email open.",
+      });
+  }
+  return out;
+}
+
 /** The fill-in values for a message, from what the sender knows */
 export interface CopyValues {
   firstName: string;
+  fullName?: string;
   agencyName?: string;
+  teamMember?: string;
+  requestTitle?: string;
+  templateName?: string;
+  priority?: string;
+  itemCount?: string;
+  requestCount?: string;
   due?: string;
   dueDate?: string;
-  requestTitle?: string;
+  daysLeft?: string;
+  daysOverdue?: string;
   link?: string;
+}
+
+/** Fill-ins a sender has to look up (the request's template, priority, items, who looks after the creator) */
+export const LOOKED_UP_FILL_INS = ["templateName", "priority", "itemCount", "teamMember"] as const;
+
+/** Does any of this wording use one of these fill-ins? */
+export function usesFillIn(copy: MessageCopy, names: readonly string[]): boolean {
+  return Object.values(copy).some((t) => [...String(t).matchAll(FILL_RE)].some((m) => names.includes(m[1])));
 }
 
 export function sampleValues(key: CopyKey, daysUntilDue = 3): CopyValues {
   const due = key === "reminder.dueToday" ? "due today" : key === "reminder.overdue" ? "2 days overdue" : `due in ${daysUntilDue} days`;
-  return { firstName: "Jade", agencyName: "CCM", due, dueDate: "Fri 3 Nov", requestTitle: "Weekend story set", link: LINK.sample };
+  return {
+    firstName: "Jade",
+    fullName: "Jade Kim",
+    agencyName: "CCM",
+    teamMember: "Fer",
+    requestTitle: "Weekend story set",
+    templateName: "Story clips",
+    priority: "High",
+    itemCount: "5",
+    requestCount: "1",
+    due,
+    dueDate: "Fri 3 Nov",
+    daysLeft: String(daysUntilDue),
+    daysOverdue: "2",
+    link: LINK.sample,
+  };
 }
 
 /** The text a creator gets (before the "CCM: " prefix) */

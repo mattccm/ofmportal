@@ -17,7 +17,7 @@ import { ReminderSettingsPanel } from "./reminder-settings-panel";
 import { EmptyLine, Panel, SettingsSection } from "@/components/creators/people-ui";
 import { cityOf, contactLabel, plural, type QuietHours } from "@/components/creators/insights";
 import { reminderUrgencyText, smsFirstName, withBrandPrefix } from "@/lib/reminder-copy";
-import { composeSms, fill, type AgencyCopy, type CopyKey } from "@/lib/message-copy";
+import { composeSms, fill, sampleValues, type AgencyCopy, type CopyKey } from "@/lib/message-copy";
 import { cn } from "@/lib/utils";
 import { useAccess } from "@/lib/access/client";
 import { NoAccess } from "@/components/access/no-access";
@@ -373,7 +373,18 @@ export function TimingPanel({ messaging, copy }: { messaging: AgencyMessaging; c
   const link = `${ctx?.portalBase ?? "/portal/"}…`;
   // The words come from Reminders > Wording, as the senders use them
   const copyKey: CopyKey | null = moment ? (moment.daysUntilDue < 0 ? "reminder.overdue" : moment.daysUntilDue === 0 ? "reminder.dueToday" : "reminder.before") : null;
-  const fillValues = moment ? { firstName: smsFirstName(firstName), due: reminderUrgencyText(moment.daysUntilDue), link } : null;
+  // Sample request details (this preview has no request), then the real creator and timing
+  const fillValues =
+    moment && copyKey
+      ? {
+          ...sampleValues(copyKey, Math.max(0, moment.daysUntilDue)),
+          firstName: smsFirstName(firstName),
+          fullName: firstName,
+          due: reminderUrgencyText(moment.daysUntilDue),
+          daysOverdue: String(Math.max(0, -moment.daysUntilDue)),
+          link,
+        }
+      : null;
   const sms = copyKey && fillValues ? withBrandPrefix(composeSms(copy[copyKey], fillValues)) : "";
   const subject = copyKey && fillValues ? fill(copy[copyKey].subject, fillValues).trim() : "";
 

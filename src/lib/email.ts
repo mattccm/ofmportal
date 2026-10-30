@@ -26,7 +26,7 @@ import {
   composeReminderEmail,
   type ComposedEmail,
 } from "./creator-emails";
-import { loadMessageCopy } from "./message-copy-server";
+import { loadMessageCopy, lookedUpFillIns } from "./message-copy-server";
 
 // The layout helpers live in email-layout.ts (pure, so the wording preview can
 // use them); re-exported for the senders that build their own content.
@@ -435,6 +435,11 @@ export async function renderBulkEmail(
 // uses. Staff and account emails keep fixed wording. All share the shell in
 // src/lib/email-layout.ts.
 
+/** Days until due, and days overdue, as fill-in numbers */
+function dayCounts(daysUntilDue: number) {
+  return { daysLeft: String(Math.max(0, daysUntilDue)), daysOverdue: String(Math.max(0, -daysUntilDue)) };
+}
+
 function send(to: string, email: ComposedEmail, branding: EmailBranding) {
   return sendEmail({ to, subject: email.subject, html: email.html, text: email.text, fromName: branding.fromName, replyTo: branding.replyTo ?? undefined });
 }
@@ -453,7 +458,7 @@ export async function sendCreatorInviteEmail({
   agencyId?: string;
 }) {
   const [branding, copy] = await Promise.all([loadEmailBranding(agencyId, agencyName), loadMessageCopy(agencyId)]);
-  const email = composeInviteEmail(copy.invite, { firstName: smsFirstName(creatorName), agencyName: branding.agencyName, link: inviteLink }, branding);
+  const email = composeInviteEmail(copy.invite, { firstName: smsFirstName(creatorName), fullName: creatorName, agencyName: branding.agencyName, link: inviteLink }, branding);
   return send(to, email, branding);
 }
 
@@ -531,7 +536,16 @@ export async function sendContentRequestEmail({
   const [branding, copy] = await Promise.all([loadEmailBranding(agencyId, agencyName), loadMessageCopy(agencyId)]);
   const email = composeNewRequestEmail(
     copy["request.new"],
-    { firstName: smsFirstName(creatorName), agencyName: branding.agencyName, requestTitle, dueDate, link: portalLink },
+    {
+      firstName: smsFirstName(creatorName),
+      fullName: creatorName,
+      agencyName: branding.agencyName,
+      requestTitle,
+      requestCount: String(requestCount),
+      dueDate,
+      link: portalLink,
+      ...(await lookedUpFillIns(copy["request.new"], { link: portalLink })),
+    },
     branding,
     { count: requestCount }
   );
@@ -567,7 +581,17 @@ export async function sendReminderEmail({
   const [branding, copy] = await Promise.all([loadEmailBranding(agencyId), loadMessageCopy(agencyId)]);
   const email = composeReminderEmail(
     copy[reminderCopyKey(daysUntilDue)],
-    { firstName: smsFirstName(creatorName), agencyName: branding.agencyName, due: reminderUrgencyText(daysUntilDue), dueDate, requestTitle, link: portalLink },
+    {
+      firstName: smsFirstName(creatorName),
+      fullName: creatorName,
+      agencyName: branding.agencyName,
+      due: reminderUrgencyText(daysUntilDue),
+      dueDate,
+      requestTitle,
+      ...dayCounts(daysUntilDue),
+      link: portalLink,
+      ...(await lookedUpFillIns(copy[reminderCopyKey(daysUntilDue)], { link: portalLink })),
+    },
     branding,
     { daysUntilDue, customMessage, isTest }
   );
@@ -589,7 +613,11 @@ export async function sendContentApprovedEmail({
 }) {
   const [branding, copy] = await Promise.all([loadEmailBranding(agencyId), loadMessageCopy(agencyId)]);
   const link = portalLink ? portalLink.replace(/\/(portal|creator)\/.*$/, "/creator/dashboard") : undefined;
-  const email = composeApprovedEmail(copy["request.approved"], { firstName: smsFirstName(creatorName), agencyName: branding.agencyName, requestTitle, link }, branding);
+  const email = composeApprovedEmail(
+    copy["request.approved"],
+    { firstName: smsFirstName(creatorName), fullName: creatorName, agencyName: branding.agencyName, requestTitle, link, ...(await lookedUpFillIns(copy["request.approved"], { link: portalLink })) },
+    branding
+  );
   return send(to, email, branding);
 }
 
@@ -611,7 +639,15 @@ export async function sendRevisionRequestEmail({
   const [branding, copy] = await Promise.all([loadEmailBranding(agencyId), loadMessageCopy(agencyId)]);
   const email = composeChangesEmail(
     copy["request.changes"],
-    { firstName: smsFirstName(creatorName), agencyName: branding.agencyName, requestTitle, feedback, link: portalLink },
+    {
+      firstName: smsFirstName(creatorName),
+      fullName: creatorName,
+      agencyName: branding.agencyName,
+      requestTitle,
+      feedback,
+      link: portalLink,
+      ...(await lookedUpFillIns(copy["request.changes"], { link: portalLink })),
+    },
     branding
   );
   return send(to, email, branding);
@@ -634,7 +670,16 @@ export async function sendNewRequestEmail({
   const [branding, copy] = await Promise.all([loadEmailBranding(agencyId), loadMessageCopy(agencyId)]);
   const email = composeNewRequestEmail(
     copy["request.new"],
-    { firstName: smsFirstName(creatorName), agencyName: branding.agencyName, requestTitle, dueDate: "", link: portalLink },
+    {
+      firstName: smsFirstName(creatorName),
+      fullName: creatorName,
+      agencyName: branding.agencyName,
+      requestTitle,
+      requestCount: "1",
+      dueDate: "",
+      link: portalLink,
+      ...(await lookedUpFillIns(copy["request.new"], { link: portalLink })),
+    },
     branding
   );
   return send(to, email, branding);

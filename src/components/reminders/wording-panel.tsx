@@ -17,6 +17,7 @@ import {
   DEFAULT_COPY,
   composeSms,
   copyProblems,
+  copyWarnings,
   isEdited,
   sampleValues,
   smsSegments,
@@ -54,6 +55,7 @@ export function WordingPanel({ initial, branding, canEdit }: { initial: AgencyCo
   const copy = draft[key];
   const meta = COPY_MESSAGES[key];
   const problems = copyProblems(key, copy);
+  const warnings = copyWarnings(key, copy);
   const allProblems = COPY_KEYS.flatMap((k) => copyProblems(k, draft[k]).map((p) => ({ ...p, key: k })));
   const dirty = !same(saved, draft);
   const edited = COPY_KEYS.filter((k) => isEdited(saved[k], k)).length;
@@ -120,7 +122,8 @@ export function WordingPanel({ initial, branding, canEdit }: { initial: AgencyCo
   const field = (f: CopyField, opts: { multiline?: number; hint?: string } = {}) => {
     const id = `wording-${f}`;
     const own = problems.filter((p) => p.field === f);
-    const describedBy = [opts.hint ? `${id}-hint` : null, own.length ? `${id}-err` : null].filter(Boolean).join(" ") || undefined;
+    const heads = warnings.filter((w) => w.field === f);
+    const describedBy = [opts.hint ? `${id}-hint` : null, heads.length ? `${id}-warn` : null, own.length ? `${id}-err` : null].filter(Boolean).join(" ") || undefined;
     const common = {
       id,
       value: copy[f],
@@ -157,6 +160,11 @@ export function WordingPanel({ initial, branding, canEdit }: { initial: AgencyCo
         {opts.hint && (
           <p id={`${id}-hint`} className="mt-1 text-[13px] text-ink-2">
             {opts.hint}
+          </p>
+        )}
+        {heads.length > 0 && (
+          <p id={`${id}-warn`} className="mt-1 text-[13px] text-ink">
+            <span className="font-semibold">Heads-up:</span> {heads.map((w) => w.message).join(" ")}
           </p>
         )}
         {own.length > 0 && (
@@ -213,7 +221,7 @@ export function WordingPanel({ initial, branding, canEdit }: { initial: AgencyCo
 
               <div className="space-y-4">
                 <h3 className="text-[15px] font-semibold text-ink">Email</h3>
-                {field("subject", { hint: "Shows on lock screens and in inbox lists, so it never names the request." })}
+                {field("subject", { hint: "Shows on lock screens, in notifications and in inbox lists." })}
                 {field("heading")}
                 {field("body", { multiline: 6, hint: "A blank line starts a new paragraph. The request and the button are added for you." })}
                 {field("button")}

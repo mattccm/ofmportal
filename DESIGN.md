@@ -302,7 +302,7 @@ Discretion is part of the look. Uploads never show until someone chooses to reve
 - Field-state colour lives only inside tiles; the coloured spine is the request title card's alone.
 - Shelves of fractional width so the next tile always peeks; focus widens a title in place.
 - Flat at rest; soft shadows only on true overlays.
-- Previews hidden until revealed; no request title in any channel that leaves the app.
+- Previews hidden until revealed; no request title in any channel that leaves the app unless staff add it to an email in Wording.
 
 ## Colors
 
@@ -490,13 +490,13 @@ Uploads are hidden by default: a flat plate (6px corners) with an eye-off icon a
 Dialogs on tile-hi, sheets on tile, both with the dialog shadow, 10px corners and 36 to 44px close targets. Popovers, menus, select lists and tooltips are raised panels with a ctl hairline; items are at least 36px and highlight to raised-hi. Toasts sit bottom centre on raised with a ctl border; error icons late, warning icons yellow, success neutral.
 
 ### Email
-The inbox gets the same world (`src/lib/email-layout.ts`, built per message in `src/lib/creator-emails.ts`). On the night ground, a 560px column with 24px gutters (16px on phones). From the top: the typeset "CCM" wordmark (22px 800, -0.035em; never an image, which mail clients block). Then a cover tile with the heading in Cover lettering, sized by length (40, 34 or 28px; 30px on phones), and an optional chip under it. Then the message in 15px ink, the request on a tile (17px 600 title, 14px Quiet Ink meta, a state chip, and the team's note under a hairline). Then the one yellow button (left-aligned, full width on phones), the paste-this-link box in a well in mono, 13px Quiet Ink notes, and a hairline footer in 12 to 13px Quiet Ink. Chips use the state's precomputed 14% tint on the tile, with the glyph before the word (✓ Approved, ↺ Needs changes, ! Overdue). The email declares itself dark only. Gmail's iOS app inverts it in dark mode and it stays legible. The wording is staff-edited plain text (Reminders > Wording) inside this fixed layout. Subjects, headings, buttons and texts never carry the request title.
+The inbox gets the same world (`src/lib/email-layout.ts`, built per message in `src/lib/creator-emails.ts`). On the night ground, a 560px column with 24px gutters (16px on phones). From the top: the typeset "CCM" wordmark (22px 800, -0.035em; never an image, which mail clients block). Then a cover tile with the heading in Cover lettering, sized by length (40, 34 or 28px; 30px on phones), and an optional chip under it. Then the message in 15px ink, the request on a tile (17px 600 title, 14px Quiet Ink meta, a state chip, and the team's note under a hairline). Then the one yellow button (left-aligned, full width on phones), the paste-this-link box in a well in mono, 13px Quiet Ink notes, and a hairline footer in 12 to 13px Quiet Ink. Chips use the state's precomputed 14% tint on the tile, with the glyph before the word (✓ Approved, ↺ Needs changes, ! Overdue). The email declares itself dark only. Gmail's iOS app inverts it in dark mode and it stays legible. The wording is staff-edited plain text (Reminders > Wording) inside this fixed layout. Texts never carry the request or template name; the standard subjects, headings and buttons don't either, but staff may add it to an email's on Reminders > Wording (with a heads-up).
 
 ### Motion
 Controls transition colour in 150ms ease-out; tiles in 200 to 250ms. Choreography runs on GSAP with shared durations (press 100ms, release 220ms, tick 320ms, fill 450ms, flip 500ms, panel 300ms) and power-curve easing, animating only transform and opacity. Nothing animates on page load and no content waits for script. Under reduced motion every state change is instant.
 
 ### Named Rules
-**The Discretion Rule.** Request titles can be explicit, so they never leave the app: tab titles on request pages are generic ("Request · CCM Portal"), SMS bodies carry no title, and email subjects and preheaders carry no title. Upload previews stay hidden, with no image request, until a person reveals them.
+**The Discretion Rule.** Request titles can be explicit, so they never leave the app by default: tab titles on request pages are generic ("Request · CCM Portal"), SMS bodies never carry a request or template name, and the standard email subjects and preheaders carry none. Since 2026-10-30 staff may choose to put the request or template name in an email's subject, heading or button on Reminders > Wording; the editor shows a heads-up that it will appear on lock screens and in inbox lists. Upload previews stay hidden, with no image request, until a person reveals them.
 
 **The Agency Clock Rule.** Every date, due line and countdown is formatted through the display-timezone helpers in `src/components/title-wall/time.ts`, never the machine's local time. A plain date is due at 23:59 on that day in the agency's timezone; a timestamp is used as is.
 
@@ -511,7 +511,7 @@ Controls transition colour in 150ms ease-out; tiles in 200 to 250ms. Choreograph
 - **Do** show field state with cells, spines, labelled strips and tinted chips inside tiles, with the state's icon and word wherever it is written out; take colours, icons and words from the shared vocabulary, never hard-code them.
 - **Do** keep shelves at fractional widths so the next tile peeks, and step the rest of the wall back to tile-dim without dimming its text.
 - **Do** route every date and countdown through `src/components/title-wall/time.ts`, and turn countdowns red only when late or under 48 hours (on the Overview, only when late).
-- **Do** keep previews hidden until revealed and keep request titles out of tab titles, SMS bodies and email subjects.
+- **Do** keep previews hidden until revealed and keep request titles out of tab titles and SMS bodies, and out of email subjects unless staff choose to add them in Wording.
 - **Do** keep controls 40 to 44px on touch and 36px from 768px, with 16px input text on phones.
 
 ### Don't:

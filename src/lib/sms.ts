@@ -2,7 +2,7 @@ import { getAppUrl } from "./app-url";
 import { randomUUID } from "crypto";
 import { reminderUrgencyText, smsFirstName, withBrandPrefix } from "./reminder-copy";
 import { composeSms, type CopyKey, type CopyValues } from "./message-copy";
-import { loadMessageCopy } from "./message-copy-server";
+import { loadMessageCopy, lookedUpFillIns } from "./message-copy-server";
 import { toE164 } from "./phone";
 
 // Bird (bird.com) is the SMS provider. Twilio stays as a fallback when only
@@ -275,7 +275,9 @@ async function sendWithTwilio(to: string, message: string): Promise<SendSmsResul
 /** The agency's wording for a text, filled in (sendSms adds the "CCM: " prefix and shortens links) */
 async function worded(key: CopyKey, values: CopyValues): Promise<string> {
   const copy = await loadMessageCopy();
-  return composeSms(copy[key], values);
+  // Template, priority, items and who looks after them: looked up only when the text uses them
+  const extra = await lookedUpFillIns(copy[key], { link: values.link });
+  return composeSms(copy[key], { ...values, ...extra });
 }
 
 export async function sendCreatorInviteSms({
@@ -287,7 +289,7 @@ export async function sendCreatorInviteSms({
   creatorName: string;
   inviteLink: string;
 }) {
-  const message = await worded("invite", { firstName: smsFirstName(creatorName), link: inviteLink });
+  const message = await worded("invite", { firstName: smsFirstName(creatorName), fullName: creatorName, link: inviteLink });
   return sendSms({ to, message });
 }
 
@@ -301,7 +303,7 @@ export async function sendContentRequestSms({
   requestTitle?: string;
   portalLink: string;
 }) {
-  const message = await worded("request.new", { firstName: smsFirstName(creatorName), link: portalLink });
+  const message = await worded("request.new", { firstName: smsFirstName(creatorName), fullName: creatorName, requestCount: "1", link: portalLink });
   return sendSms({ to, message });
 }
 
@@ -320,7 +322,14 @@ export async function sendReminderSms({
   isTest?: boolean;
 }) {
   const key = daysUntilDue < 0 ? "reminder.overdue" : daysUntilDue === 0 ? "reminder.dueToday" : "reminder.before";
-  const message = await worded(key, { firstName: smsFirstName(creatorName), due: reminderUrgencyText(daysUntilDue), link: portalLink });
+  const message = await worded(key, {
+    firstName: smsFirstName(creatorName),
+    fullName: creatorName,
+    due: reminderUrgencyText(daysUntilDue),
+    daysLeft: String(Math.max(0, daysUntilDue)),
+    daysOverdue: String(Math.max(0, -daysUntilDue)),
+    link: portalLink,
+  });
   return sendSms({ to, message: isTest ? `[TEST] ${message}` : message });
 }
 
@@ -332,7 +341,7 @@ export async function sendContentApprovedSms({
   creatorName: string;
   requestTitle?: string;
 }) {
-  const message = await worded("request.approved", { firstName: smsFirstName(creatorName) });
+  const message = await worded("request.approved", { firstName: smsFirstName(creatorName), fullName: creatorName });
   return sendSms({ to, message });
 }
 
@@ -346,7 +355,7 @@ export async function sendRevisionRequestSms({
   requestTitle?: string;
   portalLink?: string;
 }) {
-  const message = await worded("request.changes", { firstName: smsFirstName(creatorName), link: portalLink ?? `${getAppUrl()}/creator/requests` });
+  const message = await worded("request.changes", { firstName: smsFirstName(creatorName), fullName: creatorName, link: portalLink ?? `${getAppUrl()}/creator/requests` });
   return sendSms({ to, message });
 }
 
