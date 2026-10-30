@@ -72,7 +72,7 @@ export default async function TeamPage() {
       description: r.description,
       memberCount: r.memberCount,
       grantable: canGrant(access, r),
-      seesOnlyAssigned: r.kind !== "owner" && r.creatorScope.type === "assigned",
+      creatorScope: r.kind === "owner" ? "all" : r.creatorScope.type,
     }));
     [members, invites] = await Promise.all([
       getTeamMembers(access, presetRowIds),

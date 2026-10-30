@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { excludePseudoUsers } from "./staff";
+import { loadRoles, roleIdOf } from "./access/roles";
 
 /**
  * Which teammates look after which creators. Stored on each teammate as
@@ -68,4 +69,26 @@ export async function assignCreator(userId: string, creatorId: string) {
   const now = await creatorsFor(userId);
   if (now.includes(creatorId)) return;
   await db.user.update({ where: { id: userId }, data: { assignedCreatorIds: [...now, creatorId] } });
+}
+
+/**
+ * What a teammate's role does with assignments: "shows" (their role sees only
+ * their assigned creators), "all" (sees every creator anyway), or "hidden"
+ * (a role limited to chosen creators or groups: an assignment alone won't
+ * show them the creator). Keyed by user id; owners count as "all".
+ */
+export type AssignmentEffect = "shows" | "all" | "hidden";
+
+export async function assignmentEffects(agencyId: string, users: { id: string; role: string; customRoleId: string | null }[]) {
+  const roles = await loadRoles(agencyId);
+  const presetRowIds = Object.fromEntries(roles.filter((r) => r.kind === "preset" && r.dbId).map((r) => [r.dbId!, r.preset!]));
+  const byId = new Map(roles.map((r) => [r.id, r]));
+  const out: Record<string, { effect: AssignmentEffect; roleId: string; roleName: string }> = {};
+  for (const u of users) {
+    const roleId = roleIdOf(u, presetRowIds as Record<string, "admin" | "manager" | "member">);
+    const role = byId.get(roleId);
+    const scope = roleId === "owner" ? "all" : role?.creatorScope.type ?? "all";
+    out[u.id] = { effect: scope === "assigned" ? "shows" : scope === "all" ? "all" : "hidden", roleId, roleName: roleId === "owner" ? "Owner" : role?.name ?? "their role" };
+  }
+  return out;
 }

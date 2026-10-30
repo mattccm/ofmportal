@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 export interface AssignItem {
   id: string;
   name: string;
+  /** A short line under the name, e.g. why ticking them won't show the creator */
+  detail?: string;
 }
 
 /**
@@ -26,6 +28,7 @@ export function AssignDialog({
   items,
   initial,
   loading,
+  notice,
   onSave,
 }: {
   open: boolean;
@@ -37,6 +40,8 @@ export function AssignDialog({
   items: AssignItem[];
   initial: string[];
   loading?: boolean;
+  /** Shown above the list: something they should know before saving */
+  notice?: React.ReactNode;
   onSave: (ids: string[]) => Promise<void>;
 }) {
   const [chosen, setChosen] = React.useState<Set<string>>(new Set(initial));
@@ -83,6 +88,8 @@ export function AssignDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
+        {notice && !loading && <div className="rounded-[8px] bg-well px-3 py-2.5 text-[13px] leading-relaxed text-ink">{notice}</div>}
+
         {loading ? (
           <p className="flex items-center gap-2 py-6 text-sm text-ink-2" role="status">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Loading
@@ -104,7 +111,10 @@ export function AssignDialog({
                   <li key={i.id}>
                     <label className={cn("flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-tile-hi", on && "bg-tile")}>
                       <Checkbox checked={on} onCheckedChange={(v) => toggle(i.id, v === true)} aria-label={i.name} />
-                      <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{i.name}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] text-ink">{i.name}</span>
+                        {i.detail && <span className="block text-[13px] leading-snug text-ink-2">{i.detail}</span>}
+                      </span>
                     </label>
                   </li>
                 );

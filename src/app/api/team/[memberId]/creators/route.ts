@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { creatorWhere, requireAccess, staffWhere } from "@/lib/access/server";
-import { creatorsFor, setCreatorsFor } from "@/lib/assignments";
+import { assignmentEffects, creatorsFor, setCreatorsFor } from "@/lib/assignments";
 
 /**
  * The creators a teammate looks after. GET: the creators you can see, each
@@ -11,7 +11,7 @@ import { creatorsFor, setCreatorsFor } from "@/lib/assignments";
  */
 
 async function memberInScope(access: Parameters<typeof staffWhere>[0], memberId: string) {
-  return db.user.findFirst({ where: { AND: [staffWhere(access), { id: memberId }] }, select: { id: true, name: true } });
+  return db.user.findFirst({ where: { AND: [staffWhere(access), { id: memberId }] }, select: { id: true, name: true, role: true, customRoleId: true } });
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ memberId: string }> }) {
@@ -27,8 +27,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mem
     creatorsFor(memberId),
   ]);
   const on = new Set(assigned);
+  const effect = (await assignmentEffects(access.agencyId, [member]))[member.id];
   return NextResponse.json({
-    member,
+    member: { id: member.id, name: member.name },
+    effect: effect?.effect ?? "all",
+    roleId: effect?.roleId ?? null,
+    roleName: effect?.roleName ?? "",
+    canManageRoles: access.has("roles.manage"),
     creators: creators.map((c) => ({ id: c.id, name: c.name, assigned: on.has(c.id) })),
     canAssign: access.has("creators.assign"),
   });

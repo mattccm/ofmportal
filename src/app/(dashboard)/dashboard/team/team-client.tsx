@@ -84,8 +84,8 @@ export type TeamRole = {
   memberCount: number;
   /** The signed-in person may hand this role out */
   grantable: boolean;
-  /** The role sees only each person's assigned creators */
-  seesOnlyAssigned: boolean;
+  /** What the role shows of creators; with "creators" or "groups", assignments alone show nothing */
+  creatorScope: "all" | "groups" | "creators" | "assigned";
 };
 
 type TeamMember = {
@@ -319,7 +319,12 @@ export default function TeamClient({
   const looksAfter = (member: TeamMember) => {
     const n = member.assignedCount;
     const words = n === 0 ? "No creators assigned" : `Looks after ${n === 1 ? "1 creator" : `${n} creators`}`;
+    // Assigned, but their role shows only chosen creators or groups: they don't see them
+    const scope = roleById.get(member.roleId)?.creatorScope;
+    const unseen = n > 0 && (scope === "creators" || scope === "groups");
+    const hint = unseen ? <span className="block text-[13px] text-ink-2">Not shown to them: their role shows only chosen creators</span> : null;
     return can.assign ? (
+      <>
       <button
         type="button"
         onClick={() => setCreatorsFor(member)}
@@ -327,8 +332,13 @@ export default function TeamClient({
       >
         {words}
       </button>
+      {hint}
+      </>
     ) : (
-      <span className="text-sm text-ink-2">{words}</span>
+      <span className="text-sm text-ink-2">
+        {words}
+        {hint}
+      </span>
     );
   };
 
@@ -582,7 +592,6 @@ export default function TeamClient({
 
       <MemberCreatorsDialog
         member={creatorsFor}
-        seesOnlyAssigned={!!(creatorsFor && roleById.get(creatorsFor.roleId)?.seesOnlyAssigned)}
         onOpenChange={(open) => !open && setCreatorsFor(null)}
         onSaved={(id, count) => setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, assignedCount: count } : m)))}
       />

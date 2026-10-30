@@ -8,6 +8,9 @@ interface Teammate {
   id: string;
   name: string;
   assigned: boolean;
+  /** "hidden": their role is limited to chosen creators or groups */
+  effect: "shows" | "all" | "hidden";
+  roleName: string;
 }
 
 const list = (names: string[]) =>
@@ -53,6 +56,11 @@ export function CreatorTeammates({ creatorId, creatorName }: { creatorId: string
       const on = new Set<string>(data.assigned);
       setTeammates((t) => (t ? t.map((x) => ({ ...x, assigned: on.has(x.id) })) : t));
       toast.success(on.size ? `${first} is looked after by ${list((teammates ?? []).filter((x) => on.has(x.id)).map((x) => x.name))}` : `Nobody is assigned to ${first} now`);
+      const unseen = (teammates ?? []).filter((x) => on.has(x.id) && x.effect === "hidden");
+      if (unseen.length)
+        toast.warning(
+          `${list(unseen.map((x) => x.name))} won't see ${first} yet: their role shows only chosen creators. Set it to "Creators assigned to them" in Settings, Roles.`
+        );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't save. Try again.");
       throw e;
@@ -78,7 +86,11 @@ export function CreatorTeammates({ creatorId, creatorName }: { creatorId: string
             title={`Who looks after ${first}?`}
             description={`Teammates whose role sees only their assigned creators will see ${first}. For everyone else it shows who looks after them.`}
             noun="teammate"
-            items={teammates.map((t) => ({ id: t.id, name: t.name }))}
+            items={teammates.map((t) => ({
+              id: t.id,
+              name: t.name,
+              detail: t.effect === "hidden" ? `Won't see ${first}: ${t.roleName} shows only chosen creators` : undefined,
+            }))}
             initial={assigned.map((t) => t.id)}
             onSave={save}
           />

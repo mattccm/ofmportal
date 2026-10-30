@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { canSeeCreator, requireAccess, staffWhere } from "@/lib/access/server";
-import { setTeammatesFor, teammatesFor } from "@/lib/assignments";
+import { assignmentEffects, setTeammatesFor, teammatesFor } from "@/lib/assignments";
 
 /**
  * Who looks after a creator. GET: the teammates you can see, each marked
@@ -18,12 +18,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!(await canSeeCreator(access, id))) return NextResponse.json({ error: "Creator not found" }, { status: 404 });
 
   const [staff, assigned] = await Promise.all([
-    db.user.findMany({ where: staffWhere(access), select: { id: true, name: true, avatar: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: staffWhere(access), select: { id: true, name: true, avatar: true, role: true, customRoleId: true }, orderBy: { name: "asc" } }),
     teammatesFor(access.agencyId, id),
   ]);
   const on = new Set(assigned);
+  const effects = await assignmentEffects(access.agencyId, staff);
   return NextResponse.json({
-    teammates: staff.map((u) => ({ id: u.id, name: u.name || "Teammate", avatar: u.avatar, assigned: on.has(u.id) })),
+    teammates: staff.map((u) => ({
+      id: u.id,
+      name: u.name || "Teammate",
+      avatar: u.avatar,
+      assigned: on.has(u.id),
+      // "hidden": their role is limited to chosen creators or groups, so this alone won't show the creator to them
+      effect: effects[u.id]?.effect ?? "all",
+      roleName: effects[u.id]?.roleName ?? "",
+    })),
     canAssign: access.has("creators.assign"),
   });
 }
