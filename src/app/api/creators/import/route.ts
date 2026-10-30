@@ -6,8 +6,7 @@ import { sendCreatorInviteSms } from "@/lib/sms";
 import { deliver } from "@/lib/messaging-server";
 import { z } from "zod";
 import { toE164 } from "@/lib/phone";
-import { v4 as uuidv4 } from "uuid";
-import { getAppUrl } from "@/lib/app-url";
+import { creatorInviteLink, newInviteToken } from "@/lib/invites";
 
 // Schema for validating a single creator row
 const creatorRowSchema = z.object({
@@ -202,7 +201,7 @@ export async function POST(req: NextRequest) {
           });
         } else {
           // Create new creator
-          const inviteToken = uuidv4();
+          const inviteToken = newInviteToken();
 
           const created = await db.creator.create({
             data: {
@@ -221,7 +220,7 @@ export async function POST(req: NextRequest) {
           // Send invites sequentially to stay under the email provider's rate limit;
           // only stamp inviteSentAt once the invite actually went out
           if (validatedData.sendInvites) {
-            const inviteLink = `${getAppUrl()}/portal/setup/${inviteToken}`;
+            const inviteLink = creatorInviteLink(inviteToken);
             const sent = await deliver(
               "creator.invite",
               { agencyId: session.user.agencyId, creator: created },

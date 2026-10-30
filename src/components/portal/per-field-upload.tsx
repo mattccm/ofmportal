@@ -381,7 +381,12 @@ function FileFieldCard({
 
   const uploadCount = uploads.length;
   const hasMinFiles = field.minFiles ? uploadCount >= field.minFiles : uploadCount > 0;
-  const hasActiveQueueItems = queue.some((q) => q.status === "pending" || q.status === "uploading" || q.status === "paused");
+  // A file whose connection dropped is still on its way (it carries on by itself)
+  const hasActiveQueueItems = queue.some(
+    (q) => q.status === "pending" || q.status === "uploading" || q.status === "paused" || (q.status === "error" && q.interrupted)
+  );
+  // Failed files stay listed (with Retry) until they're removed
+  const showQueue = hasActiveQueueItems || queue.some((q) => q.status === "error");
   const hasUploads = uploadCount > 0 && !hasActiveQueueItems;
 
   const submissionStatus = submission?.status || "PENDING";
@@ -504,7 +509,7 @@ function FileFieldCard({
         />
       )}
 
-      {hasActiveQueueItems && (
+      {showQueue && (
         <UploadQueue
           className="mt-3"
           queue={queue.filter((q) => q.status !== "completed")}

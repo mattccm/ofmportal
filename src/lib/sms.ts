@@ -4,6 +4,7 @@ import { reminderUrgencyText, smsFirstName, withBrandPrefix } from "./reminder-c
 import { composeSms, type CopyKey, type CopyValues } from "./message-copy";
 import { loadMessageCopy, lookedUpFillIns } from "./message-copy-server";
 import { toE164 } from "./phone";
+import { INVITE_CODE_LENGTH } from "./invites";
 
 // Bird (bird.com) is the SMS provider. Twilio stays as a fallback when only
 // its keys are set; with neither, messages are logged instead of sent.
@@ -42,6 +43,8 @@ export function withSmsBrandPrefix(message: string): string {
  */
 export function shortenSmsLinks(message: string): string {
   return message
+    // An invite (a 43-character token) goes as a short /i/ link; older uuid tokens stay as they are
+    .replace(new RegExp(`/portal/setup/([A-Za-z0-9_-]{${INVITE_CODE_LENGTH}})[A-Za-z0-9_-]{${43 - INVITE_CODE_LENGTH}}(?![A-Za-z0-9_-])`, "g"), "/i/$1")
     .replace(/\/portal\/[^/\s]+\/requests\/([^/\s?#]+)/g, "/creator/requests/$1")
     .replace(/\/portal\/[^/\s]+\/requests(?=[\s?#]|$)/g, "/creator/requests")
     .replace(/\/portal\/(?!login\b|setup\b|onboarding\b)[^/\s]+(?=[\s?#]|$)/g, "/creator/dashboard");

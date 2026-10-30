@@ -694,7 +694,7 @@ export function CreatorRequestView({ requestId, preview }: { requestId: string; 
     request.status === "NEEDS_REVISION";
 
   const hasActiveUploads = uploadQueue.some(
-    (f) => f.status === "uploading" || f.status === "pending" || f.status === "paused"
+    (f) => f.status === "uploading" || f.status === "pending" || f.status === "paused" || (f.status === "error" && f.interrupted)
   );
 
   const canSubmit = canUpload && uploads.length > 0 && !hasActiveUploads;

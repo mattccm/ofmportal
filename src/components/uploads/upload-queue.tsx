@@ -153,7 +153,9 @@ function QueueItem({ file, onPause, onResume, onRetry, onCancel, onRemove }: Que
           {meta.join(" · ")}
         </p>
         {file.status === "error" && file.error && (
-          <p className="text-[13px] text-late">{file.error}. Tap retry to try again.</p>
+          <p className="text-[13px] text-late">
+            {file.interrupted ? "The connection dropped. This carries on by itself." : `${file.error}. Tap retry to try again.`}
+          </p>
         )}
         {showBar && (
           <span className="mt-1.5 block">
@@ -220,13 +222,15 @@ export function UploadQueue({
       pending: queue.filter((f) => f.status === "pending").length,
       paused: queue.filter((f) => f.status === "paused").length,
       completed: queue.filter((f) => f.status === "completed").length,
-      error: queue.filter((f) => f.status === "error").length,
+      // Dropped connections carry on by themselves: counted as still uploading
+      waiting: queue.filter((f) => f.status === "error" && f.interrupted).length,
+      error: queue.filter((f) => f.status === "error" && !f.interrupted).length,
       cancelled: queue.filter((f) => f.status === "cancelled").length,
     }),
     [queue]
   );
 
-  const hasActiveUploads = stats.uploading > 0 || stats.pending > 0 || stats.paused > 0;
+  const hasActiveUploads = stats.uploading > 0 || stats.pending > 0 || stats.paused > 0 || stats.waiting > 0;
   const hasCompletedOrFailed = stats.completed > 0 || stats.error > 0 || stats.cancelled > 0;
 
   // Uploading first, then waiting, paused, failed, cancelled, uploaded
@@ -240,7 +244,7 @@ export function UploadQueue({
 
   if (queue.length === 0) return null;
 
-  const active = stats.uploading + stats.pending + stats.paused;
+  const active = stats.uploading + stats.pending + stats.paused + stats.waiting;
   const heading = active > 0
     ? `Uploading ${active} file${active !== 1 ? "s" : ""}`
     : stats.error > 0
@@ -274,6 +278,11 @@ export function UploadQueue({
       </div>
 
       {isUploading && totalSize > 0 && <Bar value={totalProgress} tone="ready" />}
+      {active > 0 && (
+        <p className="mt-1.5 text-[13px] leading-normal text-ink-2">
+          Keep this page open until it finishes. If you switch apps or your screen locks, it stops and carries on when you come back.
+        </p>
+      )}
 
       {isExpanded && (
         <>
@@ -337,7 +346,8 @@ export function UploadQueueInline({
       uploading: queue.filter((f) => f.status === "uploading").length,
       pending: queue.filter((f) => f.status === "pending").length,
       completed: queue.filter((f) => f.status === "completed").length,
-      error: queue.filter((f) => f.status === "error").length,
+      waiting: queue.filter((f) => f.status === "error" && f.interrupted).length,
+      error: queue.filter((f) => f.status === "error" && !f.interrupted).length,
     }),
     [queue]
   );
@@ -348,9 +358,11 @@ export function UploadQueueInline({
     ? `Uploading ${stats.uploading + stats.pending} file${stats.uploading + stats.pending !== 1 ? "s" : ""}`
     : stats.completed === queue.length
       ? "Everything uploaded"
-      : stats.error > 0
-        ? `${stats.error} file${stats.error !== 1 ? "s" : ""} didn't upload`
-        : `${queue.length} in the list`;
+      : stats.waiting > 0
+        ? "Waiting for the connection to carry on"
+        : stats.error > 0
+          ? `${stats.error} file${stats.error !== 1 ? "s" : ""} didn't upload`
+          : `${queue.length} in the list`;
 
   return (
     <div className={cn("flex items-center gap-3 rounded-[var(--tw-r-ctl)] bg-well p-3", className)}>

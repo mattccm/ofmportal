@@ -8,7 +8,9 @@
 // The server side lives under /api/uploads/multipart/{initiate,sign-part,complete,abort}.
 
 // Use multipart only above this size; smaller files keep the single presigned PUT.
-export const MULTIPART_THRESHOLD = 100 * 1024 * 1024; // 100MB
+// Kept low so a phone that drops the connection (switching apps, locking the
+// screen) carries on from the parts already sent instead of starting again.
+export const MULTIPART_THRESHOLD = 32 * 1024 * 1024; // 32MB
 
 // Target part size. Kept within S3 limits (5MB min, 10,000 parts max); we grow
 // the part size for very large files so we never exceed the part-count cap.

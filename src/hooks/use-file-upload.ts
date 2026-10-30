@@ -30,7 +30,38 @@ export interface QueuedFile {
   speed?: number; // bytes per second
   timeRemaining?: number; // seconds
   retryCount: number;
+  // The connection dropped (often the phone switched apps or locked): picks up
+  // again by itself when the page is back and online, without using a retry
+  interrupted?: boolean;
+  autoResumes?: number;
   fieldId?: string; // Template field ID for per-field uploads
+}
+
+// Uploads that stopped because the connection did (not because the file or the
+// server refused it) carry on by themselves, up to this many times per file
+const MAX_AUTO_RESUMES = 8;
+
+function isConnectionError(message: string): boolean {
+  return /network|failed to fetch|load failed|timed? ?out|status (0|408|429|5\d\d)\b/i.test(message);
+}
+
+/** The error state for a failed upload; a dropped connection doesn't use up a retry */
+function failed(f: QueuedFile, message: string): QueuedFile {
+  const interrupted = isConnectionError(message) && (f.autoResumes ?? 0) < MAX_AUTO_RESUMES;
+  return {
+    ...f,
+    status: "error",
+    error: message,
+    xhr: undefined,
+    abortController: undefined,
+    interrupted,
+    retryCount: interrupted ? f.retryCount : f.retryCount + 1,
+  };
+}
+
+/** No error toast when it will carry on by itself (the row says so) */
+function quietFailure(f: QueuedFile, message: string): boolean {
+  return isConnectionError(message) && (f.autoResumes ?? 0) < MAX_AUTO_RESUMES;
 }
 
 export interface UseFileUploadOptions {
@@ -429,20 +460,8 @@ export function useFileUpload({
       }
 
       const errorMessage = error instanceof Error ? error.message : "Upload failed";
-      setQueue((prev) =>
-        prev.map((f) =>
-          f.id === queuedFile.id
-            ? {
-                ...f,
-                status: "error" as UploadStatus,
-                error: errorMessage,
-                abortController: undefined,
-                retryCount: f.retryCount + 1,
-              }
-            : f
-        )
-      );
-      toast.error(`${queuedFile.file.name}: ${errorMessage}`);
+      setQueue((prev) => prev.map((f) => (f.id === queuedFile.id ? failed(f, errorMessage) : f)));
+      if (!quietFailure(queuedFile, errorMessage)) toast.error(`${queuedFile.file.name}: ${errorMessage}`);
       onError?.(queuedFile, errorMessage);
     }
   }, [requestId, getAuthHeaders, onUploadComplete, onError, uploadFileLocal]);
@@ -608,21 +627,9 @@ export function useFileUpload({
       }
 
       // Handle error with retry logic
-      setQueue((prev) =>
-        prev.map((f) =>
-          f.id === queuedFile.id
-            ? {
-                ...f,
-                status: "error" as UploadStatus,
-                error: errorMessage,
-                xhr: undefined,
-                retryCount: f.retryCount + 1,
-              }
-            : f
-        )
-      );
+      setQueue((prev) => prev.map((f) => (f.id === queuedFile.id ? failed(f, errorMessage) : f)));
 
-      toast.error(`${queuedFile.file.name}: ${errorMessage}`);
+      if (!quietFailure(queuedFile, errorMessage)) toast.error(`${queuedFile.file.name}: ${errorMessage}`);
       onError?.(queuedFile, errorMessage);
     }
   }, [requestId, getAuthHeaders, onUploadComplete, onError, uploadFileLocal, uploadFileMultipartFlow]);
@@ -723,7 +730,7 @@ export function useFileUpload({
       if (file && file.retryCount < maxRetries) {
         return prev.map((f) =>
           f.id === fileId
-            ? { ...f, status: "pending" as UploadStatus, progress: 0, error: undefined }
+            ? { ...f, status: "pending" as UploadStatus, progress: 0, error: undefined, interrupted: false }
             : f
         );
       } else if (file) {
@@ -802,6 +809,41 @@ export function useFileUpload({
     );
   }, []);
 
+  // Carry on uploads the connection dropped, once the page is showing and online
+  // again (a phone stops the upload when it switches apps or locks). Large
+  // files continue from the parts already sent.
+  const interrupted = queue.filter((f) => f.status === "error" && f.interrupted);
+  const hasInterrupted = interrupted.length > 0;
+  // Waits longer each time it drops again while the page is open (1.5s, 3s, 6s... up to 30s)
+  const resumeRound = interrupted.reduce((n, f) => Math.max(n, f.autoResumes ?? 0), 0);
+  useEffect(() => {
+    if (!hasInterrupted) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const carryOn = (e?: Event) => {
+      clearTimeout(timer);
+      if (document.visibilityState !== "visible" || navigator.onLine === false) return;
+      // Back in the app or online again: a moment for the network to wake up
+      const wait = e ? 1500 : Math.min(30_000, 1500 * 2 ** resumeRound);
+      timer = setTimeout(() => {
+        setQueue((prev) =>
+          prev.map((f) =>
+            f.status === "error" && f.interrupted
+              ? { ...f, status: "pending" as UploadStatus, error: undefined, interrupted: false, autoResumes: (f.autoResumes ?? 0) + 1 }
+              : f
+          )
+        );
+      }, wait);
+    };
+    carryOn();
+    document.addEventListener("visibilitychange", carryOn);
+    window.addEventListener("online", carryOn);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", carryOn);
+      window.removeEventListener("online", carryOn);
+    };
+  }, [hasInterrupted, resumeRound]);
+
   // Calculate stats
   const isUploading = queue.some((f) => f.status === "uploading");
 
@@ -819,6 +861,31 @@ export function useFileUpload({
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasInFlightUploads]);
+
+  // Keep the screen on while uploading: a phone that locks itself stops the
+  // upload. The browser lets go when the page is hidden, so ask again on return.
+  useEffect(() => {
+    if (!hasInFlightUploads || typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let done = false;
+    const hold = async () => {
+      if (done || document.visibilityState !== "visible" || (lock && !lock.released)) return;
+      try {
+        const next = await navigator.wakeLock.request("screen");
+        if (done) void next.release();
+        else lock = next;
+      } catch {
+        // Not allowed here (battery saver, no permission): uploads still work
+      }
+    };
+    void hold();
+    document.addEventListener("visibilitychange", hold);
+    return () => {
+      done = true;
+      document.removeEventListener("visibilitychange", hold);
+      void lock?.release().catch(() => {});
+    };
   }, [hasInFlightUploads]);
   const totalSize = queue.reduce((sum, f) => sum + f.file.size, 0);
   const uploadedSize = queue.reduce((sum, f) => {

@@ -25,6 +25,9 @@ export function inviteExpiry(from: Date = new Date()): Date {
 
 // ---------- creators ----------
 
+/** Texts carry /i/<this many characters of the token> (72 random bits); see app/i/[code] */
+export const INVITE_CODE_LENGTH = 12;
+
 export function creatorInviteLink(token: string): string {
   return `${getAppUrl()}/portal/setup/${token}`;
 }
