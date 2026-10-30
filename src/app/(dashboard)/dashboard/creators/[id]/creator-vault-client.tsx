@@ -97,6 +97,8 @@ export interface ProfileData {
     preferredContact: string | null;
     createdAt: string;
     lastLoginAt: string | null;
+    /** Their phone setup tasks; null when the role can't see activity */
+    phoneApp: { homeScreen: boolean; notifications: boolean } | null;
     notes: string | null;
     totalRequests: number;
     totalUploads: number;
@@ -499,6 +501,17 @@ export function CreatorVaultClient({
               {may.activity && (
                 <dd className="text-[13px] text-ink-2" suppressHydrationWarning>
                   {creator.lastLoginAt ? `last seen ${ago(creator.lastLoginAt)}` : "not signed in yet"}
+                </dd>
+              )}
+              {creator.phoneApp && (
+                <dd className="text-[13px] text-ink-2">
+                  {creator.phoneApp.homeScreen
+                    ? creator.phoneApp.notifications
+                      ? "on their home screen, notifications on"
+                      : "on their home screen, notifications off"
+                    : creator.phoneApp.notifications
+                      ? "notifications on"
+                      : "not on their home screen yet"}
                 </dd>
               )}
             </div>

@@ -141,27 +141,27 @@ model VerificationToken {
 // Remember tokens for "Stay Logged In" functionality
 // Enables session persistence across iOS PWA restarts
 model RememberToken {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Token data: public lookup id + bcrypt hash of the secret half
-  tokenId   String?  @unique
-  tokenHash String   @unique
+  tokenId   String? @unique
+  tokenHash String  @unique
 
   // Device identification
-  deviceName   String?  // "iPhone 15 Pro", "Chrome on Windows"
-  deviceType   String?  // "mobile", "desktop", "tablet"
-  userAgent    String?
+  deviceName String? // "iPhone 15 Pro", "Chrome on Windows"
+  deviceType String? // "mobile", "desktop", "tablet"
+  userAgent  String?
 
   // Security tracking
-  ipAddress    String?
-  lastUsedAt   DateTime?
-  lastUsedIp   String?
+  ipAddress  String?
+  lastUsedAt DateTime?
+  lastUsedIp String?
 
   // Lifecycle
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([tokenHash])
@@ -239,7 +239,7 @@ model Conversation {
   messages     Message[]
 
   lastMessageAt      DateTime?
-  lastMessagePreview String?   // Preview text of last message
+  lastMessagePreview String? // Preview text of last message
   createdAt          DateTime  @default(now())
 
   @@index([type])
@@ -253,7 +253,7 @@ enum ConversationType {
   DIRECT
   GROUP
   REQUEST_THREAD
-  CREATOR  // Conversation between team members and a specific creator
+  CREATOR // Conversation between team members and a specific creator
 }
 
 model ConversationParticipant {
@@ -276,7 +276,7 @@ model Message {
 
   // Either sent by a User (team member) or a Creator
   senderId  String?
-  sender    User?   @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  sender    User?    @relation(fields: [senderId], references: [id], onDelete: SetNull)
   creatorId String? // If sent by a creator
   creator   Creator? @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
@@ -380,7 +380,7 @@ model Creator {
   inviteSentAt   DateTime?
   portalPassword String? // Hashed password for creator portal
   lastLoginAt    DateTime?
-  sessionToken   String?   @unique // Secure session token
+  sessionToken   String?      @unique // Secure session token
   sessionExpiry  DateTime? // Session expiration time
 
   // Preferences
@@ -394,15 +394,18 @@ model Creator {
   // Lifecycle
   archivedAt            DateTime? // Set when the creator is archived (soft-hidden, reversible)
   onboardingCompletedAt DateTime? // Set when the creator finishes first-time portal onboarding
+  // First time the portal was opened from their home screen (the "Add to home screen" setup task)
+  appInstalledAt        DateTime?
 
   // Relations
-  requests           ContentRequest[]
-  uploads            Upload[]
-  groupMemberships   CreatorGroupMember[]
-  fingerprints       ContentFingerprint[]
-  duplicateAttempts  DuplicateAttempt[]
-  conversations      Conversation[]        // Creator conversations
-  messages           Message[]             // Messages sent by this creator
+  requests          ContentRequest[]
+  uploads           Upload[]
+  groupMemberships  CreatorGroupMember[]
+  pushSubscriptions PushSubscription[]
+  fingerprints      ContentFingerprint[]
+  duplicateAttempts DuplicateAttempt[]
+  conversations     Conversation[] // Creator conversations
+  messages          Message[] // Messages sent by this creator
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -954,13 +957,13 @@ model Reminder {
   overrideId      String? // Reference to CreatorReminderOverride if used
 
   // Escalation tracking
-  isEscalation       Boolean @default(false)
-  escalatedFromId    String? // Previous reminder that triggered escalation
-  escalationChannel  NotificationChannel? // Channel escalated to
+  isEscalation      Boolean              @default(false)
+  escalatedFromId   String? // Previous reminder that triggered escalation
+  escalationChannel NotificationChannel? // Channel escalated to
 
   // Response tracking for effectiveness
   responseDetectedAt DateTime? // When creator responded (started uploading, etc.)
-  responseAction     String?   // What action was detected (e.g., "upload_started", "request_viewed")
+  responseAction     String? // What action was detected (e.g., "upload_started", "request_viewed")
 
   // Batched reminder info
   isBatched         Boolean @default(false)
@@ -996,20 +999,20 @@ model ReminderEffectiveness {
   dayFromDue Int // Negative = before due, Positive = overdue
 
   // Metrics
-  totalSent      Int @default(0)
-  totalResponded Int @default(0)  // Responses within 24h of reminder
+  totalSent            Int    @default(0)
+  totalResponded       Int    @default(0) // Responses within 24h of reminder
   avgResponseTimeHours Float? // Average hours until response
 
   // Response types
-  uploadsStarted   Int @default(0)
-  requestsViewed   Int @default(0)
+  uploadsStarted    Int @default(0)
+  requestsViewed    Int @default(0)
   requestsCompleted Int @default(0)
 
   // Channel breakdown
-  emailSent         Int @default(0)
-  emailResponded    Int @default(0)
-  smsSent           Int @default(0)
-  smsResponded      Int @default(0)
+  emailSent      Int @default(0)
+  emailResponded Int @default(0)
+  smsSent        Int @default(0)
+  smsResponded   Int @default(0)
 
   // Urgency breakdown
   urgency Urgency
@@ -1067,7 +1070,7 @@ model ReminderRule {
 
   // Custom message templates per urgency
   customEmailSubject String? // Custom email subject for this urgency
-  customEmailBody    String? @db.Text // Custom email body template
+  customEmailBody    String?      @db.Text // Custom email body template
   customSmsBody      String? // Custom SMS message template
   reminderTone       ReminderTone @default(NORMAL) // Tone of reminder message
 
@@ -1088,10 +1091,10 @@ model ReminderRule {
 }
 
 enum ReminderTone {
-  FRIENDLY    // Gentle, casual tone
-  NORMAL      // Professional, neutral tone
-  FIRM        // More assertive, emphasizes deadline
-  URGENT      // Strong urgency, calls for immediate action
+  FRIENDLY // Gentle, casual tone
+  NORMAL // Professional, neutral tone
+  FIRM // More assertive, emphasizes deadline
+  URGENT // Strong urgency, calls for immediate action
 }
 
 // ============================================
@@ -1112,7 +1115,7 @@ model ReminderTemplate {
   // Days range for this tier
   // For UPCOMING: daysMin/daysMax are days BEFORE due date (e.g., 3-7 days before)
   // For OVERDUE: daysMin/daysMax are days AFTER due date (e.g., 1-3 days overdue)
-  daysMin Int  // Minimum days (inclusive)
+  daysMin Int // Minimum days (inclusive)
   daysMax Int? // Maximum days (inclusive), null = no upper limit
 
   // Optional urgency filter (applies to all urgencies if null)
@@ -1145,17 +1148,17 @@ model ReminderTemplate {
 }
 
 enum ReminderTierType {
-  UPCOMING    // Before due date (daysMin/Max are days before)
-  DUE_TODAY   // Day of due date
-  OVERDUE     // After due date (daysMin/Max are days overdue)
+  UPCOMING // Before due date (daysMin/Max are days before)
+  DUE_TODAY // Day of due date
+  OVERDUE // After due date (daysMin/Max are days overdue)
 }
 
 enum OverdueFrequency {
-  NONE       // No overdue reminders
-  DAILY      // Every day
+  NONE // No overdue reminders
+  DAILY // Every day
   EVERY_2_DAYS
   EVERY_3_DAYS
-  WEEKLY     // Once a week
+  WEEKLY // Once a week
 }
 
 // ============================================
@@ -1185,10 +1188,10 @@ model CreatorReminderOverride {
   disableReminders Boolean @default(false)
 
   // Pause reminders feature (vacation, etc.)
-  isPaused       Boolean   @default(false)
-  pausedAt       DateTime?
-  pauseResumeAt  DateTime? // Auto-resume date
-  pauseReason    String?   // Why reminders are paused
+  isPaused      Boolean   @default(false)
+  pausedAt      DateTime?
+  pauseResumeAt DateTime? // Auto-resume date
+  pauseReason   String? // Why reminders are paused
 
   // Quiet hours settings (respects creator timezone)
   quietHoursEnabled Boolean @default(true)
@@ -1780,10 +1783,10 @@ model RecurringRequest {
   description String?
 
   // Template to use
-  templateId String
+  templateId  String
   // Every template sent on each run, in order (JSON array of template IDs).
   // templateId stays the first/primary one; an empty array means [templateId].
-  templateIds Json @default("[]")
+  templateIds Json   @default("[]")
 
   // Target creators (can be individual IDs or group IDs)
   creatorIds      Json @default("[]") // Array of creator IDs
@@ -2262,36 +2265,36 @@ model DuplicateAttempt {
   requestId String
 
   // The file that was attempted
-  attemptedFileName String
-  attemptedFileSize BigInt
-  attemptedFileType String
-  attemptedFileHash String?
+  attemptedFileName       String
+  attemptedFileSize       BigInt
+  attemptedFileType       String
+  attemptedFileHash       String?
   attemptedPerceptualHash String?
-  attemptedThumbnailUrl String? // IMPROVEMENT #3: For side-by-side comparison
+  attemptedThumbnailUrl   String? // IMPROVEMENT #3: For side-by-side comparison
 
   // The original file that matched
-  originalUploadId   String
-  originalFileName   String
-  originalFileSize   BigInt
-  originalUploadedAt DateTime
-  originalRequestId  String?  // IMPROVEMENT #1: Store original request ID
-  originalRequestName String? // IMPROVEMENT #1: Store original request name for better error messages
+  originalUploadId     String
+  originalFileName     String
+  originalFileSize     BigInt
+  originalUploadedAt   DateTime
+  originalRequestId    String? // IMPROVEMENT #1: Store original request ID
+  originalRequestName  String? // IMPROVEMENT #1: Store original request name for better error messages
   originalThumbnailUrl String? // IMPROVEMENT #3: For side-by-side comparison
 
   // Match details
-  matchType    DuplicateMatchType
-  similarity   Int // 0-100 percentage
-  hashMatch    Boolean @default(false)
-  perceptualMatch Boolean @default(false)
-  metadataMatch Boolean @default(false)
+  matchType       DuplicateMatchType
+  similarity      Int // 0-100 percentage
+  hashMatch       Boolean            @default(false)
+  perceptualMatch Boolean            @default(false)
+  metadataMatch   Boolean            @default(false)
 
   // What action was taken
   action DuplicateAction @default(BLOCKED)
 
   // Optional override info
-  overrideReason  String?
-  overrideBy      String?
-  overrideAt      DateTime?
+  overrideReason String?
+  overrideBy     String?
+  overrideAt     DateTime?
 
   attemptedAt DateTime @default(now())
 
@@ -2317,19 +2320,19 @@ model DuplicateDetectionSettings {
   enabled Boolean @default(true)
 
   // Thresholds (IMPROVEMENT #4: Configurable threshold 80-100%)
-  similarityThreshold    Int @default(90) // 80-100
-  perceptualThreshold    Int @default(90) // 80-100
+  similarityThreshold Int @default(90) // 80-100
+  perceptualThreshold Int @default(90) // 80-100
 
   // What to check
-  enableHashCheck       Boolean @default(true)
-  enablePerceptualHash  Boolean @default(true)
-  enableMetadataCheck   Boolean @default(true)
-  enableVideoFrameHash  Boolean @default(true)
+  enableHashCheck      Boolean @default(true)
+  enablePerceptualHash Boolean @default(true)
+  enableMetadataCheck  Boolean @default(true)
+  enableVideoFrameHash Boolean @default(true)
 
   // Behavior settings
-  blockExactDuplicates  Boolean @default(true)
-  blockNearDuplicates   Boolean @default(true)
-  warnSimilarContent    Boolean @default(true)
+  blockExactDuplicates Boolean @default(true)
+  blockNearDuplicates  Boolean @default(true)
+  warnSimilarContent   Boolean @default(true)
 
   // Scope settings
   checkScope DuplicateCheckScope @default(CREATOR)
@@ -2353,18 +2356,18 @@ model WhitelistedContent {
   agencyId String
 
   // File identification
-  fileHash       String  // SHA-256 hash of the whitelisted content
+  fileHash       String // SHA-256 hash of the whitelisted content
   perceptualHash String? // For image similarity matching
 
   // Metadata
-  name        String  // Friendly name for the whitelisted content
+  name        String // Friendly name for the whitelisted content
   description String? // Why this content is whitelisted
   category    String  @default("branding") // branding, stock, template, other
 
   // File info
-  fileName String
-  fileSize BigInt
-  mimeType String
+  fileName     String
+  fileSize     BigInt
+  mimeType     String
   thumbnailUrl String?
 
   // Audit
@@ -2380,22 +2383,22 @@ model WhitelistedContent {
 }
 
 enum DuplicateMatchType {
-  EXACT      // Exact hash match (100% identical)
-  NEAR       // Very similar (95%+ perceptual match)
-  SIMILAR    // Similar content (90%+ match)
+  EXACT // Exact hash match (100% identical)
+  NEAR // Very similar (95%+ perceptual match)
+  SIMILAR // Similar content (90%+ match)
 }
 
 enum DuplicateAction {
-  BLOCKED    // Upload was blocked
-  WARNED     // User was warned but allowed to proceed
-  ALLOWED    // Upload was allowed (override or below threshold)
+  BLOCKED // Upload was blocked
+  WARNED // User was warned but allowed to proceed
+  ALLOWED // Upload was allowed (override or below threshold)
   OVERRIDDEN // Admin override
 }
 
 enum DuplicateCheckScope {
-  CREATOR  // Check only within creator's uploads
-  AGENCY   // Check across all agency uploads
-  REQUEST  // Check only within current request
+  CREATOR // Check only within creator's uploads
+  AGENCY // Check across all agency uploads
+  REQUEST // Check only within current request
 }
 
 // ============================================
@@ -2408,8 +2411,8 @@ model Webhook {
 
   // Configuration
   name        String
-  url         String  // HTTPS endpoint to deliver events to
-  secret      String  // HMAC-SHA256 signing secret
+  url         String // HTTPS endpoint to deliver events to
+  secret      String // HMAC-SHA256 signing secret
   description String?
 
   // Which events to subscribe to
@@ -2435,7 +2438,7 @@ model Webhook {
 }
 
 model WebhookDelivery {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   webhookId String
   webhook   Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
@@ -2448,11 +2451,11 @@ model WebhookDelivery {
   httpStatus   Int?
   responseBody String?               @db.Text
   error        String?
-  duration     Int?                  // Response time in ms
+  duration     Int? // Response time in ms
 
   // Retry tracking
-  attempt    Int      @default(1)
-  maxRetries Int      @default(3)
+  attempt    Int       @default(1)
+  maxRetries Int       @default(3)
   nextRetry  DateTime?
 
   createdAt DateTime @default(now())
@@ -2468,4 +2471,20 @@ enum WebhookDeliveryStatus {
   SUCCESS
   FAILED
   RETRYING
+}
+
+// A creator's device that allowed notifications (Web Push). One row per
+// browser/app install; removed when the push service says it's gone.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  creatorId  String
+  creator    Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSentAt DateTime?
+
+  @@index([creatorId])
 }

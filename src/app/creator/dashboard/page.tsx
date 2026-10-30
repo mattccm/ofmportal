@@ -1,5 +1,6 @@
 "use client";
 
+import { PhoneSetup } from "@/components/portal/phone-setup";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -169,6 +170,7 @@ export default function CreatorDashboardPage() {
         )}
 
         <div className="lg:space-y-9">
+          <PhoneSetup />
           {inbox && <MessagesPeek inbox={inbox} />}
           {others.length > 0 && (
             <SideList id="also-side" title="Also to do" sub={plural(others.length, "request")} requests={others} />

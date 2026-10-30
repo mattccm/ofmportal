@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { pushReminder } from "@/lib/push";
+import { reminderUrgencyText } from "@/lib/reminder-copy";
 import { redactCreatorsIn, requestWhere, requireAccess } from "@/lib/access/server";
 import { db } from "@/lib/db";
 import {
@@ -182,6 +184,9 @@ export async function POST(req: NextRequest) {
             });
             channels.push("sms");
           }
+
+          // And on their phone, if they turned notifications on
+          if (channels.length) await pushReminder(request.creator.id, request.id, reminderUrgencyText(daysUntilDue));
 
           // Create reminder record
           const reminderType =

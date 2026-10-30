@@ -31,7 +31,7 @@ async function getProfile(creatorId: string, access: Access): Promise<ProfileDat
   // Out-of-scope creators read as not found
   const creator = await db.creator.findFirst({
     where: { AND: [creatorWhere(access), { id: creatorId }] },
-    include: { _count: { select: { requests: true, uploads: true } } },
+    include: { _count: { select: { requests: true, uploads: true, pushSubscriptions: true } } },
   });
   if (!creator) return null;
 
@@ -171,6 +171,8 @@ async function getProfile(creatorId: string, access: Access): Promise<ProfileDat
       preferredContact: see.preferences ? creator.preferredContact : null,
       createdAt: creator.createdAt.toISOString(),
       lastLoginAt: see.activity && creator.lastLoginAt ? creator.lastLoginAt.toISOString() : null,
+      // "Set up your phone" (shown with activity: it says how they use the portal)
+      phoneApp: see.activity ? { homeScreen: !!creator.appInstalledAt, notifications: creator._count.pushSubscriptions > 0 } : null,
       notes: see.notes ? creator.notes : null,
       totalRequests: creator._count.requests,
       totalUploads: creator._count.uploads,

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { pushReminder } from "@/lib/push";
+import { reminderUrgencyText } from "@/lib/reminder-copy";
 import { db } from "@/lib/db";
 import { creatorWhere, requireAccess } from "@/lib/access/server";
 import { sendReminderEmail } from "@/lib/email";
@@ -132,8 +134,11 @@ export async function POST(
           });
         }
       }
-      if (anySent) sent++;
-      else failed++;
+      if (anySent) {
+        sent++;
+        // And on their phone, if they turned notifications on
+        await pushReminder(creator.id, request.id, reminderUrgencyText(daysUntilDue));
+      } else failed++;
     }
 
     const success = sent > 0;

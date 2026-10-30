@@ -6,6 +6,7 @@ import { BrandingProvider } from "@/components/providers/branding-provider";
 import { getCreatorSession, clearCreatorSession, hasCreatorSessionIndicator, setSignedOutFlag, hasSignedOutFlag, storeCreatorSession } from "@/lib/remember-token";
 import { setCreatorCookie, clearCreatorCookie } from "@/lib/creator-cookies";
 import { CreatorChrome } from "@/components/portal/creator-chrome";
+import { isStandalone } from "@/components/portal/phone-setup";
 
 /** The schema default; a creator still on it gets their browser's time zone saved */
 const DEFAULT_CREATOR_TIMEZONE = "America/New_York";
@@ -362,6 +363,24 @@ function CreatorLayoutInner({ children }: { children: React.ReactNode }) {
 
     router.push("/login");
   };
+
+  // "Add to home screen" ticks itself off: tell the server once per session
+  // when the portal is open from the home screen
+  const creatorId = creator?.id;
+  useEffect(() => {
+    if (!creatorId || !isStandalone()) return;
+    try {
+      if (sessionStorage.getItem("ccm-home-screen-told") === creatorId) return;
+      sessionStorage.setItem("ccm-home-screen-told", creatorId);
+    } catch {
+      /* private mode: tell it anyway */
+    }
+    fetch("/api/portal/phone", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-creator-token": localStorage.getItem("creatorToken") || "" },
+      body: JSON.stringify({ action: "home-screen" }),
+    }).catch(() => {});
+  }, [creatorId]);
 
   if (!creator) {
     return (

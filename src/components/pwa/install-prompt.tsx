@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { X, Download, Smartphone, Share, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,9 @@ const STORAGE_KEY = "pwa-install-prompt-dismissed";
 const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function InstallPrompt() {
+  // Creators get "Set up your phone" on their home page instead
+  const pathname = usePathname();
+  const inCreatorPortal = !!pathname && (pathname.startsWith("/creator") || pathname.startsWith("/portal") || pathname.startsWith("/preview"));
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -132,7 +136,7 @@ export function InstallPrompt() {
   }, []);
 
   // Don't render if already installed or prompt shouldn't show
-  if (isStandalone || !showPrompt) {
+  if (isStandalone || !showPrompt || inCreatorPortal) {
     return null;
   }
 

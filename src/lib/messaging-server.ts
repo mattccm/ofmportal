@@ -6,6 +6,7 @@
 import { Prisma } from "@prisma/client";
 import type { Urgency } from "@prisma/client";
 import { db } from "./db";
+import { pushFor, sendPushToCreator } from "./push";
 import {
   type AgencyMessaging,
   type ChannelChoice,
@@ -117,8 +118,8 @@ export async function deliver(
   event: MessageEvent,
   ctx: {
     agencyId: string;
-    creator: CreatorContact & { email?: string | null };
-    request?: { messaging?: unknown } | null;
+    creator: CreatorContact & { email?: string | null; id?: string };
+    request?: { messaging?: unknown; id?: string } | null;
     forced?: ChannelChoice;
   },
   send: { email?: () => Promise<unknown>; sms?: (phone: string) => Promise<unknown> }
@@ -142,6 +143,12 @@ export async function deliver(
       console.error(`[messaging] ${event} text failed:`, error);
       result.errors.push(`Text: ${error instanceof Error ? error.message : "failed"}`);
     }
+  }
+  // A free nudge on their phone too, for creators who turned notifications on
+  // (same discreet words as a text; never a request title)
+  if ((result.email || result.sms) && ctx.creator.id) {
+    const message = pushFor(event, { requestId: ctx.request?.id });
+    if (message) await sendPushToCreator(ctx.creator.id, message).catch(() => {});
   }
   return result;
 }

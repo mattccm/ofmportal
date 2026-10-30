@@ -6,6 +6,8 @@ import { sendReminderSms } from "@/lib/sms";
 import { z } from "zod";
 import { dueLong, calendarDaysUntilDue } from "@/lib/due";
 import { planFor } from "@/lib/messaging-server";
+import { pushReminder } from "@/lib/push";
+import { reminderUrgencyText } from "@/lib/reminder-copy";
 
 // Note: customMessage support would need to be added to sendReminderEmail/sendReminderSms
 // For now, we use the default templates
@@ -209,6 +211,9 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    // And on their phone, if they turned notifications on
+    if (results.email === true || results.sms === true) await pushReminder(request.creator.id, request.id, reminderUrgencyText(daysUntilDue));
 
     // Determine overall status
     const success = (results.email === true || results.sms === true);

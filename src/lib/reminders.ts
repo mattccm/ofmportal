@@ -1,6 +1,8 @@
 import { db } from "./db";
 import { sendReminderEmail, sendBatchedReminderEmail } from "./email";
 import { sendReminderSms, sendBatchedReminderSms } from "./sms";
+import { sendPushToCreator } from "./push";
+import { reminderUrgencyText } from "./reminder-copy";
 import { startOfDay, addDays } from "date-fns";
 import {
   processEscalations,
@@ -191,6 +193,14 @@ async function processScheduledReminders(today: Date, windowStart: Date, now: Da
         });
       }
 
+      // And on their phone, if they turned notifications on (an email and a
+      // text on one day share a tag, so the phone shows one)
+      await sendPushToCreator(request.creator.id, {
+        body: `You have content ${reminderUrgencyText(daysUntilDue)}.`,
+        url: `/creator/requests/${request.id}`,
+        tag: `reminder-${request.id}`,
+      }).catch(() => {});
+
       // Log the sent reminder
       await db.activityLog.create({
         data: {
@@ -292,7 +302,13 @@ async function processBatchedReminder(
         portalLink,
         agencyId,
       });
-    } else if (channel === "SMS" && batch.creatorPhone) {
+    }
+    await sendPushToCreator(batch.creatorId, {
+      body: `You have ${batch.requests.length} content requests waiting.`,
+      url: "/creator/requests",
+      tag: "reminder-batch",
+    }).catch(() => {});
+    if (channel === "SMS" && batch.creatorPhone) {
       await sendBatchedReminderSms({
         to: batch.creatorPhone,
         creatorName: batch.creatorName,
