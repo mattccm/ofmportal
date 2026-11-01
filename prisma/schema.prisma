@@ -396,6 +396,11 @@ model Creator {
   onboardingCompletedAt DateTime? // Set when the creator finishes first-time portal onboarding
   // First time the portal was opened from their home screen (the "Add to home screen" setup task)
   appInstalledAt        DateTime?
+  // "Your upload paused" notification: due when the page went to the background
+  // mid-upload and never came back (see api/portal/upload-nudge)
+  uploadNudgeAt         DateTime?
+  uploadNudgeRequestId  String?
+  uploadNudgeSentAt     DateTime?
 
   // Relations
   requests          ContentRequest[]
@@ -418,6 +423,7 @@ model Creator {
   @@index([name])
   @@index([createdAt])
   @@index([archivedAt])
+  @@index([uploadNudgeAt])
   // Composite index for common queries (agency + status + sort)
   @@index([agencyId, inviteStatus, createdAt])
 }

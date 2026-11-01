@@ -258,6 +258,7 @@ export function CreatorRequestView({ requestId, preview }: { requestId: string; 
   } = useFileUpload({
     requestId,
     maxConcurrent: 3,
+    nudgeWhenPaused: !isPreview,
     onUploadComplete: (file) => {
       fetchData();
       if (file.uploadId) {

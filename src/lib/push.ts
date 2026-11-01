@@ -86,6 +86,15 @@ export function pushFor(event: string, opts: { requestId?: string | null; due?: 
   }
 }
 
+/** An upload stopped because the phone put the portal in the background (see api/cron/upload-nudges) */
+export function pushUploadPaused(creatorId: string, requestId: string) {
+  return sendPushToCreator(creatorId, {
+    body: "Your upload paused. Open CCM to finish it.",
+    url: `/creator/requests/${requestId}`,
+    tag: `upload-${requestId}`,
+  }).catch(() => ({ sent: 0, removed: 0 }));
+}
+
 /** A reminder on their phone, alongside a reminder email or text (an email and a text share a tag, so one shows) */
 export function pushReminder(creatorId: string, requestId: string, due: string) {
   return sendPushToCreator(creatorId, { body: `You have content ${due}.`, url: `/creator/requests/${requestId}`, tag: `reminder-${requestId}` }).catch(() => ({ sent: 0, removed: 0 }));

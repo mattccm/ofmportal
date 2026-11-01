@@ -72,6 +72,8 @@ export interface UseFileUploadOptions {
   onAllComplete?: () => void;
   onError?: (file: QueuedFile, error: string) => void;
   getAuthHeaders?: () => Record<string, string>;
+  /** A creator's page: if it goes to the background mid-upload and never comes back, notify their phone */
+  nudgeWhenPaused?: boolean;
 }
 
 export interface UseFileUploadReturn {
@@ -194,6 +196,7 @@ export function useFileUpload({
   onAllComplete,
   onError,
   getAuthHeaders,
+  nudgeWhenPaused = false,
 }: UseFileUploadOptions): UseFileUploadReturn {
   const [queue, setQueue] = useState<QueuedFile[]>([]);
   const activeUploadsRef = useRef<Set<string>>(new Set());
@@ -862,6 +865,44 @@ export function useFileUpload({
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasInFlightUploads]);
+
+  // A phone stops the upload once the page is in the background. Ask the server
+  // to notify the creator if it's still stopped in 10 minutes; coming back (or
+  // the upload finishing after all) calls it off. A frozen page can't call it
+  // off, which is exactly when the notification is needed.
+  const hasUnfinished = queue.some(
+    (f) => f.status === "uploading" || f.status === "pending" || (f.status === "error" && f.interrupted)
+  );
+  const nudgeTarget = useRef({ requestId, buildAuthHeaders });
+  nudgeTarget.current = { requestId, buildAuthHeaders };
+  useEffect(() => {
+    if (!nudgeWhenPaused || !hasUnfinished) return;
+    let armed = false;
+    const tell = (action: "arm" | "disarm") => {
+      const { requestId: id, buildAuthHeaders: headers } = nudgeTarget.current;
+      // keepalive: still sent while the page is being put away
+      fetch("/api/portal/upload-nudge", {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json", ...headers() },
+        body: JSON.stringify(action === "arm" ? { action, requestId: id } : { action }),
+      }).catch(() => {});
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        armed = true;
+        tell("arm");
+      } else if (armed) {
+        armed = false;
+        tell("disarm");
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (armed) tell("disarm");
+    };
+  }, [nudgeWhenPaused, hasUnfinished]);
 
   // Keep the screen on while uploading: a phone that locks itself stops the
   // upload. The browser lets go when the page is hidden, so ask again on return.
