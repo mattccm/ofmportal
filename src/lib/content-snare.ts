@@ -426,7 +426,8 @@ export async function toTemplate(agencyId: string, t: SnareTemplate, c: SnareCon
       let sectionVideos = sectionShown ? embeddedVideos(section.instruction_text) : [];
       pageImages = [];
       const sectionFields = [...(section.fields ?? [])].sort(bySort).filter((f) => !f.internal);
-      let carried: { files: SnareImage[]; text: string } | null = null;
+      type Carried = { files: SnareImage[]; text: string };
+      let carried = null as Carried | null;
 
       for (const [i, f] of sectionFields.entries()) {
         if (f.conditional) conditional = true;
@@ -446,7 +447,8 @@ export async function toTemplate(agencyId: string, t: SnareTemplate, c: SnareCon
         // followed by the upload the creator does: its example goes on that upload instead
         const isUpload = (g: SnareField) => (g.type ?? "").toLowerCase() === "fields::file";
         if (isUpload(f) && (f.images?.length ?? 0) > 0 && sectionFields.slice(i + 1).some(isUpload)) {
-          carried = { files: [...(carried?.files ?? []), ...(f.images ?? [])], text: `${carried?.text ?? ""}${hasText(text) ? text : ""}` };
+          const before: Carried | null = carried;
+          carried = { files: [...(before?.files ?? []), ...(f.images ?? [])], text: `${before?.text ?? ""}${hasText(text) ? text : ""}` };
           notes.push(`"${label}" held an example: it's now the example on the upload after it.`);
           continue;
         }
