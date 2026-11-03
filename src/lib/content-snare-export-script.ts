@@ -145,7 +145,9 @@ export const CONTENT_SNARE_EXPORT_SCRIPT = `(async () => {
       const entry = Object.assign({}, t, { template: null, pages: [], errors: [] });
       try {
         entry.template = await get("form_templates/" + t.id + "?include_all_content=true");
-        const tabs = (entry.template && (entry.template.tabs_attributes || entry.template.tabs || entry.template.pages)) || [];
+        // The pages are in template.content.tabs_attributes; each is loaded too, for its example files
+        const tpl = entry.template || {}, content = tpl.content || {};
+        const tabs = content.tabs_attributes || tpl.tabs_attributes || content.tabs || tpl.tabs || [];
         for (const tab of tabs) {
           if (!tab || tab.id == null) continue;
           try { entry.pages.push(await get("tabs/" + tab.id + "?template=true")); }
