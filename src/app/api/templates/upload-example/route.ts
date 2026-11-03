@@ -1,43 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccess } from "@/lib/access/server";
-import { getUploadPresignedUrl, getPublicFileUrl } from "@/lib/storage";
-
-// Determine if we're using local MinIO or Cloudflare R2
-const isLocal = process.env.R2_ENDPOINT?.includes("localhost");
-const BUCKET_NAME = process.env.R2_BUCKET_NAME || "upload-portal";
-const TEMPLATE_ASSETS_PREFIX = "template-assets";
+import { getUploadPresignedUrl } from "@/lib/storage";
+import { TEMPLATE_ASSETS_PREFIX, templateAssetUrl } from "@/lib/template-assets";
 
 // Maximum file sizes
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
-
-/**
- * Get public URL for template asset
- */
-function getAssetPublicUrl(key: string): string {
-  // Try to use the public domain if configured
-  const publicUrl = getPublicFileUrl(key);
-  if (publicUrl) {
-    return publicUrl;
-  }
-
-  // Fallback for local development
-  if (isLocal) {
-    return `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
-  }
-
-  // If no public domain is configured, we'll need to use presigned URLs for access
-  // This shouldn't happen in production with proper R2 setup
-  const publicDomain = process.env.R2_PUBLIC_DOMAIN;
-  if (!publicDomain) {
-    console.error(
-      "R2_PUBLIC_DOMAIN is not set. Template asset URLs will not work. " +
-      "Set R2_PUBLIC_DOMAIN to your custom domain or r2.dev URL."
-    );
-    return `https://missing-r2-public-domain/${key}`;
-  }
-  return `https://${publicDomain}/${key}`;
-}
 
 // POST: Get presigned URL for template example upload
 // Returns a presigned URL for direct browser-to-R2 upload
@@ -86,7 +54,7 @@ export async function POST(request: NextRequest) {
     const { url: uploadUrl } = await getUploadPresignedUrl(key, fileType, fileSize);
 
     // Get the public URL where the file will be accessible after upload
-    const publicUrl = getAssetPublicUrl(key);
+    const publicUrl = templateAssetUrl(key);
 
     return NextResponse.json({
       success: true,

@@ -5,7 +5,7 @@ import { dueEndsLine } from "@/lib/due";
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Layers, Loader2, Plus, Repeat, Search, Send, Star, Users } from "lucide-react";
+import { Clapperboard, Layers, Loader2, Plus, Repeat, Search, Send, Star, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import { ReminderSchedulePreview } from "@/components/requests/reminder-schedule
 import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
 import { FieldList, AutoGrowTextarea, type ComposeField } from "./field-list";
 import { NotificationLines, PhonePreview } from "./phone-preview";
+import { ReelLinksDialog } from "./reel-links-dialog";
 import type { ComposeCreator, ComposeData, ComposeTemplate } from "./data";
 import { useAccess } from "@/lib/access/client";
 import { planChannels, type MessagingPlan } from "@/lib/messaging";
@@ -124,6 +125,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
   const [recovery, setRecovery] = React.useState(false);
   const [lastAdded, setLastAdded] = React.useState<string | null>(null);
   const [live, setLive] = React.useState("");
+  const [reelsOpen, setReelsOpen] = React.useState(false);
 
   const wallRef = React.useRef<HTMLUListElement>(null);
   const pageRef = React.useRef<HTMLDivElement>(null);
@@ -801,10 +803,25 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
                     announce={setLive}
                   />
                 )}
-                <Button id="add-field" type="button" variant="outline" size="sm" className="mt-2" onClick={addField} disabled={!!sending}>
-                  <Plus className="size-4" aria-hidden="true" />
-                  Add a field
-                </Button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button id="add-field" type="button" variant="outline" size="sm" onClick={addField} disabled={!!sending}>
+                    <Plus className="size-4" aria-hidden="true" />
+                    Add a field
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setReelsOpen(true)} disabled={!!sending}>
+                    <Clapperboard className="size-4" aria-hidden="true" />
+                    Add reels from links
+                  </Button>
+                </div>
+                <ReelLinksDialog
+                  open={reelsOpen}
+                  onOpenChange={setReelsOpen}
+                  fields={fields}
+                  onAdd={(next, count) => {
+                    setFieldsEdited(next);
+                    setLive(`Added ${count} ${count === 1 ? "reel" : "reels"}. ${next.length} fields now.`);
+                  }}
+                />
               </fieldset>
 
               {/* due + priority */}
