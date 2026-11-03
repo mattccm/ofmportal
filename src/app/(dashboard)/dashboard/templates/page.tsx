@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import type { TemplateField } from "@/lib/template-types";
 import { fieldSpec } from "@/components/templates/template-spec";
 import { TemplatesClient } from "./templates-client";
+import { ContentSnareImport } from "@/components/templates/content-snare-import";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -143,6 +144,7 @@ export default async function TemplatesPage({
         </div>
         {access.has("templates.create") && (
           <div className="flex flex-wrap items-center gap-2">
+            <ContentSnareImport />
             <Button asChild>
               <Link href="/dashboard/templates/new">
                 <Plus className="size-4" aria-hidden="true" />
