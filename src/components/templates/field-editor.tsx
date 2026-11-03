@@ -551,10 +551,14 @@ export interface RichContentEditorProps {
   onChange: (richContent: RichContent | undefined) => void;
   title?: string; // Optional custom title
   description?: string; // Optional custom description
+  /** Start open (what's there is shown, not just "Configured") */
+  defaultExpanded?: boolean;
+  /** Leave out the instructions box (when the instructions are edited elsewhere) */
+  hideInstructions?: boolean;
 }
 
-export function RichContentEditor({ richContent, onChange, title, description }: RichContentEditorProps) {
-  const [expanded, setExpanded] = React.useState(false);
+export function RichContentEditor({ richContent, onChange, title, description, defaultExpanded = false, hideInstructions = false }: RichContentEditorProps) {
+  const [expanded, setExpanded] = React.useState(defaultExpanded);
   const [uploadingImage, setUploadingImage] = React.useState(false);
   const [uploadingVideo, setUploadingVideo] = React.useState(false);
   const [isDraggingImage, setIsDraggingImage] = React.useState(false);
@@ -959,6 +963,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
       {expanded && (
         <div className="space-y-4 pt-2">
           {/* Description / Instructions */}
+          {!hideInstructions && (
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Instructions / Description</Label>
             <WysiwygEditor
@@ -973,6 +978,7 @@ export function RichContentEditor({ richContent, onChange, title, description }:
               Provide additional context or guidelines for creators filling out this field.
             </p>
           </div>
+          )}
 
           {/* Example Images - Upload Only (Bulk) */}
           <div className="space-y-3">

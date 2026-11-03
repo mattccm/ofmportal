@@ -20,6 +20,7 @@ import {
   PanelRightOpen,
   Send,
   Bell,
+  Smartphone,
 } from "lucide-react";
 import { NotesPanel } from "@/components/notes/notes-panel";
 import { type Note } from "@/lib/notes-utils";
@@ -29,6 +30,7 @@ import { RequestActions } from "@/components/requests/request-actions";
 import { CommentSection } from "@/components/comments/comment-section";
 import { type FieldSubmission } from "@/components/requests/field-review-controls";
 import { CloneRequestDialog } from "@/components/requests/clone-request-dialog";
+import { CreatorPreviewDialog } from "@/components/templates/creator-preview-dialog";
 import { WatchersPanel, type Watcher } from "@/components/requests/watchers-panel";
 import { toast } from "sonner";
 import {
@@ -245,6 +247,7 @@ export function RequestDetailClient({
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const [watchers, setWatchers] = useState<Watcher[]>((initialRequest.watchers || []) as Watcher[]);
   const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
+  const [creatorPreview, setCreatorPreview] = useState(false);
   const [cloneHistory, setCloneHistory] = useState<CloneHistory | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyAll, setHistoryAll] = useState(false);
@@ -833,6 +836,10 @@ export function RequestDetailClient({
               {showAll ? "Hide previews" : "Show previews"}
             </Button>
           )}
+          <Button variant="outline" onClick={() => setCreatorPreview(true)}>
+            <Smartphone className="size-4" aria-hidden="true" />
+            Preview as creator
+          </Button>
           <RequestActions request={request} onCloneClick={() => setCloneDialogOpen(true)} />
         </div>
       </div>
@@ -1343,6 +1350,14 @@ export function RequestDetailClient({
         </aside>
       </div>
 
+      <CreatorPreviewDialog
+        open={creatorPreview}
+        onOpenChange={setCreatorPreview}
+        src={`/preview/request/${request.id}`}
+        savedHref={`/preview/request/${request.id}`}
+        savedLabel="Open in a new tab"
+        description={`The request as ${request.creator.name} sees it now, with what they've sent. Try anything: nothing is uploaded or sent.`}
+      />
       <CloneRequestDialog
         request={requestForClone}
         creators={creators}

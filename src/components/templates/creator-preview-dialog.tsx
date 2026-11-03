@@ -5,7 +5,6 @@ import { ExternalLink, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Segmented } from "@/components/messaging/plan-editor";
-import { TEMPLATE_PREVIEW_MESSAGE } from "@/lib/template-request";
 import type { RichContent, TemplateField } from "@/lib/template-types";
 import { cn } from "@/lib/utils";
 
@@ -26,21 +25,31 @@ export interface PreviewDraft {
 }
 
 /**
- * "Preview as creator": the real creator request page for this template, in a
- * phone, tablet or desktop sized frame. Fully interactive and sandboxed: the
- * page (src/app/preview/template/[id]) uploads and sends nothing. The editor's
- * unsaved draft is posted in, so the preview matches what's on screen.
+ * "Preview as creator": the real creator request page, in a phone, tablet or
+ * desktop sized frame. Fully interactive and sandboxed: the framed page
+ * (src/app/preview/...) uploads and sends nothing. With `message`, an unsaved
+ * draft (a template being edited, a request being written) is posted in when
+ * the frame is ready, so the preview matches what's on screen.
  */
 export function CreatorPreviewDialog({
   open,
   onOpenChange,
-  templateId,
-  draft,
+  src,
+  message,
+  savedHref,
+  savedLabel = "Open saved version",
+  description = "The request as a creator gets it. Try everything: nothing is uploaded or sent.",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  templateId?: string;
-  draft: PreviewDraft;
+  /** The framed preview page */
+  src: string;
+  /** Posted to the frame as { type, payload } when it says `${type}:ready` */
+  message?: { type: string; payload: unknown };
+  /** Opens the preview on its own, in a new tab */
+  savedHref?: string;
+  savedLabel?: string;
+  description?: string;
 }) {
   const [device, setDevice] = React.useState<Device>("phone");
   const frameRef = React.useRef<HTMLIFrameElement>(null);
@@ -50,18 +59,23 @@ export function CreatorPreviewDialog({
   const bezel = device === "phone" ? 12 : device === "tablet" ? 14 : 0;
 
   // Keep the latest draft for when the frame asks for it
-  const draftRef = React.useRef(draft);
+  const messageRef = React.useRef(message);
   React.useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
+    messageRef.current = message;
+  }, [message]);
+  const [reload, setReload] = React.useState(0);
   const post = React.useCallback(() => {
-    frameRef.current?.contentWindow?.postMessage({ type: TEMPLATE_PREVIEW_MESSAGE, template: draftRef.current }, window.location.origin);
+    const m = messageRef.current;
+    if (m) frameRef.current?.contentWindow?.postMessage({ type: m.type, payload: m.payload }, window.location.origin);
   }, []);
+  // Start over: post the draft again, or load a saved request afresh
+  const startOver = () => (messageRef.current ? post() : setReload((n) => n + 1));
 
   React.useEffect(() => {
     if (!open) return;
     const onMessage = (e: MessageEvent) => {
-      if (e.origin === window.location.origin && e.data?.type === `${TEMPLATE_PREVIEW_MESSAGE}:ready` && e.source === frameRef.current?.contentWindow) post();
+      const m = messageRef.current;
+      if (m && e.origin === window.location.origin && e.data?.type === `${m.type}:ready` && e.source === frameRef.current?.contentWindow) post();
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -77,7 +91,6 @@ export function CreatorPreviewDialog({
   const outerW = d.w + bezel * 2;
   const outerH = d.h + bezel * 2;
   const scale = box.w && box.h ? Math.min(1, (box.w - 32) / outerW, (box.h - 56) / outerH) : 1;
-  const src = `/preview/template/${templateId ?? "new"}?draft=1`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,9 +101,7 @@ export function CreatorPreviewDialog({
         <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-3 sm:px-6">
           <div className="min-w-0 flex-1">
             <DialogTitle className="text-[17px] font-semibold leading-snug text-ink">Preview as creator</DialogTitle>
-            <DialogDescription className="text-[13px] text-ink-2">
-              The request as a creator gets it. Try everything: nothing is uploaded or sent.
-            </DialogDescription>
+            <DialogDescription className="text-[13px] text-ink-2">{description}</DialogDescription>
           </div>
           <Segmented
             label="Screen size"
@@ -99,15 +110,15 @@ export function CreatorPreviewDialog({
             onChange={setDevice}
           />
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={post}>
+            <Button variant="outline" size="sm" onClick={startOver}>
               <RotateCcw aria-hidden="true" />
               Start over
             </Button>
-            {templateId && (
+            {savedHref && (
               <Button variant="ghost" size="sm" asChild>
-                <a href={`/preview/template/${templateId}`} target="_blank" rel="noopener">
+                <a href={savedHref} target="_blank" rel="noopener">
                   <ExternalLink aria-hidden="true" />
-                  <span className="hidden md:inline">Open saved version</span>
+                  <span className="hidden md:inline">{savedLabel}</span>
                 </a>
               </Button>
             )}
@@ -129,6 +140,7 @@ export function CreatorPreviewDialog({
               )}
             >
               <iframe
+                key={reload}
                 ref={frameRef}
                 title="The request as a creator sees it"
                 src={src}

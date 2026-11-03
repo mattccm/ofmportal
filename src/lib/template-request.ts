@@ -70,3 +70,6 @@ export function requestRichContentFromTemplate(t: Pick<TemplateLike, "richConten
 
 /** The template editor posts its unsaved template to "Preview as creator" with this message (same origin only) */
 export const TEMPLATE_PREVIEW_MESSAGE = "ccm-template-preview";
+
+/** The new-request screen posts its unsaved request to "Preview as creator" with this message (same origin only) */
+export const REQUEST_PREVIEW_MESSAGE = "ccm-request-preview";

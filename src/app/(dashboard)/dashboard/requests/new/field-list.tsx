@@ -53,6 +53,22 @@ export const FIELD_TYPES: { value: string; label: string }[] = [
 
 const typeLabel = (t: string) => FIELD_TYPES.find((x) => x.value === t)?.label ?? "Short text";
 
+const nOf = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** What a field carries besides its name, e.g. "Instructions · 1 example video" */
+export function fieldExtras(f: ComposeField): string {
+  const rc = f.richContent;
+  const images = (rc?.exampleImages?.length ?? 0) + (rc?.exampleImageUrl ? 1 : 0);
+  const parts = [
+    f.helpText?.trim() || rc?.description?.replace(/<[^>]*>/g, "").trim() ? "Instructions" : "",
+    rc?.exampleVideoUrl ? "1 example video" : "",
+    images ? nOf(images, "example image") : "",
+    rc?.referenceLinks?.length ? nOf(rc.referenceLinks.length, "link") : "",
+    rc?.exampleText?.trim() ? "Example text" : "",
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
 interface FieldListProps {
   fields: ComposeField[];
   onChange: (fields: ComposeField[]) => void;
@@ -168,6 +184,7 @@ function FieldRow({
     id: field.id,
   });
   const nm = field.label.trim() || `field ${index + 1}`;
+  const extras = fieldExtras(field);
   const panelId = `fp-${field.id}`;
   const iconBtn =
     "inline-flex size-9 shrink-0 items-center justify-center rounded-[var(--tw-r-ctl)] text-icon transition-colors hover:bg-tile-hi hover:text-ink focus-visible:outline-2 focus-visible:outline-acc disabled:pointer-events-none disabled:text-ctl";
@@ -254,6 +271,18 @@ function FieldRow({
           </button>
         </div>
       </div>
+      {!open && extras && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={false}
+          aria-controls={panelId}
+          className="-mt-1 block w-full truncate rounded-[var(--tw-r-ctl)] pb-2 pl-12 pr-3 text-left text-[13px] text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-acc"
+        >
+          {extras}
+          <span className="sr-only">. Show them for {nm}</span>
+        </button>
+      )}
       {open && (
         <div id={panelId} className="flex flex-col gap-4 border-t border-line px-3 pb-4 pt-3 sm:pl-12">
           <div className="flex items-center justify-between gap-4">
@@ -299,6 +328,7 @@ function FieldRow({
           )}
           {field.type === "file" && (
             <RichContentEditor
+              defaultExpanded={!!extras}
               richContent={field.richContent}
               onChange={(richContent) => onUpdate({ richContent })}
               title="Examples and references"

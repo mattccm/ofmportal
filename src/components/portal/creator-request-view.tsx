@@ -78,7 +78,7 @@ export interface CreatorRequestData {
   fieldSubmissions?: Record<string, FieldSubmission>;
 }
 
-interface UploadFile {
+export interface UploadFile {
   id: string;
   fileName: string;
   originalName: string;
@@ -93,7 +93,7 @@ interface UploadFile {
   createdAt?: string;
 }
 
-interface Comment {
+export interface Comment {
   id: string;
   content: string;
   createdAt: string;
@@ -202,7 +202,14 @@ function toDuplicateDisplayResult(result: FingerprintCheckResult): DuplicateChec
  * the request comes from a template, files stay on this device and every
  * action changes only this page ("Preview as creator" on templates).
  */
-export function CreatorRequestView({ requestId, preview }: { requestId: string; preview?: { request: CreatorRequestData } }) {
+export function CreatorRequestView({
+  requestId,
+  preview,
+}: {
+  requestId: string;
+  /** Staff previews: this request (and what's on it so far), with nothing sent to the server */
+  preview?: { request: CreatorRequestData; uploads?: UploadFile[]; comments?: Comment[] };
+}) {
   const isPreview = !!preview;
   const router = useRouter();
   const tz = useViewerTimeZone();
@@ -371,15 +378,17 @@ export function CreatorRequestView({ requestId, preview }: { requestId: string; 
     };
   }, []);
 
-  // The preview starts from the template's request, with nothing uploaded yet
+  // A preview starts from the request it was given: a new one has nothing on it yet
   const previewRequest = preview?.request;
+  const previewUploads = preview?.uploads;
+  const previewComments = preview?.comments;
   useEffect(() => {
     if (!previewRequest) return;
     setRequest(previewRequest);
-    setUploads([]);
-    setComments([]);
+    setUploads(previewUploads ?? []);
+    setComments(previewComments ?? []);
     setLoading(false);
-  }, [previewRequest]);
+  }, [previewRequest, previewUploads, previewComments]);
 
   useEffect(() => {
     if (isPreview) return;

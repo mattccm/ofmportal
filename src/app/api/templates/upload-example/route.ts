@@ -11,7 +11,8 @@ const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 // Returns a presigned URL for direct browser-to-R2 upload
 export async function POST(request: NextRequest) {
   try {
-    const gate = await requireAccess(["templates.create", "templates.edit"]);
+    // Template editors, and anyone writing a request (its examples are set per request)
+    const gate = await requireAccess(["templates.create", "templates.edit", "requests.create"]);
     if (gate.error) return gate.error;
     const { session } = gate;
 

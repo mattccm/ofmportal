@@ -5,15 +5,9 @@ import {
   validateCreatorSession,
   CREATOR_HIDDEN_STATUSES,
   CREATOR_FINISHED_STATUSES,
-  staffFirstName,
-  isCreatorPseudoEmail,
 } from "@/lib/portal-auth";
-import {
-  getViewPresignedUrl,
-  useLocalStorage,
-  getPublicFileUrl,
-  SIGNED_URL_NO_STORE,
-} from "@/lib/storage";
+import { SIGNED_URL_NO_STORE } from "@/lib/storage";
+import { CREATOR_UPLOAD_SELECT, serializeCreatorComment, serializeCreatorUpload } from "@/lib/creator-request-payload";
 
 export async function GET(
   req: NextRequest,
@@ -105,21 +99,7 @@ export async function GET(
         },
         orderBy: { createdAt: "desc" },
         take: uploadsLimit,
-        select: {
-          id: true,
-          fileName: true,
-          originalName: true,
-          fileType: true,
-          fileSize: true,
-          status: true,
-          uploadStatus: true,
-          storageKey: true,
-          thumbnailUrl: true,
-          thumbnailKey: true,
-          fieldId: true,
-          reviewNote: true,
-          createdAt: true,
-        },
+        select: CREATOR_UPLOAD_SELECT,
       }),
       db.upload.count({
         where: {
@@ -130,56 +110,7 @@ export async function GET(
     ]);
 
     // Convert BigInt to number and generate URLs for previews
-    const serializedUploads = await Promise.all(
-      uploads.map(async (upload) => {
-        let thumbnailUrl = upload.thumbnailUrl;
-
-        // For images, use the actual file as preview (via public URL if available)
-        const isImage = upload.fileType.startsWith("image/");
-        const isVideo = upload.fileType.startsWith("video/");
-
-        // Try to get a preview URL - prioritize public URL for zero bandwidth
-        let previewUrl: string | null = null;
-        const keyToUse = isImage ? upload.storageKey : upload.thumbnailKey;
-
-        if (keyToUse) {
-          try {
-            // Creator content: getPublicFileUrl returns null, so this signs
-            previewUrl = getPublicFileUrl(keyToUse);
-            if (!previewUrl) {
-              if (useLocalStorage) {
-                previewUrl = `/api/local-files/${encodeURIComponent(keyToUse)}`;
-              } else {
-                previewUrl = await getViewPresignedUrl(keyToUse);
-              }
-            }
-          } catch {
-            // Preview generation failed
-          }
-        }
-
-        // Use computed preview URL as thumbnail for images
-        if (isImage && previewUrl && !thumbnailUrl) {
-          thumbnailUrl = previewUrl;
-        }
-
-        return {
-          id: upload.id,
-          fileName: upload.fileName,
-          originalName: upload.originalName,
-          fileType: upload.fileType,
-          fileSize: Number(upload.fileSize),
-          status: upload.status,
-          uploadStatus: upload.uploadStatus,
-          storageKey: upload.storageKey,
-          thumbnailUrl: thumbnailUrl || previewUrl,
-          fieldId: upload.fieldId,
-          // CCM's note on a file it sent back, so the creator sees why
-          reviewNote: upload.status === "REJECTED" ? upload.reviewNote : null,
-          createdAt: upload.createdAt.toISOString(),
-        };
-      })
-    );
+    const serializedUploads = await Promise.all(uploads.map(serializeCreatorUpload));
 
     // Get comments (non-internal only) with pagination
     const [comments, commentsTotal] = await Promise.all([
@@ -210,38 +141,7 @@ export async function GET(
     ]);
 
     // Transform comments for the frontend
-    const transformedComments = comments.map((comment) => {
-      // Check if this is a creator comment (stored in mentions field)
-      let isCreatorComment = false;
-      let creatorInfo = null;
-      try {
-        const mentions = typeof comment.mentions === "string"
-          ? JSON.parse(comment.mentions)
-          : comment.mentions;
-        if (Array.isArray(mentions) && mentions.length > 0 && mentions[0]?.type === "creator") {
-          isCreatorComment = true;
-          creatorInfo = mentions[0];
-        }
-      } catch {
-        // Invalid JSON, not a creator comment
-      }
-
-      // A creator's own comment (marker, or a hidden .internal pseudo-user)
-      // shows as "You"; staff show by first name only, never an email
-      const mine = isCreatorComment || isCreatorPseudoEmail(comment.user?.email);
-      return {
-        id: comment.id,
-        content: comment.message,
-        createdAt: comment.createdAt.toISOString(),
-        fieldId: comment.fieldId,
-        isAgency: !mine,
-        user: mine
-          ? { name: creatorInfo?.name || creator.name }
-          : comment.user
-            ? { name: staffFirstName(comment.user.name), image: comment.user.avatar }
-            : undefined,
-      };
-    });
+    const transformedComments = comments.map((comment) => serializeCreatorComment(comment, creator.name));
 
     return NextResponse.json({
       request,

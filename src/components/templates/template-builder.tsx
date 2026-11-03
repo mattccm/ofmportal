@@ -52,7 +52,8 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
-import { CreatorPreviewDialog } from "./creator-preview-dialog";
+import { CreatorPreviewDialog, type PreviewDraft } from "./creator-preview-dialog";
+import { TEMPLATE_PREVIEW_MESSAGE } from "@/lib/template-request";
 import { cn } from "@/lib/utils";
 import {
   TemplateField,
@@ -836,8 +837,12 @@ export function TemplateBuilder({
       <CreatorPreviewDialog
         open={creatorPreview}
         onOpenChange={setCreatorPreview}
-        templateId={templateId}
-        draft={{ name, description: description || null, richContent: richContent ?? null, fields, defaultDueDays }}
+        src={`/preview/template/${templateId ?? "new"}?draft=1`}
+        message={{
+          type: TEMPLATE_PREVIEW_MESSAGE,
+          payload: { name, description: description || null, richContent: richContent ?? null, fields, defaultDueDays } satisfies PreviewDraft,
+        }}
+        savedHref={templateId ? `/preview/template/${templateId}` : undefined}
       />
     </div>
   );

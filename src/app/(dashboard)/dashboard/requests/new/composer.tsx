@@ -5,7 +5,7 @@ import { dueEndsLine } from "@/lib/due";
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Clapperboard, Layers, Loader2, Plus, Repeat, Search, Send, Star, Users } from "lucide-react";
+import { Clapperboard, Layers, Loader2, Plus, Repeat, Search, Send, Smartphone, Star, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,16 +15,19 @@ import { AutosaveIndicator } from "@/components/forms/autosave-indicator";
 import { RecoveryDialog } from "@/components/forms/recovery-dialog";
 import { clearFormData } from "@/lib/form-storage";
 import { cn } from "@/lib/utils";
-import { expandQuantityFields, type TemplateField } from "@/lib/template-types";
-import { htmlToPlain, plainToHtml } from "@/lib/rich-text";
-import { requestDescriptionFromTemplate, requestFieldsFromTemplate, requestRichContentFromTemplate } from "@/lib/template-request";
+import { expandQuantityFields, type RichContent, type TemplateField } from "@/lib/template-types";
+import { asRichHtml, hasRichText } from "@/lib/rich-text";
+import { REQUEST_PREVIEW_MESSAGE, requestDescriptionFromTemplate, requestFieldsFromTemplate, requestRichContentFromTemplate } from "@/lib/template-request";
 import { flipLayout, usePressFeedback } from "@/components/title-wall";
 import { TemplateCover } from "@/components/templates/template-cover";
 import { fieldSpec } from "@/components/templates/template-spec";
 import { DueDateField, addDaysIso } from "@/components/requests/deadline-picker";
 import { ReminderSchedulePreview } from "@/components/requests/reminder-schedule-preview";
-import { FieldExamplesDisplay } from "@/components/portal/field-examples-display";
-import { FieldList, AutoGrowTextarea, type ComposeField } from "./field-list";
+import { FieldList, type ComposeField } from "./field-list";
+import { WysiwygEditor } from "@/components/ui/wysiwyg-editor";
+import { RichContentEditor } from "@/components/templates/field-editor";
+import { CreatorPreviewDialog } from "@/components/templates/creator-preview-dialog";
+import type { CreatorRequestData } from "@/components/portal/creator-request-view";
 import { NotificationLines, PhonePreview } from "./phone-preview";
 import { ReelLinksDialog } from "./reel-links-dialog";
 import type { ComposeCreator, ComposeData, ComposeTemplate } from "./data";
@@ -61,6 +64,8 @@ interface Draft extends Record<string, unknown> {
   urgency: Urgency;
   sendNotification: boolean;
   customFields: ComposeField[];
+  /** The request's own examples (from the template, changeable here) */
+  examples?: RichContent | null;
 }
 
 function readList(key: string): string[] {
@@ -107,9 +112,11 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
   const [creatorIds, setCreatorIds] = React.useState<string[]>(qCreator && byId.has(qCreator) ? [qCreator] : []);
   const [groupId, setGroupId] = React.useState<string>(qGroup ?? "");
   const [title, setTitle] = React.useState("");
+  // The note to the creator (rich text): the template's note and instructions, changeable here
   const [description, setDescription] = React.useState("");
-  const [note, setNote] = React.useState("");
   const [noteTouched, setNoteTouched] = React.useState(false);
+  // The template's examples, images and links for this request (changeable here)
+  const [reqExamples, setReqExamples] = React.useState<RichContent | undefined>(undefined);
   const [dueDate, setDueDate] = React.useState(addDaysIso(7));
   const [urgency, setUrgency] = React.useState<Urgency>("NORMAL");
   const [sendNotification, setSendNotification] = React.useState(true);
@@ -126,6 +133,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
   const [lastAdded, setLastAdded] = React.useState<string | null>(null);
   const [live, setLive] = React.useState("");
   const [reelsOpen, setReelsOpen] = React.useState(false);
+  const [creatorPreview, setCreatorPreview] = React.useState(false);
 
   const wallRef = React.useRef<HTMLUListElement>(null);
   const pageRef = React.useRef<HTMLDivElement>(null);
@@ -188,14 +196,15 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
       groupId,
       templateId,
       title,
-      description: noteTouched ? plainToHtml(note) : description,
+      description,
       noteTouched,
       dueDate,
       urgency,
       sendNotification,
       customFields: fields,
+      examples: reqExamples ?? null,
     }),
-    [mode, creatorIds, groupId, templateId, title, note, noteTouched, description, dueDate, urgency, sendNotification, fields]
+    [mode, creatorIds, groupId, templateId, title, noteTouched, description, dueDate, urgency, sendNotification, fields, reqExamples]
   );
   const autosave = useAutosave<Draft>({
     formId: FORM_ID,
@@ -215,13 +224,15 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
     setGroupId(r.groupId ?? "");
     setTemplateId(r.templateId || BLANK);
     setTitle(r.title ?? "");
-    setDescription(r.description ?? "");
-    setNote(htmlToPlain(r.description ?? ""));
-    setNoteTouched(false);
+    setDescription(asRichHtml(r.description ?? ""));
+    setNoteTouched(!!r.noteTouched);
     setDueDate(r.dueDate ?? "");
     setUrgency((r.urgency as Urgency) ?? "NORMAL");
     setSendNotification(r.sendNotification ?? true);
     setFields(Array.isArray(r.customFields) ? r.customFields : []);
+    // Older drafts didn't keep examples: take the template's
+    const rt = templates.find((x) => x.id === r.templateId);
+    setReqExamples(r.examples !== undefined ? r.examples ?? undefined : rt ? requestRichContentFromTemplate(rt) : undefined);
     toast.success("Your draft is back");
   };
 
@@ -230,7 +241,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
   const applyTemplate = React.useCallback(
     (id: string, opts: { quiet?: boolean } = {}) => {
       const t = templates.find((x) => x.id === id) ?? null;
-      const prev = { templateId, fields, title, note, description, noteTouched, dueDate, urgency };
+      const prev = { templateId, fields, title, description, noteTouched, dueDate, urgency, reqExamples };
       const titleWasDefault =
         !title.trim() || title === (templates.find((x) => x.id === templateId)?.name ?? "");
       const wasEdited = fieldsEdited.current;
@@ -239,11 +250,11 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
         setTemplateId(id);
         if (t) {
           setFields(fieldsFrom(t));
+          setReqExamples(requestRichContentFromTemplate(t));
           if (titleWasDefault) setTitle(t.name);
-          const d = templateDescription(t);
-          if (!noteTouched || !note.trim()) {
-            setDescription(d);
-            setNote(htmlToPlain(d));
+          // A note written here stays; otherwise it's the template's
+          if (!noteTouched || !hasRichText(description)) {
+            setDescription(asRichHtml(templateDescription(t)));
             setNoteTouched(false);
           }
           setDueDate(addDaysIso(t.defaultDueDays));
@@ -253,6 +264,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
         } else {
           if (titleWasDefault) setTitle("");
           if (!fields.length || !wasEdited) setFields([]);
+          setReqExamples(undefined);
         }
         fieldsEdited.current = false;
       };
@@ -276,7 +288,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
                 setTemplateId(prev.templateId);
                 setFields(prev.fields);
                 setTitle(prev.title);
-                setNote(prev.note);
+                setReqExamples(prev.reqExamples);
                 setDescription(prev.description);
                 setNoteTouched(prev.noteTouched);
                 setDueDate(prev.dueDate);
@@ -289,7 +301,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
         }
       }
     },
-    [templates, templateId, fields, title, note, description, noteTouched, dueDate, urgency]
+    [templates, templateId, fields, title, description, noteTouched, dueDate, urgency, reqExamples]
   );
 
   // ?templateId= link in
@@ -389,12 +401,12 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
       return;
     }
     setSending(asDraft ? "draft" : "send");
-    const richContent = template ? requestRichContentFromTemplate(template) : undefined;
+    const richContent = reqExamples;
     const body = (creatorId: string) => ({
       creatorId,
       templateId: template?.id,
       title: title.trim(),
-      description: noteTouched ? plainToHtml(note) : description,
+      description: hasRichText(description) ? description : "",
       dueDate: dueDate || undefined,
       urgency,
       requirements: { quantity: "", format: "", resolution: "", notes: "" },
@@ -469,9 +481,27 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
   );
 
   const examples =
-    (template?.richContent?.exampleImages?.length ?? 0) +
-    (template?.richContent?.exampleVideoUrl ? 1 : 0) +
-    (template?.richContent?.referenceLinks?.length ?? 0);
+    (reqExamples?.exampleImages?.length ?? 0) +
+    (reqExamples?.exampleVideoUrl ? 1 : 0) +
+    (reqExamples?.referenceLinks?.length ?? 0) +
+    (reqExamples?.exampleText?.trim() ? 1 : 0);
+
+  // What "Preview as creator" shows: this request as it would arrive now
+  const previewPayload = React.useMemo(() => {
+    const request: CreatorRequestData = {
+      id: "preview",
+      title: title.trim() || "Untitled request",
+      description: hasRichText(description) ? description : null,
+      dueDate: dueDate ? new Date(`${dueDate}T23:59:59`).toISOString() : null,
+      dueOn: dueDate || null,
+      status: "PENDING",
+      createdAt: new Date().toISOString(),
+      requirements: reqExamples ? { _richContent: reqExamples } : {},
+      fields: fields.map((f) => ({ ...f, label: f.label.trim() || "Untitled field" })) as CreatorRequestData["fields"],
+      fieldSubmissions: {},
+    };
+    return { request, creatorName: previewCreator?.name };
+  }, [title, description, dueDate, reqExamples, fields, previewCreator?.name]);
 
   const segBtn = (on: boolean) =>
     cn(
@@ -954,39 +984,48 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
 
               {/* note */}
               <div className="mt-6">
-                <label htmlFor="req-note" className="mb-2 block text-sm font-medium">
+                <p id="req-note-label" className="mb-2 block text-sm font-medium">
                   Note to the creator <span className="font-normal text-ink-2">(optional)</span>
-                </label>
-                <AutoGrowTextarea
-                  id="req-note"
-                  value={note}
-                  onChange={(v) => {
-                    setNote(v);
+                </p>
+                <WysiwygEditor
+                  aria-label="Note to the creator"
+                  value={description}
+                  onChange={(html) => {
+                    if (html === description) return;
+                    setDescription(html);
                     setNoteTouched(true);
                   }}
                   placeholder="Anything they should know: the theme, the outfit, what to avoid"
                   disabled={!!sending}
-                  minRows={3}
-                  maxLength={4000}
-                  describedBy="note-hint"
+                  minHeight="96px"
+                  maxHeight="480px"
                 />
                 <p id="note-hint" className="mt-2 text-[13px] text-ink-2">
                   Shown at the top of the request, under “From {agencyName}”.
+                  {template ? " It starts as the template’s note and instructions; changes here are for this request only." : ""}
                 </p>
               </div>
 
-              {template?.richContent && examples > 0 && (
-                <div className="mt-6">
-                  <FieldExamplesDisplay richContent={template.richContent} fieldLabel={template.name} variant="inline" />
+              <div className="mt-6">
+                <RichContentEditor
+                  key={templateId}
+                  title="Examples for the whole request"
+                  description="Example images, a video, example text or links, shown under the note. Each field can have its own too."
+                  richContent={reqExamples}
+                  onChange={(rc) => setReqExamples(rc)}
+                  defaultExpanded={examples > 0}
+                  hideInstructions
+                />
+                {template && (
                   <p className="mt-2 text-[13px] text-ink-2">
-                    From the template. Change them in the{" "}
+                    {examples > 0 ? "From the template. " : ""}Changes here are for this request only; the{" "}
                     <Link href={`/dashboard/templates/${template.id}/edit`} className="text-ink underline">
-                      template editor
-                    </Link>
-                    .
+                      template
+                    </Link>{" "}
+                    stays as it is.
                   </p>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* notify */}
               <div className="mt-6 flex items-start justify-between gap-6 rounded-[var(--tw-r-tile)] bg-tile px-4 py-3.5">
@@ -1054,6 +1093,10 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
                 <h2 id="prev-h" className="text-[17px] font-semibold">
                   On {previewCreator ? `${previewCreator.name.split(" ")[0]}’s` : "their"} phone
                 </h2>
+                <Button type="button" variant="outline" size="sm" onClick={() => setCreatorPreview(true)}>
+                  <Smartphone className="size-4" aria-hidden="true" />
+                  Preview as creator
+                </Button>
                 {recipients.length > 1 && (
                   <div role="group" aria-label="Preview for" className="inline-flex max-w-[60%] overflow-x-auto rounded-[var(--tw-r-ctl)] bg-well p-1">
                     {recipients.slice(0, 6).map((c) => (
@@ -1083,7 +1126,7 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
                 creator={previewCreator}
                 title={title}
                 dueDate={dueDate && dueDate >= today ? dueDate : ""}
-                note={noteTouched ? note : description}
+                note={description}
                 fields={fields}
                 agencyName={agencyName}
                 examples={examples}
@@ -1107,6 +1150,13 @@ export function Composer({ data, agencyName }: { data: ComposeData; agencyName: 
           </div>
         </>
       )}
+      <CreatorPreviewDialog
+        open={creatorPreview}
+        onOpenChange={setCreatorPreview}
+        src="/preview/request/new?draft=1"
+        message={{ type: REQUEST_PREVIEW_MESSAGE, payload: previewPayload }}
+        description={`This request as ${previewCreator ? previewCreator.name : "a creator"} will get it, with your changes. Try everything: nothing is uploaded or sent.`}
+      />
       <p className="sr-only" aria-live="polite">
         {live}
       </p>

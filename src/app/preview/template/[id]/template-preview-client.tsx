@@ -53,7 +53,7 @@ export function TemplatePreviewClient({ saved, waitForDraft }: { saved: PreviewT
     if (!waitForDraft) return;
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.data?.type !== PREVIEW_MESSAGE) return;
-      setTemplate(e.data.template as PreviewTemplate);
+      setTemplate(e.data.payload as PreviewTemplate);
       // A fresh draft starts the preview over
       setVersion((v) => v + 1);
     };
