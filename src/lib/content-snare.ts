@@ -141,6 +141,74 @@ export async function readTemplate(token: string, templateId: string): Promise<S
   }
 }
 
+// ---------- reading one template from an export file ----------
+
+type Loose = Record<string, unknown>;
+const obj = (v: unknown): Loose => (v && typeof v === "object" && !Array.isArray(v) ? (v as Loose) : {});
+const arr = (...vs: unknown[]): Loose[] => (vs.find((v) => Array.isArray(v)) as Loose[] | undefined)?.map(obj) ?? [];
+const str = (...vs: unknown[]): string | undefined => vs.find((v): v is string => typeof v === "string");
+const num = (...vs: unknown[]): number | undefined => vs.find((v): v is number => typeof v === "number");
+const bool = (...vs: unknown[]): boolean | undefined => vs.find((v): v is boolean => typeof v === "boolean");
+
+function fieldFromExport(f: Loose): SnareField {
+  const config = obj(f.field_configuration);
+  const settings = obj(config.settings ?? f.settings);
+  const options = arr(f.options, f.options_attributes, f.choices, settings.options);
+  return {
+    id: String(f.id ?? ""),
+    name: str(f.name, f.label, f.title),
+    type: str(f.type, f.field_type, f.kind),
+    sub_type: str(f.sub_type, f.subtype),
+    instruction_text: str(f.instruction_text, f.instruction, f.instructions, f.description) ?? null,
+    show_instruction: bool(f.show_instruction),
+    placeholder: str(f.placeholder) ?? null,
+    required: !!bool(f.required, f.is_required),
+    internal: !!bool(f.internal, f.is_internal),
+    min_answer_count: num(f.min_answer_count) ?? null,
+    max_answer_count: num(f.max_answer_count) ?? null,
+    sorting_position: num(f.sorting_position, f.position),
+    images: arr(f.images, f.images_attributes, f.demo_uploads).map((i) => ({
+      filename: str(i.filename, i.name),
+      url: str(i.url, obj(i.image).url, i.file_url, i.original_url),
+    })),
+    field_configuration: { settings: { ...settings, ...(options.length ? { options } : {}) } },
+  };
+}
+
+function pageFromExport(p: Loose): SnarePage {
+  return {
+    id: String(p.id ?? ""),
+    name: str(p.name, p.title),
+    instruction_text: str(p.instruction_text, p.instruction, p.description) ?? null,
+    show_instruction: bool(p.show_instruction),
+    sorting_position: num(p.sorting_position, p.position),
+    sections: arr(p.sections_attributes, p.sections).map((s) => ({
+      name: str(s.name, s.title),
+      instruction_text: str(s.instruction_text, s.instruction, s.description) ?? null,
+      show_instruction: bool(s.show_instruction),
+      sorting_position: num(s.sorting_position, s.position),
+      fields: arr(s.fields_attributes, s.fields).map(fieldFromExport),
+    })),
+  };
+}
+
+/** One template from the export script's file: { template (form_templates/<id>), pages (tabs/<id>) } */
+export function contentsFromExport(raw: unknown): SnareContents {
+  const r = obj(raw);
+  const template = obj(r.template);
+  const listed = arr(template.tabs_attributes, template.tabs, template.pages);
+  const loaded = arr(r.pages);
+  // The pages as loaded one by one, in the template's order (or the template's own copies)
+  const pages = (loaded.length ? loaded : listed).map((p) => {
+    const order = listed.find((l) => l.id === p.id);
+    return pageFromExport({ ...order, ...p });
+  });
+  return {
+    instruction: bool(template.show_instruction) === false ? null : str(template.instruction_text, template.instruction) ?? null,
+    pages: pages.sort(bySort),
+  };
+}
+
 // ---------- turning it into a CCM template ----------
 
 const clean = (html: string | null | undefined) =>

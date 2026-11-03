@@ -3,18 +3,25 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Download, Loader2, X } from "lucide-react";
+import { Check, Copy, Download, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Segmented } from "@/components/messaging/plan-editor";
+import { CONTENT_SNARE_EXPORT_FORMAT, CONTENT_SNARE_EXPORT_SCRIPT } from "@/lib/content-snare-export-script";
 
 /**
- * Templates > Import from Content Snare. Paste a personal access token, pick
- * templates, and each becomes a CCM template (switched off, to look over).
- * The token stays in this dialog: sent with each call, never saved.
+ * Templates > Import from Content Snare. Two ways in:
+ *  - an export file, made by a script run in the browser on Content Snare
+ *    (for plans that don't allow API tokens; the sign-in stays in that tab)
+ *  - a personal access token (sent with each call, never saved)
+ * Pick templates, and each becomes a CCM template (switched off, to look over).
  */
+
+type Way = "file" | "token";
 
 interface SnareTemplate {
   id: string;
@@ -41,6 +48,10 @@ async function post(body: unknown) {
 export function ContentSnareImport() {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
+  const [way, setWay] = React.useState<Way>("file");
+  // Each template's contents from the export file, by id
+  const fileContents = React.useRef(new Map<string, unknown>());
+  const fileInput = React.useRef<HTMLInputElement>(null);
   const [token, setToken] = React.useState("");
   const [templates, setTemplates] = React.useState<SnareTemplate[] | null>(null);
   const [picked, setPicked] = React.useState<Set<string>>(new Set());
@@ -58,6 +69,7 @@ export function ContentSnareImport() {
 
   const reset = () => {
     setToken("");
+    fileContents.current = new Map();
     setTemplates(null);
     setPicked(new Set());
     setOutcomes({});
@@ -78,6 +90,39 @@ export function ContentSnareImport() {
     }
   };
 
+  const readFile = async (file: File | undefined) => {
+    if (!file) return;
+    setProblem(null);
+    try {
+      const data = JSON.parse(await file.text());
+      if (data?.format !== CONTENT_SNARE_EXPORT_FORMAT || !Array.isArray(data.templates)) throw new Error("not ours");
+      const contents = new Map<string, unknown>();
+      const list: SnareTemplate[] = [];
+      for (const t of data.templates) {
+        if (t?.id == null) continue;
+        const id = String(t.id);
+        contents.set(id, { template: t.template, pages: t.pages });
+        list.push({ id, name: String(t.name || "Untitled"), description: String(t.description || "") });
+      }
+      fileContents.current = contents;
+      setTemplates(list);
+      setPicked(new Set(list.map((t) => t.id)));
+    } catch {
+      setProblem("That isn't the export file. Run the script on Content Snare again and choose content-snare-templates.json.");
+    } finally {
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
+  const copyScript = async () => {
+    try {
+      await navigator.clipboard.writeText(CONTENT_SNARE_EXPORT_SCRIPT);
+      toast.success("Export script copied");
+    } catch {
+      toast.error("Couldn't copy. Select the script below and copy it.");
+    }
+  };
+
   const importPicked = async () => {
     if (!templates) return;
     const todo = templates.filter((t) => picked.has(t.id) && outcomes[t.id]?.state !== "done");
@@ -86,7 +131,9 @@ export function ContentSnareImport() {
     for (const t of todo) {
       setOutcomes((o) => ({ ...o, [t.id]: { state: "working" } }));
       try {
-        const data = await post({ action: "import", token, template: t });
+        const data = await post(
+          way === "file" ? { action: "file", template: t, contents: fileContents.current.get(t.id) } : { action: "import", token, template: t }
+        );
         setOutcomes((o) => ({ ...o, [t.id]: { state: "done", id: data.id, fields: data.fields, examples: data.examples, notes: data.notes ?? [] } }));
       } catch (e) {
         setOutcomes((o) => ({ ...o, [t.id]: { state: "failed", error: e instanceof Error ? e.message : "Didn't import" } }));
@@ -127,7 +174,69 @@ export function ContentSnareImport() {
             </DialogDescription>
           </DialogHeader>
 
-          {!templates ? (
+          {!templates && (
+            <Segmented
+              label="How"
+              value={way}
+              options={[
+                { id: "file", label: "Export file" },
+                { id: "token", label: "Access token" },
+              ]}
+              onChange={(v) => {
+                setWay(v as Way);
+                setProblem(null);
+              }}
+            />
+          )}
+
+          {!templates && way === "file" ? (
+            <div className="space-y-3">
+              <p className="text-sm text-ink-2">For Content Snare plans that don&rsquo;t allow access tokens.</p>
+              <ol className="list-decimal space-y-1.5 pl-5 text-sm text-ink-2">
+                <li>
+                  Open{" "}
+                  <a href="https://app.contentsnare.com" target="_blank" rel="noopener noreferrer" className="text-ink underline">
+                    app.contentsnare.com
+                  </a>{" "}
+                  and sign in.
+                </li>
+                <li>
+                  Open the browser console there: Ctrl+Shift+J on Windows, Cmd+Option+J on a Mac (Chrome). If Chrome asks, type{" "}
+                  <span className="font-mono text-ink">allow pasting</span> first.
+                </li>
+                <li>Paste the export script and press Enter. It saves content-snare-templates.json to your downloads.</li>
+                <li>Choose that file here.</li>
+              </ol>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => void copyScript()}>
+                  <Copy className="size-4" aria-hidden="true" />
+                  Copy the export script
+                </Button>
+                <Button type="button" onClick={() => fileInput.current?.click()}>
+                  Choose the file
+                </Button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept=".json,application/json"
+                  className="sr-only"
+                  aria-label="The Content Snare export file"
+                  onChange={(e) => void readFile(e.target.files?.[0])}
+                />
+              </div>
+              <details className="text-[13px] text-ink-2">
+                <summary className="cursor-pointer select-none text-ink">What the script does</summary>
+                <p className="mt-2">
+                  It uses the sign-in Content Snare already has in that tab to read your request templates, then saves them to a file. It
+                  changes nothing in Content Snare, and your sign-in doesn&rsquo;t leave that tab or go in the file. Only paste scripts you
+                  trust into a console.
+                </p>
+                <pre className="mt-2 max-h-48 overflow-auto rounded-[var(--tw-r-ctl)] bg-well p-3 font-mono text-[12px] leading-snug text-ink-2">
+                  {CONTENT_SNARE_EXPORT_SCRIPT}
+                </pre>
+              </details>
+            </div>
+          ) : !templates ? (
             <div className="space-y-3">
               <ol className="list-decimal space-y-1 pl-5 text-sm text-ink-2">
                 <li>
@@ -164,7 +273,7 @@ export function ContentSnareImport() {
             <div>
               <div className="flex items-center justify-between gap-3 pb-2">
                 <p className="text-sm font-medium">
-                  {templates.length} {templates.length === 1 ? "template" : "templates"} in Content Snare
+                  {templates.length} {templates.length === 1 ? "template" : "templates"} {way === "file" ? "in the file" : "in Content Snare"}
                 </p>
                 <Button
                   type="button"
@@ -243,10 +352,12 @@ export function ContentSnareImport() {
               {doneCount ? "Done" : "Cancel"}
             </Button>
             {!templates ? (
+              way === "token" && (
               <Button type="button" onClick={() => void list()} disabled={!!busy || !token.startsWith("cs_pat_")}>
                 {busy === "list" && <Loader2 className="animate-spin" aria-hidden="true" />}
                 Show my templates
               </Button>
+              )
             ) : (
               templates.length > 0 && (
                 <Button type="button" onClick={() => void importPicked()} disabled={!!busy || pickedCount === 0}>
