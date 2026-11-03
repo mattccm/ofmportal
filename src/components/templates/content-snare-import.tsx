@@ -204,7 +204,7 @@ export function ContentSnareImport() {
                   Open the browser console there: Ctrl+Shift+J on Windows, Cmd+Option+J on a Mac (Chrome). If Chrome asks, type{" "}
                   <span className="font-mono text-ink">allow pasting</span> first.
                 </li>
-                <li>Paste the export script and press Enter. It saves content-snare-templates.json to your downloads.</li>
+                <li>Paste the export script and press Enter. Tick the templates you want and select Export: it saves content-snare-templates.json to your downloads.</li>
                 <li>Choose that file here.</li>
               </ol>
               <div className="flex flex-wrap gap-2">
@@ -227,7 +227,7 @@ export function ContentSnareImport() {
               <details className="text-[13px] text-ink-2">
                 <summary className="cursor-pointer select-none text-ink">What the script does</summary>
                 <p className="mt-2">
-                  It uses the sign-in Content Snare already has in that tab to read your request templates, then saves them to a file. It
+                  It uses the sign-in Content Snare already has in that tab to list your request templates, lets you tick the ones you want, then saves those to a file. It
                   changes nothing in Content Snare, and your sign-in doesn&rsquo;t leave that tab or go in the file. Only paste scripts you
                   trust into a console.
                 </p>
