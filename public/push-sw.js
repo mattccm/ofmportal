@@ -13,13 +13,20 @@ self.addEventListener("push", (event) => {
     data = { body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "CCM", {
-      body: data.body || "Something new in your portal.",
-      icon: "/icons/icon-192x192.png",
-      badge: "/icons/badge-72x72.png",
-      tag: data.tag || "ccm",
-      data: data.data || { url: "/creator/dashboard" },
-    })
+    (async () => {
+      // Staff notifications: not when CCM is open in front of them (the page's own pop-up says it)
+      if (data.quietWhenOpen) {
+        const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        if (windows.some((c) => c.visibilityState === "visible" && c.focused)) return;
+      }
+      await self.registration.showNotification(data.title || "CCM", {
+        body: data.body || "Something new in your portal.",
+        icon: "/icons/icon-192x192.png",
+        badge: "/icons/badge-72x72.png",
+        tag: data.tag || "ccm",
+        data: data.data || { url: "/creator/dashboard" },
+      });
+    })()
   );
 });
 

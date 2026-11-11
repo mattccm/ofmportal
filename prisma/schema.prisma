@@ -52,6 +52,7 @@ model User {
   // Relations
   comments                 Comment[]
   notifications            Notification[]
+  staffPushSubscriptions   StaffPushSubscription[]
   activityLogs             ActivityLog[]
   teamMembers              TeamMember[]
   conversationParticipants ConversationParticipant[]
@@ -2481,6 +2482,23 @@ enum WebhookDeliveryStatus {
 
 // A creator's device that allowed notifications (Web Push). One row per
 // browser/app install; removed when the push service says it's gone.
+// A staff member's device with notifications on (Settings > Notifications):
+// new messages, comments and mentions reach it with CCM closed. Discreet like
+// creators': who and what, never message text or a request title.
+model StaffPushSubscription {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSentAt DateTime?
+
+  @@index([userId])
+}
+
 model PushSubscription {
   id         String    @id @default(cuid())
   creatorId  String

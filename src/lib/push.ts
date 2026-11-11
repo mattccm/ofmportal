@@ -18,7 +18,8 @@ export function pushPublicKey(): string | null {
   return process.env.VAPID_PUBLIC_KEY || null;
 }
 
-function configure(): boolean {
+/** Web Push is set up (VAPID keys); also used for staff devices (lib/staff-push.ts) */
+export function configure(): boolean {
   if (configured !== null) return configured;
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;

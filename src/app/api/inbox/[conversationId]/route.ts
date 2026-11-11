@@ -351,12 +351,18 @@ async function notifyTeamThread({
         content: text.substring(0, 500),
       })),
     });
-    await notifyTeam(mentioned, NotificationType.MENTION, `${senderName} mentioned you${where}`, preview, link);
+    await notifyTeam(mentioned, NotificationType.MENTION, `${senderName} mentioned you${where}`, preview, link, {
+      body: `${senderName} mentioned you${where}.`,
+      tag: `msg-${conversationId}`,
+    });
   }
 
   const rest = others.filter((id) => !mentioned.includes(id));
   if (rest.length > 0) {
-    await notifyTeam(rest, NotificationType.MESSAGE_RECEIVED, `New message from ${senderName}${where}`, preview, link);
+    await notifyTeam(rest, NotificationType.MESSAGE_RECEIVED, `New message from ${senderName}${where}`, preview, link, {
+      body: `${senderName} sent a message${where}.`,
+      tag: `msg-${conversationId}`,
+    });
   }
 }
 

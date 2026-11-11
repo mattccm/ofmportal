@@ -221,7 +221,9 @@ export async function POST(
           NotificationType.COMMENT_ADDED,
           "New creator comment",
           `${creator.name} commented on "${request.title}": ${preview}`,
-          `/dashboard/requests/${id}`
+          `/dashboard/requests/${id}`,
+          // Not the request's title: it shows on a lock screen
+          { body: `${creator.name} left a comment on a request.`, tag: `comment-${id}` }
         );
       }
     } catch (notifyError) {

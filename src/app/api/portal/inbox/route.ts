@@ -229,7 +229,8 @@ export async function POST(request: NextRequest) {
           NotificationType.MESSAGE_RECEIVED,
           `New message from ${creator.name}`,
           preview,
-          `/dashboard/messages?conversation=${conversation.id}`
+          `/dashboard/messages?conversation=${conversation.id}`,
+          { body: `${creator.name} sent you a message.`, tag: `msg-${conversation.id}` }
         );
       }
     } catch (notifyError) {

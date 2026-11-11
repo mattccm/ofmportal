@@ -107,7 +107,8 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
     },
     team: {
       enabled: true,
-      channels: { inApp: true, email: true, sms: false, push: false },
+      // Push: messages, comments and mentions on devices people turned notifications on for
+      channels: { inApp: true, email: true, sms: false, push: true },
       frequency: "daily",
     },
     system: {

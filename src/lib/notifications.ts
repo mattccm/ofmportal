@@ -556,7 +556,7 @@ export async function notifyMention(
   context: string,
   link: string
 ): Promise<NotificationResult> {
-  return createNotification({
+  const result = await createNotification({
     userId,
     type: NotificationType.MENTION,
     title: "You were mentioned",
@@ -564,6 +564,10 @@ export async function notifyMention(
     link,
     metadata: { mentionedBy: mentionedByName },
   });
+  // And on their devices (discreet: not what was said)
+  const { pushToTeam } = await import("./staff-push");
+  await pushToTeam([userId], NotificationType.MENTION, { body: `${mentionedByName} mentioned you in a comment.`, url: link });
+  return result;
 }
 
 /**
@@ -592,9 +596,11 @@ export async function notifyTeam(
   type: NotificationType,
   title: string,
   message: string,
-  link?: string
+  link?: string,
+  /** What their devices show (discreet: who and what, never the message); a plain line by default */
+  push?: { body?: string; tag?: string }
 ): Promise<number> {
-  return createBulkNotifications(
+  const count = await createBulkNotifications(
     userIds.map((userId) => ({
       userId,
       type,
@@ -603,6 +609,10 @@ export async function notifyTeam(
       link,
     }))
   );
+  // And on the devices they turned notifications on for (loaded here: staff-push reads preferences, which import this file)
+  const { pushToTeam, defaultStaffPush } = await import("./staff-push");
+  await pushToTeam(userIds, type, { body: push?.body ?? defaultStaffPush(type), url: link, tag: push?.tag });
+  return count;
 }
 
 // PREFERENCE-AWARE NOTIFICATION HELPERS

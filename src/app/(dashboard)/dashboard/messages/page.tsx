@@ -36,6 +36,7 @@ import { textToMentionSegments } from "@/lib/mention-parser";
 import { useAccess } from "@/lib/access/client";
 import { NoAccess } from "@/components/access/no-access";
 import { INBOX_NEW_EVENT, type InboxNewDetail } from "@/components/inbox/inbox-pulse";
+import { DeviceNotifications } from "@/components/notifications/device-notifications";
 
 // ---------------------------------------------------------------- types
 
@@ -613,6 +614,9 @@ function Messages() {
         }
         className={cn(region !== "list" && "max-lg:hidden")}
       />
+
+      {/* Offered once: hear about new messages with CCM closed */}
+      <DeviceNotifications variant="prompt" className={cn("mb-4", region !== "list" && "max-lg:hidden")} />
 
       <div
         className={cn(

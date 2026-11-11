@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationPreferencesForm } from "@/components/notifications/notification-preferences-form";
+import { DeviceNotifications } from "@/components/notifications/device-notifications";
 import {
   NotificationPreferences,
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -118,6 +119,9 @@ export default function NotificationSettingsPage() {
           </div>
         </div>
       )}
+
+      {/* This computer or phone: notifications with CCM closed */}
+      <DeviceNotifications />
 
       {/* Notification Preferences Form */}
       {preferences && (
