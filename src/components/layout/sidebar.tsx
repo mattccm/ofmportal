@@ -19,6 +19,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSearch } from "@/components/search";
 import { useCreatorMessagesCount } from "@/hooks/use-creator-messages";
+import { useInboxUnread } from "@/components/inbox/inbox-pulse";
 import { STAFF_NAV, isNavActive, navItemVisible, type StaffNavItem } from "./staff-nav";
 import { useAccess } from "@/lib/access/client";
 import { Bell, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings, Shield } from "lucide-react";
@@ -177,6 +178,7 @@ function SidebarComponent() {
   const user = useUser();
   const { openSearch } = useSearch();
   const { count: creatorMessagesCount } = useCreatorMessagesCount();
+  const inboxUnread = useInboxUnread();
   // Read after hydration (the server always renders the slim rail), so a
   // remembered expanded rail never causes a hydration mismatch.
   const stored = React.useSyncExternalStore(subscribeExpanded, readExpanded, () => false);
@@ -245,7 +247,7 @@ function SidebarComponent() {
                   item={item}
                   active={isNavActive(pathname, item.href)}
                   expanded={expanded}
-                  badge={item.badge === "comments" ? creatorMessagesCount : undefined}
+                  badge={item.badge === "comments" ? creatorMessagesCount : item.badge === "messages" ? inboxUnread : undefined}
                 />
               ))}
             </div>

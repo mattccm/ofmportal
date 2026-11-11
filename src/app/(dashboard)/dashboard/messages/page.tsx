@@ -35,6 +35,7 @@ import { MentionInput } from "@/components/mentions/mention-input";
 import { textToMentionSegments } from "@/lib/mention-parser";
 import { useAccess } from "@/lib/access/client";
 import { NoAccess } from "@/components/access/no-access";
+import { INBOX_NEW_EVENT, type InboxNewDetail } from "@/components/inbox/inbox-pulse";
 
 // ---------------------------------------------------------------- types
 
@@ -324,6 +325,57 @@ function Messages() {
     }
     void loadThread(selectedId);
   }, [selectedId, loadThread]);
+
+  // Someone else wrote (components/inbox/inbox-pulse.tsx): the list updates,
+  // and the open conversation gets the new messages in place (opening a
+  // thread marks it read, so only while it's in front of you)
+  const refreshThread = React.useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/inbox/${id}?limit=50`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const latest: Msg[] = (data.messages ?? []).map(mapMsg);
+        setMessages((prev) => {
+          const have = new Set(prev.map((m) => m.id));
+          const fresh = latest.filter((m) => !have.has(m.id));
+          return fresh.length ? [...prev, ...fresh] : prev;
+        });
+        setConvos((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+        window.dispatchEvent(new Event("inbox:read"));
+      } catch {
+        /* the next new message tries again */
+      }
+    },
+    [mapMsg]
+  );
+
+  React.useEffect(() => {
+    let behind = false;
+    const onNew = (e: Event) => {
+      const ids = (e as CustomEvent<InboxNewDetail>).detail?.conversationIds ?? [];
+      if (selectedId && ids.includes(selectedId)) {
+        if (document.visibilityState === "visible") {
+          void refreshThread(selectedId).then(() => fetchConvos());
+          return;
+        }
+        behind = true;
+      }
+      void fetchConvos();
+    };
+    const onVisible = () => {
+      if (behind && selectedId && document.visibilityState === "visible") {
+        behind = false;
+        void refreshThread(selectedId).then(() => fetchConvos());
+      }
+    };
+    window.addEventListener(INBOX_NEW_EVENT, onNew);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener(INBOX_NEW_EVENT, onNew);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [selectedId, refreshThread, fetchConvos]);
 
   // Details column: the creator behind the thread
   const creatorId = selected?.creatorId ?? null;

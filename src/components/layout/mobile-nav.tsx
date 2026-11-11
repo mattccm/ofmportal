@@ -8,6 +8,7 @@ import { BRAND } from "@/lib/brand";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { useUser } from "@/hooks/use-session";
 import { useCreatorMessagesCount } from "@/hooks/use-creator-messages";
+import { useInboxUnread } from "@/components/inbox/inbox-pulse";
 import { ChevronLeft, ChevronRight, LogOut, RefreshCw, Settings } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { clearRememberToken, setSignedOutFlag } from "@/lib/remember-token";
@@ -173,6 +174,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
 
   const { count: creatorMessagesCount } = useCreatorMessagesCount();
+  const inboxUnread = useInboxUnread();
   const { canAny } = useAccess();
   const visible = (i: StaffNavItem) => navItemVisible(i, canAny);
   // An edge swipe only moves between main destinations this person can open
@@ -317,7 +319,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const row = (item: StaffNavItem) => {
     const active = isActive(item.href);
     const Icon = item.icon;
-    const count = item.badge === "comments" && creatorMessagesCount > 0 ? creatorMessagesCount : 0;
+    const count = item.badge === "comments" ? creatorMessagesCount : item.badge === "messages" ? inboxUnread : 0;
     return (
       <Link
         key={item.href}

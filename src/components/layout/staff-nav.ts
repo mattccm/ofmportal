@@ -32,7 +32,7 @@ export interface StaffNavItem {
   /** Shown only to people with any of these permissions (see src/lib/access/catalogue.ts) */
   perm?: string[];
   /** Which live count to show */
-  badge?: "comments";
+  badge?: "comments" | "messages";
   /** Only in the phone menu (the desktop reaches it from the account menu) */
   phoneOnly?: boolean;
 }
@@ -58,7 +58,7 @@ export const STAFF_NAV: StaffNavGroup[] = [
       { name: "Requests", href: "/dashboard/requests", icon: FileText, perm: ["requests.view"] },
       { name: "Creators", href: "/dashboard/creators", icon: Users, perm: ["creators.view"] },
       { name: "Uploads", href: "/dashboard/uploads", icon: Upload, perm: ["review.view"] },
-      { name: "Messages", href: "/dashboard/messages", icon: MessageSquare, perm: ["messages.creators", "messages.team"] },
+      { name: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "messages", perm: ["messages.creators", "messages.team"] },
       { name: "Comments", href: "/dashboard/creator-messages", icon: MessageCircle, badge: "comments", perm: ["requests.view"] },
       { name: "Templates", href: "/dashboard/templates", icon: LayoutTemplate, perm: ["templates.view"] },
     ],

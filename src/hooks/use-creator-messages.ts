@@ -43,6 +43,8 @@ export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
       if (document.visibilityState === "visible") refresh();
     };
     window.addEventListener("creator-messages:read", onRead);
+    // A new comment arrived (components/inbox/inbox-pulse.tsx)
+    window.addEventListener("creator-messages:new", onRead);
     window.addEventListener("focus", onRead);
     document.addEventListener("visibilitychange", onVisible);
 
@@ -50,6 +52,7 @@ export function useCreatorMessagesCount(): UseCreatorMessagesCountReturn {
     return () => {
       clearInterval(interval);
       window.removeEventListener("creator-messages:read", onRead);
+      window.removeEventListener("creator-messages:new", onRead);
       window.removeEventListener("focus", onRead);
       document.removeEventListener("visibilitychange", onVisible);
     };

@@ -12,6 +12,7 @@ import { CelebrationProvider } from "@/components/celebrations";
 import { DashboardTour } from "@/components/help/dashboard-tour";
 import { OfflineIndicator } from "@/components/offline/offline-indicator";
 import { useRouteCleanup } from "@/hooks/use-route-cleanup";
+import { InboxPulse } from "@/components/inbox/inbox-pulse";
 
 interface DashboardLayoutClientProps {
   children: ReactNode;
@@ -46,11 +47,14 @@ export const DashboardLayoutClient = memo(function DashboardLayoutClient({
                   <CreatorContextProvider>
                     <ProviderErrorBoundary providerName="CelebrationProvider">
                       <CelebrationProvider>
-                        <ResponsiveLayout>
-                          <PageErrorBoundary>
-                            {children}
-                          </PageErrorBoundary>
-                        </ResponsiveLayout>
+                        {/* New messages and comments arrive without a refresh */}
+                        <InboxPulse>
+                          <ResponsiveLayout>
+                            <PageErrorBoundary>
+                              {children}
+                            </PageErrorBoundary>
+                          </ResponsiveLayout>
+                        </InboxPulse>
                         {/* First-visit guided tour (shows once, dashboard home only) */}
                         <WidgetErrorBoundary>
                           <DashboardTour />

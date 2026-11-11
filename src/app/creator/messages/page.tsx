@@ -244,10 +244,11 @@ export default function CreatorMessagesPage() {
   const scrolledFor = useRef<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
-  const fetchTeam = useCallback(async () => {
-    setTeamFailed(false);
+  // quiet: a background check (no error state); peek: don't mark the team's messages read
+  const fetchTeam = useCallback(async ({ quiet = false, peek = false }: { quiet?: boolean; peek?: boolean } = {}) => {
+    if (!quiet) setTeamFailed(false);
     try {
-      const res = await fetch("/api/portal/inbox", { headers: { "x-creator-token": token() } });
+      const res = await fetch(`/api/portal/inbox${peek ? "?peek=1" : ""}`, { headers: { "x-creator-token": token() } });
       if (!res.ok) throw new Error("inbox");
       const data = await res.json();
       const list: Array<{
@@ -269,7 +270,7 @@ export default function CreatorMessagesPage() {
         }))
       );
     } catch {
-      setTeamFailed(true);
+      if (!quiet) setTeamFailed(true);
     } finally {
       setTeamLoading(false);
     }
@@ -331,6 +332,51 @@ export default function CreatorMessagesPage() {
     fetchTeam();
     fetchThreads();
   }, [router, fetchTeam, fetchThreads]);
+
+  // One request's comments, for the thread that's open
+  const refreshThread = useCallback(async (id: string) => {
+    try {
+      const c = await fetch(`/api/portal/requests/${id}/comments`, { headers: { "x-creator-token": token() } });
+      if (!c.ok) return;
+      const data = await c.json();
+      const comments: Array<{ id: string; content: string; createdAt: string; isAgency: boolean; user?: { name: string } }> = Array.isArray(data) ? data : [];
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === id && comments.length >= t.messages.filter((m) => !m.id.startsWith("local-")).length
+            ? {
+                ...t,
+                messages: comments.map((m) => ({
+                  id: m.id,
+                  content: m.content,
+                  createdAt: m.createdAt,
+                  mine: !m.isAgency,
+                  from: m.isAgency ? m.user?.name : undefined,
+                })),
+              }
+            : t
+        )
+      );
+    } catch {
+      /* the next check tries again */
+    }
+  }, []);
+
+  // Replies from the team arrive without a refresh: check every few seconds
+  // while this page is in front (the team conversation is only marked read
+  // when it's the one open)
+  useEffect(() => {
+    const check = () => {
+      if (document.visibilityState !== "visible" || !token()) return;
+      void fetchTeam({ quiet: true, peek: view !== "team" });
+      if (view === "requests" && selectedId) void refreshThread(selectedId);
+    };
+    const timer = setInterval(check, 5000);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [fetchTeam, refreshThread, view, selectedId]);
 
   const selected = threads.find((t) => t.id === selectedId) || null;
   const visibleMessages = view === "team" ? teamMessages : selected?.messages || [];

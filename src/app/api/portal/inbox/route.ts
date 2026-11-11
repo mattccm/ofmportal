@@ -148,16 +148,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (!conversation) {
-      // Create a new conversation
-      // All staff in the agency are participants so every role can see it
-      const teamMembers = await db.user.findMany({
-        where: {
-          AND: [{ agencyId: creator.agencyId }, excludePseudoUsers],
-        },
-        select: { id: true },
-      });
+    // All staff in the agency are participants so every role can see it
+    const teamMembers = await db.user.findMany({
+      where: {
+        AND: [{ agencyId: creator.agencyId }, excludePseudoUsers],
+      },
+      select: { id: true },
+    });
 
+    if (conversation) {
+      // Teammates who joined after the thread began are added too, so they see it and hear about it
+      await db.conversationParticipant.createMany({
+        data: teamMembers.map((m) => ({ conversationId: conversation!.id, userId: m.id })),
+        skipDuplicates: true,
+      });
+    } else {
+      // Create a new conversation
       conversation = await db.conversation.create({
         data: {
           type: "CREATOR",
