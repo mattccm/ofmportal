@@ -152,8 +152,36 @@ function Timeline({ messages, emptyText }: { messages: ChatMessage[]; emptyText:
 }
 
 /**
+ * How much of the screen's foot the on-screen keyboard covers, in px (0 when
+ * it's down). iPhones, and Chrome on Android, don't shrink the page for the
+ * keyboard: it slides over it, hiding anything pinned to the bottom. The
+ * visual viewport is the part still showing.
+ */
+function useKeyboardCover(): number {
+  const [cover, setCover] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const measure = () => {
+      const covered = window.innerHeight - vv.height - vv.offsetTop;
+      // Small differences are browser toolbars, not a keyboard
+      setCover(covered > 80 ? Math.round(covered) : 0);
+    };
+    measure();
+    vv.addEventListener("resize", measure);
+    vv.addEventListener("scroll", measure);
+    return () => {
+      vv.removeEventListener("resize", measure);
+      vv.removeEventListener("scroll", measure);
+    };
+  }, []);
+  return cover;
+}
+
+/**
  * The composer. On a phone it is pinned above the tab bar (at the foot on a
- * tablet); on a desktop it is docked at the bottom of the conversation panel.
+ * tablet), and sits right on top of the keyboard while it's up; on a desktop
+ * it is docked at the bottom of the conversation panel.
  */
 function Composer({
   value,
@@ -170,6 +198,14 @@ function Composer({
   placeholder: string;
   docked?: boolean;
 }) {
+  const keyboard = useKeyboardCover();
+  const wasUp = useRef(false);
+  // When the keyboard comes up, bring the newest messages to just above the composer
+  useEffect(() => {
+    if (docked) return;
+    if (keyboard > 0 && !wasUp.current) window.scrollTo({ top: document.documentElement.scrollHeight });
+    wasUp.current = keyboard > 0;
+  }, [keyboard, docked]);
   const form = (
     <form
       className={cn(
@@ -177,6 +213,9 @@ function Composer({
           ? "border-t border-line"
           : "fixed inset-x-0 z-30 border-t border-line bg-ground bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:bottom-0 sm:pb-[env(safe-area-inset-bottom,0px)]"
       )}
+      // Keyboard up: on top of it (the tab bar is under the keyboard then)
+      style={!docked && keyboard ? { bottom: keyboard, paddingBottom: 0 } : undefined}
+      data-keyboard={!docked && keyboard ? "up" : undefined}
       onSubmit={(e) => {
         e.preventDefault();
         onSend();
@@ -222,7 +261,8 @@ function Composer({
   if (docked) return form;
   return (
     <>
-      <div aria-hidden="true" className="h-24" />
+      {/* Room for the composer at the foot, and for the keyboard while it's up */}
+      <div aria-hidden="true" className="h-24" style={keyboard ? { height: keyboard + 96 } : undefined} />
       {form}
     </>
   );
