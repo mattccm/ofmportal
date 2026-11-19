@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, FileText, Image as ImageIcon, Loader2, RefreshCw, Send, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Image as ImageIcon, RefreshCw, Send, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,6 +28,9 @@ interface ChatMessage {
   /** The team member's first name ("Sam") */
   from?: string;
   forwardedContent?: ForwardedItem[];
+  /** Shown straight away while it sends; failed: it didn't */
+  pending?: boolean;
+  failed?: boolean;
 }
 
 interface RequestThread {
@@ -104,7 +107,8 @@ function Timeline({ messages, emptyText }: { messages: ChatMessage[]; emptyText:
               <div
                 className={cn(
                   "max-w-[85%] rounded-[12px] px-3.5 py-2.5 lg:max-w-[70%]",
-                  m.mine ? "bg-tile-hi" : "bg-tile"
+                  m.mine ? "bg-tile-hi" : "bg-tile",
+                  m.pending && "opacity-70"
                 )}
               >
                 {m.content && (
@@ -140,8 +144,8 @@ function Timeline({ messages, emptyText }: { messages: ChatMessage[]; emptyText:
                   </ul>
                 )}
               </div>
-              <p className="mt-1 text-[13px] text-ink-2">
-                {senderName(m)} · {timeOf(m.createdAt, tz)}
+              <p className={cn("mt-1 text-[13px]", m.failed ? "text-late" : "text-ink-2")}>
+                {m.failed ? "Didn't send" : m.pending ? "Sending…" : `${senderName(m)} · ${timeOf(m.createdAt, tz)}`}
               </p>
             </div>
           </li>
@@ -152,70 +156,33 @@ function Timeline({ messages, emptyText }: { messages: ChatMessage[]; emptyText:
 }
 
 /**
- * How much of the screen's foot the on-screen keyboard covers, in px (0 when
- * it's down). iPhones, and Chrome on Android, don't shrink the page for the
- * keyboard: it slides over it, hiding anything pinned to the bottom. The
- * visual viewport is the part still showing.
- */
-function useKeyboardCover(): number {
-  const [cover, setCover] = useState(0);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const measure = () => {
-      const covered = window.innerHeight - vv.height - vv.offsetTop;
-      // Small differences are browser toolbars, not a keyboard
-      setCover(covered > 80 ? Math.round(covered) : 0);
-    };
-    measure();
-    vv.addEventListener("resize", measure);
-    vv.addEventListener("scroll", measure);
-    return () => {
-      vv.removeEventListener("resize", measure);
-      vv.removeEventListener("scroll", measure);
-    };
-  }, []);
-  return cover;
-}
-
-/**
- * The composer. On a phone it is pinned above the tab bar (at the foot on a
- * tablet), and sits right on top of the keyboard while it's up; on a desktop
- * it is docked at the bottom of the conversation panel.
+ * The composer. On a desktop it is docked at the bottom of the conversation
+ * panel. On a phone it is part of the page after the newest message, held
+ * above the tab bar while scrolling back (sticky). While typing (data-typing,
+ * set by the creator frame) it's an ordinary block: a phone scrolls a focused
+ * box above the keyboard itself, where a box pinned to the screen can end up
+ * under the keyboard or, on iPhones, not show what's typed.
  */
 function Composer({
   value,
   onChange,
   onSend,
-  sending,
   placeholder,
   docked = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
-  sending: boolean;
   placeholder: string;
   docked?: boolean;
 }) {
-  const keyboard = useKeyboardCover();
-  const wasUp = useRef(false);
-  // When the keyboard comes up, bring the newest messages to just above the composer
-  useEffect(() => {
-    if (docked) return;
-    if (keyboard > 0 && !wasUp.current) window.scrollTo({ top: document.documentElement.scrollHeight });
-    wasUp.current = keyboard > 0;
-  }, [keyboard, docked]);
   const form = (
     <form
       className={cn(
         docked
           ? "border-t border-line"
-          : "fixed inset-x-0 z-30 border-t border-line bg-ground bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:bottom-0 sm:pb-[env(safe-area-inset-bottom,0px)]"
+          : "sticky z-30 -mx-4 mt-4 border-t border-line bg-ground bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:bottom-0 [[data-typing]_&]:static"
       )}
-      // Keyboard up: on top of it (the tab bar is under the keyboard then)
-      style={!docked && keyboard ? { bottom: keyboard, paddingBottom: 0 } : undefined}
-      data-keyboard={!docked && keyboard ? "up" : undefined}
       onSubmit={(e) => {
         e.preventDefault();
         onSend();
@@ -235,6 +202,10 @@ function Composer({
         <Textarea
           id="composer"
           rows={1}
+          // Typing on a phone: the newest messages just above the box
+          onFocus={() => {
+            if (!docked) requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight }));
+          }}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -250,22 +221,16 @@ function Composer({
         <Button
           type="submit"
           className={cn("shrink-0 px-4 text-[15px]", docked ? "h-11" : "h-12")}
-          disabled={!value.trim() || sending}
+          // The message shows in the conversation straight away (sending), so no spinner here
+          disabled={!value.trim()}
         >
-          {sending ? <Loader2 className="animate-spin" /> : <Send />}
+          <Send />
           Send
         </Button>
       </div>
     </form>
   );
-  if (docked) return form;
-  return (
-    <>
-      {/* Room for the composer at the foot, and for the keyboard while it's up */}
-      <div aria-hidden="true" className="h-24" style={keyboard ? { height: keyboard + 96 } : undefined} />
-      {form}
-    </>
-  );
+  return form;
 }
 
 export default function CreatorMessagesPage() {
@@ -280,7 +245,6 @@ export default function CreatorMessagesPage() {
   const [threads, setThreads] = useState<RequestThread[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   const scrolledFor = useRef<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
@@ -299,16 +263,16 @@ export default function CreatorMessagesPage() {
         sender?: { name?: string } | null;
         forwardedContent?: ForwardedItem[];
       }> = data.messages || [];
-      setTeamMessages(
-        list.map((m) => ({
-          id: m.id,
-          content: m.content,
-          createdAt: m.createdAt,
-          mine: m.isFromCreator,
-          from: m.sender?.name,
-          forwardedContent: m.forwardedContent,
-        }))
-      );
+      const server = list.map((m) => ({
+        id: m.id,
+        content: m.content,
+        createdAt: m.createdAt,
+        mine: m.isFromCreator,
+        from: m.sender?.name,
+        forwardedContent: m.forwardedContent,
+      }));
+      // Keep any still sending or that didn't send (they aren't on the server yet)
+      setTeamMessages((prev) => [...server, ...prev.filter((m) => m.pending || m.failed)]);
     } catch {
       if (!quiet) setTeamFailed(true);
     } finally {
@@ -437,10 +401,14 @@ export default function CreatorMessagesPage() {
     }
   }, [conversationKey, visibleMessages.length, view, teamLoading, desktop]);
 
+  // The message shows straight away and the box clears; if it doesn't send,
+  // it's marked and the words go back in the box
   const sendTeam = async () => {
     const text = draft.trim();
     if (!text) return;
-    setSending(true);
+    const temp = `local-${Date.now()}`;
+    setTeamMessages((prev) => [...prev, { id: temp, content: text, createdAt: new Date().toISOString(), mine: true, pending: true }]);
+    setDraft("");
     try {
       const res = await fetch("/api/portal/inbox", {
         method: "POST",
@@ -449,42 +417,45 @@ export default function CreatorMessagesPage() {
       });
       if (!res.ok) throw new Error("send");
       const data = await res.json();
-      setTeamMessages((prev) => [
-        ...prev,
-        {
-          id: data.message.id,
-          content: data.message.content,
-          createdAt: data.message.createdAt,
-          mine: true,
-          forwardedContent: data.message.forwardedContent,
-        },
-      ]);
-      setDraft("");
+      const sent: ChatMessage = {
+        id: data.message.id,
+        content: data.message.content,
+        createdAt: data.message.createdAt,
+        mine: true,
+        forwardedContent: data.message.forwardedContent,
+      };
+      // (a background check may have brought it in already)
+      setTeamMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev.filter((m) => m.id !== temp) : prev.map((m) => (m.id === temp ? sent : m))));
     } catch {
-      toast.error("Your message didn't send. Check your connection and try again.");
-    } finally {
-      setSending(false);
+      setTeamMessages((prev) => prev.map((m) => (m.id === temp ? { ...m, pending: false, failed: true } : m)));
+      setDraft((d) => d || text);
+      toast.error("Your message didn't send. It's back in the box: check your connection and send it again.");
     }
   };
 
   const sendRequest = async () => {
     const text = draft.trim();
     if (!text || !selected) return;
-    setSending(true);
+    const threadId = selected.id;
+    const temp = `local-${Date.now()}`;
+    const mark = (patch: Partial<ChatMessage>) =>
+      setThreads((prev) => prev.map((t) => (t.id === threadId ? { ...t, messages: t.messages.map((m) => (m.id === temp ? { ...m, ...patch } : m)) } : t)));
+    setThreads((prev) =>
+      prev.map((t) => (t.id === threadId ? { ...t, messages: [...t.messages, { id: temp, content: text, createdAt: new Date().toISOString(), mine: true, pending: true }] } : t))
+    );
+    setDraft("");
     try {
-      const res = await fetch(`/api/portal/requests/${selected.id}/comments`, {
+      const res = await fetch(`/api/portal/requests/${threadId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-creator-token": token() },
         body: JSON.stringify({ content: text }),
       });
       if (!res.ok) throw new Error("send");
-      const msg: ChatMessage = { id: `local-${Date.now()}`, content: text, createdAt: new Date().toISOString(), mine: true };
-      setThreads((prev) => prev.map((t) => (t.id === selected.id ? { ...t, messages: [...t.messages, msg] } : t)));
-      setDraft("");
+      mark({ pending: false });
     } catch {
-      toast.error("Your message didn't send. Check your connection and try again.");
-    } finally {
-      setSending(false);
+      mark({ pending: false, failed: true });
+      setDraft((d) => d || text);
+      toast.error("Your message didn't send. It's back in the box: check your connection and send it again.");
     }
   };
 
@@ -606,7 +577,7 @@ export default function CreatorMessagesPage() {
             </div>
 
             {view === "team" && !teamLoading && !teamFailed && (
-              <Composer docked value={draft} onChange={setDraft} onSend={sendTeam} sending={sending} placeholder="Message your team" />
+              <Composer docked value={draft} onChange={setDraft} onSend={sendTeam} placeholder="Message your team" />
             )}
             {view === "requests" && selected && (
               <Composer
@@ -614,7 +585,7 @@ export default function CreatorMessagesPage() {
                 value={draft}
                 onChange={setDraft}
                 onSend={sendRequest}
-                sending={sending}
+               
                 placeholder="Message your team about this request"
               />
             )}
@@ -686,7 +657,7 @@ export default function CreatorMessagesPage() {
         (teamState ?? (
           <>
             <Timeline messages={teamMessages} emptyText={teamEmpty} />
-            <Composer value={draft} onChange={setDraft} onSend={sendTeam} sending={sending} placeholder="Message your team" />
+            <Composer value={draft} onChange={setDraft} onSend={sendTeam} placeholder="Message your team" />
           </>
         ))}
 
@@ -738,7 +709,7 @@ export default function CreatorMessagesPage() {
             value={draft}
             onChange={setDraft}
             onSend={sendRequest}
-            sending={sending}
+           
             placeholder="Message your team about this request"
           />
         </>

@@ -47,6 +47,8 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
+  // The code step is for a creator account (their password was right)
+  const [creator2FA, setCreator2FA] = useState(false);
   const [staySignedIn, setStaySignedIn] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
   const [autoLoginInProgress, setAutoLoginInProgress] = useState(false);
@@ -169,6 +171,8 @@ function LoginForm() {
     setLoading(true);
 
     try {
+      // A creator's code step goes straight to the creator sign-in below
+      if (!creator2FA) {
       // First try team member login via NextAuth
       // Only include totpCode if 2FA is required and user has entered a code
       const credentials: Record<string, string | boolean> = {
@@ -217,16 +221,25 @@ function LoginForm() {
         setLoading(false);
         return;
       }
+      }
 
       // Team login failed, try creator login
       try {
         const creatorResponse = await fetch("/api/portal/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify(creator2FA ? { email, password, totpCode } : { email, password }),
         });
 
         const creatorData = await creatorResponse.json();
+
+        // Two-step sign-in is on for this creator: the password was right, now the code
+        if (creatorResponse.ok && creatorData.twoFactorRequired) {
+          setCreator2FA(true);
+          setRequires2FA(true);
+          setLoading(false);
+          return;
+        }
 
         if (creatorResponse.ok) {
           // Clear the signed-out flag since user is logging in

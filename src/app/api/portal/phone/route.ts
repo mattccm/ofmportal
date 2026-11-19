@@ -15,11 +15,14 @@ import { pushPublicKey, sendPushToCreator } from "@/lib/push";
 export async function GET(req: NextRequest) {
   const auth = await validateCreatorSession(req);
   if (!auth.success) return auth.error;
-  const [creator, devices] = await Promise.all([
+  // ?endpoint= asks about this device in particular (Settings > Notifications)
+  const endpoint = req.nextUrl.searchParams.get("endpoint");
+  const [creator, devices, thisDevice] = await Promise.all([
     db.creator.findUnique({ where: { id: auth.creator.id }, select: { appInstalledAt: true } }),
     db.pushSubscription.count({ where: { creatorId: auth.creator.id } }),
+    endpoint ? db.pushSubscription.count({ where: { creatorId: auth.creator.id, endpoint } }) : Promise.resolve(0),
   ]);
-  return NextResponse.json({ appInstalled: !!creator?.appInstalledAt, notifications: devices, publicKey: pushPublicKey() });
+  return NextResponse.json({ appInstalled: !!creator?.appInstalledAt, notifications: devices, publicKey: pushPublicKey(), thisDevice: thisDevice > 0 });
 }
 
 const subscriptionSchema = z.object({

@@ -173,6 +173,8 @@ async function getProfile(creatorId: string, access: Access): Promise<ProfileDat
       lastLoginAt: see.activity && creator.lastLoginAt ? creator.lastLoginAt.toISOString() : null,
       // "Set up your phone" (shown with activity: it says how they use the portal)
       phoneApp: see.activity ? { homeScreen: !!creator.appInstalledAt, notifications: creator._count.pushSubscriptions > 0 } : null,
+      // Two-step sign-in on or off (never the key)
+      twoStep: see.activity ? creator.twoFactorEnabled : null,
       notes: see.notes ? creator.notes : null,
       totalRequests: creator._count.requests,
       totalUploads: creator._count.uploads,

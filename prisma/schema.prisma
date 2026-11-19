@@ -397,6 +397,12 @@ model Creator {
   onboardingCompletedAt DateTime? // Set when the creator finishes first-time portal onboarding
   // First time the portal was opened from their home screen (the "Add to home screen" setup task)
   appInstalledAt        DateTime?
+  // Two-step sign-in (creator Settings): an authenticator app's code after the password.
+  // The secret is set when they start, and only used once they confirm a code.
+  twoFactorEnabled      Boolean   @default(false)
+  twoFactorSecret       String?
+  // Single-use backup codes, bcrypt-hashed: [{ code, used, usedAt? }]
+  twoFactorBackupCodes  Json      @default("[]")
   // "Your upload paused" notification: due when the page went to the background
   // mid-upload and never came back (see api/portal/upload-nudge)
   uploadNudgeAt         DateTime?

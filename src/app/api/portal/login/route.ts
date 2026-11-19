@@ -5,10 +5,13 @@ import { verifyPassword } from "@/lib/auth";
 import { z } from "zod";
 import { rateLimitAsync, RATE_LIMITS, getClientIp } from "@/lib/rate-limit";
 import { createCreatorSessionToken } from "@/lib/portal-auth";
+import { checkCreatorCode } from "@/lib/creator-two-factor";
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  /** Two-step sign-in: the app's 6 digits or a backup code */
+  totpCode: z.string().max(20).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -37,7 +40,7 @@ export async function POST(req: NextRequest) {
     const bodyResult = await parseJsonBody(req);
     if (!bodyResult.ok) return bodyResult.response;
     const body = bodyResult.data;
-    const { email, password } = loginSchema.parse(body);
+    const { email, password, totpCode } = loginSchema.parse(body);
 
     // Rate limit by email too (prevents distributed brute force)
     const emailRateLimitResult = await rateLimitAsync(`login:email:${email.toLowerCase()}`, RATE_LIMITS.login);
@@ -86,6 +89,20 @@ export async function POST(req: NextRequest) {
         { error: "Invalid email or password" },
         { status: 401 }
       );
+    }
+
+    // Two-step sign-in: the password was right; now the code (no session until it is)
+    if (creator.twoFactorEnabled && creator.twoFactorSecret) {
+      if (!totpCode?.trim()) {
+        return NextResponse.json({ twoFactorRequired: true });
+      }
+      const check = await checkCreatorCode(creator, totpCode);
+      if (!check.ok) {
+        return NextResponse.json(
+          { error: "That code didn't work. Use the 6 digits your app shows now, or a backup code.", twoFactorRequired: true },
+          { status: 401 }
+        );
+      }
     }
 
     // Reuse the current token while it is still valid so logging in on another

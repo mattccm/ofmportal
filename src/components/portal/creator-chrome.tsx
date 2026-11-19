@@ -56,6 +56,37 @@ function NavLink({ href, onClick, ...props }: React.ComponentProps<typeof Link>)
  * it, and the phone tab bar. Shared by the portal (src/app/creator/layout.tsx)
  * and "Preview as creator", so the preview wears the real frame.
  */
+/**
+ * True while someone is typing on a touch screen (a text box has focus): the
+ * keyboard is up, so the tab bar steps aside. Also sets data-typing on <html>
+ * for pages that lay out differently then (the Messages composer).
+ */
+function useTypingOnTouch(): boolean {
+  const [typing, setTyping] = React.useState(false);
+  React.useEffect(() => {
+    const touch = window.matchMedia("(pointer: coarse)");
+    const NOT_TYPED = new Set(["checkbox", "radio", "button", "submit", "reset", "file", "range", "color", "image", "hidden"]);
+    const isField = (el: Element | null) =>
+      el instanceof HTMLTextAreaElement ||
+      (el instanceof HTMLInputElement && !NOT_TYPED.has(el.type)) ||
+      (el instanceof HTMLElement && el.isContentEditable);
+    const update = () => setTyping(touch.matches && isField(document.activeElement));
+    // focusout fires before the next field takes focus: check once it has
+    const later = () => setTimeout(update, 0);
+    document.addEventListener("focusin", update);
+    document.addEventListener("focusout", later);
+    return () => {
+      document.removeEventListener("focusin", update);
+      document.removeEventListener("focusout", later);
+    };
+  }, []);
+  React.useEffect(() => {
+    document.documentElement.toggleAttribute("data-typing", typing);
+    return () => document.documentElement.removeAttribute("data-typing");
+  }, [typing]);
+  return typing;
+}
+
 export function CreatorChrome({
   creator,
   pathname,
@@ -73,6 +104,7 @@ export function CreatorChrome({
   children: React.ReactNode;
 }) {
   const { branding, agencyName } = useBranding();
+  const typing = useTypingOnTouch();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const initials =
     creator.name
@@ -224,7 +256,8 @@ export function CreatorChrome({
       {/* Phone tab bar: every destination one thumb away */}
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-tile sm:hidden"
+        // Not while typing: the keyboard is up and the bar would only crowd the screen
+        className={cn("fixed inset-x-0 bottom-0 z-40 border-t border-line bg-tile sm:hidden", typing && "hidden")}
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="mx-auto flex h-16 max-w-[560px] safe-area-x">

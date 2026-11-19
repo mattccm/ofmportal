@@ -22,6 +22,8 @@ import { useTheme } from "@/components/theme/theme-provider";
 import { clearCreatorSession, setSignedOutFlag } from "@/lib/remember-token";
 import { compressAvatarImage, validateAvatarFile } from "@/lib/avatar";
 import { clearCreatorCookie } from "@/lib/creator-cookies";
+import { DeviceNotifications } from "@/components/notifications/device-notifications";
+import { CreatorTwoStep } from "@/components/portal/creator-two-step";
 
 const TIMEZONES = [
   // UTC-12 to UTC-8
@@ -325,7 +327,7 @@ export default function CreatorSettingsPage() {
   return (
     <div className="px-4 pt-5 lg:max-w-[640px] lg:px-6 lg:pt-10">
       <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] lg:text-[26px]">Settings</h1>
-      <p className="mt-1 text-[15px] leading-normal text-ink-2">Your profile, time zone and password.</p>
+      <p className="mt-1 text-[15px] leading-normal text-ink-2">Your profile, time zone, notifications and sign-in.</p>
 
       <section aria-labelledby="profile-h" className="mt-6">
         <h2 id="profile-h" className={sectionH}>
@@ -423,6 +425,24 @@ export default function CreatorSettingsPage() {
         </h2>
         <div className={tile}>
           <ThemeSwitcher theme={theme} setTheme={setTheme} />
+        </div>
+      </section>
+
+      <section aria-labelledby="notify-h" className="mt-8">
+        <h2 id="notify-h" className={sectionH}>
+          Notifications
+        </h2>
+        <div className={tile}>
+          <DeviceNotifications audience="creator" variant="plain" />
+        </div>
+      </section>
+
+      <section aria-labelledby="two-step-h" className="mt-8">
+        <h2 id="two-step-h" className={sectionH}>
+          Two-step sign-in
+        </h2>
+        <div className={tile}>
+          <CreatorTwoStep />
         </div>
       </section>
 

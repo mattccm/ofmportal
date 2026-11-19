@@ -99,6 +99,8 @@ export interface ProfileData {
     lastLoginAt: string | null;
     /** Their phone setup tasks; null when the role can't see activity */
     phoneApp: { homeScreen: boolean; notifications: boolean } | null;
+    /** Two-step sign-in on; null when the role can't see activity */
+    twoStep: boolean | null;
     notes: string | null;
     totalRequests: number;
     totalUploads: number;
@@ -186,6 +188,7 @@ export function CreatorVaultClient({
     pause: can("creators.pauseReminders"),
     invites: canAny(["creators.invite", "creators.resetAccess"]) && can("creatorInfo.invite"),
     archive: can("creators.delete"),
+    resetAccess: can("creators.resetAccess"),
     template: can("templates.create"),
     content: can("creatorInfo.content"),
     preferences: can("creatorInfo.preferences"),
@@ -512,6 +515,14 @@ export function CreatorVaultClient({
                     : creator.phoneApp.notifications
                       ? "notifications on"
                       : "not on their home screen yet"}
+                </dd>
+              )}
+              {creator.twoStep && (
+                <dd className="text-[13px] text-ink-2">
+                  two-step sign-in on
+                  {may.resetAccess && (
+                    <TwoStepOff creatorId={creator.id} name={creator.name} onDone={() => router.refresh()} />
+                  )}
                 </dd>
               )}
             </div>
@@ -1142,5 +1153,47 @@ function AnalyticsPanel({
         </div>
       )}
     </Panel>
+  );
+}
+
+/** Staff turn off a creator's two-step sign-in (lost phone and backup codes), after a confirm */
+function TwoStepOff({ creatorId, name, onDone }: { creatorId: string; name: string; onDone: () => void }) {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const first = name.split(" ")[0];
+  const turnOff = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/creators/${creatorId}/two-factor`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast.success(`Two-step sign-in is off for ${first}. They can turn it back on in their Settings.`);
+      onDone();
+    } catch {
+      toast.error("That didn't work. Try again.");
+    } finally {
+      setBusy(false);
+      setAsking(false);
+    }
+  };
+  if (!asking) {
+    return (
+      <>
+        {" · "}
+        <button type="button" onClick={() => setAsking(true)} className="underline underline-offset-[3px] hover:text-ink focus-visible:outline-2 focus-visible:outline-ring">
+          Turn off
+        </button>
+      </>
+    );
+  }
+  return (
+    <span className="mt-1 block text-ink" role="group" aria-label="Turn off two-step sign-in">
+      Only if {first} lost their phone and backup codes: they&rsquo;ll sign in with just their password.{" "}
+      <button type="button" disabled={busy} onClick={() => void turnOff()} className="font-semibold text-late underline underline-offset-[3px] focus-visible:outline-2 focus-visible:outline-ring">
+        Turn it off
+      </button>{" "}
+      <button type="button" onClick={() => setAsking(false)} className="underline underline-offset-[3px] focus-visible:outline-2 focus-visible:outline-ring">
+        Keep it
+      </button>
+    </span>
   );
 }
