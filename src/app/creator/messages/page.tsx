@@ -596,21 +596,61 @@ export default function CreatorMessagesPage() {
   }
 
   /* ---------- Phone and tablet: one conversation at a time ---------- */
+  const inThread = view === "requests" && !!selected;
+  // Switching: the team conversation opens at its newest message (the layout
+  // effect above), the list of requests at the top
+  const switchTo = (key: "team" | "requests") => {
+    setView(key);
+    setSelectedId(null);
+    if (key === "requests") requestAnimationFrame(() => window.scrollTo({ top: 0 }));
+  };
   return (
     <div className="px-4 pt-5">
-      {view === "requests" && selected ? (
-        <button
-          type="button"
-          onClick={() => setSelectedId(null)}
-          className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-[15px] text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <ChevronLeft className="size-4" aria-hidden="true" />
-          All requests
-        </button>
-      ) : null}
-
-      {view === "requests" && selected ? (
+      {!inThread && (
         <>
+          <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em]">Messages</h1>
+          <p className="mt-1 text-[15px] leading-normal text-ink-2">
+            {view === "team" ? teamLede : "Notes on each request, between you and your team."}
+          </p>
+        </>
+      )}
+
+      {/* Held under the top bar, so switching never means scrolling back up a long conversation */}
+      <div className={cn("sticky top-14 z-20 -mx-4 bg-ground px-4 pb-2 pt-2", inThread ? "-mt-3" : "mt-2")}>
+        <div className="inline-flex rounded-[var(--tw-r-ctl)] bg-well p-1" role="group" aria-label="Conversations">
+          {(
+            [
+              ["team", "Your team"],
+              ["requests", "About a request"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={view === key}
+              onClick={() => switchTo(key)}
+              className={cn(
+                "min-h-11 rounded-md px-3.5 text-[14px] font-medium transition-colors md:min-h-9",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                view === key ? "!bg-tile-hi text-ink" : "text-ink-2 hover:text-ink"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {inThread && selected && (
+        <>
+          <button
+            type="button"
+            onClick={() => switchTo("requests")}
+            className="-ml-1 mt-1 inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-[15px] text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            All requests
+          </button>
           <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em]">{selected.title}</h1>
           <p className="mt-1 text-[15px] text-ink-2">
             {STATUS_WORD[selected.status] || "Open"} ·{" "}
@@ -618,38 +658,6 @@ export default function CreatorMessagesPage() {
               Open the request
             </Link>
           </p>
-        </>
-      ) : (
-        <>
-          <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em]">Messages</h1>
-          <p className="mt-1 text-[15px] leading-normal text-ink-2">
-            {view === "team" ? teamLede : "Notes on each request, between you and your team."}
-          </p>
-          <div className="mt-4 inline-flex rounded-[var(--tw-r-ctl)] bg-well p-1" role="group" aria-label="Conversations">
-            {(
-              [
-                ["team", "Your team"],
-                ["requests", "About a request"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={view === key}
-                onClick={() => {
-                  setView(key);
-                  setSelectedId(null);
-                }}
-                className={cn(
-                  "min-h-11 rounded-md px-3.5 text-[14px] font-medium transition-colors md:min-h-9",
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                  view === key ? "!bg-tile-hi text-ink" : "text-ink-2 hover:text-ink"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </>
       )}
 
@@ -710,7 +718,8 @@ export default function CreatorMessagesPage() {
             onChange={setDraft}
             onSend={sendRequest}
            
-            placeholder="Message your team about this request"
+            // One line beside Send on a phone
+            placeholder="Message about this request"
           />
         </>
       )}
