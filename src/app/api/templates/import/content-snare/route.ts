@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/access/server";
 import { ContentSnareError, contentsFromExport, listTemplates, looksLikeToken, readTemplate, toTemplate, type SnareContents } from "@/lib/content-snare";
+import { validateTemplateFields, type TemplateField } from "@/lib/templates";
 
 /**
  * Templates > Import from Content Snare.
@@ -13,7 +14,8 @@ import { ContentSnareError, contentsFromExport, listTemplates, looksLikeToken, r
  * POST { token, action: "import", template }        -> { id, name, fields, examples, notes }
  *   with a Content Snare personal access token (plans that allow them)
  * The token (cs_pat_...) is used for this call only: never stored or logged.
- * Imported templates start switched off, to look over before use.
+ * Imported templates are switched on, ready to send (switched off, with the
+ * reason, only if the template editor's own checks would refuse them).
  */
 
 export const maxDuration = 300;
@@ -55,6 +57,17 @@ export async function POST(req: NextRequest) {
       );
     }
     const name = t.name.trim() || "Imported template";
+    // Two fields with the same name in one section: number them, as the template editor needs unique names
+    const seen = new Map<string, number>();
+    for (const f of made.fields) {
+      const key = f.label.trim().toLowerCase();
+      const n = (seen.get(key) ?? 0) + 1;
+      seen.set(key, n);
+      if (n > 1) f.label = `${f.label} ${n}`;
+    }
+    // Switched on, unless it wouldn't pass the checks a template needs to be switched on
+    const problems = validateTemplateFields(made.fields as unknown as TemplateField[]);
+    if (problems.length) made.notes.push(`Switched off: ${problems[0].message}. Fix it in the editor, then switch it on.`);
     const template = await db.requestTemplate.create({
       data: {
         agencyId: gate.session.user.agencyId,
@@ -64,7 +77,7 @@ export async function POST(req: NextRequest) {
         fields: JSON.stringify(made.fields),
         defaultDueDays: 7,
         defaultUrgency: "NORMAL",
-        isActive: false,
+        isActive: problems.length === 0,
         messaging: Prisma.DbNull,
       },
       select: { id: true },
@@ -80,7 +93,7 @@ export async function POST(req: NextRequest) {
         },
       })
       .catch(() => {});
-    return NextResponse.json({ id: template.id, name, fields: made.fields.length, examples: made.examples, notes: made.notes });
+    return NextResponse.json({ id: template.id, name, fields: made.fields.length, examples: made.examples, notes: made.notes, on: problems.length === 0 });
   } catch (e) {
     // 424: Vercel would swap a 5xx for its own page
     if (e instanceof ContentSnareError) return NextResponse.json({ error: e.message }, { status: 424 });

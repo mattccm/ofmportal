@@ -18,7 +18,7 @@ import { CONTENT_SNARE_EXPORT_FORMAT, CONTENT_SNARE_EXPORT_SCRIPT } from "@/lib/
  *  - an export file, made by a script run in the browser on Content Snare
  *    (for plans that don't allow API tokens; the sign-in stays in that tab)
  *  - a personal access token (sent with each call, never saved)
- * Pick templates, and each becomes a CCM template (switched off, to look over).
+ * Pick templates, and each becomes a CCM template, switched on and ready to send.
  */
 
 type Way = "file" | "token";
@@ -170,7 +170,7 @@ export function ContentSnareImport() {
           <DialogHeader>
             <DialogTitle>Import from Content Snare</DialogTitle>
             <DialogDescription>
-              Each template comes over with its fields, instructions and example images, switched off so you can look it over first.
+              Each template comes over with its fields, instructions and example images, switched on and ready to send.
             </DialogDescription>
           </DialogHeader>
 
@@ -313,7 +313,7 @@ export function ContentSnareImport() {
                             {o.fields} {o.fields === 1 ? "field" : "fields"}
                             {o.examples ? `, ${o.examples} ${o.examples === 1 ? "example" : "examples"}` : ""}.{" "}
                             <Link href={`/dashboard/templates/${o.id}/edit`} className="text-ink underline">
-                              Look it over
+                              Open it
                             </Link>
                             {o.notes.length > 0 && (
                               <ul className="mt-1 list-disc pl-4">
