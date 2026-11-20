@@ -7,8 +7,9 @@ import { CREATOR_PICKER_KEYS, groupInclude, shapeGroup } from "../creator-access
 // Schema for creating/updating a creator group
 const groupSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
-  description: z.string().max(500).optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").optional(),
+  // The group editor sends null for an empty description
+  description: z.string().max(500).optional().nullable(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").optional().nullable(),
   memberIds: z.array(z.string()).optional(),
 });
 
