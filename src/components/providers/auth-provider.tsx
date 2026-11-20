@@ -222,30 +222,47 @@ function IOSPWASessionHandler({ children }: { children: React.ReactNode }) {
     }
   }, [status, tryAutoLogin]);
 
-  // Set up event listeners for PWA mode
+  // next-auth hands out a new update() whenever the session or its loading
+  // state changes, and update() itself changes the loading state. So the PWA
+  // listeners below are attached once and call the latest handlers through a
+  // ref: an effect that depended on them and called update() re-ran forever
+  // in the home-screen app (a session refresh every half second, the page
+  // flickering through "loading").
+  const latest = useRef({ handlePageShow, handleVisibilityChange, update });
+  useEffect(() => {
+    latest.current = { handlePageShow, handleVisibilityChange, update };
+  });
+
+  // Set up event listeners for PWA mode (once)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     // Check if running in standalone/PWA mode
     const isPWA = isStandaloneMode() || isIOSPWA();
+    if (!isPWA) return;
 
-    if (isPWA) {
-      // Add event listeners for PWA
-      window.addEventListener("pageshow", handlePageShow);
-      document.addEventListener("visibilitychange", handleVisibilityChange);
+    const onPageShow = (event: PageTransitionEvent) => latest.current.handlePageShow(event);
+    const onVisibilityChange = () => latest.current.handleVisibilityChange();
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
 
-      // Also refresh session on initial load if we're in standalone mode
-      // This helps recover sessions after full app quit
-      update().catch(() => {
-        // Initial session refresh failed; ignore
-      });
-
-      return () => {
-        window.removeEventListener("pageshow", handlePageShow);
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
-      };
-    }
-  }, [handlePageShow, handleVisibilityChange, update]);
+  // Refresh the session once on opening the app, after it has loaded
+  // (next-auth ignores update() while loading): helps recover a session iOS
+  // dropped after the app was quit
+  const openedRefreshDone = useRef(false);
+  useEffect(() => {
+    if (openedRefreshDone.current || status !== "authenticated") return;
+    if (!(isStandaloneMode() || isIOSPWA())) return;
+    openedRefreshDone.current = true;
+    latest.current.update().catch(() => {
+      // Initial session refresh failed; ignore
+    });
+  }, [status]);
 
   return <>{children}</>;
 }
