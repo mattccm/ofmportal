@@ -57,6 +57,7 @@ import {
   type RequestSettings,
 } from "@/types/recurring-requests";
 import { RecurringRequestModal } from "./recurring-request-modal";
+import { RunNowDialog } from "./run-now-dialog";
 import { formatStamp } from "@/components/title-wall/time";
 import { useViewerTimeZone } from "@/components/title-wall/viewer-time";
 
@@ -453,6 +454,8 @@ export function RecurringRequestsList({
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingRequest, setEditingRequest] = React.useState<RecurringRow | null>(null);
   const [historyRequest, setHistoryRequest] = React.useState<RecurringRequest | null>(null);
+  // Run now: pick the creators first
+  const [runRequest, setRunRequest] = React.useState<RecurringRequest | null>(null);
 
   // Fetch recurring requests
   const fetchRecurringRequests = React.useCallback(async () => {
@@ -521,30 +524,6 @@ export function RecurringRequestsList({
     } catch (error) {
       console.error("Error toggling recurring request:", error);
       toast.error("Failed to update recurring request");
-    }
-  };
-
-  const handleRunNow = async (rr: RecurringRequest) => {
-    try {
-      const response = await fetch(`/api/recurring-requests/${rr.id}/run`, {
-        method: "POST",
-      });
-
-      if (!response.ok) throw new Error("Failed to run");
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success(
-          `Sent ${result.successCount} request${result.successCount !== 1 ? "s" : ""} to ${result.creatorCount} creator${result.creatorCount !== 1 ? "s" : ""}`
-        );
-        fetchRecurringRequests();
-      } else {
-        toast.error("Failed to create requests");
-      }
-    } catch (error) {
-      console.error("Error running recurring request:", error);
-      toast.error("Failed to run recurring request");
     }
   };
 
@@ -700,7 +679,7 @@ export function RecurringRequestsList({
               recurringRequest={rr}
               onEdit={can("recurring.edit") ? () => handleEdit(rr) : undefined}
               onToggle={can("recurring.pause") ? () => handleToggle(rr) : undefined}
-              onRunNow={can("recurring.edit") ? () => handleRunNow(rr) : undefined}
+              onRunNow={can("recurring.edit") ? () => setRunRequest(rr) : undefined}
               onDelete={can("recurring.delete") ? () => handleDelete(rr) : undefined}
               onViewHistory={() => setHistoryRequest(rr)}
             />
@@ -717,6 +696,13 @@ export function RecurringRequestsList({
         creatorGroups={creatorGroups}
         editingRequest={editingRequest}
         onSaved={handleSaved}
+      />
+
+      {/* Run now, for the creators picked */}
+      <RunNowDialog
+        schedule={runRequest}
+        onOpenChange={(open) => !open && setRunRequest(null)}
+        onDone={fetchRecurringRequests}
       />
 
       {/* Execution History Dialog */}

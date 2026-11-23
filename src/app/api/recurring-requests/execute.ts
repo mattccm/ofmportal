@@ -62,7 +62,12 @@ export function recurringRequestTitle(
 export async function executeRecurringRequest(
   recurringRequestId: string,
   agencyId: string,
-  options: { actorUserId?: string | null; agencyName?: string } = {}
+  options: {
+    actorUserId?: string | null;
+    agencyName?: string;
+    /** Run now for these creators only (they must be on the schedule) */
+    onlyCreatorIds?: string[];
+  } = {}
 ): Promise<ExecuteRecurringRequestResult> {
   const id = recurringRequestId;
 
@@ -96,26 +101,30 @@ export async function executeRecurringRequest(
     return { status: 404, body: { error: "Template not found" } };
   }
 
-  // Resolve all creator IDs (direct + from groups)
-  const directCreatorIds = recurringRequest.creatorIds as string[];
-  const groupIds = recurringRequest.creatorGroupIds as string[];
-
-  let allCreatorIds: string[] = [...directCreatorIds];
-
-  if (groupIds.length > 0) {
-    const groupMembers = await db.creatorGroupMember.findMany({
-      where: { groupId: { in: groupIds } },
-      select: { creatorId: true },
-    });
-    const groupCreatorIds = groupMembers.map((m) => m.creatorId);
-    allCreatorIds = [...new Set([...allCreatorIds, ...groupCreatorIds])];
-  }
-
-  if (allCreatorIds.length === 0) {
+  const everyone = await scheduleCreators(recurringRequest, agencyId);
+  if (everyone.length === 0) {
     return {
       status: 400,
       body: { error: "No creators found for this recurring request" },
     };
+  }
+
+  // Run now for chosen creators: only ones on the schedule. Choosing some (not
+  // all) is a one-off: the schedule's next run, run count and end stay as they were.
+  let creators = everyone;
+  let oneOff = false;
+  if (options.onlyCreatorIds) {
+    const onSchedule = new Set(everyone.map((c) => c.id));
+    const chosen = [...new Set(options.onlyCreatorIds)];
+    if (chosen.length === 0 || chosen.some((cid) => !onSchedule.has(cid))) {
+      return {
+        status: 400,
+        body: { error: "Pick creators from this schedule. Reload the page and try again." },
+      };
+    }
+    const wanted = new Set(chosen);
+    creators = everyone.filter((c) => wanted.has(c.id));
+    oneOff = creators.length < everyone.length;
   }
 
   let agencyName = options.agencyName;
@@ -126,17 +135,6 @@ export async function executeRecurringRequest(
     });
     agencyName = agency?.name || "";
   }
-
-  // Get creators. Archived creators are skipped so an archived creator never
-  // receives auto-generated requests, even if still listed on the schedule.
-  const creators = await db.creator.findMany({
-    where: {
-      id: { in: allCreatorIds },
-      agencyId,
-      archivedAt: null,
-    },
-    select: { id: true, name: true, email: true, phone: true, preferredContact: true, timezone: true },
-  });
 
   // Create execution record
   const execution = await db.recurringRequestExecution.create({
@@ -271,20 +269,24 @@ export async function executeRecurringRequest(
     },
   });
 
-  // Calculate next run date
-  const nextRunAt = computeNextRunAt(recurringRequest, now, recurringRequest.runCount + 1);
+  // A one-off for some creators leaves the schedule as it was; a full run
+  // moves it on to its next occurrence
+  const nextRunAt = oneOff
+    ? recurringRequest.nextRunAt
+    : computeNextRunAt(recurringRequest, now, recurringRequest.runCount + 1);
 
-  // Update recurring request
   await db.recurringRequest.update({
     where: { id },
-    data: {
-      lastRunAt: now,
-      nextRunAt: nextRunAt,
-      runCount: { increment: 1 },
-      lastError: errors.length > 0 ? errors[0] : null,
-      // Deactivate if no more runs scheduled
-      isActive: nextRunAt !== null,
-    },
+    data: oneOff
+      ? { lastRunAt: now, lastError: errors.length > 0 ? errors[0] : null }
+      : {
+          lastRunAt: now,
+          nextRunAt: nextRunAt,
+          runCount: { increment: 1 },
+          lastError: errors.length > 0 ? errors[0] : null,
+          // Deactivate if no more runs scheduled
+          isActive: nextRunAt !== null,
+        },
   });
 
   // Log activity
@@ -297,6 +299,7 @@ export async function executeRecurringRequest(
       metadata: {
         name: recurringRequest.name,
         creatorCount: creators.length,
+        ...(oneOff ? { oneOff: true, creatorIds: creators.map((c) => c.id) } : {}),
         templateIds: templates.map((t) => t.id),
         successCount,
         failedCount,
@@ -313,12 +316,40 @@ export async function executeRecurringRequest(
       status: executionStatus,
       createdRequestIds,
       creatorCount: creators.length,
+      oneOff,
       successCount,
       failedCount,
       errors: errors.length > 0 ? errors : undefined,
       nextRunAt,
     },
   };
+}
+
+/**
+ * Who a schedule sends to: its creators plus the members of its creator
+ * groups, by name. Archived creators are left out, so an archived creator
+ * never receives auto-generated requests even if still on the schedule.
+ */
+export async function scheduleCreators(
+  row: { creatorIds: unknown; creatorGroupIds: unknown },
+  agencyId: string
+) {
+  const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const groupIds = ids(row.creatorGroupIds);
+  let allCreatorIds = ids(row.creatorIds);
+  if (groupIds.length > 0) {
+    const groupMembers = await db.creatorGroupMember.findMany({
+      where: { groupId: { in: groupIds } },
+      select: { creatorId: true },
+    });
+    allCreatorIds = [...new Set([...allCreatorIds, ...groupMembers.map((m) => m.creatorId)])];
+  }
+  if (allCreatorIds.length === 0) return [];
+  return db.creator.findMany({
+    where: { id: { in: allCreatorIds }, agencyId, archivedAt: null },
+    select: { id: true, name: true, avatar: true, email: true, phone: true, preferredContact: true, timezone: true },
+    orderBy: { name: "asc" },
+  });
 }
 
 /**
