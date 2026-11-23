@@ -703,11 +703,15 @@ export function CreatorVaultClient({
       <Shelf
         title="Active"
         sub={
-          data.active.length
-            ? ready
-              ? `${plural(ready, "field")} ready to review`
-              : `${plural(data.active.length, "request")} open`
-            : undefined
+          data.active.length ? (
+            <>
+              {ready ? `${plural(ready, "field")} ready to review` : `${plural(data.active.length, "request")} open`}
+              {" · "}
+              <Link className="text-ink underline underline-offset-[3px]" href={`/dashboard/requests?creator=${creator.id}`}>
+                All {first}&apos;s requests
+              </Link>
+            </>
+          ) : undefined
         }
         empty={
           <EmptyLine>

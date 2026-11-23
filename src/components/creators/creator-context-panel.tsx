@@ -486,11 +486,13 @@ function CollapsibleSection({
 }
 
 function ActiveRequestsSection({
+  creatorId,
   requests,
   summary,
   isOpen,
   onToggle,
 }: {
+  creatorId: string;
   requests: CreatorContextRequest[];
   summary: { active: number; overdue: number };
   isOpen: boolean;
@@ -547,7 +549,7 @@ function ActiveRequestsSection({
         )}
         {requests.length > 5 && (
           <Link
-            href={`/dashboard/requests?creator=${requests[0]?.id}`}
+            href={`/dashboard/requests?creator=${creatorId}`}
             className="block text-xs text-primary hover:underline text-center py-1"
           >
             View all {requests.length} requests
@@ -1081,6 +1083,7 @@ function PanelContent({
       <ScrollArea className="flex-1">
         <div className="divide-y">
           <ActiveRequestsSection
+            creatorId={data.id}
             requests={data.activeRequests}
             summary={data.requestSummary}
             isOpen={isSectionOpen("active-requests")}

@@ -220,7 +220,8 @@ const STATUS_LABEL: Record<string, string> = Object.fromEntries(
 );
 
 type SortOption = "urgent" | "ready" | "priority" | "deadline" | "created" | "title";
-type GroupOption = "none" | "priority" | "status";
+type GroupOption = "none" | "priority" | "status" | "creator";
+const GROUP_OPTIONS: GroupOption[] = ["none", "priority", "status", "creator"];
 
 const SORT_LABEL: Record<SortOption, string> = {
   urgent: "Most urgent first",
@@ -291,18 +292,37 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
 
   const refresh = useCallback(() => startRefresh(() => router.refresh()), [router]);
 
+  // One creator (and/or template) scopes the whole page: the views' counts,
+  // the summary and the list. The creator lives in the URL (?creator=), so a
+  // reload, a shared link or a creator's profile lands on the same scope.
+  const [creatorFilter, setCreatorState] = useState(() => {
+    const c = searchParams.get("creator");
+    return c && creators.some((x) => x.id === c) ? c : "all";
+  });
+  const [templateFilter, setTemplateFilter] = useState("all");
+  const scoped = useMemo(
+    () =>
+      requests.filter(
+        (r) =>
+          (creatorFilter === "all" || r.creator.id === creatorFilter) &&
+          (templateFilter === "all" || r.template?.id === templateFilter)
+      ),
+    [requests, creatorFilter, templateFilter]
+  );
+
   const counts = useMemo(() => {
     const c = {} as Record<ViewId, number>;
-    for (const v of VIEWS) c[v.id] = requests.filter((r) => v.test(r, now)).length;
+    for (const v of VIEWS) c[v.id] = scoped.filter((r) => v.test(r, now)).length;
     return c;
-  }, [requests, now]);
+  }, [scoped, now]);
 
   const [view, setViewState] = useState<ViewId>(() => {
     const v = searchParams.get("view");
     if (v && VIEWS.some((x) => x.id === v)) return v as ViewId;
     const f = searchParams.get("filter");
     if (f && URL_FILTER_TO_VIEW[f]) return URL_FILTER_TO_VIEW[f];
-    return initialRequests.some(isReady) ? "ready" : "all";
+    const c = searchParams.get("creator");
+    return initialRequests.some((r) => (!c || r.creator.id === c) && isReady(r)) ? "ready" : "all";
   });
   // The view lives in the URL too, so a refresh after an action (or a reload,
   // or a shared link) lands on the same view
@@ -315,10 +335,17 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
   }, []);
   const [layout, setLayout] = useState<"table" | "wall">("table");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const setCreatorFilter = useCallback((next: string) => {
+    setCreatorState(next);
+    // Rows outside the new scope can't stay selected
+    setSelectedIds(new Set());
+    const url = new URL(window.location.href);
+    if (next === "all") url.searchParams.delete("creator");
+    else url.searchParams.set("creator", next);
+    window.history.replaceState(null, "", url);
+  }, []);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [creatorFilter, setCreatorFilter] = useState("all");
-  const [templateFilter, setTemplateFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [dueToday, setDueToday] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
@@ -359,10 +386,21 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
       const saved = localStorage.getItem("savedRequestFilters");
       if (saved) setSavedFilters(JSON.parse(saved));
       if (localStorage.getItem("ccm-requests-layout") === "wall") setLayout("wall");
+      const g = localStorage.getItem("ccm-requests-group") as GroupOption | null;
+      if (g && GROUP_OPTIONS.includes(g)) setGroupBy(g);
     } catch {
       // storage unavailable: defaults stand
     }
   }, []);
+
+  const chooseGroup = (g: GroupOption) => {
+    setGroupBy(g);
+    try {
+      localStorage.setItem("ccm-requests-group", g);
+    } catch {
+      // ignore
+    }
+  };
 
   const chooseLayout = (l: "table" | "wall") => {
     setLayout(l);
@@ -372,6 +410,12 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
       // ignore
     }
   };
+
+  // A ?creator= link while the page is open (another screen, back/forward)
+  useEffect(() => {
+    const c = searchParams.get("creator");
+    setCreatorState(c && creators.some((x) => x.id === c) ? c : "all");
+  }, [searchParams, creators]);
 
   // A ?filter= link from another screen picks its view
   useEffect(() => {
@@ -387,13 +431,11 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
 
   const filteredRequests = useMemo(() => {
     const viewTest = VIEWS.find((v) => v.id === view)!.test;
-    let filtered = requests.filter((r) =>
+    let filtered = scoped.filter((r) =>
       // An explicit status filter of Archived reaches archived rows from any view
       statusFilter === "ARCHIVED" ? r.status === "ARCHIVED" : viewTest(r, now)
     );
     if (statusFilter !== "all" && statusFilter !== "ARCHIVED") filtered = filtered.filter((r) => r.status === statusFilter);
-    if (creatorFilter !== "all") filtered = filtered.filter((r) => r.creator.id === creatorFilter);
-    if (templateFilter !== "all") filtered = filtered.filter((r) => r.template?.id === templateFilter);
     if (priorityFilter !== "all") filtered = filtered.filter((r) => r.urgency === priorityFilter);
     // Due today: the due DAY is the viewer's today
     if (dueToday) {
@@ -467,13 +509,19 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
     }
 
     return sortRequests(filtered, sortBy);
-  }, [requests, view, now, statusFilter, creatorFilter, templateFilter, priorityFilter, dueToday, search, sortBy, advancedFilter]);
+  }, [scoped, view, now, statusFilter, priorityFilter, dueToday, search, sortBy, advancedFilter]);
 
   const shown = useMemo(() => filteredRequests.slice(0, visible), [filteredRequests, visible]);
 
   const groupedRequests = useMemo(() => {
     if (groupBy === "none") return null;
     if (groupBy === "priority") return groupByPriority(shown) as Record<string, ContentRequest[]>;
+    if (groupBy === "creator") {
+      const byCreator = new Map<string, ContentRequest[]>();
+      for (const r of shown) byCreator.set(r.creator.id, [...(byCreator.get(r.creator.id) ?? []), r]);
+      const ordered = [...byCreator.entries()].sort((a, b) => a[1][0].creator.name.localeCompare(b[1][0].creator.name));
+      return Object.fromEntries(ordered);
+    }
     const groups: Record<string, ContentRequest[]> = {};
     for (const r of shown) (groups[r.status] ??= []).push(r);
     return groups;
@@ -483,7 +531,6 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
     (statusFilter !== "all" ? 1 : 0) +
     (priorityFilter !== "all" ? 1 : 0) +
     (dueToday ? 1 : 0) +
-    (groupBy !== "none" ? 1 : 0) +
     advancedFilter.conditions.filter((c) => c.field && c.value !== null).length;
   const hasActiveFilters =
     !!search || creatorFilter !== "all" || templateFilter !== "all" || moreFilterCount > 0;
@@ -716,9 +763,26 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
 
   // ---------------------------------------------------------- pieces
 
-  const total = requests.filter((r) => r.status !== "ARCHIVED").length;
-  const activeCount = requests.filter(isActive).length;
-  const readyFieldsTotal = requests.filter((r) => !isFinished(r.status)).reduce((n, r) => n + readyCount(r), 0);
+  const total = scoped.filter((r) => r.status !== "ARCHIVED").length;
+  const activeCount = scoped.filter(isActive).length;
+  const readyFieldsTotal = scoped.filter((r) => !isFinished(r.status)).reduce((n, r) => n + readyCount(r), 0);
+  const scopedCreator = creatorFilter === "all" ? null : creators.find((c) => c.id === creatorFilter) ?? null;
+  const scopedTemplate = templateFilter === "all" ? null : templates.find((t) => t.id === templateFilter) ?? null;
+
+  /** One creator's standing, for a creator group's heading */
+  const creatorStanding = (creatorId: string) => {
+    const mine = scoped.filter((r) => r.creator.id === creatorId);
+    const ready = mine.filter(isReady).length;
+    const overdue = mine.filter((r) => isOverdue(r, now)).length;
+    const week = mine.filter((r) => VIEWS[2].test(r, now)).length;
+    return [
+      ready ? `${ready} ready to review` : null,
+      overdue ? `${overdue} overdue` : null,
+      week ? `${week} due this week` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  };
   const summary =
     total === 0
       ? "Nothing sent yet."
@@ -1027,10 +1091,11 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
 
   // ---------------------------------------------------------- render
 
-  const primaryFilterCount = (creatorFilter !== "all" ? 1 : 0) + (templateFilter !== "all" ? 1 : 0);
+  /** On a phone the creator sits on the page; template, sort and group fold into More filters */
+  const primaryFilterCount = templateFilter !== "all" ? 1 : 0;
 
-  /** Creator, template and sort: a row of selects, or labelled full-width rows on a phone. */
-  const primarySelects = (mode: "row" | "stack") => {
+  /** Creator, template, sort and group: a row of selects, or labelled full-width rows on a phone. */
+  const primarySelects = (mode: "row" | "stack", only?: "creator" | "rest") => {
     const trigger = mode === "row" ? undefined : "w-full";
     const wrap = (label: string, id: string, el: React.ReactNode) =>
       mode === "row" ? (
@@ -1045,7 +1110,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
       );
     return (
       <>
-        {wrap(
+        {only !== "rest" && wrap(
           "Creator",
           `req-creator-${mode}`,
           <Select value={creatorFilter} onValueChange={setCreatorFilter}>
@@ -1062,7 +1127,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             </SelectContent>
           </Select>
         )}
-        {wrap(
+        {only !== "creator" && wrap(
           "Template",
           `req-template-${mode}`,
           <Select value={templateFilter} onValueChange={setTemplateFilter}>
@@ -1079,7 +1144,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             </SelectContent>
           </Select>
         )}
-        {wrap(
+        {only !== "creator" && wrap(
           "Sort",
           `req-sort-${mode}`,
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
@@ -1095,6 +1160,21 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
             </SelectContent>
           </Select>
         )}
+        {only !== "creator" && wrap(
+          "Group",
+          `req-group-${mode}`,
+          <Select value={groupBy} onValueChange={(v) => chooseGroup(v as GroupOption)}>
+            <SelectTrigger id={`req-group-${mode}`} className={trigger ?? "min-w-0 flex-1 sm:flex-none sm:w-[168px]"} aria-label="Group">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No grouping</SelectItem>
+              <SelectItem value="creator">Group by creator</SelectItem>
+              <SelectItem value="priority">Group by priority</SelectItem>
+              <SelectItem value="status">Group by status</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </>
     );
   };
@@ -1104,8 +1184,33 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
       {/* Title row: the page answers "what needs me" in one sentence */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">Requests</h1>
-          <p className="mt-1 text-[15px] text-ink-2">{summary}</p>
+          <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">
+            Requests
+            {scopedCreator && <span className="text-ink-2"> · {scopedCreator.name}</span>}
+          </h1>
+          <p className="mt-1 text-[15px] text-ink-2">
+            {scopedTemplate && <>{scopedTemplate.name} only. </>}
+            {summary}
+          </p>
+          {(scopedCreator || scopedTemplate) && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
+              {scopedCreator && (
+                <Link href={`/dashboard/creators/${scopedCreator.id}`} className="text-ink underline underline-offset-[3px]">
+                  Open {scopedCreator.name}&apos;s profile
+                </Link>
+              )}
+              <button
+                type="button"
+                className="text-ink-2 underline underline-offset-[3px] hover:text-ink"
+                onClick={() => {
+                  setCreatorFilter("all");
+                  setTemplateFilter("all");
+                }}
+              >
+                Show every {scopedCreator ? "creator" : "template"}
+              </button>
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {(can("requests.export") || can("exports.data")) && (
@@ -1163,6 +1268,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
           </div>
           {/* From 640px the three main selects sit in this row; on a phone
               they move into More filters, each on its own labelled row */}
+          <div className="grid basis-full gap-1.5 sm:hidden">{primarySelects("stack", "creator")}</div>
           <div className="hidden sm:contents">{primarySelects("row")}</div>
           <Button
             variant={showMoreFilters ? "secondary" : "outline"}
@@ -1201,7 +1307,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
 
         {showMoreFilters && (
           <div id="requests-more-filters" className="flex flex-wrap items-center gap-2 rounded-[10px] bg-tile p-3">
-            <div className="grid basis-full gap-3 sm:hidden">{primarySelects("stack")}</div>
+            <div className="grid basis-full gap-3 sm:hidden">{primarySelects("stack", "rest")}</div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[150px]" aria-label="Status">
                 <SelectValue />
@@ -1225,16 +1331,6 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
                     {o.label}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupOption)}>
-              <SelectTrigger className="w-[160px]" aria-label="Group">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No grouping</SelectItem>
-                <SelectItem value="priority">Group by priority</SelectItem>
-                <SelectItem value="status">Group by status</SelectItem>
               </SelectContent>
             </Select>
             <Button variant={dueToday ? "secondary" : "outline"} aria-pressed={dueToday} onClick={() => setDueToday((v) => !v)}>
@@ -1440,12 +1536,30 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
                 const label =
                   groupBy === "priority"
                     ? `${getPriorityConfig(group as Priority).label} priority`
-                    : (STATUS_LABEL[group] ?? group);
+                    : groupBy === "creator"
+                      ? items[0].creator.name
+                      : (STATUS_LABEL[group] ?? group);
+                const standing = groupBy === "creator" ? creatorStanding(group) : "";
                 return (
                   <section key={group} aria-label={label} className="space-y-2">
-                    <h2 className="text-[17px] font-semibold text-ink">
-                      {label} <span className="font-normal text-ink-2">{items.length}</span>
-                    </h2>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <h2 className="text-[17px] font-semibold text-ink">
+                        {label} <span className="font-normal text-ink-2">{items.length}</span>
+                      </h2>
+                      {groupBy === "creator" && creatorFilter === "all" && (
+                        <button
+                          type="button"
+                          className="text-[14px] text-ink-2 underline underline-offset-[3px] hover:text-ink"
+                          onClick={() => {
+                            setCreatorFilter(group);
+                            window.scrollTo({ top: 0 });
+                          }}
+                        >
+                          Only {label}
+                        </button>
+                      )}
+                    </div>
+                    {standing && <p className="-mt-1 text-[14px] text-ink-2">{standing}</p>}
                     {renderRows(items, label)}
                   </section>
                 );
