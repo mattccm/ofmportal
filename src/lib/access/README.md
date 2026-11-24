@@ -17,8 +17,9 @@ Owner is not a stored role: `User.role === "OWNER"` has every key and every
 scope. Admin / Manager / Member are editable `CustomRole` rows (`isSystem`),
 created per agency on first use; their defaults are `PRESETS` in the
 catalogue and reproduce what each role could do before. A custom role sits on
-`User.role = MEMBER` with `customRoleId` set. `User.permissionOverrides`,
-`assignedCreatorIds` and `activityRestrictions` are no longer read.
+`User.role = MEMBER` with `customRoleId` set. `User.assignedCreatorIds` is what a
+role scoped to "Creators assigned to them" sees. `User.permissionOverrides` and
+`activityRestrictions` are no longer read.
 
 Role ids used in URLs, team scopes and the API: `owner`, `admin`, `manager`,
 `member`, or a custom role's id.

@@ -39,7 +39,14 @@ export interface Access {
   teamScope: TeamScope;
 }
 
-function build(userId: string, agencyId: string, role: RoleRecord, assignedCreatorIds: string[] = []): Access {
+/** User.assignedCreatorIds (a JSON list) as creator ids */
+function assignedIds(v: Prisma.JsonValue): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+
+// assignedCreatorIds is required on purpose: leaving it out makes a role that
+// sees "Creators assigned to them" see nobody
+function build(userId: string, agencyId: string, role: RoleRecord, assignedCreatorIds: string[]): Access {
   const isOwner = role.kind === "owner";
   const keys = withImplied(role.keys);
   // "Creators assigned to them" becomes this person's own list, so every query
@@ -60,7 +67,7 @@ function build(userId: string, agencyId: string, role: RoleRecord, assignedCreat
 }
 
 /** Access for an already-known user row (also used by tests) */
-export function accessFor(userId: string, agencyId: string, role: RoleRecord, assignedCreatorIds: string[] = []): Access {
+export function accessFor(userId: string, agencyId: string, role: RoleRecord, assignedCreatorIds: string[]): Access {
   return build(userId, agencyId, role, assignedCreatorIds);
 }
 
@@ -96,8 +103,8 @@ export async function getAccess(session?: Session | null): Promise<Access | null
     },
   });
   if (!user?.agencyId || user.agencyId !== s.user.agencyId) return null;
-  if (user.role === "OWNER") return build(s.user.id, user.agencyId, OWNER_RECORD);
-  const assigned = Array.isArray(user.assignedCreatorIds) ? user.assignedCreatorIds.filter((x): x is string => typeof x === "string") : [];
+  const assigned = assignedIds(user.assignedCreatorIds);
+  if (user.role === "OWNER") return build(s.user.id, user.agencyId, OWNER_RECORD, assigned);
   if (user.customRole && user.customRole.agencyId === user.agencyId) {
     return build(s.user.id, user.agencyId, rowToRole(user.customRole), assigned);
   }
@@ -241,7 +248,7 @@ export async function recipientsWhoCanSee(
   const [users, roles, creator] = await Promise.all([
     db.user.findMany({
       where: { id: { in: ids }, agencyId, AND: [excludePseudoUsers] },
-      select: { id: true, role: true, customRoleId: true },
+      select: { id: true, role: true, customRoleId: true, assignedCreatorIds: true },
     }),
     loadRoles(agencyId),
     opts.creatorId
@@ -260,7 +267,7 @@ export async function recipientsWhoCanSee(
       const role =
         byId.get(roleIdOf(u, presetRowIds)) ?? byId.get(BUILT_IN_FOR_ENUM[u.role] ?? "member") ?? byId.get("member");
       if (!role) return false;
-      const a = build(u.id, agencyId, role);
+      const a = build(u.id, agencyId, role, assignedIds(u.assignedCreatorIds));
       if (opts.keys?.length && !a.hasAny(opts.keys)) return false;
       if (!creator) return true;
       const sc = a.creatorScope;
