@@ -66,10 +66,12 @@ export async function listTemplates(token: string): Promise<SnareTemplate[]> {
 
 // ---------- reading one template (through a draft request) ----------
 
-interface SnareImage {
+export interface SnareImage {
   filename?: string;
   url?: string;
   image?: { url?: string };
+  content_type?: string;
+  byte_size?: number;
 }
 export interface SnareField {
   id?: string;
@@ -176,7 +178,7 @@ function attachmentsOf(f: Loose): SnareImage[] {
     if (typeof a === "string" && /^(https?:)?\/\//.test(a)) return out.push({ url: absolute(a) });
     const o = obj(a);
     const url = str(o.url, o.download_url, o.file_url, o.original_url, o.service_url, o.blob_url, obj(o.file).url, obj(o.image).url);
-    if (url) out.push({ url: absolute(url), filename: str(o.filename, o.original_filename, o.name, obj(o.blob).filename) });
+    if (url) out.push({ url: absolute(url), filename: str(o.filename, o.original_filename, o.name, obj(o.blob).filename), content_type: str(o.content_type), byte_size: num(o.byte_size) });
   };
   for (const a of arr(f.answers)) {
     add(a.attachment);
@@ -211,7 +213,7 @@ function fieldFromExport(f: Loose): SnareField {
   };
 }
 
-function pageFromExport(p: Loose): SnarePage {
+export function pageFromExport(p: Loose): SnarePage {
   return {
     id: String(p.id ?? ""),
     name: str(p.name, p.title),
@@ -370,14 +372,24 @@ export interface ImportedTemplate {
   fields: TemplateField[];
   notes: string[];
   examples: number;
+  /** CCM field id -> the Content Snare field it came from */
+  from: Record<string, string>;
 }
+
+/** Where an example file ends up: copied now (templates), or later (request import) */
+export type KeepExample = (img: SnareImage) => Promise<Awaited<ReturnType<typeof rehost>>>;
 
 /**
  * The CCM template for these contents. Fields stay in order. Page instructions
  * go in the note (as headings when there are several pages); a section's
  * instructions and pictures go on its first field, where creators see them.
  */
-export async function toTemplate(agencyId: string, t: SnareTemplate, c: SnareContents): Promise<ImportedTemplate> {
+export async function toTemplate(
+  agencyId: string,
+  t: SnareTemplate,
+  c: SnareContents,
+  keepExample: KeepExample = (img) => rehost(agencyId, img)
+): Promise<ImportedTemplate> {
   const notes: string[] = [];
   const parts: string[] = [];
   if (t.description.trim()) parts.push(`<p>${esc(t.description.trim())}</p>`);
@@ -400,12 +412,13 @@ export async function toTemplate(agencyId: string, t: SnareTemplate, c: SnareCon
     if (!copied.has(src)) {
       if (examplesLeft <= 0) return null;
       examplesLeft--;
-      copied.set(src, await rehost(agencyId, img));
+      copied.set(src, await keepExample(img));
     }
     return copied.get(src) ?? null;
   };
 
   const fields: TemplateField[] = [];
+  const from: Record<string, string> = {};
   let examples = 0;
   let conditional = false;
   let failedCopies = 0;
@@ -508,6 +521,7 @@ export async function toTemplate(agencyId: string, t: SnareTemplate, c: SnareCon
             : {}),
         };
         fields.push(field);
+        if (f.id) from[field.id] = String(f.id);
       }
     }
   }
@@ -518,5 +532,5 @@ export async function toTemplate(agencyId: string, t: SnareTemplate, c: SnareCon
   // Content Snare fill-ins ({{client_first_name}}) would show to creators as typed
   const fillIns = new Set([parts.join(""), ...fields.map((f) => `${f.label} ${f.richContent?.description ?? ""} ${f.placeholder ?? ""}`)].join(" ").match(/\{\{\s*[\w.]+\s*\}\}/g) ?? []);
   if (fillIns.size) notes.push(`Content Snare fill-ins (${[...fillIns].slice(0, 3).join(", ")}) came over as typed: creators would see them, so reword those bits.`);
-  return { description: parts.join(""), fields, notes: [...new Set(notes)], examples };
+  return { description: parts.join(""), fields, notes: [...new Set(notes)], examples, from };
 }

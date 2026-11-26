@@ -12,7 +12,8 @@ import {
   AbortMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { existsSync } from "fs";
+import { createWriteStream, existsSync } from "fs";
+import { mkdir } from "fs/promises";
 import path from "path";
 
 // Determine if we're using local MinIO or Cloudflare R2
@@ -468,6 +469,77 @@ export async function uploadToStorage(
   );
 
   return key;
+}
+
+const STREAM_PART_SIZE = 16 * 1024 * 1024;
+
+/**
+ * Store a file the server is fetching from elsewhere without holding it all in
+ * memory: 16MB parts to R2 (one plain upload when smaller), or straight to
+ * disk in local-disk mode. Returns the bytes stored.
+ */
+export async function streamToStorage(key: string, body: ReadableStream<Uint8Array>, contentType: string): Promise<number> {
+  const reader = body.getReader();
+  let total = 0;
+  if (useLocalStorage) {
+    const file = path.join(LOCAL_UPLOAD_DIR, key);
+    await mkdir(path.dirname(file), { recursive: true });
+    const out = createWriteStream(file);
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (!out.write(value)) await new Promise<void>((r) => out.once("drain", () => r()));
+      }
+      await new Promise<void>((resolve, reject) => out.end((e?: Error | null) => (e ? reject(e) : resolve())));
+      return total;
+    } catch (e) {
+      out.destroy();
+      await reader.cancel().catch(() => {});
+      throw e;
+    }
+  }
+
+  if (isLocal) await ensureBucketExists();
+  let pending: Uint8Array[] = [];
+  let pendingBytes = 0;
+  let uploadId: string | null = null;
+  const parts: Array<{ PartNumber: number; ETag: string }> = [];
+  const take = () => {
+    const buf = Buffer.concat(pending, pendingBytes);
+    pending = [];
+    pendingBytes = 0;
+    return buf;
+  };
+  const sendPart = async (buf: Buffer) => {
+    uploadId ??= (await createMultipartUpload(key, contentType)).uploadId;
+    const PartNumber = parts.length + 1;
+    const res = await s3Client.send(new UploadPartCommand({ Bucket: BUCKET_NAME, Key: key, UploadId: uploadId, PartNumber, Body: buf }));
+    if (!res.ETag) throw new Error("Storage didn't confirm a part");
+    parts.push({ PartNumber, ETag: res.ETag });
+  };
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      pending.push(value);
+      pendingBytes += value.byteLength;
+      total += value.byteLength;
+      if (pendingBytes >= STREAM_PART_SIZE) await sendPart(take());
+    }
+    if (!uploadId) {
+      await uploadToStorage(key, take(), contentType);
+      return total;
+    }
+    if (pendingBytes) await sendPart(take());
+    await completeMultipartUpload(key, uploadId, parts);
+    return total;
+  } catch (e) {
+    if (uploadId) await abortMultipartUpload(key, uploadId).catch(() => {});
+    await reader.cancel().catch(() => {});
+    throw e;
+  }
 }
 
 /**

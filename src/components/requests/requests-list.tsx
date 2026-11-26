@@ -57,6 +57,7 @@ import { toast } from "sonner";
 import { groupByPriority, getPriorityConfig, type Priority } from "@/lib/deadline-utils";
 import { BulkStatusDialog, type BulkActionType } from "./bulk-status-dialog";
 import { CloneRequestDialog } from "./clone-request-dialog";
+import { ContentSnareRequestsImport } from "./content-snare-requests-import";
 import { SavedFilters } from "@/components/filters/saved-filters";
 import { type FilterGroup, REQUEST_FILTER_FIELDS, createEmptyFilterGroup } from "@/lib/filter-utils";
 import { BackToTop } from "@/components/ui/back-to-top";
@@ -1221,6 +1222,7 @@ export function RequestsList({ initialRequests, creators, teamMembers = [], init
               </Link>
             </Button>
           )}
+          {can("requests.create") && <ContentSnareRequestsImport />}
           {can("requests.create") && (
             <Button asChild variant="light">
               <Link href="/dashboard/requests/new">
